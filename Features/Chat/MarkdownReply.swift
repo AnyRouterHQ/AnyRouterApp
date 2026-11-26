@@ -28,6 +28,8 @@ private struct MarkdownBlock: View, Equatable {
     var body: some View {
         Markdown(text)
             .markdownTheme(.anyRouter(size: size))
+            .markdownImageProvider(BlockedImageProvider())
+            .markdownInlineImageProvider(BlockedInlineImageProvider())
             .textSelection(.enabled)
     }
 }
