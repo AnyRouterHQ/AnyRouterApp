@@ -95,7 +95,7 @@ final class ScreenshotTests: XCTestCase {
         forEachAppearance { app, appearance in
             showSidebar(app)
             app.staticTexts["Switch models in a chat"].tap()
-            XCTAssertTrue(app.staticTexts["Switched to GPT-5"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["switch-note"].waitForExistence(timeout: 10))
             capture("response-footer", appearance)
             let details = app.buttons["response-details"].firstMatch
             XCTAssertTrue(details.waitForExistence(timeout: 5))
@@ -115,9 +115,9 @@ final class ScreenshotTests: XCTestCase {
             tabs.buttons["AnyRouter"].tap()
             XCTAssertTrue(app.buttons["model-filter"].waitForExistence(timeout: 5))
             app.buttons["model-filter"].tap()
-            XCTAssertTrue(app.switches["Free only"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.switches["filter-free-only"].waitForExistence(timeout: 5))
             capture("model-filters", appearance)
-            app.switches["Free only"].tap()
+            app.switches["filter-free-only"].tap()
             app.buttons["Done"].tap()
             capture("model-picker-free", appearance)
         }

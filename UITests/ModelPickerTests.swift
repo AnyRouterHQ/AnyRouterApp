@@ -47,7 +47,7 @@ final class ModelPickerTests: XCTestCase {
         tabs.buttons["AnyRouter"].tap()
         XCTAssertTrue(app.buttons["model-filter"].waitForExistence(timeout: 5))
         app.buttons["model-filter"].tap()
-        let free = app.switches["Free only"]
+        let free = app.switches["filter-free-only"]
         XCTAssertTrue(free.waitForExistence(timeout: 5))
         free.tap()
         app.buttons["Done"].tap()

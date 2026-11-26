@@ -123,6 +123,12 @@ struct PickerFilterStore {
 
     let defaults: UserDefaults
 
+    /// Demo runs (screenshots, UI tests) use the demo suite, which is wiped at launch, so a filter set in
+    /// one test does not leak into the next.
+    static var standardDefaults: UserDefaults {
+        DemoData.isEnabled ? (UserDefaults(suiteName: "dev.anyrouter.app.demo") ?? .standard) : .standard
+    }
+
     func cloud() -> ModelFilter { load(Self.cloudKey) ?? ModelFilter() }
     func local() -> LocalFilter { load(Self.localKey) ?? LocalFilter() }
     func save(cloud filter: ModelFilter) { store(filter, Self.cloudKey) }

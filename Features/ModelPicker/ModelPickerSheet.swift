@@ -61,7 +61,7 @@ struct ModelPickerSheet: View {
     private let picksConfig = TopPicksConfig.bundled()
     private static let providerKeysURL = URL(string: "https://anyrouter.dev/dashboard/byok")!
 
-    init(currentID: String?, defaults: UserDefaults = .standard, onSelect: @escaping (ModelDescriptor) -> Void) {
+    init(currentID: String?, defaults: UserDefaults = PickerFilterStore.standardDefaults, onSelect: @escaping (ModelDescriptor) -> Void) {
         self.currentID = currentID
         self.onSelect = onSelect
         let store = PickerFilterStore(defaults: defaults)
