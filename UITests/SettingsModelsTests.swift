@@ -110,6 +110,22 @@ final class SettingsModelsTests: XCTestCase {
         waitForExpectations(timeout: 5)
     }
 
+    func testChatInstructionsShowATagInTheHeader() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ARDemoData", "YES"]
+        app.launch()
+        let more = app.buttons["chat.more"]
+        XCTAssertTrue(more.waitForExistence(timeout: 15))
+        more.tap()
+        app.buttons["chat.instructions"].tap()
+        let editor = app.textViews["chat-instructions.editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        editor.tap()
+        editor.typeText("Be brief")
+        app.buttons["chat-instructions.save"].tap()
+        XCTAssertTrue(app.staticTexts["chat.instructions-tag"].waitForExistence(timeout: 5), "the header says this chat has its own instructions")
+    }
+
     func testDeleteAllModelsAsksFirst() {
         let app = openLocalModels()
         let deleteAll = app.buttons["local.deleteAll"]

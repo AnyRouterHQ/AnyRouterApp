@@ -14,6 +14,7 @@ struct ChatScreen: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var chat: ChatViewModel?
+    @State private var showsInstructions = false
 
     var body: some View {
         Group {
@@ -34,16 +35,31 @@ struct ChatScreen: View {
                 }
             }
             ToolbarItem(placement: .principal) {
-                ModelTitle(name: chat?.model?.shortName, isLoading: models.isLoading) { shell.isModelPickerPresented = true }
-                    // A popover under the title on iPad. On iPhone and in a compact iPad window the system turns it into the sheet.
-                    .popover(isPresented: Bindable(shell).isModelPickerPresented, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
-                        ModelPickerSheet(currentID: chat?.model?.id) { chat?.choose($0) }
-                            .frame(minWidth: sizeClass == .regular ? 400 : nil, idealWidth: sizeClass == .regular ? 440 : nil,
-                                   minHeight: sizeClass == .regular ? 520 : nil, idealHeight: sizeClass == .regular ? 640 : nil)
+                VStack(spacing: 0) {
+                    ModelTitle(name: chat?.model?.shortName, isLoading: models.isLoading) { shell.isModelPickerPresented = true }
+                        // A popover under the title on iPad. On iPhone and in a compact iPad window the system turns it into the sheet.
+                        .popover(isPresented: Bindable(shell).isModelPickerPresented, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
+                            ModelPickerSheet(currentID: chat?.model?.id) { chat?.choose($0) }
+                                .frame(minWidth: sizeClass == .regular ? 400 : nil, idealWidth: sizeClass == .regular ? 440 : nil,
+                                       minHeight: sizeClass == .regular ? 520 : nil, idealHeight: sizeClass == .regular ? 640 : nil)
+                        }
+                    if let tag = InstructionsLogic.headerTag(chat: chat?.chatInstructions) {
+                        Text(tag).font(.caption2).foregroundStyle(.secondary).accessibilityIdentifier("chat.instructions-tag")
                     }
+                }
             }
             // The title floats on the content; the system must not wrap it in a glass capsule like the two buttons.
             .sharedBackgroundVisibility(.hidden)
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button("Instructions for this chat", systemImage: "text.badge.star") { showsInstructions = true }
+                        .accessibilityIdentifier("chat.instructions")
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel("More")
+                .accessibilityIdentifier("chat.more")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "square.and.pencil") }
                     .accessibilityLabel("New chat")
@@ -59,6 +75,9 @@ struct ChatScreen: View {
         // On a window that already shows the fresh chat the task above does not run again.
         .onChange(of: shell.inbound?.id) { applyInbound() }
         .toolApprovalDialog(app.toolApprovals)
+        .sheet(isPresented: $showsInstructions) {
+            ChatInstructionsSheet(current: chat?.chatInstructions, global: settings.systemPrompt) { chat?.setChatInstructions($0) }
+        }
     }
 
     /// Keeps the current model when it already shows the selected thread (a first send creates the thread itself).

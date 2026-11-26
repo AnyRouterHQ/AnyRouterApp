@@ -7,8 +7,15 @@ struct ResponseCustomizationSettings: View {
     var body: some View {
         @Bindable var settings = settings
         Form {
-            Section("System prompt") {
-                TextField("Optional", text: $settings.systemPrompt, axis: .vertical).lineLimit(3...8)
+            Section {
+                NavigationLink {
+                    CustomInstructionsScreen()
+                } label: {
+                    LabeledContent("Custom instructions", value: InstructionsLogic.summary(global: settings.systemPrompt))
+                }
+                .accessibilityIdentifier("settings-custom-instructions")
+            } footer: {
+                Text("Told to every model at the start of a chat. Change them for one chat from its menu.")
             }
             Section("Length") {
                 HStack {

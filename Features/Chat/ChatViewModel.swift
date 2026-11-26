@@ -21,6 +21,8 @@ final class ChatViewModel {
     /// Per-thread "Enable thinking"; a new chat keeps it here until the first send creates the thread.
     private(set) var thinkingEnabled = false
     private(set) var toolsDisabled = false
+    /// Instructions for this chat only; they replace the global ones. A new chat keeps them until the first send.
+    private(set) var chatInstructions: String?
     /// Model id saved on this thread. `nil` follows the default for new chats.
     private(set) var preferredModelID: String?
     /// Files and photos waiting under the composer for the next send.
@@ -77,6 +79,7 @@ final class ChatViewModel {
         self.models = models
         self.thinkingEnabled = thread?.thinkingEnabled ?? false
         self.toolsDisabled = thread?.toolsDisabled ?? false
+        self.chatInstructions = thread?.instructions
     }
 
     var supportsThinking: Bool { model?.supportsThinking ?? false }
@@ -91,6 +94,15 @@ final class ChatViewModel {
         toolsDisabled = !on
         guard let thread else { return }
         thread.toolsDisabled = !on
+        try? context.save()
+    }
+
+    /// Blank text removes the override, so the global instructions apply again.
+    func setChatInstructions(_ text: String?) {
+        let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        chatInstructions = trimmed.isEmpty ? nil : trimmed
+        guard let thread else { return }
+        thread.instructions = chatInstructions
         try? context.save()
     }
 
@@ -445,6 +457,7 @@ final class ChatViewModel {
         let created = ThreadRecord(id: id, title: ThreadListLogic.title(fromFirstMessage: firstMessage))
         created.thinkingEnabled = thinkingEnabled
         created.toolsDisabled = toolsDisabled
+        created.instructions = chatInstructions
         context.insert(created)
         thread = created
         onThreadCreated?(created.id)
@@ -470,7 +483,8 @@ final class ChatViewModel {
         let history = ComposerMention.applying(mentions, to: thread.orderedMessages)
         context.insert(assistant)
         assistant.thread = thread
-        let params = settings.generationParams
+        var params = settings.generationParams
+        params.systemPrompt = InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt)
         var host: (any ToolHost)?
         offlineToolNote = nil
         if (toolsEnabled || !mentions.isEmpty) && model.capabilities.contains("tools") {

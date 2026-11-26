@@ -14,6 +14,8 @@ final class ThreadRecord {
     var thinkingEnabled: Bool = false
     /// Agent mode is off for this thread. Tools are on unless the user turned them off here.
     var toolsDisabled: Bool = false
+    /// Instructions for this chat only. They replace the global custom instructions. Optional so existing stores migrate.
+    var instructions: String?
     @Relationship(deleteRule: .cascade, inverse: \MessageRecord.thread)
     var messages: [MessageRecord] = []
 

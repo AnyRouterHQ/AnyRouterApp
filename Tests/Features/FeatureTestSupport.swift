@@ -47,6 +47,14 @@ final class MessagesRecorder: @unchecked Sendable {
     func record(_ messages: [ChatMessage]) { lock.withLock { raw.append(messages.last?.content ?? "") } }
 }
 
+/// The system prompt of every call, in order (nil when none was sent).
+final class SystemPromptRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var raw: [String?] = []
+    var seen: [String?] { lock.withLock { raw } }
+    func record(_ params: GenerationParams) { lock.withLock { raw.append(params.systemPrompt) } }
+}
+
 /// Tool host with fixed specs; never asked to run anything in these tests.
 struct StubToolHost: ToolHost {
     var specs: [ToolSpec] = [ToolSpec(name: "search", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: true)]
@@ -77,6 +85,7 @@ struct ScriptedEngine: ChatEngine {
     var deltas: [ChatDelta] = []
     var toolsSeen = ToolsRecorder()
     var messagesSeen = MessagesRecorder()
+    var systemPromptsSeen = SystemPromptRecorder()
 
     func availableModels() async throws -> [ModelDescriptor] { models }
 
@@ -89,6 +98,7 @@ struct ScriptedEngine: ChatEngine {
         -> AsyncThrowingStream<ChatDelta, Error> {
         toolsSeen.record(tools)
         messagesSeen.record(messages)
+        systemPromptsSeen.record(params)
         let n = calls.next()
         let deltas = self.deltas
         usedModels.add(model.id)
