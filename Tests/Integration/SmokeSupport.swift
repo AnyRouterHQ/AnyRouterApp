@@ -10,6 +10,10 @@ enum SmokeEnv {
     static var ggufPath: String? { env["ANYROUTER_SMOKE_GGUF_PATH"] }
     /// Expected sha256 of that file, from the Hugging Face listing.
     static var ggufSHA256: String? { env["ANYROUTER_SMOKE_GGUF_SHA256"] }
+    /// Catalog id (`gguf/<repo>/<file>`) of the downloaded file. Unset means the smallest GGUF in the catalog.
+    static var ggufModelID: String? { env["ANYROUTER_SMOKE_MODEL_ID"].flatMap { $0.isEmpty ? nil : $0 } }
+    /// Folder with the Gemma 4 MLX tokenizer files (no weights), for the chat template check.
+    static var mlxTokenizerDir: String? { env["ANYROUTER_SMOKE_MLX_TOKENIZER_DIR"] }
 }
 
 /// Collects findings as Markdown table rows for the job summary. Does nothing when `ANYROUTER_SMOKE_REPORT` is unset.

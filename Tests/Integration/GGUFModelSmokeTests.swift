@@ -2,7 +2,7 @@ import XCTest
 
 @testable import AnyRouter
 
-/// Runs the smallest bundled GGUF model through the real `GGUFEngine` path: catalog entry, installer, llama.cpp.
+/// Runs one bundled GGUF model (the smallest, or `ANYROUTER_SMOKE_MODEL_ID`) through the real `GGUFEngine` path: catalog entry, installer, llama.cpp.
 /// Skipped unless `ANYROUTER_SMOKE_GGUF_PATH` is set, so normal CI stays fast.
 final class GGUFModelSmokeTests: XCTestCase {
     private struct Context {
@@ -22,11 +22,15 @@ final class GGUFModelSmokeTests: XCTestCase {
         let source = URL(fileURLWithPath: try XCTUnwrap(path))
 
         let document = try BundledCatalog.load()
-        let entry = try XCTUnwrap(
-            document.models.filter { $0.format == .gguf }.min { ($0.sizeBytes ?? .max) < ($1.sizeBytes ?? .max) },
-            "bundled catalog has no GGUF entry")
+        let ggufs = document.models.filter { $0.format == .gguf }
+        let entry: CatalogEntry
+        if let id = SmokeEnv.ggufModelID {
+            entry = try XCTUnwrap(ggufs.first { $0.id == id }, "bundled catalog has no GGUF entry \(id)")
+        } else {
+            entry = try XCTUnwrap(ggufs.min { ($0.sizeBytes ?? .max) < ($1.sizeBytes ?? .max) }, "bundled catalog has no GGUF entry")
+        }
         let file = try XCTUnwrap(entry.file)
-        XCTAssertEqual(source.lastPathComponent, file, "the workflow must download the catalog's smallest GGUF file")
+        XCTAssertEqual(source.lastPathComponent, file, "the workflow must download the chosen catalog GGUF file")
 
         let size = try XCTUnwrap(try FileManager.default.attributesOfItem(atPath: source.path)[.size] as? NSNumber).int64Value
         XCTAssertEqual(size, entry.sizeBytes, "catalog sizeBytes must match the real file")
