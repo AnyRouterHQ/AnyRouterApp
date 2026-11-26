@@ -139,24 +139,25 @@ struct FamilyLogicTests {
     }
 
     /// The real catalog on one device class: the recommended size of each family.
-    private func recommended(_ deviceClass: DeviceClass, _ kind: MemoryLimitKind) throws -> [String: String?] {
+    /// "none" when no size of the family runs well.
+    private func recommended(_ deviceClass: DeviceClass, _ kind: MemoryLimitKind) throws -> [String: String] {
         let list = try families(deviceClass, kind)
         return Dictionary(uniqueKeysWithValues: list.map { family in
             (family.id, FamilyLogic.recommendedVariantID(in: family).map { id in
                 family.variants.first { $0.id == id }.map { "\($0.parameters ?? "")/\($0.descriptor.source.rawValue)" } ?? id
-            })
+            } ?? "none")
         })
     }
 
     @Test func theRecommendedSizeGrowsWithTheDevicesMemory() throws {
         // A sideloaded install has the standard limit.
-        #expect(try recommended(.gb4, .standard) == ["gemma-4": .some(nil), "qwen-3-5": .some(nil)])
-        #expect(try recommended(.gb6, .standard) == ["gemma-4": .some(nil), "qwen-3-5": "0.8B/gguf"])
+        #expect(try recommended(.gb4, .standard) == ["gemma-4": "none", "qwen-3-5": "none"])
+        #expect(try recommended(.gb6, .standard) == ["gemma-4": "none", "qwen-3-5": "0.8B/gguf"])
         #expect(try recommended(.gb8, .standard) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf"])
         #expect(try recommended(.gb12, .standard) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf"])
         #expect(try recommended(.gb16, .standard) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf"])
         // TestFlight and App Store builds have the increased limit.
-        #expect(try recommended(.gb4, .increased) == ["gemma-4": .some(nil), "qwen-3-5": "0.8B/gguf"])
+        #expect(try recommended(.gb4, .increased) == ["gemma-4": "none", "qwen-3-5": "0.8B/gguf"])
         #expect(try recommended(.gb6, .increased) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf"])
         #expect(try recommended(.gb8, .increased) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf"])
         #expect(try recommended(.gb12, .increased) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf"])
