@@ -78,28 +78,69 @@ struct CatalogDecodingTests {
     }
 }
 
+/// Answers from a closure, remembers every request and can send response headers.
+final class RecordingHTTP: HTTPFetching, @unchecked Sendable {
+    struct Reply: Sendable {
+        var status = 200
+        var body = ""
+        var headers: [String: String] = [:]
+    }
+
+    private let lock = NSLock()
+    private var seen: [URLRequest] = []
+    private let reply: @Sendable (URLRequest) -> Reply
+
+    init(_ reply: @escaping @Sendable (URLRequest) -> Reply) { self.reply = reply }
+
+    var requests: [URLRequest] { lock.withLock { seen } }
+
+    func fetch(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        lock.withLock { seen.append(request) }
+        let r = reply(request)
+        let response = HTTPURLResponse(url: request.url!, statusCode: r.status, httpVersion: nil, headerFields: r.headers)!
+        return (Data(r.body.utf8), response)
+    }
+}
+
 struct CatalogServiceRemoteTests {
     private let remoteURL = URL(string: "https://catalog.test/models.json")!
     private let remoteDoc = #"{"schemaVersion":2,"families":[{"id":"remote","name":"Remote","publisher":"P","variants":[{"repo":"org/remote","engine":"mlx","params":"1B","sizeBytes":1}]}]}"#
 
     private func service(
-        http: FakeHTTP, remote: URL?, user: [CatalogEntry] = [], dir: URL = makeTempDirectory()
+        http: any HTTPFetching, settings: CatalogSettings = CatalogSettings(), dir: URL = makeTempDirectory()
     ) -> CatalogService {
         let bundled = CatalogDocument(schemaVersion: 2, updatedAt: nil, models: [sampleMLX(repo: "org/bundled")])
-        let settings = CatalogSettings(userModels: user, remoteCatalogURL: remote)
         return CatalogService(
             bundled: { bundled }, api: HuggingFaceAPI(http: http), cacheDirectory: dir, settings: { settings })
     }
 
-    @Test func withoutACustomURLRefreshFetchesTheDefaultCatalog() async throws {
-        let s = service(http: FakeHTTP(body: remoteDoc), remote: nil)
+    private func custom(_ url: URL? = nil, user: [CatalogEntry] = [], dev: Bool = false) -> CatalogSettings {
+        CatalogSettings(userModels: user, remoteCatalogURL: url ?? URL(string: "https://catalog.test/models.json"), useDevelopmentCatalog: dev)
+    }
+
+    @Test func withoutAnythingCachedOnlyTheBundledCatalogShows() async throws {
+        let s = service(http: FakeHTTP())
+        #expect(try await s.entries().map(\.repo) == ["org/bundled"])
+    }
+
+    @Test func theSharedCatalogIsFetchedWhenTheUserSetNoURL() async throws {
+        let http = RecordingHTTP { _ in .init(body: remoteDoc) }
+        let s = service(http: http)
         #expect(try await s.refreshRemote())
-        #expect(Set(try await s.entries().map(\.repo)) == ["org/bundled", "org/remote"])
+        #expect(http.requests.first?.url == CatalogSource.productionURL)
+        #expect(try await s.entries().map(\.repo).contains("org/remote"))
+    }
+
+    @Test func theDevelopmentSwitchPicksTheDevelopmentCatalog() async throws {
+        let http = RecordingHTTP { _ in .init(body: remoteDoc) }
+        let s = service(http: http, settings: CatalogSettings(useDevelopmentCatalog: true))
+        _ = try await s.refreshRemote()
+        #expect(http.requests.first?.url == CatalogSource.developmentURL)
     }
 
     @Test func refreshedRemoteModelsShowUpMergedWithBundledAndUserOnes() async throws {
         let user = sampleMLX(repo: "org/mine")
-        let s = service(http: FakeHTTP(body: remoteDoc), remote: remoteURL, user: [user])
+        let s = service(http: FakeHTTP(body: remoteDoc), settings: custom(user: [user]))
         #expect(try await s.refreshRemote())
         let entries = try await s.entries()
         #expect(Set(entries.map(\.repo)) == ["org/bundled", "org/remote", "org/mine"])
@@ -107,38 +148,58 @@ struct CatalogServiceRemoteTests {
     }
 
     @Test func plainHTTPRemoteCatalogIsRefused() async {
-        let s = service(http: FakeHTTP(body: remoteDoc), remote: URL(string: "http://catalog.test/models.json")!)
+        let s = service(http: FakeHTTP(body: remoteDoc), settings: custom(URL(string: "http://catalog.test/models.json")))
         await #expect(throws: URLError.self) { try await s.refreshRemote() }
+    }
+
+    @Test func anUnchangedCatalogCostsOneNotModifiedAnswerAndKeepsTheCache() async throws {
+        let dir = makeTempDirectory()
+        let first = RecordingHTTP { _ in .init(body: remoteDoc, headers: ["ETag": "\"v1\""]) }
+        _ = try await service(http: first, settings: custom(), dir: dir).refreshRemote()
+
+        let second = RecordingHTTP { _ in .init(status: 304) }
+        let s = service(http: second, settings: custom(), dir: dir)
+        #expect(try await s.refreshRemote() == false)
+        #expect(second.requests.first?.value(forHTTPHeaderField: "If-None-Match") == "\"v1\"")
+        #expect(try await s.entries().map(\.repo).contains("org/remote"))
+    }
+
+    @Test func aCatalogWithoutAnETagForgetsTheOldOne() async throws {
+        let dir = makeTempDirectory()
+        _ = try await service(http: RecordingHTTP { _ in .init(body: remoteDoc, headers: ["ETag": "\"v1\""]) },
+                              settings: custom(), dir: dir).refreshRemote()
+        _ = try await service(http: RecordingHTTP { _ in .init(body: remoteDoc) }, settings: custom(), dir: dir).refreshRemote()
+        let third = RecordingHTTP { _ in .init(body: remoteDoc) }
+        _ = try await service(http: third, settings: custom(), dir: dir).refreshRemote()
+        #expect(third.requests.first?.value(forHTTPHeaderField: "If-None-Match") == nil)
     }
 
     @Test func serverErrorKeepsTheOldCache() async throws {
         let dir = makeTempDirectory()
-        let good = service(http: FakeHTTP(body: remoteDoc), remote: remoteURL, dir: dir)
-        _ = try await good.refreshRemote()
-        let bad = service(http: FakeHTTP(status: 500), remote: remoteURL, dir: dir)
+        _ = try await service(http: FakeHTTP(body: remoteDoc), settings: custom(), dir: dir).refreshRemote()
+        let bad = service(http: FakeHTTP(status: 500), settings: custom(), dir: dir)
         await #expect(throws: LocalModelError.http(status: 500)) { try await bad.refreshRemote() }
         #expect(try await bad.entries().map(\.repo).contains("org/remote"))
     }
 
     @Test func garbageResponseNeverReplacesAGoodCache() async throws {
         let dir = makeTempDirectory()
-        let good = service(http: FakeHTTP(body: remoteDoc), remote: remoteURL, dir: dir)
-        _ = try await good.refreshRemote()
-        let garbage = service(http: FakeHTTP(body: "<html>"), remote: remoteURL, dir: dir)
+        _ = try await service(http: FakeHTTP(body: remoteDoc), settings: custom(), dir: dir).refreshRemote()
+        let garbage = service(http: FakeHTTP(body: "<html>"), settings: custom(), dir: dir)
         await #expect(throws: (any Error).self) { try await garbage.refreshRemote() }
         #expect(try await garbage.entries().map(\.repo).contains("org/remote"))
     }
 
     @Test func brokenCacheFileIsIgnored() async throws {
         let dir = makeTempDirectory()
-        let s = service(http: FakeHTTP(), remote: remoteURL, dir: dir)
+        let s = service(http: FakeHTTP(), settings: custom(), dir: dir)
         let file = await s.cacheFile(for: remoteURL)
         try Data("nope".utf8).write(to: file)
         #expect(try await s.entries().map(\.repo) == ["org/bundled"])
     }
 
     @Test func eachRemoteURLHasItsOwnCacheFile() async {
-        let s = service(http: FakeHTTP(), remote: nil)
+        let s = service(http: FakeHTTP())
         let a = await s.cacheFile(for: URL(string: "https://a.test/c.json")!)
         let b = await s.cacheFile(for: URL(string: "https://b.test/c.json")!)
         #expect(a != b)
@@ -150,11 +211,22 @@ struct CatalogServiceRemoteTests {
             if path == "/api/models" { return (Data(#"[{"id":"org/found"},{"id":"bad id"}]"#.utf8), 200) }
             return (Data(#"[{"type":"file","path":"model.safetensors","size":4},{"type":"file","path":"config.json","size":2}]"#.utf8), 200)
         }
-        let s = service(http: http, remote: nil)
+        let s = service(http: http)
         #expect(try await s.search(query: "q", format: .mlx).map(\.id) == ["org/found"])
         let entries = try await s.entries(forRepo: "org/found", format: .mlx)
         #expect(entries.map(\.id) == ["mlx/org/found"])
         #expect(entries.first?.sizeBytes == 6)
+    }
+
+    @Test func aGGUFRepoWhoseHeaderCannotBeReadStillListsItsFiles() async throws {
+        let http = FakeHTTP { request in
+            if request.url?.path.contains("/tree/") == true {
+                return (Data(#"[{"type":"file","path":"m-Q4_K_M.gguf","size":4000},{"type":"file","path":"m-Q8_0.gguf","size":8000}]"#.utf8), 200)
+            }
+            return (Data("not a gguf".utf8), 200)
+        }
+        let entries = try await service(http: http).entries(forRepo: "org/m-GGUF", format: .gguf)
+        #expect(entries.map(\.file) == ["m-Q4_K_M.gguf", "m-Q8_0.gguf"])
     }
 }
 

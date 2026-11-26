@@ -189,18 +189,18 @@ struct AnyRouterEngineStreamTests {
     }
 
     @Test func droppingTheConsumerClosesTheConnection() async throws {
+        let started = Flag()
         let api = StubbedAPI { _ in
-            StubRegistry.Reply(body: Data("data: \(chunk("first"))\n\n".utf8), hangs: true)
+            started.value = true
+            return StubRegistry.Reply(hangs: true)
         }
         let sut = engine(api)
-        let first = Flag()
         let consumer = Task {
-            for try await delta in sut.stream(model: model, messages: [], params: GenerationParams()) {
-                if delta == .text("first") { first.value = true }
-            }
+            for try await _ in sut.stream(model: model, messages: [], params: GenerationParams()) {}
         }
-        for _ in 0..<500 where !first.value { try await Task.sleep(for: .milliseconds(10)) }
-        #expect(first.value)
+        for _ in 0..<500 where !started.value { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(started.value)
+        try await Task.sleep(for: .milliseconds(100))
         consumer.cancel()
         _ = await consumer.result
         for _ in 0..<500 where !StubRegistry.shared.wasStopped(host: api.host) { try await Task.sleep(for: .milliseconds(10)) }

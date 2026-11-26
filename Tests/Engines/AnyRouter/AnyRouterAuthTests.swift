@@ -2,6 +2,23 @@ import Foundation
 import Testing
 @testable import AnyRouter
 
+/// Secrets in memory. `accepts: false` plays a Keychain that refuses writes.
+final class InMemoryBacking: SecretBacking, @unchecked Sendable {
+    private let lock = NSLock()
+    private var items: [String: String] = [:]
+    private let accepts: Bool
+
+    init(accepts: Bool = true) { self.accepts = accepts }
+
+    func read(_ account: String) -> String? { lock.withLock { items[account] } }
+
+    func write(_ account: String, _ value: String?) -> Bool {
+        guard accepts else { return false }
+        lock.withLock { items[account] = value }
+        return true
+    }
+}
+
 @MainActor
 private final class ScriptedSigner: OAuthSigning {
     var result: Result<IssuedToken, Error>
@@ -22,7 +39,7 @@ private final class ScriptedSigner: OAuthSigning {
 
 @MainActor
 struct AnyRouterAuthTests {
-    private func makeStore() -> KeychainStore { KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)") }
+    private func makeStore() -> KeychainStore { KeychainStore(backing: InMemoryBacking()) }
     private let issued = IssuedToken(accessToken: "sk-ar-new", expiresAt: nil)
 
     @Test func startsSignedOutWithNothingStored() {
@@ -64,7 +81,7 @@ struct AnyRouterAuthTests {
     }
 
     @Test func aKeychainThatRefusesTheKeyIsReportedNotSilentlyIgnored() async {
-        let store = KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)") { _ in errSecInteractionNotAllowed }
+        let store = KeychainStore(backing: InMemoryBacking(accepts: false))
         let auth = AnyRouterAuth(store: store, client: ScriptedSigner(.success(issued)))
         await auth.signIn()
         #expect(auth.state == .signedOut)
@@ -112,7 +129,7 @@ struct AnyRouterAuthTests {
 }
 
 struct KeychainStoreTests {
-    private func makeStore() -> KeychainStore { KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)") }
+    private func makeStore() -> KeychainStore { KeychainStore(backing: InMemoryBacking()) }
 
     @Test func savedTokenComesBackUntilCleared() {
         let store = makeStore()
@@ -161,16 +178,35 @@ struct KeychainStoreTests {
         let ok = makeStore()
         defer { ok.clear() }
         #expect(ok.save(token: "sk-ar-1", expiresAt: nil))
-        let refusing = KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)") { _ in errSecInteractionNotAllowed }
+        let refusing = KeychainStore(backing: InMemoryBacking(accepts: false))
         #expect(!refusing.save(token: "sk-ar-1", expiresAt: nil))
         #expect(refusing.token() == nil)
     }
 
-    @Test func tokensAreSeparatedByService() {
-        let a = makeStore(), b = makeStore()
-        defer { a.clear(); b.clear() }
-        a.save(token: "only-a", expiresAt: nil)
-        #expect(b.token() == nil)
+    @Test func aTokenWithAnInvalidExpiryStaysUsable() {
+        let backing = InMemoryBacking()
+        let store = KeychainStore(backing: backing)
+        store.save(token: "sk-ar-1", expiresAt: nil)
+        _ = backing.write("oauth-expires-at", "not a number")
+        #expect(store.expiresAt() == nil)
+        #expect(store.token() == "sk-ar-1")
+    }
+}
+
+struct SystemKeychainTests {
+    /// An unsigned Simulator build has no Keychain access, so only what a working Keychain must do is asserted.
+    @Test func writesReadsAndDeletesWithoutCrashing() {
+        let keychain = SystemKeychain(service: "dev.anyrouter.tests.\(UUID().uuidString)")
+        #expect(keychain.read("account") == nil)
+        if keychain.write("account", "secret") { #expect(keychain.read("account") == "secret") }
+        #expect(keychain.write("account", nil))
+        #expect(keychain.read("account") == nil)
+    }
+
+    @Test func theDefaultStoreUsesTheSystemKeychain() {
+        let store = KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)")
+        store.clear()
+        #expect(store.token() == nil)
     }
 }
 

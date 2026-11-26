@@ -106,13 +106,15 @@ if failures:
                                os.path.join(root, rel), result], capture_output=True, text=True)
         try:
             for t in json.loads(proc.stdout):
-                for fl in t.get("files", []):
-                    for fn in fl.get("functions", []):
-                        if fn["coveredLines"] < fn["executableLines"]:
-                            name = fn["name"].replace("|", "/")
-                            uncovered.append(f"{name} (line {fn['lineNumber']}, {fn['coveredLines']}/{fn['executableLines']})")
+                functions = t.get("functions") or [fn for fl in t.get("files", []) for fn in fl.get("functions", [])]
+                for fn in functions:
+                    if fn["coveredLines"] < fn["executableLines"]:
+                        name = fn["name"].replace("|", "/")
+                        uncovered.append(f"{name} (line {fn['lineNumber']}, {fn['coveredLines']}/{fn['executableLines']})")
         except (ValueError, TypeError, KeyError):
             note = (proc.stderr or proc.stdout).strip().replace("|", "/").replace("\n", " ")[:160]
+        if not uncovered and not note:
+            note = "raw: " + proc.stdout.strip().replace("|", "/").replace("\n", " ")[:300]
         lines.append(f"| {rel} | {c} | {e} | {'; '.join(uncovered) or note or 'no data'} |")
 else:
     lines.append("All gated files are at 100% of lines.")
