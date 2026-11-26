@@ -58,10 +58,13 @@ final class ModelStore {
 
     func refresh() async {
         isLoading = true
-        models = await registry.allModels()
+        // Each engine's models appear as soon as it answers, so a slow cloud list never keeps Apple and local models waiting.
+        for await listing in registry.modelListings() {
+            models = listing
+            if listing.contains(where: \.isInstalled) { Perf.endModels() }
+        }
         isLoading = false
         hasLoaded = true
-        if models.contains(where: \.isInstalled) { Perf.endModels() }
         await refreshUsageOrder()
     }
 

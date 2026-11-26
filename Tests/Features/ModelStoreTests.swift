@@ -12,6 +12,21 @@ struct ModelStoreTests {
         return store
     }
 
+    @Test func aSlowEngineDoesNotKeepOtherModelsFromBeingUsable() async {
+        let registry = EngineRegistry()
+        registry.register(ScriptedEngine(source: .apple, models: [testModel(id: "apple/foundation")]))
+        registry.register(FakeEngine(source: .anyrouter, models: [testModel(id: "anyrouter/x", source: .anyrouter)], delay: .milliseconds(400)))
+        let store = ModelStore(registry: registry, defaults: testDefaults())
+        let refreshing = Task { await store.refresh() }
+        #expect(await waitUntil { store.selected?.id == "apple/foundation" })
+        #expect(store.isLoading)
+        #expect(!store.hasLoaded)
+        await refreshing.value
+        #expect(!store.isLoading)
+        #expect(store.hasLoaded)
+        #expect(store.models.count == 2)
+    }
+
     @Test func selectionFallsBackToFirstInstalledModel() async {
         let s = await store(models: [testModel(id: "a", installed: false), testModel(id: "b")], defaults: testDefaults())
         #expect(s.selected?.id == "b")

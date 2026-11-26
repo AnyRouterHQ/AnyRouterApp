@@ -55,6 +55,21 @@ struct EngineRegistryTests {
         #expect(await registry.allModels().map(\.id) == ["anyrouter/slow", "apple/fast"])
     }
 
+    @Test func listingsGrowAsEnginesAnswerSoAFastEngineIsNotHeldBackBySlowOne() async {
+        let registry = EngineRegistry()
+        registry.register(FakeEngine(source: .anyrouter, models: [descriptor("anyrouter/slow", .anyrouter)], delay: .milliseconds(200)))
+        registry.register(FakeEngine(source: .apple, models: [descriptor("apple/fast", .apple)]))
+        var listings: [[String]] = []
+        for await listing in registry.modelListings() { listings.append(listing.map(\.id)) }
+        #expect(listings == [["apple/fast"], ["anyrouter/slow", "apple/fast"]])
+    }
+
+    @Test func noEnginesMeansNoListings() async {
+        var count = 0
+        for await _ in EngineRegistry().modelListings() { count += 1 }
+        #expect(count == 0)
+    }
+
     @Test func registeringSameSourceReplacesEngine() async {
         let registry = EngineRegistry()
         registry.register(FakeEngine(source: .mlx, models: [descriptor("mlx/old", .mlx)]))
