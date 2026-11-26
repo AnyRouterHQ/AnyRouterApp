@@ -24,6 +24,7 @@ final class SSEParserTests: XCTestCase {
         case .done(let reason): return "done:\(reason ?? "nil")"
         case .toolCall(let call): return "toolCall:\(call.name)"
         case .toolResult(let result): return "toolResult:\(result.name)"
+        case .metadata(let metadata): return "metadata:\(metadata.servedModelID ?? "nil")"
         }
     }
 

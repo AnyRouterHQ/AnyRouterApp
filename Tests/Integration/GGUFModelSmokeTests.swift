@@ -93,7 +93,7 @@ final class GGUFModelSmokeTests: XCTestCase {
             case .done(let reason):
                 done += 1
                 finishReason = reason
-            case .toolCall, .toolResult:
+            case .toolCall, .toolResult, .metadata:
                 break
             }
         }

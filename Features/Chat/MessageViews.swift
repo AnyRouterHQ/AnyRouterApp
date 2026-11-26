@@ -9,9 +9,12 @@ struct MessageRow: View {
     var onRegenerate: () -> Void
     /// "Switched to <model>" above a reply written by a different model than the one before.
     var switchNote: String?
+    /// Setting "Show response details": cost and speed under the reply.
+    var showsDetails: Bool
 
     init(message: MessageRecord, isStreamingThis: Bool, showsRegenerate: Bool,
-         onRegenerate: @escaping () -> Void, switchNote: String? = nil) {
+         onRegenerate: @escaping () -> Void, switchNote: String? = nil, showsDetails: Bool = true) {
+        self.showsDetails = showsDetails
         self.message = message
         self.isStreamingThis = isStreamingThis
         self.showsRegenerate = showsRegenerate
@@ -73,18 +76,84 @@ struct MessageRow: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel("Regenerate")
                     }
-                    if let name = message.modelName {
-                        ModelLabel(
-                            name: name,
-                            brand: message.modelID.map { ModelBrand.resolve(id: $0) } ?? ModelBrand.unknown,
-                            style: .inline)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 4)
-                    }
                 }
+                ResponseFooter(message: message, showsDetails: showsDetails)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Under a reply: the model that wrote it (with its logo), then cost and speed. Tap for the details.
+struct ResponseFooter: View {
+    let message: MessageRecord
+    let showsDetails: Bool
+    @State private var expanded = false
+
+    private var metadata: ResponseMetadata? { message.metadata }
+
+    private var title: String? {
+        ResponseFormat.title(requestedName: message.modelName, requestedID: message.modelID, metadata: metadata)
+    }
+
+    private var brand: ModelBrand {
+        (metadata?.servedModelID ?? message.modelID).map { ModelBrand.resolve(id: $0) } ?? ModelBrand.unknown
+    }
+
+    var body: some View {
+        if let title {
+            VStack(alignment: .leading, spacing: 6) {
+                if showsDetails, let metadata {
+                    Button { expanded.toggle() } label: {
+                        HStack(spacing: 6) {
+                            ModelLabel(name: title, brand: brand, style: .inline)
+                            Text(ResponseFormat.summary(metadata).joined(separator: " · ")).lineLimit(1)
+                            Image(systemName: expanded ? "chevron.up" : "chevron.down").imageScale(.small)
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("response-details")
+                    if expanded { details(metadata) }
+                } else {
+                    ModelLabel(name: title, brand: brand, style: .inline).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private func details(_ metadata: ResponseMetadata) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            row("Model", metadata.servedModelID)
+            row("Provider", metadata.provider)
+            row("Cost", metadata.costUSD.map(PriceFormat.cost))
+            row("First token", metadata.ttftMs.map(ResponseFormat.seconds))
+            row("Total", metadata.totalMs.map(ResponseFormat.seconds))
+            row("Speed", metadata.tokensPerSecond.map(ResponseFormat.speed))
+            row("Tokens", ResponseFormat.tokens(prompt: metadata.promptTokens, completion: metadata.completionTokens))
+            row("Cached tokens", metadata.cachedTokens.map(String.init))
+            row("Upstream latency", metadata.upstreamLatencyMs.map(ResponseFormat.seconds))
+            if let id = metadata.requestID {
+                HStack(spacing: 4) {
+                    row("Request", id)
+                    CopyButton(text: id)
+                }
+            }
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private func row(_ label: String, _ value: String?) -> some View {
+        if let value {
+            HStack(alignment: .firstTextBaseline) {
+                Text(label)
+                Spacer(minLength: 12)
+                Text(value).textSelection(.enabled).multilineTextAlignment(.trailing)
+            }
+        }
     }
 }
 

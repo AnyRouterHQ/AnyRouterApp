@@ -18,7 +18,8 @@ struct ChatScreen: View {
         Group {
             if let chat {
                 ChatContent(chat: chat, presets: app.presets,
-                            subtitle: HomeLogic.subtitle(for: chat.model))
+                            subtitle: HomeLogic.subtitle(for: chat.model),
+                            showsDetails: settings.showResponseDetails)
             } else {
                 Color.clear
             }
@@ -81,6 +82,7 @@ private struct ChatContent: View {
     @Bindable var chat: ChatViewModel
     let presets: PresetStore
     let subtitle: String
+    let showsDetails: Bool
     @FocusState private var composerFocused: Bool
 
     var body: some View {
@@ -129,7 +131,8 @@ private struct ChatContent: View {
                             isStreamingThis: chat.isStreaming && message.id == lastID,
                             showsRegenerate: message.id == lastID && chat.canRegenerate,
                             onRegenerate: { chat.regenerate() },
-                            switchNote: switchNotes[message.id]
+                            switchNote: switchNotes[message.id],
+                            showsDetails: showsDetails
                         )
                     }
                     Color.clear.frame(height: 1).id("bottom")

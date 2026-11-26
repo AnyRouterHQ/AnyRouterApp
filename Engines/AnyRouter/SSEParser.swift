@@ -56,6 +56,9 @@ struct SSEParser {
 struct ChatChunkDecoder {
     private(set) var finishReason: String?
     private(set) var isDone = false
+    /// From the `anyrouter_metadata` of the last chunk, when the server sent it.
+    private(set) var metadata: ResponseMetadata?
+    private var usageSeen = false
 
     /// Tool calls arrive in fragments: the id and name once, the arguments in pieces, keyed by `index`.
     private struct ToolFragment {
@@ -113,8 +116,48 @@ struct ChatChunkDecoder {
             let prompt = (usage["prompt_tokens"] as? NSNumber)?.intValue,
             let completion = (usage["completion_tokens"] as? NSNumber)?.intValue {
             deltas.append(.usage(prompt: prompt, completion: completion))
+            usageSeen = true
+        }
+        if let raw = json["anyrouter_metadata"] as? [String: Any], let parsed = Self.metadata(from: raw) {
+            metadata = parsed
+            deltas.append(.metadata(parsed))
+            // Servers that only send the metadata still give token counts.
+            if !usageSeen, let prompt = parsed.promptTokens, let completion = parsed.completionTokens {
+                deltas.append(.usage(prompt: prompt, completion: completion))
+                usageSeen = true
+            }
         }
         return deltas
+    }
+
+    /// `anyrouter_metadata`: requestId, model, upstream {provider, backend, latencyMs}, usage, cost {amount, currency}.
+    static func metadata(from raw: [String: Any]) -> ResponseMetadata? {
+        func int(_ value: Any?) -> Int? {
+            guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+            return number.intValue
+        }
+        let upstream = raw["upstream"] as? [String: Any]
+        let usage = raw["usage"] as? [String: Any]
+        let cost = raw["cost"] as? [String: Any]
+        var costUSD: Decimal?
+        if let amount = cost?["amount"] {
+            let currency = (cost?["currency"] as? String)?.uppercased()
+            if currency == nil || currency == "USD" {
+                if let number = amount as? NSNumber { costUSD = Decimal(string: number.stringValue) }
+                else if let text = amount as? String { costUSD = Decimal(string: text) }
+            }
+        }
+        let metadata = ResponseMetadata(
+            requestID: raw["requestId"] as? String,
+            servedModelID: raw["model"] as? String,
+            servedModelName: nil,
+            provider: (upstream?["provider"] as? String) ?? (upstream?["backend"] as? String),
+            costUSD: costUSD,
+            promptTokens: int(usage?["inputTokens"]),
+            completionTokens: int(usage?["outputTokens"]),
+            cachedTokens: int(usage?["cachedTokens"]),
+            upstreamLatencyMs: int(upstream?["latencyMs"]))
+        return metadata == ResponseMetadata() ? nil : metadata
     }
 
     private mutating func absorb(_ call: [String: Any]) {

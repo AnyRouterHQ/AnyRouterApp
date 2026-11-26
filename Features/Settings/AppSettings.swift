@@ -29,6 +29,7 @@ final class AppSettings {
         static let showKeyboard = "settings.showKeyboardOnLaunch"
         static let toolsEnabled = "settings.toolsEnabled"
         static let shareDiagnostics = "settings.shareDiagnostics"
+        static let showResponseDetails = "settings.showResponseDetails"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -91,6 +92,12 @@ final class AppSettings {
     var toolsEnabled: Bool {
         get { access(keyPath: \.toolsEnabled); return defaults.object(forKey: Key.toolsEnabled) as? Bool ?? true }
         set { withMutation(keyPath: \.toolsEnabled) { defaults.set(newValue, forKey: Key.toolsEnabled) } }
+    }
+
+    /// Model, cost and speed under each reply. On by default.
+    var showResponseDetails: Bool {
+        get { access(keyPath: \.showResponseDetails); return defaults.object(forKey: Key.showResponseDetails) as? Bool ?? true }
+        set { withMutation(keyPath: \.showResponseDetails) { defaults.set(newValue, forKey: Key.showResponseDetails) } }
     }
 
     var generationParams: GenerationParams {

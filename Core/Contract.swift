@@ -51,6 +51,8 @@ enum ChatDelta: Sendable, Equatable {
     case toolCall(ToolCall)
     /// Outcome of a call the engine ran through its `ToolHost`.
     case toolResult(ToolResult)
+    /// Who served the reply, its cost and token counts. Sent once, before `.done`.
+    case metadata(ResponseMetadata)
 }
 
 /// Dropping the consumer Task must stop generation; implementations use `continuation.onTermination`.

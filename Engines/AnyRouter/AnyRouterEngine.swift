@@ -81,6 +81,7 @@ struct AnyRouterEngine: ChatEngine {
                     let specs = host?.specs ?? []
                     var transcript: [[String: Any]] = []
                     var usage: (prompt: Int, completion: Int)?
+                    var metadata: ResponseMetadata?
                     var finishReason: String?
                     var toolRounds = 0
                     while true {
@@ -95,6 +96,7 @@ struct AnyRouterEngine: ChatEngine {
                         if let used = round.usage {
                             usage = (prompt: (usage?.prompt ?? 0) + used.prompt, completion: (usage?.completion ?? 0) + used.completion)
                         }
+                        metadata = ResponseMetadata.combining(metadata, round.metadata)
                         finishReason = round.finishReason
                         guard let host, !round.toolCalls.isEmpty, !forceAnswer else { break }
 
@@ -109,6 +111,7 @@ struct AnyRouterEngine: ChatEngine {
                         }
                         toolRounds += 1
                     }
+                    if let metadata { continuation.yield(.metadata(metadata)) }
                     if let usage { continuation.yield(.usage(prompt: usage.prompt, completion: usage.completion)) }
                     continuation.yield(.done(finishReason: finishReason))
                     continuation.finish()
@@ -128,6 +131,7 @@ struct AnyRouterEngine: ChatEngine {
         var toolCalls: [ToolCall] = []
         var finishReason: String?
         var usage: (prompt: Int, completion: Int)?
+        var metadata: ResponseMetadata?
     }
 
     private func streamRound(_ request: URLRequest, emit: (ChatDelta) -> Void) async throws -> Round {
@@ -159,6 +163,8 @@ struct AnyRouterEngine: ChatEngine {
                         emit(delta)
                     case .usage(let prompt, let completion):
                         round.usage = (prompt, completion)
+                    case .metadata(let metadata):
+                        round.metadata = metadata
                     case .done, .toolCall, .toolResult:
                         break
                     }

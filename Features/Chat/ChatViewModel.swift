@@ -26,14 +26,18 @@ final class ChatViewModel {
     @ObservationIgnored private let settings: AppSettings
     @ObservationIgnored private let models: ModelStore
     @ObservationIgnored private let save: (ModelContext) throws -> Void
+    /// Seconds from any steady clock. Injected so timings are testable.
+    @ObservationIgnored private let now: () -> TimeInterval
     @ObservationIgnored private let toolHost: @MainActor () -> (any ToolHost)?
     @ObservationIgnored private var task: Task<Void, Never>?
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
          settings: AppSettings, models: ModelStore,
          toolHost: @escaping @MainActor () -> (any ToolHost)? = { nil },
-         save: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
+         save: @escaping (ModelContext) throws -> Void = { try $0.save() },
+         now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
         self.save = save
+        self.now = now
         self.toolHost = toolHost
         self.thread = thread
         self.preferredModelID = thread?.modelID
@@ -182,9 +186,15 @@ final class ChatViewModel {
         let telemetry = models.telemetry
         let source = model.source
         let started = ContinuousClock.now
+        let startedAt = now()
+        let clock = now
+        let knownModels = models.models
         let task = Task { [weak self] in
             var failure: String?
             var firstTokenSeen = false
+            var reported: ResponseMetadata?
+            var tokens: (prompt: Int, completion: Int)?
+            var ttftMs: Int?
             do {
                 for try await delta in stream {
                     // A chunk that was already buffered when the user pressed stop is dropped.
@@ -193,12 +203,15 @@ final class ChatViewModel {
                     case .text(let piece):
                         if !firstTokenSeen {
                             firstTokenSeen = true
+                            ttftMs = Self.milliseconds(clock() - startedAt)
                             telemetry.track(.firstTokenMs(TelemetryEvent.milliseconds(ContinuousClock.now - started), source: source))
                         }
                         assistant.content += piece
                     case .toolCall(let call): assistant.toolSteps.append(ToolStep(call: call, result: nil))
                     case .toolResult(let result): Self.fill(result, in: assistant)
-                    case .usage, .done: break
+                    case .usage(let prompt, let completion): tokens = (prompt, completion)
+                    case .metadata(let metadata): reported = metadata
+                    case .done: break
                     }
                 }
             } catch is CancellationError {
@@ -206,10 +219,43 @@ final class ChatViewModel {
             } catch {
                 failure = error.localizedDescription
             }
+            if !assistant.content.isEmpty || !assistant.toolSteps.isEmpty {
+                assistant.metadata = Self.finalMetadata(
+                    reported, tokens: tokens, model: model, ttftMs: ttftMs,
+                    totalMs: Self.milliseconds(clock() - startedAt),
+                    nameOf: { id in knownModels.first { $0.wireID == id }?.displayName })
+            }
             self?.finish(assistant, in: thread, failure: failure)
         }
         self.task = task
         return task
+    }
+
+    static func milliseconds(_ seconds: TimeInterval) -> Int { max(0, Int((seconds * 1000).rounded())) }
+
+    /// The metadata stored with a reply: what the server reported (or "On device" and cost 0 for
+    /// local and Apple models), plus token counts and the timings measured here.
+    static func finalMetadata(
+        _ reported: ResponseMetadata?, tokens: (prompt: Int, completion: Int)?, model: ModelDescriptor,
+        ttftMs: Int?, totalMs: Int, nameOf: (String) -> String?
+    ) -> ResponseMetadata {
+        var metadata = reported ?? ResponseMetadata()
+        if model.source != .anyrouter {
+            metadata.servedModelID = model.id
+            metadata.servedModelName = model.shortName
+            metadata.provider = "On device"
+            metadata.costUSD = 0
+        } else {
+            let served = metadata.servedModelID ?? model.wireID
+            metadata.servedModelID = served
+            metadata.servedModelName = served == model.wireID
+                ? model.shortName : (nameOf(served) ?? ResponseFormat.prettyName(served))
+        }
+        if metadata.promptTokens == nil { metadata.promptTokens = tokens?.prompt }
+        if metadata.completionTokens == nil { metadata.completionTokens = tokens?.completion }
+        metadata.ttftMs = ttftMs
+        metadata.totalMs = totalMs
+        return metadata
     }
 
     private static func fill(_ result: ToolResult, in assistant: MessageRecord) {

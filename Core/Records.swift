@@ -41,6 +41,8 @@ final class MessageRecord {
     /// Tool calls of an assistant reply as JSON. Display only: it is never sent back to a model.
     /// Optional so existing stores migrate without a mapping.
     var toolTraceData: Data?
+    /// Who served this reply, cost and speed, as JSON. Optional so existing stores migrate without a mapping.
+    var metadataData: Data?
     /// Display name of the model that wrote this reply. Optional so existing stores migrate.
     var modelName: String?
     /// Id of that model, for its logo and for "Switched to" notes.
@@ -63,6 +65,11 @@ final class MessageRecord {
     var role: ChatMessage.Role {
         get { ChatMessage.Role(rawValue: roleRaw) ?? .assistant }
         set { roleRaw = newValue.rawValue }
+    }
+
+    var metadata: ResponseMetadata? {
+        get { metadataData.flatMap { try? JSONDecoder().decode(ResponseMetadata.self, from: $0) } }
+        set { metadataData = newValue.flatMap { try? JSONEncoder().encode($0) } }
     }
 
     var toolSteps: [ToolStep] {
