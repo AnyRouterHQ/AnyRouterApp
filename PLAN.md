@@ -172,6 +172,10 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 
 - [x] H1 `Telemetry` boundary in Core/ (events, no-op, logging), MetricKit crash/hang/metric store (newest 20) with Settings, Diagnostics, optional Sentry behind `SENTRY_DSN`, Settings, Privacy opt-out, `docs/privacy.md` (9707f88)
 
+## Lane V: formal verification
+
+- [x] V1 TLA+ model of the local model lifecycle (`formal/`): one generation gate and one loaded model across both engines, unload vs a load in progress, delete vs a send, Stop at the gate. TLC and a conformance script run on Linux in `verify-formal.yml`; skill `.claude/skills/verify-local-model-lifecycle`. Found and fixed four ordering defects (V1_SHA)
+
 ## Tools & integrations (MCP)
 
 Operator request: tools and integrations through AnyRouter's MCP server. Sign-in token works against `https://anyrouter.dev/api/v1/mcp` (streamable HTTP, bearer). Core read-only tools plus Firecrawl web tools when the user connected Firecrawl; management tools are not exposed to sign-in tokens. Phases land as separate PRs.
@@ -610,7 +614,6 @@ Reviewer passes over main up to 8e275cd (2026-11-27). Fixed items are in `fix(..
 - Core/ChatAttachment.swift:6 — the synthesized `Decodable` needs every non-optional key (`isOCR`, `isTruncated`); the next field added makes old rows fail `try?` in `MessageRecord.attachments` and their attachments vanish. Add `init(from:)` with `decodeIfPresent` defaults before any change. Same for `ToolStep`, `ToolCall`, `ToolResult`. Owner: lane D (attachments).
 - Features/Chat/ChatViewModel.swift:200 — `try? attachmentStore.adopt` drops an attachment that failed to move, and the message is sent without it and without a notice. Report it. Owner: lane D.
 - Core/Records.swift:75 — `attachments`, `metadata` and `toolSteps` decode JSON on every access, and rows read them on every render. Decode once per row or cache. Owner: perf lane.
-- Engines/Local/GGUF/GGUFEngine.swift:25 — `warm` is not behind the generation gate, so a warm-up and a send for another model can load two models at once. Take the gate in `warm` or have the cache load one at a time. Owner: lane C.
 - App/AnyRouterApp.swift:16 and Core/Records.swift — `fatalError` when the store fails to open and no `VersionedSchema` or migration plan exists; the new optional fields migrate on their own, but the first rename or required field bricks launch. Add a versioned schema, or move the store aside and start empty with a notice. Owner: lane A.
 - Engines/AnyRouter/AnyRouterEngine.swift:146 — the stream loop reads one byte at a time from `AsyncBytes` and splits lines again before `SSEParser`; read bigger chunks. Same in MCPClient.read and FetchURLTool. Owner: lane B.
 - Engines/AnyRouter/Auth/LoopbackCallback.swift:68 — accepted connections are not tracked or timed out and survive `stop()`. Low risk (state check gates delivery). Owner: lane B.

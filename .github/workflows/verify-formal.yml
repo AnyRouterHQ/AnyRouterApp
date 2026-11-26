@@ -1,0 +1,57 @@
+name: Verify formal model
+
+# Model-checks formal/LocalModelLifecycle.tla (TLA+, TLC) and checks that the Swift code still matches it.
+# Runs on a Linux runner: no macOS minutes. See .claude/skills/verify-local-model-lifecycle.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "formal/**"
+      - "scripts/formal-*"
+      - "Engines/Local/**"
+      - "App/AppState.swift"
+      - "Features/Services/LocalModelHub.swift"
+      - "Features/Services/MemoryMonitor.swift"
+      - ".github/workflows/verify-formal.yml"
+  push:
+    branches: [main]
+    paths:
+      - "formal/**"
+      - "scripts/formal-*"
+      - "Engines/Local/**"
+      - "App/AppState.swift"
+      - "Features/Services/LocalModelHub.swift"
+      - "Features/Services/MemoryMonitor.swift"
+      - ".github/workflows/verify-formal.yml"
+
+concurrency:
+  group: verify-formal-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: The Swift code still matches the model
+        run: python3 -I scripts/formal-conformance.py
+
+  tlc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Java
+        run: java -version
+      - name: Invariants hold on the code as it is
+        run: scripts/formal-check.sh main
+      - name: Every request ends
+        run: scripts/formal-check.sh live
+      - name: Each invariant fails on the old design
+        env:
+          FORMAL_TRACES: "1"
+        run: scripts/formal-check.sh mutants
