@@ -65,6 +65,29 @@ struct AttachmentPromptTests {
     }
 }
 
+struct AttachmentDecodingTests {
+    private let id = "6F9619FF-8B86-D011-B42D-00C04FC964FF"
+
+    @Test func aBlobFromBeforeTheOptionalFieldsWereAddedStillDecodes() throws {
+        let old = #"{"id":"\#(id)","kind":"pdf","filename":"a.pdf","utType":"com.adobe.pdf","byteCount":10,"relativePath":"t/a.pdf"}"#
+        let decoded = try JSONDecoder().decode(ChatAttachment.self, from: Data(old.utf8))
+        #expect(decoded.filename == "a.pdf" && decoded.kind == .pdf)
+        #expect(decoded.extractedText == nil && !decoded.isOCR && !decoded.isTruncated)
+    }
+
+    @Test func fieldsThatAreThereAreRead() throws {
+        let full = #"{"id":"\#(id)","kind":"image","filename":"a.jpg","utType":"public.jpeg","byteCount":1,"relativePath":"t/a.jpg","extractedText":"hi","isOCR":true,"isTruncated":true,"futureField":1}"#
+        let decoded = try JSONDecoder().decode(ChatAttachment.self, from: Data(full.utf8))
+        #expect(decoded.extractedText == "hi" && decoded.isOCR && decoded.isTruncated)
+    }
+
+    @Test func requiredFieldsStillMatter() {
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(ChatAttachment.self, from: Data(#"{"kind":"pdf"}"#.utf8))
+        }
+    }
+}
+
 @MainActor
 struct MessageRecordAttachmentTests {
     @Test func attachmentsRoundTripThroughTheRecordAndIntoTheChatMessage() {

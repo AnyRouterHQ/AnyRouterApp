@@ -22,9 +22,31 @@ struct ChatAttachment: Identifiable, Hashable, Codable, Sendable {
     /// `extractedText` was cut at `AttachmentPrompt.maxCharacters`.
     var isTruncated = false
 
+    enum CodingKeys: String, CodingKey {
+        case id, kind, filename, utType, byteCount, relativePath, extractedText, isOCR, isTruncated
+    }
+
     func url(in root: URL) -> URL { root.appending(path: relativePath) }
 
     var mimeType: String { UTType(utType)?.preferredMIMEType ?? "application/octet-stream" }
+}
+
+/// Stored JSON outlives app versions: a field added later must decode from an old blob. Optional fields and
+/// fields with a default use `decodeIfPresent`; add new ones here the same way.
+extension ChatAttachment {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try c.decode(UUID.self, forKey: .id),
+            kind: try c.decode(Kind.self, forKey: .kind),
+            filename: try c.decode(String.self, forKey: .filename),
+            utType: try c.decode(String.self, forKey: .utType),
+            byteCount: try c.decode(Int64.self, forKey: .byteCount),
+            relativePath: try c.decode(String.self, forKey: .relativePath),
+            extractedText: try c.decodeIfPresent(String.self, forKey: .extractedText),
+            isOCR: try c.decodeIfPresent(Bool.self, forKey: .isOCR) ?? false,
+            isTruncated: try c.decodeIfPresent(Bool.self, forKey: .isTruncated) ?? false)
+    }
 }
 
 /// How an attachment reaches a model that cannot take the file itself: as text inside the message.
