@@ -17,4 +17,10 @@ The GGUF engine links the official llama.cpp xcframework (https://github.com/ggm
 
 `Tests/Engines/Local/Fixtures/stories260K.gguf` is the 260K-parameter TinyStories model from https://huggingface.co/ggml-org/tiny-llamas (Andrej Karpathy's llama2.c, MIT License). It is used only to smoke-test the llama.cpp integration.
 
-Other dependencies (mlx-swift) are listed here when they are added.
+## MLX Swift and MLX Swift LM
+
+The MLX engine uses mlx-swift (https://github.com/ml-explore/mlx-swift) and mlx-swift-lm (https://github.com/ml-explore/mlx-swift-lm), MIT License, Copyright (c) Apple Inc.
+
+## swift-transformers
+
+Tokenizers come from swift-transformers (https://github.com/huggingface/swift-transformers), Apache License 2.0, Copyright Hugging Face.
