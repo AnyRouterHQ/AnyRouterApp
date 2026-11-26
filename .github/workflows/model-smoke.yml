@@ -140,7 +140,7 @@ jobs:
             echo "|---|---|"
             if [ -f "$RUNNER_TEMP/smoke-report.md" ]; then cat "$RUNNER_TEMP/smoke-report.md"; else echo "| report | none written, see the test log |"; fi
             echo "| MLX | device only, the Simulator has no Metal GPU family |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Upload test results
         if: always()

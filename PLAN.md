@@ -157,7 +157,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [ ] F6 Vision: image attachments for AnyRouter vision models and Gemma 3 4B (VLM) via MLXVLM.
 - [ ] F7 Mac: "Designed for iPad" on Apple silicon, then a native macOS destination.
 - [ ] F8 Screenshot tests (simulator) of each main screen, compared against Atomic mobile reference screenshots.
-- [x] F9 Real-model smoke in CI: `model-smoke.yml` runs the smallest catalog GGUF through `GGUFEngine` on the Simulator, plus installer, download manager and Apple Foundation Models availability. MLX is device only. (PR pending)
+- [x] F9 Real-model smoke in CI: `model-smoke.yml` runs the smallest catalog GGUF through `GGUFEngine` on the Simulator, plus installer, download manager and Apple Foundation Models availability. MLX is device only. (#18)
 
 ## Open questions (operator)
 
