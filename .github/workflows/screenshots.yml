@@ -68,7 +68,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: screenshots-build
+          name: xcbuild-products
           path: build-products.tar
           retention-days: 1
           compression-level: 0
@@ -93,7 +93,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: screenshots-build
+          name: xcbuild-products
 
       - name: Unpack build products
         run: mkdir -p DerivedData/Build && tar -C DerivedData/Build -xf build-products.tar
@@ -124,7 +124,9 @@ jobs:
       - name: Capture
         run: |
           xcrun simctl bootstatus "$SIM_UDID" -b
-          XCTESTRUN=$(ls DerivedData/Build/Products/*.xctestrun | head -1)
+          # A restored DerivedData cache can hold xctestrun files of other schemes; take this scheme's.
+          XCTESTRUN=$(ls DerivedData/Build/Products/AnyRouterScreenshots_*.xctestrun | head -1)
+          echo "using $XCTESTRUN"
           mkdir -p raw
           TEST_RUNNER_SCREENSHOT_DIR="$PWD/raw" \
           xcodebuild test-without-building \
@@ -138,6 +140,8 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > test.log 2>&1 || echo "some capture tests failed"
           tail -n 60 test.log
           grep -E "Test Case .* (passed|failed)" test.log | sed 's/^.*Test Case //' > results.txt || true
+          # No screenshots means the tests did not run (wrong xctestrun, build problem): fail the shard.
+          ls raw/*.png >/dev/null 2>&1 || { grep -E "error:" test.log | head -5; echo "no screenshots captured"; exit 1; }
 
       - name: Name the files
         if: always()
@@ -176,7 +180,6 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           pattern: screenshots-*
-          exclude: screenshots-build
           merge-multiple: true
           path: screenshots
       - run: ls screenshots | wc -l
