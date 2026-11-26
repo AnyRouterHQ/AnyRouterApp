@@ -7,15 +7,17 @@ struct ModelPickerSheet: View {
     @Environment(ShellModel.self) private var shell
     @Environment(\.dismiss) private var dismiss
 
+    /// The model the chat uses now.
+    var currentID: String?
+    /// Called with the pick; the chat applies it to the next message.
+    var onSelect: (ModelDescriptor) -> Void
+
     @State private var query = ""
     @State private var signInError: String?
 
-    private var sections: [PickerSection] {
-        ModelPickerLogic.sections(models: models.models, query: query)
-    }
-
     var body: some View {
-        VStack(spacing: 0) {
+        let sections = ModelPickerLogic.sections(models: models.models, query: query)
+        return VStack(spacing: 0) {
             HStack {
                 Text("Choose model").font(.arXL).foregroundStyle(ARColor.foreground)
                 Spacer()
@@ -27,13 +29,13 @@ struct ModelPickerSheet: View {
                 .padding(.horizontal, ARTheme.pagePadding)
                 .padding(.vertical, 12)
             ScrollView {
-                VStack(spacing: 20) {
+                // Lazy: the cloud list has hundreds of rows.
+                LazyVStack(spacing: 8) {
                     ForEach(sections) { section in
-                        VStack(spacing: 8) {
-                            ARSectionTitle(section.title)
-                            if section.kind == .anyrouter { cloudPrompt(isEmpty: section.models.isEmpty) }
-                            ForEach(section.models) { model in row(model) }
-                        }
+                        ARSectionTitle(section.title)
+                            .padding(.top, 12)
+                        if section.kind == .anyrouter { cloudPrompt(isEmpty: section.models.isEmpty) }
+                        ForEach(section.models) { model in row(model) }
                     }
                     if sections.allSatisfy({ $0.models.isEmpty }) && !query.isEmpty {
                         Text("No matching models").font(.arSM).foregroundStyle(ARColor.mutedForeground)
@@ -62,14 +64,14 @@ struct ModelPickerSheet: View {
     }
 
     private func row(_ model: ModelDescriptor) -> some View {
-        let isSelected = models.selected?.id == model.id
+        let isSelected = currentID == model.id
         return Button {
-            models.select(model)
+            onSelect(model)
             dismiss()
         } label: {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(model.displayName).font(.arBase).foregroundStyle(ARColor.foreground).lineLimit(1)
+                    Text(model.shortName).font(.arBase).foregroundStyle(ARColor.foreground).lineLimit(1)
                     Text(subtitle(for: model)).font(.arXS).foregroundStyle(ARColor.mutedForeground)
                 }
                 Spacer()

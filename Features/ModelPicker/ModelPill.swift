@@ -2,13 +2,14 @@ import SwiftUI
 
 /// Center pill in the chat top bar showing the active model. Opens the picker.
 struct ModelPill: View {
-    @Environment(ModelStore.self) private var models
+    var model: ModelDescriptor?
+    var isLoading = false
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Text(models.selected?.displayName ?? (models.isLoading ? "Loading…" : "Choose model"))
+                Text(model?.shortName ?? (isLoading ? "Loading…" : "Choose model"))
                     .font(.system(size: 15, weight: .medium))
                     .lineLimit(1)
                 Image(systemName: "chevron.down").font(.system(size: 11, weight: .semibold))
