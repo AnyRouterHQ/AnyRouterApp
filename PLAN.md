@@ -171,6 +171,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] F8a (#23) Screenshot capture: demo data mode (`-ARDemoData YES`), `AnyRouterUITests`, `screenshots.yml` uploads PNGs for iPhone and iPad, light and dark.
 - [ ] F8b Compare the screenshots against the reference mobile screenshots.
 - [x] F9 Real-model smoke in CI: `model-smoke.yml` runs the smallest catalog GGUF through `GGUFEngine` on the Simulator, plus installer, download manager and Apple Foundation Models availability. MLX is device only. (#18)
+- [x] F10 Gemma 4 E2B and E4B (Apache-2.0) in the bundled catalog: GGUF (official QAT Q4_0, llama.cpp b10456 already has the `gemma4` arch) and MLX 4-bit (mlx-swift-lm 3.33 already has `gemma4`). Own Gemma 4 prompt formatter (llama.cpp's template list cannot apply its jinja template), hidden thinking channel, `model_id` input on `model-smoke.yml`, MLX template render check. (#25)
 
 ## Local inference roadmap
 
@@ -523,6 +524,7 @@ Reviewer pass over main up to bdf57b4 (2026-11-26). Fixed items are in `fix(...)
 - 2026-11-26 lane-docs: local inference roadmap (L1-L10 verdicts, shared Core shapes, PR sequence S1-S9), decision D14; docs only, local checks skipped
 - 2026-11-26 lane-ci: unsigned debug IPA workflow `device-ipa.yml` and `docs/sideload.md`; local checks skipped
 - 2026-11-26 lane-F8a: demo data mode, UI screenshot tests, screenshots workflow (#23); local checks skipped
+- 2026-11-26 lane-C: Gemma 4 E2B/E4B in the catalog (GGUF + MLX), Gemma 4 prompt format, model-smoke `model_id` input (F10, #25); llama.cpp stays at b10456, mlx-swift-lm at 3.33.0; local checks skipped
 - 2026-11-26 lane-docs: rewrite README for users; contributor detail already in AGENTS.md (#17); local checks skipped
 
 - 2026-11-26 lane-F9: model-smoke workflow and Tests/Integration (GGUF real-model, installer, download manager, Apple availability); local checks skipped

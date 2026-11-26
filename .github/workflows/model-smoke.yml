@@ -3,6 +3,11 @@ name: Model smoke
 # Runs real models on the iOS Simulator. Slow, so it is not part of ci.yml.
 on:
   workflow_dispatch:
+    inputs:
+      model_id:
+        description: "Catalog GGUF id to run, like gguf/<repo>/<file>. Empty runs the smallest GGUF in the catalog."
+        required: false
+        default: ""
   schedule:
     - cron: "17 3 * * *"
   pull_request:
@@ -32,12 +37,22 @@ jobs:
           sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
 
-      - name: Pick the smallest GGUF in the bundled catalog
+      - name: Pick the GGUF to run (the input, else the smallest in the bundled catalog)
+        env:
+          INPUT_MODEL_ID: ${{ inputs.model_id }}
         run: |
           python3 - <<'PY' >> "$GITHUB_ENV"
-          import json, urllib.request
+          import json, os, sys, urllib.request
           doc = json.load(open("Engines/Local/Catalog/catalog.json"))
-          entry = min((m for m in doc["models"] if m["format"] == "gguf"), key=lambda m: m.get("sizeBytes", 1 << 62))
+          ggufs = [m for m in doc["models"] if m["format"] == "gguf"]
+          wanted = os.environ.get("INPUT_MODEL_ID", "").strip()
+          if wanted:
+              matches = [m for m in ggufs if f"gguf/{m['repo']}/{m['file']}" == wanted]
+              if not matches:
+                  sys.exit("no GGUF catalog entry with id " + wanted + ". Known: " + ", ".join(f"gguf/{m['repo']}/{m['file']}" for m in ggufs))
+              entry = matches[0]
+          else:
+              entry = min(ggufs, key=lambda m: m.get("sizeBytes", 1 << 62))
           repo, file, rev = entry["repo"], entry["file"], entry["revision"]
           url = f"https://huggingface.co/api/models/{repo}/tree/{rev}"
           listing = json.load(urllib.request.urlopen(url))
@@ -47,6 +62,7 @@ jobs:
           print(f"MODEL_REV={rev}")
           print(f"MODEL_SHA256={sha}")
           print(f"MODEL_TITLE={entry['title']}")
+          print(f"MODEL_ID=gguf/{repo}/{file}")
           PY
 
       - name: Cache the model file
@@ -69,6 +85,19 @@ jobs:
           echo "expected $MODEL_SHA256"
           echo "actual   $ACTUAL"
           test "$ACTUAL" = "$MODEL_SHA256"
+
+      - name: Fetch the Gemma 4 MLX tokenizer files (chat template check, no weights)
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          repo = "mlx-community/gemma-4-e2b-it-4bit"
+          catalog = json.load(open("Engines/Local/Catalog/catalog.json"))
+          rev = next(m["revision"] for m in catalog["models"] if m["repo"] == repo)
+          out = os.path.join(os.environ["RUNNER_TEMP"], "mlx-tokenizer")
+          os.makedirs(out, exist_ok=True)
+          for name in ["config.json", "tokenizer_config.json", "tokenizer.json", "chat_template.jinja"]:
+              urllib.request.urlretrieve(f"https://huggingface.co/{repo}/resolve/{rev}/{name}", os.path.join(out, name))
+          PY
 
       - name: Cache SwiftPM and DerivedData
         uses: actions/cache@v6
@@ -117,6 +146,8 @@ jobs:
           TEST_RUNNER_ANYROUTER_SMOKE: "1"
           TEST_RUNNER_ANYROUTER_SMOKE_GGUF_PATH: ${{ runner.temp }}/model/${{ env.MODEL_FILE }}
           TEST_RUNNER_ANYROUTER_SMOKE_GGUF_SHA256: ${{ env.MODEL_SHA256 }}
+          TEST_RUNNER_ANYROUTER_SMOKE_MODEL_ID: ${{ env.MODEL_ID }}
+          TEST_RUNNER_ANYROUTER_SMOKE_MLX_TOKENIZER_DIR: ${{ runner.temp }}/mlx-tokenizer
           TEST_RUNNER_ANYROUTER_SMOKE_REPORT: ${{ runner.temp }}/smoke-report.md
         run: |
           set -o pipefail
@@ -127,6 +158,7 @@ jobs:
             -resultBundlePath SmokeResults.xcresult \
             -only-testing:AnyRouterTests/GGUFModelSmokeTests \
             -only-testing:AnyRouterTests/ModelDownloadSmokeTests \
+            -only-testing:AnyRouterTests/MLXChatTemplateSmokeTests \
             -only-testing:AnyRouterTests/AppleFoundationSmokeTests \
             CODE_SIGNING_ALLOWED=NO | tail -n 200
 

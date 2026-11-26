@@ -62,6 +62,57 @@ struct PromptBuilderTests {
     }
 }
 
+struct Gemma4FormatterTests {
+    @Test func recognizesTheGemma4TemplateByItsTurnMarkers() {
+        #expect(Gemma4Formatter.matches(template: "{{ '<|turn>' + role }}...{{ '<turn|>\\n' }}"))
+        #expect(!Gemma4Formatter.matches(template: "<start_of_turn>user\n<end_of_turn>"))
+        #expect(!Gemma4Formatter.matches(template: "<|im_start|>user<|im_end|>"))
+    }
+
+    @Test func aSingleUserTurnEndsOpenOnTheModelTurn() {
+        let text = Gemma4Formatter.format([PromptMessage(role: "user", content: "What is 2+2?")])
+        #expect(text == "<|turn>user\nWhat is 2+2?<turn|>\n<|turn>model\n")
+    }
+
+    @Test func systemAndHistoryKeepTheirTurnsAndAssistantBecomesModel() {
+        let text = Gemma4Formatter.format([
+            PromptMessage(role: "system", content: "Be brief."),
+            PromptMessage(role: "user", content: "hi"),
+            PromptMessage(role: "assistant", content: "Hello!"),
+            PromptMessage(role: "user", content: "bye"),
+        ])
+        #expect(text == "<|turn>system\nBe brief.<turn|>\n<|turn>user\nhi<turn|>\n<|turn>model\nHello!<turn|>\n<|turn>user\nbye<turn|>\n<|turn>model\n")
+    }
+
+    @Test func messageTextIsTrimmedLikeTheTemplateDoes() {
+        let text = Gemma4Formatter.format([PromptMessage(role: "user", content: "  hi\n\n")])
+        #expect(text == "<|turn>user\nhi<turn|>\n<|turn>model\n")
+    }
+
+    @Test func theFormatCarriesNoBosBecauseTokenizingAddsIt() {
+        #expect(!Gemma4Formatter.format([PromptMessage(role: "user", content: "x")]).contains("<bos>"))
+    }
+}
+
+struct ThoughtChannelFilterTests {
+    @Test func tokensInsideTheChannelAndItsMarkersAreHidden() {
+        var filter = ThoughtChannelFilter(open: 100, close: 101)
+        let visible = [5, 100, 7, 8, 101, 9].filter { filter.isVisible(Int32($0)) }
+        #expect(visible == [5, 9])
+    }
+
+    @Test func anUnclosedChannelHidesTheRest() {
+        var filter = ThoughtChannelFilter(open: 100, close: 101)
+        let visible = [100, 7, 8].filter { filter.isVisible(Int32($0)) }
+        #expect(visible.isEmpty)
+    }
+
+    @Test func modelsWithoutChannelTokensShowEverything() {
+        var filter = ThoughtChannelFilter(open: nil, close: nil)
+        #expect([1, 100, 101].allSatisfy { filter.isVisible(Int32($0)) })
+    }
+}
+
 struct UTF8AccumulatorTests {
     @Test func plainASCIIPassesStraightThrough() {
         var acc = UTF8Accumulator()
