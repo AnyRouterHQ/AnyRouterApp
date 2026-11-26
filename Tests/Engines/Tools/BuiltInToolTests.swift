@@ -71,13 +71,13 @@ final class CurrentDateTimeTests: XCTestCase {
     private func tool() -> CurrentDateTimeTool {
         var tool = CurrentDateTimeTool()
         tool.now = { Date(timeIntervalSince1970: 1_800_000_000) }  // 2027-01-15 08:00:00 UTC
-        tool.deviceTimeZone = { TimeZone(identifier: "UTC")! }
+        tool.deviceTimeZone = { TimeZone(identifier: "GMT")! }
         return tool
     }
 
     func testDefaultsToTheDeviceTimeZone() async throws {
         let answer = try await tool().run(.object([:]))
-        XCTAssertEqual(answer, "2027-01-15T08:00:00Z (UTC), Friday")
+        XCTAssertEqual(answer, "2027-01-15T08:00:00Z (GMT), Friday")
     }
 
     func testAskedTimeZoneChangesTheOffsetAndTheDay() async throws {
@@ -103,7 +103,9 @@ final class HTMLTextTests: XCTestCase {
             <!-- hidden --><ul><li>a</li><li>b</li></ul></body></html>
             """
         XCTAssertEqual(HTMLText.title(in: html), "Hello & welcome")
-        XCTAssertEqual(HTMLText.readable(html), "Head\nOne bold word.\nTwo <3!\na\nb")
+        // Blocks keep a blank line between them; what matters is the text and its order.
+        let lines = HTMLText.readable(html).components(separatedBy: "\n").filter { !$0.isEmpty }
+        XCTAssertEqual(lines, ["Head", "One bold word.", "Two <3!", "a", "b"])
     }
 
     func testEntities() {

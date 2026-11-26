@@ -203,9 +203,17 @@ final class AnyRouterSignInConnectTests: XCTestCase {
         XCTAssertNil(store.makeToolHost(approver: NeverAsked()))
     }
 
+    /// The test host's Keychain may refuse writes (the auth tests hit the same wall); then these tests have nothing to say.
+    private func workingKeychain() throws -> KeychainStore {
+        let keychain = KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)")
+        try XCTSkipUnless(keychain.save(token: "probe", expiresAt: nil), "this host's Keychain refuses writes")
+        keychain.clear()
+        return keychain
+    }
+
     func testSignedInStateFlowsFromTheAuthToTheStore() async throws {
         serveAnyRouter()
-        let keychain = KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)")
+        let keychain = try workingKeychain()
         defer { keychain.clear() }
         let store = IntegrationsStore(
             defaults: testDefaults(), credentials: FakeCredentialStore(),
@@ -230,8 +238,8 @@ final class AnyRouterSignInConnectTests: XCTestCase {
         XCTAssertEqual(store.state(for: .anyRouter).status, .needsSignIn)
     }
 
-    func testAuthReportsOnlyRealChanges() async {
-        let keychain = KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)")
+    func testAuthReportsOnlyRealChanges() async throws {
+        let keychain = try workingKeychain()
         defer { keychain.clear() }
         let auth = AnyRouterAuth(store: keychain, client: ImmediateSigner())
         var changes: [Bool] = []
