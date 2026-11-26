@@ -20,9 +20,24 @@ final class PresetStore {
     init(fileURL: URL = PresetStore.defaultURL, builtIns: [PromptPreset]? = nil) {
         self.fileURL = fileURL
         self.builtIns = builtIns ?? ((try? PresetStore.bundled()) ?? [])
-        if let data = try? Data(contentsOf: fileURL), let saved = try? JSONDecoder().decode(Saved.self, from: data) {
+        guard let data = try? Data(contentsOf: fileURL) else { return }
+        if let saved = try? JSONDecoder().decode(Saved.self, from: data) {
             custom = saved.custom
             hiddenBuiltIns = saved.hiddenBuiltIns
+        } else {
+            keepUnreadableFile()
+        }
+    }
+
+    /// A file that exists but cannot be decoded is the user's data. Move it aside before the next save would overwrite it.
+    private func keepUnreadableFile() {
+        let name = fileURL.deletingPathExtension().lastPathComponent + ".unreadable-\(Int(Date().timeIntervalSince1970)).json"
+        let aside = fileURL.deletingLastPathComponent().appendingPathComponent(name)
+        do {
+            try FileManager.default.moveItem(at: fileURL, to: aside)
+            saveError = "Your presets file could not be read. It was kept as \(name)."
+        } catch {
+            saveError = "Your presets file could not be read: \(error.localizedDescription)"
         }
     }
 

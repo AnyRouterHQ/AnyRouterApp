@@ -51,6 +51,21 @@ struct PresetTests {
         #expect(featured.count == 4)
     }
 
+    @Test func anUnreadablePresetsFileIsKeptNotOverwritten() throws {
+        let url = tempURL()
+        let garbage = Data("{ not json".utf8)
+        try garbage.write(to: url)
+        let store = PresetStore(fileURL: url, builtIns: sample(2))
+        #expect(store.custom.isEmpty)
+        #expect(store.saveError != nil)
+        store.add(title: "Mine", prompt: "Prompt", category: .write)
+        let siblings = try FileManager.default.contentsOfDirectory(at: url.deletingLastPathComponent(), includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.hasPrefix(url.deletingPathExtension().lastPathComponent + ".unreadable-") }
+        #expect(siblings.count == 1)
+        #expect(try Data(contentsOf: siblings[0]) == garbage)
+        #expect(PresetStore(fileURL: url, builtIns: sample(2)).custom.map(\.title) == ["Mine"])
+    }
+
     @Test func customCRUDPersistsAcrossReload() {
         let url = tempURL()
         defer { try? FileManager.default.removeItem(at: url) }
