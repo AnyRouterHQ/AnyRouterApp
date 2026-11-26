@@ -4,6 +4,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppState.self) private var appState
     @State private var shell = ShellModel()
+    @State private var showsOnboarding = false
 
     var body: some View {
         AppShell()
@@ -12,6 +13,17 @@ struct RootView: View {
             .environment(appState.models)
             .tint(ARColor.accent)
             .preferredColorScheme(appState.settings.appearance.colorScheme)
+            .fullScreenCover(isPresented: $showsOnboarding) {
+                OnboardingScreen {
+                    appState.settings.hasOnboarded = true
+                    showsOnboarding = false
+                }
+                .environment(appState)
+                .environment(appState.models)
+                .tint(ARColor.accent)
+                .preferredColorScheme(appState.settings.appearance.colorScheme)
+            }
+            .onAppear { showsOnboarding = !appState.settings.hasOnboarded }
             .task {
                 await appState.hub.reload()
                 await appState.models.refresh()

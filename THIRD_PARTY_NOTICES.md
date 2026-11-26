@@ -9,6 +9,10 @@ Copyright 2025 Menlo Research (https://menlo.ai)
 
 Licensed under the Apache License, Version 2.0. You may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0. Atomic Chat's own NOTICE text, if any, is reproduced here when code or assets are ported.
 
+## MarkdownUI
+
+Markdown rendering uses swift-markdown-ui (https://github.com/gonzalezreal/swift-markdown-ui), licensed under the MIT License. Copyright (c) 2020 Guillermo Gonzalez.
+
 ## llama.cpp
 
 The GGUF engine links the official llama.cpp xcframework (https://github.com/ggml-org/llama.cpp), MIT License, Copyright (c) 2023-2026 The ggml authors.

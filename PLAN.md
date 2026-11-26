@@ -140,8 +140,8 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] D3 (#9) Chat screen (Atomic `ChatInput.tsx`, message list, markdown with code blocks, copy, regenerate, stop)
 - [x] D4 (#12) Model picker (Atomic `DropdownModelProvider.tsx`): grouped by source, install state, sign-in prompt for AnyRouter
 - [x] D5 (#12) Hub (Atomic `routes/hub`): catalog list, search, download/delete with progress, fit badge
-- [ ] D6 Settings (Atomic `routes/settings`): account (sign in/out), model providers, catalog sources editor, generation defaults, appearance, about + licenses
-- [ ] D7 Onboarding (Atomic `onboarding/`): first launch → pick Apple / download small local / sign in
+- [x] D6 (#13) Settings (Atomic `routes/settings`): account (sign in/out), model providers, catalog sources editor, generation defaults, appearance, about + licenses
+- [x] D7 (#13) Onboarding (Atomic `onboarding/`): first launch → pick Apple / download small local / sign in
 
 ### Lane E — ad-hoc signing and install (model: sonnet-low; blocked on operator secrets)
 - [ ] E1 `release-adhoc.yml`: import cert + profile from secrets, `xcodebuild archive` + `-exportArchive` (method `release-testing`/ad-hoc), upload IPA artifact
@@ -161,6 +161,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - 2026-11-26 lane-D: design tokens, adaptive shell, threads sidebar, AnyRouter icon (#8); local checks skipped
 - 2026-11-26 lane-D: chat screen, composer, markdown (MarkdownUI), view model tests (#9); AppState now registers the Apple and AnyRouter engines; local checks skipped
 - 2026-11-26 lane-D: model picker, hub, `LocalModelHub` adapter, background session app delegate (#12); local checks skipped
+- 2026-11-26 lane-D: settings, onboarding, licenses (#13); lane D tasks D1-D7 done; local checks skipped
 - 2026-11-26 lane-A: hygiene (gitleaks, dependabot, templates, README, notices) (#3); PR #1 merged, CI green
 - 2026-11-26 lane-B: Apple + AnyRouter engines, OAuth sign-in, SSE/PKCE tests (#2); local checks skipped, CI is the gate
 - 2026-11-26 lane-C: catalog, HF client, device fit, background downloads and installer with tests (#7); local checks skipped
