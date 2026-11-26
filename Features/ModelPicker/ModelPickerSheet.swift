@@ -1,30 +1,47 @@
 import SwiftUI
 
 /// One picker row. Line 1: logo, name and rank. Line 2: price, context, capability symbols and weekly use.
-/// Two lines of fixed size, so the list keeps one row height.
+/// Two lines of fixed size, so the list keeps one row height. At accessibility text sizes the row stacks
+/// and wraps instead (see `RowLayout`).
 struct ModelRowView: View {
     let row: ModelRowModel
     let isCurrent: Bool
 
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .body) private var logoSize: CGFloat = 26
 
     var body: some View {
+        let layout = RowLayout.make(typeSize)
+        return content(layout)
+            .opacity(row.isDimmed ? 0.45 : 1)
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("model-row.\(row.id)")
+    }
+
+    @ViewBuilder
+    private func content(_ layout: RowLayout) -> some View {
+        if layout.isStacked {
+            stackedRow(layout)
+        } else {
+            compactRow(layout)
+        }
+    }
+
+    private func compactRow(_ layout: RowLayout) -> some View {
         HStack(spacing: 12) {
             ModelLogo(brand: row.brand, size: logoSize)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(row.title).font(.body).lineLimit(1).layoutPriority(1)
+                    Text(row.title).font(.body).lineLimit(layout.titleLineLimit).layoutPriority(1)
                     if !row.idLabel.isEmpty {
                         Text(row.idLabel).font(.footnote).foregroundStyle(.secondary)
                             .lineLimit(1).truncationMode(.middle)
                     }
                     Spacer(minLength: 0)
-                    if let usage = row.usage, let rank = row.rankText {
-                        Text(rank).font(.footnote.monospacedDigit()).foregroundStyle(.secondary)
-                            .accessibilityLabel("Rank \(usage.rank) this week")
-                    }
+                    rankLabel
                 }
-                // The most informative line that fits, so a narrow row or a large text size loses the usage first.
+                // The most informative line that fits, so a narrow row loses the usage first.
                 ViewThatFits(in: .horizontal) {
                     detailLine(usage: row.usage?.weeklySummary)
                     detailLine(usage: row.usage?.summary)
@@ -33,35 +50,72 @@ struct ModelRowView: View {
             }
             if isCurrent { Image(systemName: "checkmark").fontWeight(.semibold) }
         }
-        .opacity(row.isDimmed ? 0.45 : 1)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("model-row.\(row.id)")
+    }
+
+    /// Accessibility sizes: the name may take as many lines as it needs, and each detail gets its own line.
+    private func stackedRow(_ layout: RowLayout) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            ModelLogo(brand: row.brand, size: logoSize)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(row.title).font(.body).lineLimit(layout.titleLineLimit)
+                    Spacer(minLength: 0)
+                    rankLabel
+                }
+                if !row.idLabel.isEmpty {
+                    Text(row.idLabel).font(.footnote).foregroundStyle(.secondary).lineLimit(2).truncationMode(.middle)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    if row.isFree, let badge = row.details.first { freeBadge(badge) }
+                    if !row.detailsAfterBadge.isEmpty { Text(row.detailsAfterBadge).lineLimit(layout.detailLineLimit) }
+                    capabilityIcons
+                    if let usage = row.usage?.weeklySummary { Text(usage).lineLimit(layout.detailLineLimit) }
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+            if isCurrent { Image(systemName: "checkmark").fontWeight(.semibold) }
+        }
+    }
+
+    @ViewBuilder
+    private var rankLabel: some View {
+        if let usage = row.usage, let rank = row.rankText {
+            Text(rank).font(.footnote.monospacedDigit()).foregroundStyle(.secondary)
+                .accessibilityLabel("Rank \(usage.rank) this week")
+        }
+    }
+
+    private func freeBadge(_ badge: String) -> some View {
+        Label {
+            Text(badge)
+        } icon: {
+            Image(systemName: "gift").font(.caption2).imageScale(.small)
+        }
+        .labelStyle(.titleAndIcon)
+    }
+
+    @ViewBuilder
+    private var capabilityIcons: some View {
+        if !row.capabilities.isEmpty {
+            // Small, tight symbols so they read as part of the line, not as buttons.
+            HStack(spacing: 3) {
+                ForEach(row.capabilities) { capability in
+                    Image(systemName: capability.symbol).accessibilityLabel(capability.title)
+                }
+            }
+            .font(.caption2)
+            .imageScale(.small)
+        }
     }
 
     private func detailLine(usage: String?) -> some View {
         HStack(spacing: 6) {
-            if row.isFree, let badge = row.details.first {
-                Label {
-                    Text(badge)
-                } icon: {
-                    Image(systemName: "gift").font(.caption2).imageScale(.small)
-                }
-                .labelStyle(.titleAndIcon)
-            }
+            if row.isFree, let badge = row.details.first { freeBadge(badge) }
             let rest = row.detailsAfterBadge
             if row.isFree && !rest.isEmpty { Text("·") }
             if !rest.isEmpty { Text(rest).lineLimit(1) }
-            if !row.capabilities.isEmpty {
-                // Small, tight symbols so they read as part of the line, not as buttons.
-                HStack(spacing: 3) {
-                    ForEach(row.capabilities) { capability in
-                        Image(systemName: capability.symbol).accessibilityLabel(capability.title)
-                    }
-                }
-                .font(.caption2)
-                .imageScale(.small)
-            }
+            capabilityIcons
             Spacer(minLength: 0)
             if let usage { Text(usage).lineLimit(1) }
         }
