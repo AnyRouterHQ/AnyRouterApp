@@ -9,7 +9,9 @@ on:
     - cron: "41 2 * * *"
 
 concurrency:
-  group: screenshots-${{ github.ref }}
+  # One extra macOS workflow at a time across screenshots, verify-ui, perf, model-smoke and ipad-ui,
+  # so main CI and the device build always have runners. A newer waiting run replaces an older waiting one.
+  group: extra-macos-${{ github.ref }}
   # Several agents dispatch this; a running capture finishes instead of being cancelled by the next one.
   cancel-in-progress: false
 

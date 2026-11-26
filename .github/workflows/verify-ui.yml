@@ -22,7 +22,9 @@ on:
     - cron: "17 3 * * *"
 
 concurrency:
-  group: verify-ui-${{ github.ref }}
+  # One extra macOS workflow at a time across screenshots, verify-ui, perf, model-smoke and ipad-ui,
+  # so main CI and the device build always have runners. A newer waiting run replaces an older waiting one.
+  group: extra-macos-${{ github.ref }}
   # Runner budget: a run in progress finishes; the next one waits.
   cancel-in-progress: false
 

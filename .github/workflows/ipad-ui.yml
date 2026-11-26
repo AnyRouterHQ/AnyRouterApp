@@ -6,7 +6,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ipad-ui-${{ github.ref }}
+  # One extra macOS workflow at a time across screenshots, verify-ui, perf, model-smoke and ipad-ui,
+  # so main CI and the device build always have runners. A newer waiting run replaces an older waiting one.
+  group: extra-macos-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
