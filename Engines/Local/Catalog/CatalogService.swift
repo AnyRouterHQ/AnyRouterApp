@@ -21,27 +21,41 @@ actor CatalogService {
         self.settings = settings
     }
 
-    /// Merged catalog. Throws only when the bundled file is broken; a bad cached remote copy is ignored.
+    /// Merged catalog: bundled file, then the cached remote copy, then the user's models. Entries for other platforms
+    /// are dropped. Throws only when the bundled file is broken; a bad cached remote copy is ignored.
     func entries() throws -> [CatalogEntry] {
         let current = settings()
-        let remote = current.remoteCatalogURL.flatMap { cachedRemote(for: $0) } ?? []
-        return CatalogMerger.merge(bundled: try bundled().models, remote: remote, user: current.userModels)
+        let remote = cachedRemote(for: current.effectiveCatalogURL) ?? []
+        let merged = CatalogMerger.merge(bundled: try bundled().models, remote: remote, user: current.userModels)
+        return merged.filter { $0.origin == .user || $0.isAvailableOnThisPlatform }
     }
 
-    /// Fetches the remote catalog from settings and caches it. Returns false when no URL is set.
+    /// Fetches the catalog (the user's URL, else the development or production file) and caches it. Sends the stored
+    /// ETag, so an unchanged file costs one small 304. Returns true when a new copy was stored.
     /// The document is decoded before it is cached, so a bad response never replaces a good copy.
     @discardableResult
     func refreshRemote() async throws -> Bool {
-        guard let url = settings().remoteCatalogURL else { return false }
+        let url = settings().effectiveCatalogURL
         guard CatalogSettings.isAcceptableRemoteCatalogURL(url) else { throw URLError(.unsupportedURL) }
+        let cached = cacheFile(for: url)
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 30
+        // An ETag without its body is useless, so only send it while the cached body is there.
+        if FileManager.default.fileExists(atPath: cached.path), let etag = try? String(contentsOf: etagFile(for: url), encoding: .utf8) {
+            request.setValue(etag, forHTTPHeaderField: "If-None-Match")
+        }
         let (data, response) = try await api.http.fetch(request)
+        if response.statusCode == 304 { return false }
         guard (200..<300).contains(response.statusCode) else { throw LocalModelError.http(status: response.statusCode) }
         _ = try CatalogDocument.decode(data)
         try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
-        try data.write(to: cacheFile(for: url), options: .atomic)
+        try data.write(to: cached, options: .atomic)
+        if let etag = response.value(forHTTPHeaderField: "ETag") {
+            try etag.write(to: etagFile(for: url), atomically: true, encoding: .utf8)
+        } else {
+            try? FileManager.default.removeItem(at: etagFile(for: url))
+        }
         return true
     }
 
@@ -62,6 +76,10 @@ actor CatalogService {
         let digest = SHA256.hash(data: Data(url.absoluteString.utf8))
         let name = digest.prefix(8).map { String(format: "%02x", $0) }.joined()
         return cacheDirectory.appending(path: "remote-\(name).json")
+    }
+
+    private func etagFile(for url: URL) -> URL {
+        cacheFile(for: url).deletingPathExtension().appendingPathExtension("etag")
     }
 
     private func cachedRemote(for url: URL) -> [CatalogEntry]? {

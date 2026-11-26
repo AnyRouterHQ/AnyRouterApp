@@ -6,9 +6,11 @@ enum OnboardingLogic {
     /// Largest local model we offer first: at most this big, so a first download stays quick.
     static let recommendedMaxBytes: Int64 = 1_500_000_000
 
-    /// First catalog entry that fits the device and is small; else the smallest one that fits at all.
+    /// First catalog entry flagged for onboarding that fits the device; else the first small one that fits;
+    /// else the smallest one that fits at all.
     static func recommendedLocal(in catalog: [LocalModelEntry]) -> LocalModelEntry? {
         let usable = catalog.filter { $0.fit != .wontFit && $0.unavailableReason == nil }
+        if let flagged = usable.first(where: \.isOnboarding) { return flagged }
         if let small = usable.first(where: { ($0.descriptor.sizeBytes ?? .max) <= recommendedMaxBytes }) { return small }
         return usable.min { ($0.descriptor.sizeBytes ?? .max) < ($1.descriptor.sizeBytes ?? .max) }
     }

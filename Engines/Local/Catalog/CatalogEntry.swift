@@ -14,6 +14,18 @@ enum CatalogOrigin: Int, Sendable, Comparable {
     static func < (lhs: CatalogOrigin, rhs: CatalogOrigin) -> Bool { lhs.rawValue < rhs.rawValue }
 }
 
+/// A short label on a catalog card. `tone` is one of "info", "success", "warning"; anything else renders neutral.
+struct CatalogBadge: Codable, Hashable, Sendable {
+    var label: String
+    var tone: String?
+}
+
+/// The vision companion of a model: the projector file in the same repo. Data only until image input ships.
+struct CatalogVision: Codable, Hashable, Sendable {
+    var mmprojFile: String
+    var mmprojSize: Int64?
+}
+
 /// One downloadable local model: a single GGUF file, or a whole MLX repo snapshot.
 struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
     /// Hugging Face repo id, `org/name`.
@@ -37,6 +49,24 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
     /// Smaller sorts first. Entries without one sort last.
     var order: Int?
     var origin: CatalogOrigin
+    /// GGUF only: expected sha256 of the file. A download whose Hugging Face listing says otherwise is refused.
+    var sha256: String?
+    /// Short key the UI maps to an icon, e.g. "gemma". Unknown keys fall back to a generic icon.
+    var iconKey: String?
+    var badges: [CatalogBadge]
+    var supportsThinking: Bool
+    var vision: CatalogVision?
+    /// Offered first in onboarding.
+    var isOnboarding: Bool
+    /// "ios", "ipados", ... Nil means every platform.
+    var platforms: [String]?
+    /// Shown as a top pick.
+    var recommended: Bool
+    /// RAM below which the model should not be offered as runnable. Nil means use the size estimate.
+    var minRAMBytes: Int64?
+    /// ISO dates (`yyyy-MM-dd`).
+    var createdAt: String?
+    var updatedAt: String?
 
     /// Matches `ModelDescriptor.id`: `gguf/<repo>/<file>` or `mlx/<repo>`.
     var id: String {
@@ -51,7 +81,10 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         summary: String? = nil, parameters: String? = nil, quantization: String? = nil,
         sizeBytes: Int64? = nil, contextLength: Int? = nil, license: String? = nil,
         revision: String? = nil, capabilities: Set<String> = ["chat"], order: Int? = nil,
-        origin: CatalogOrigin = .bundled
+        origin: CatalogOrigin = .bundled, sha256: String? = nil, iconKey: String? = nil,
+        badges: [CatalogBadge] = [], supportsThinking: Bool = false, vision: CatalogVision? = nil,
+        isOnboarding: Bool = false, platforms: [String]? = nil, recommended: Bool = false,
+        minRAMBytes: Int64? = nil, createdAt: String? = nil, updatedAt: String? = nil
     ) {
         self.repo = repo
         self.format = format
@@ -67,11 +100,24 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         self.capabilities = capabilities
         self.order = order
         self.origin = origin
+        self.sha256 = sha256
+        self.iconKey = iconKey
+        self.badges = badges
+        self.supportsThinking = supportsThinking
+        self.vision = vision
+        self.isOnboarding = isOnboarding
+        self.platforms = platforms
+        self.recommended = recommended
+        self.minRAMBytes = minRAMBytes
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
     }
 
     private enum CodingKeys: String, CodingKey {
         case repo, format, file, title, summary, parameters, quantization, sizeBytes
         case contextLength, license, revision, capabilities, order
+        case sha256, iconKey, badges, supportsThinking, vision, isOnboarding, platforms, recommended
+        case minRAMBytes, createdAt, updatedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -96,7 +142,18 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
             license: try c.decodeIfPresent(String.self, forKey: .license),
             revision: try c.decodeIfPresent(String.self, forKey: .revision),
             capabilities: try c.decodeIfPresent(Set<String>.self, forKey: .capabilities) ?? ["chat"],
-            order: try c.decodeIfPresent(Int.self, forKey: .order)
+            order: try c.decodeIfPresent(Int.self, forKey: .order),
+            sha256: try c.decodeIfPresent(String.self, forKey: .sha256)?.lowercased(),
+            iconKey: try c.decodeIfPresent(String.self, forKey: .iconKey),
+            badges: try c.decodeIfPresent([CatalogBadge].self, forKey: .badges) ?? [],
+            supportsThinking: try c.decodeIfPresent(Bool.self, forKey: .supportsThinking) ?? false,
+            vision: try c.decodeIfPresent(CatalogVision.self, forKey: .vision),
+            isOnboarding: try c.decodeIfPresent(Bool.self, forKey: .isOnboarding) ?? false,
+            platforms: try c.decodeIfPresent([String].self, forKey: .platforms),
+            recommended: try c.decodeIfPresent(Bool.self, forKey: .recommended) ?? false,
+            minRAMBytes: try c.decodeIfPresent(Int64.self, forKey: .minRAMBytes),
+            createdAt: try c.decodeIfPresent(String.self, forKey: .createdAt),
+            updatedAt: try c.decodeIfPresent(String.self, forKey: .updatedAt)
         )
     }
 
@@ -115,6 +172,23 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         try c.encodeIfPresent(revision, forKey: .revision)
         try c.encode(capabilities.sorted(), forKey: .capabilities)
         try c.encodeIfPresent(order, forKey: .order)
+        try c.encodeIfPresent(sha256, forKey: .sha256)
+        try c.encodeIfPresent(iconKey, forKey: .iconKey)
+        if !badges.isEmpty { try c.encode(badges, forKey: .badges) }
+        if supportsThinking { try c.encode(true, forKey: .supportsThinking) }
+        try c.encodeIfPresent(vision, forKey: .vision)
+        if isOnboarding { try c.encode(true, forKey: .isOnboarding) }
+        try c.encodeIfPresent(platforms, forKey: .platforms)
+        if recommended { try c.encode(true, forKey: .recommended) }
+        try c.encodeIfPresent(minRAMBytes, forKey: .minRAMBytes)
+        try c.encodeIfPresent(createdAt, forKey: .createdAt)
+        try c.encodeIfPresent(updatedAt, forKey: .updatedAt)
+    }
+
+    /// False when the entry lists platforms and iOS is not one of them (iPad counts as iOS).
+    var isAvailableOnThisPlatform: Bool {
+        guard let platforms else { return true }
+        return platforms.contains { ["ios", "ipados"].contains($0.lowercased()) }
     }
 }
 

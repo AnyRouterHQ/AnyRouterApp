@@ -14,10 +14,16 @@
       "contextLength": 40960,
       "license": "apache-2.0",
       "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+      "sha256": "ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a",
       "capabilities": [
         "chat",
         "reasoning"
       ],
+      "iconKey": "qwen",
+      "supportsThinking": true,
+      "isOnboarding": true,
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 0
     },
     {
@@ -35,6 +41,10 @@
         "chat",
         "reasoning"
       ],
+      "iconKey": "qwen",
+      "supportsThinking": true,
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 1
     },
     {
@@ -49,10 +59,15 @@
       "contextLength": 40960,
       "license": "apache-2.0",
       "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+      "sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
       "capabilities": [
         "chat",
         "reasoning"
       ],
+      "iconKey": "qwen",
+      "supportsThinking": true,
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 2
     },
     {
@@ -70,6 +85,10 @@
         "chat",
         "reasoning"
       ],
+      "iconKey": "qwen",
+      "supportsThinking": true,
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 3
     },
     {
@@ -84,10 +103,15 @@
       "contextLength": 40960,
       "license": "apache-2.0",
       "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+      "sha256": "f6f851777709861056efcdad3af01da38b31223a3ba26e61a4f8bf3a2195813a",
       "capabilities": [
         "chat",
         "reasoning"
       ],
+      "iconKey": "qwen",
+      "supportsThinking": true,
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 4
     },
     {
@@ -105,6 +129,10 @@
         "chat",
         "reasoning"
       ],
+      "iconKey": "qwen",
+      "supportsThinking": true,
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 5
     },
     {
@@ -119,9 +147,14 @@
       "contextLength": 32768,
       "license": "gemma",
       "revision": "f0b45be0aac41bd6a100a4b5734cad5f67255bfb",
+      "sha256": "8270790f3ab69fdfe860b7b64008d9a19986d8df7e407bb018184caa08798ebd",
       "capabilities": [
         "chat"
       ],
+      "iconKey": "gemma",
+      "isOnboarding": true,
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 6
     },
     {
@@ -138,6 +171,9 @@
       "capabilities": [
         "chat"
       ],
+      "iconKey": "gemma",
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 7
     },
     {
@@ -152,9 +188,13 @@
       "contextLength": 131072,
       "license": "gemma",
       "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+      "sha256": "04a43a22e8d2003deda5acc262f68ec1005fa76c735a9962a8c77042a74a7d19",
       "capabilities": [
         "chat"
       ],
+      "iconKey": "gemma",
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 8
     },
     {
@@ -169,9 +209,13 @@
       "contextLength": 131072,
       "license": "llama3.2",
       "revision": "067b946cf014b7c697f3654f621d577a3e3afd1c",
+      "sha256": "6f85a640a97cf2bf5b8e764087b1e83da0fdb51d7c9fab7d0fece9385611df83",
       "capabilities": [
         "chat"
       ],
+      "iconKey": "llama",
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 9
     },
     {
@@ -188,6 +232,9 @@
       "capabilities": [
         "chat"
       ],
+      "iconKey": "llama",
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 10
     },
     {
@@ -202,9 +249,13 @@
       "contextLength": 131072,
       "license": "llama3.2",
       "revision": "5ab33fa94d1d04e903623ae72c95d1696f09f9e8",
+      "sha256": "6c1a2b41161032677be168d354123594c0e6e67d2b9227c84f296ad037c728ff",
       "capabilities": [
         "chat"
       ],
+      "iconKey": "llama",
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 11
     },
     {
@@ -221,6 +272,9 @@
       "capabilities": [
         "chat"
       ],
+      "iconKey": "llama",
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 12
     },
     {
@@ -235,9 +289,20 @@
       "contextLength": 131072,
       "license": "apache-2.0",
       "revision": "675cff42a74c774d6cb76f76d8eacb49b48c9b93",
+      "sha256": "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
       "capabilities": [
         "chat"
       ],
+      "iconKey": "gemma",
+      "badges": [
+        {
+          "label": "New",
+          "tone": "success"
+        }
+      ],
+      "recommended": true,
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 13
     },
     {
@@ -254,6 +319,15 @@
       "capabilities": [
         "chat"
       ],
+      "iconKey": "gemma",
+      "badges": [
+        {
+          "label": "New",
+          "tone": "success"
+        }
+      ],
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 14
     },
     {
@@ -268,9 +342,23 @@
       "contextLength": 131072,
       "license": "apache-2.0",
       "revision": "4b4a2c1d584be7264f87aac328a1bc739ce81b6c",
+      "sha256": "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
       "capabilities": [
         "chat"
       ],
+      "iconKey": "gemma",
+      "badges": [
+        {
+          "label": "New",
+          "tone": "success"
+        },
+        {
+          "label": "Large download",
+          "tone": "warning"
+        }
+      ],
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 15
     },
     {
@@ -287,6 +375,19 @@
       "capabilities": [
         "chat"
       ],
+      "iconKey": "gemma",
+      "badges": [
+        {
+          "label": "New",
+          "tone": "success"
+        },
+        {
+          "label": "Large download",
+          "tone": "warning"
+        }
+      ],
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
       "order": 16
     }
   ]

@@ -13,6 +13,7 @@ on:
   pull_request:
     paths:
       - "Engines/Local/**"
+      - "catalog/**"
       - "Tests/Integration/**"
       - ".github/workflows/model-smoke.yml"
 
@@ -43,7 +44,7 @@ jobs:
         run: |
           python3 - <<'PY' >> "$GITHUB_ENV"
           import json, os, sys, urllib.request
-          doc = json.load(open("Engines/Local/Catalog/catalog.json"))
+          doc = json.load(open("catalog/models.json"))
           ggufs = [m for m in doc["models"] if m["format"] == "gguf"]
           wanted = os.environ.get("INPUT_MODEL_ID", "").strip()
           if wanted:
@@ -91,7 +92,7 @@ jobs:
           python3 - <<'PY'
           import json, os, urllib.request
           repo = "mlx-community/gemma-4-e2b-it-4bit"
-          catalog = json.load(open("Engines/Local/Catalog/catalog.json"))
+          catalog = json.load(open("catalog/models.json"))
           rev = next(m["revision"] for m in catalog["models"] if m["repo"] == repo)
           out = os.path.join(os.environ["RUNNER_TEMP"], "mlx-tokenizer")
           os.makedirs(out, exist_ok=True)

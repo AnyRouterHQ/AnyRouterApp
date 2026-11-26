@@ -23,6 +23,13 @@ enum DownloadState: Sendable, Equatable {
     }
 }
 
+/// A short label on a model card.
+struct ModelBadge: Hashable, Sendable {
+    enum Tone: String, Sendable { case neutral, info, success, warning }
+    var label: String
+    var tone: Tone = .neutral
+}
+
 /// A local (GGUF or MLX) model shown in the hub and the onboarding picker.
 struct LocalModelEntry: Identifiable, Hashable, Sendable {
     var descriptor: ModelDescriptor
@@ -33,6 +40,11 @@ struct LocalModelEntry: Identifiable, Hashable, Sendable {
     var isUserAdded: Bool
     /// Why this model cannot run on this device (for example MLX in the Simulator). Nil when it can.
     var unavailableReason: String? = nil
+    var badges: [ModelBadge] = []
+    /// The catalog offers it first in onboarding.
+    var isOnboarding = false
+    /// The catalog marks it as a top pick.
+    var isRecommended = false
     var id: String { descriptor.id }
 }
 
@@ -52,7 +64,12 @@ protocol ModelHubService: AnyObject {
     var catalog: [LocalModelEntry] { get }
     var lastError: String? { get }
     var remoteCatalogURL: String { get }
+    /// True while the shared catalog is read from `dev-models.json` instead of `models.json`.
+    var usesDevelopmentCatalog: Bool { get }
 
+    /// Fetches the shared catalog (cached with an ETag) and reloads. Never throws: a failed fetch keeps the cached list.
+    func refreshCatalog() async
+    func setUsesDevelopmentCatalog(_ on: Bool) async
     /// Reloads the catalog and refreshes install state from disk.
     func reload() async
     func downloadState(for modelID: String) -> DownloadState
@@ -77,7 +94,10 @@ final class EmptyModelHubService: ModelHubService {
     var catalog: [LocalModelEntry] = []
     var lastError: String?
     var remoteCatalogURL: String = ""
+    var usesDevelopmentCatalog = false
 
+    func refreshCatalog() async {}
+    func setUsesDevelopmentCatalog(_ on: Bool) async { usesDevelopmentCatalog = on }
     func reload() async {}
     func downloadState(for modelID: String) -> DownloadState { .notInstalled }
     func download(_ entry: LocalModelEntry) {}

@@ -14,6 +14,15 @@ struct OnboardingLogicTests {
         #expect(OnboardingLogic.recommendedLocal(in: catalog)?.id == "small")
     }
 
+    @Test func aCatalogFlaggedModelComesFirstEvenWhenAnEarlierOneIsSmaller() {
+        var flagged = entry("flagged", size: 1_200_000_000)
+        flagged.isOnboarding = true
+        let catalog = [entry("tiny", size: 300_000_000), flagged]
+        #expect(OnboardingLogic.recommendedLocal(in: catalog)?.id == "flagged")
+        flagged.fit = .wontFit
+        #expect(OnboardingLogic.recommendedLocal(in: [entry("tiny", size: 300_000_000), flagged])?.id == "tiny", "a flagged model that will not fit is skipped")
+    }
+
     @Test func skipsModelsThatWillNotFit() {
         let catalog = [entry("big-no", size: 500_000_000, fit: .wontFit), entry("ok", size: 800_000_000)]
         #expect(OnboardingLogic.recommendedLocal(in: catalog)?.id == "ok")

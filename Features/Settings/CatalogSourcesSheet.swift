@@ -37,14 +37,19 @@ struct CatalogSourcesSheet: View {
                             .buttonStyle(.arFilled)
                             .disabled(isBusy || SettingsLogic.parseRepo(repoText) == nil)
                     }
-                    SettingsGroup("Remote catalog") {
-                        TextField("https://example.com/catalog.json", text: $remoteText)
+                    SettingsGroup("Catalog source") {
+                        TextField("Default: the AnyRouter catalog on GitHub", text: $remoteText)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .keyboardType(.URL)
                             .padding(10)
                             .background(ARColor.input.opacity(0.5), in: RoundedRectangle(cornerRadius: ARTheme.radius, style: .continuous))
-                        SettingsText("Leave empty to use only the built-in catalog.")
+                        SettingsText("The list is fetched at launch and when you pull to refresh. Leave empty to use the AnyRouter catalog on GitHub. The built-in list is the offline fallback.")
+                        Toggle("Use the development catalog", isOn: Binding(
+                            get: { hub.usesDevelopmentCatalog },
+                            set: { on in Task { await hub.setUsesDevelopmentCatalog(on) } }))
+                            .font(.arBase)
+                            .tint(ARColor.accent)
                         Button(isBusy ? "Saving…" : "Save") { saveRemote() }
                             .buttonStyle(.arSecondary)
                             .disabled(isBusy)

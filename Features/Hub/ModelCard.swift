@@ -6,6 +6,7 @@ struct ModelCard: View {
     let sizeText: String?
     let summary: String
     let tags: [String]
+    var badges: [ModelBadge] = []
     var fit: ModelFit = .unknown
     var state: DownloadState = .notInstalled
     var unavailableReason: String?
@@ -26,7 +27,7 @@ struct ModelCard: View {
             }
             Text(summary).font(.arSM).foregroundStyle(ARColor.mutedForeground)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            FlowTags(tags: tags, fit: fit)
+            FlowTags(tags: tags, badges: badges, fit: fit)
             actions
         }
         .padding(14)
@@ -82,10 +83,21 @@ struct ModelCard: View {
 /// Wrapping row of tag chips plus the device-fit badge.
 private struct FlowTags: View {
     let tags: [String]
+    let badges: [ModelBadge]
     let fit: ModelFit
+
+    private func tint(_ tone: ModelBadge.Tone) -> Color {
+        switch tone {
+        case .neutral: ARColor.mutedForeground
+        case .info: ARColor.accent
+        case .success: .green
+        case .warning: .orange
+        }
+    }
 
     var body: some View {
         HStack(spacing: 6) {
+            ForEach(badges, id: \.self) { ARChip(text: $0.label, tint: tint($0.tone)) }
             ForEach(tags.prefix(4), id: \.self) { ARChip(text: $0) }
             switch fit {
             case .fits: ARChip(text: "fits", tint: .green)

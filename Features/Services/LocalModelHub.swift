@@ -12,6 +12,7 @@ final class LocalModelHub: ModelHubService {
     private(set) var catalog: [LocalModelEntry] = []
     private(set) var lastError: String?
     private(set) var remoteCatalogURL: String = ""
+    private(set) var usesDevelopmentCatalog = false
 
     let downloads: ModelDownloadManager
     @ObservationIgnored private let service: CatalogService
@@ -41,6 +42,7 @@ final class LocalModelHub: ModelHubService {
         }
         let settings = CatalogSettings.load(from: defaults)
         remoteCatalogURL = settings.remoteCatalogURL?.absoluteString ?? ""
+        usesDevelopmentCatalog = settings.useDevelopmentCatalog
         do {
             let entries = try await service.entries()
             let userIDs = Set(settings.userModels.map(\.id))
@@ -51,6 +53,12 @@ final class LocalModelHub: ModelHubService {
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    func refreshCatalog() async {
+        // A failed or bad remote file must not break the hub: keep what is cached and bundled.
+        _ = try? await service.refreshRemote()
+        await reload()
     }
 
     func downloadState(for modelID: String) -> DownloadState {
@@ -132,6 +140,13 @@ final class LocalModelHub: ModelHubService {
         await reload()
     }
 
+    func setUsesDevelopmentCatalog(_ on: Bool) async {
+        var settings = CatalogSettings.load(from: defaults)
+        settings.useDevelopmentCatalog = on
+        save(settings)
+        await refreshCatalog()
+    }
+
     // MARK: - Private
 
     private func persist(adding items: [CatalogEntry]) async {
@@ -185,7 +200,10 @@ final class LocalModelHub: ModelHubService {
             tags: tags,
             fit: verdict,
             isUserAdded: isUser,
-            unavailableReason: unavailable
+            unavailableReason: unavailable,
+            badges: entry.badges.map { ModelBadge(label: $0.label, tone: ModelBadge.Tone(rawValue: $0.tone ?? "") ?? .neutral) },
+            isOnboarding: entry.isOnboarding,
+            isRecommended: entry.recommended
         )
     }
 }

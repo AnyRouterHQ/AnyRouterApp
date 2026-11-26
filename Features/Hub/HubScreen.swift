@@ -49,6 +49,7 @@ struct HubScreen: View {
                 .padding(.bottom, 24)
                 .frame(maxWidth: .infinity)
             }
+            .refreshable { await hub.refreshCatalog() }
         }
         .searchable(text: $query, prompt: "Search models")
         .refreshable { await hub.reload() }
@@ -91,6 +92,7 @@ struct HubScreen: View {
             sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes),
             summary: entry.summary,
             tags: entry.tags,
+            badges: entry.badges,
             fit: entry.fit,
             state: hub.downloadState(for: id),
             unavailableReason: entry.unavailableReason,

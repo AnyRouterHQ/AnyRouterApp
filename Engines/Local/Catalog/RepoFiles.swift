@@ -59,8 +59,13 @@ enum RepoFiles {
     static func downloadPlan(for entry: CatalogEntry, files: [HFFile]) throws -> [HFFile] {
         switch entry.format {
         case .gguf:
-            guard let match = files.first(where: { $0.path == entry.file }) else {
+            guard var match = files.first(where: { $0.path == entry.file }) else {
                 throw LocalModelError.notFound(entry.file ?? entry.repo)
+            }
+            // The catalog pins the file's sha256. A different file at the same path is refused, not downloaded.
+            if let pinned = entry.sha256 {
+                if let listed = match.sha256, listed.lowercased() != pinned { throw LocalModelError.checksumMismatch(match.path) }
+                match.sha256 = pinned
             }
             return [match]
         case .mlx:

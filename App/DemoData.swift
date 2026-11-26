@@ -173,6 +173,7 @@ final class DemoHub: ModelHubService {
     private(set) var catalog: [LocalModelEntry]
     var lastError: String?
     var remoteCatalogURL = ""
+    var usesDevelopmentCatalog = false
     private let states: [String: DownloadState]
 
     init(installed: Bool) {
@@ -188,6 +189,8 @@ final class DemoHub: ModelHubService {
     }
 
     func reload() async {}
+    func refreshCatalog() async {}
+    func setUsesDevelopmentCatalog(_ on: Bool) async { usesDevelopmentCatalog = on }
     func downloadState(for modelID: String) -> DownloadState { states[modelID] ?? .notInstalled }
     func download(_ entry: LocalModelEntry) {}
     func pause(modelID: String) {}

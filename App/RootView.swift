@@ -28,6 +28,8 @@ struct RootView: View {
             .task {
                 await appState.hub.reload()
                 await appState.models.refresh()
+                // The shared catalog updates without an app release. The bundled list is already showing.
+                await appState.hub.refreshCatalog()
             }
     }
 }

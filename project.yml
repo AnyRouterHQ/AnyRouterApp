@@ -46,6 +46,7 @@ targets:
         optional: true
       - path: Engines
         optional: true
+      - path: catalog/models.json
     excludes:
       - "**/.gitkeep"
     info:
