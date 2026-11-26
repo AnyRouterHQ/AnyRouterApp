@@ -17,14 +17,14 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
-    /// `landscape`: the screen screenshot stays in the device's portrait frame (the content comes out turned
-    /// clockwise), so turn it back counter-clockwise before saving.
+    /// `landscape`: `pngRepresentation` stays in the device's portrait frame (content turned), `image` carries the
+    /// orientation, so its PNG is upright.
     private func capture(_ name: String, _ appearance: Appearance, landscape: Bool = false) {
         sleep(1)
         // On a Mac the screen is the whole desktop: capture the app's window.
         let screenshot = ProcessInfo.processInfo.isiOSAppOnMac
             ? XCUIApplication().windows.firstMatch.screenshot() : XCUIScreen.main.screenshot()
-        let png = landscape ? Self.turnedCounterClockwise(screenshot.image) ?? screenshot.pngRepresentation : screenshot.pngRepresentation
+        let png = landscape ? screenshot.image.pngData() ?? screenshot.pngRepresentation : screenshot.pngRepresentation
         let attachment = XCTAttachment(uniformTypeIdentifier: "public.png", name: "\(appearance.rawValue)-\(name)", payload: png)
         attachment.lifetime = .keepAlways
         add(attachment)
@@ -36,15 +36,6 @@ final class ScreenshotTests: XCTestCase {
         } catch {
             XCTFail("Could not write \(url.lastPathComponent): \(error)")
         }
-    }
-
-    private static func turnedCounterClockwise(_ image: UIImage) -> Data? {
-        let size = CGSize(width: image.size.height, height: image.size.width)
-        return UIGraphicsImageRenderer(size: size).image { context in
-            context.cgContext.translateBy(x: 0, y: size.height)
-            context.cgContext.rotate(by: -.pi / 2)
-            image.draw(at: .zero)
-        }.pngData()
     }
 
     private func button(_ app: XCUIApplication, containing text: String) -> XCUIElement {
