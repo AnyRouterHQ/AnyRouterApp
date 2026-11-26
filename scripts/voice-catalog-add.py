@@ -3,12 +3,15 @@
 
 Each downloadable voice model is a folder of files. This script pins the repo revision and writes every file with
 its absolute URL, size and sha256 (the LFS oid), so the app downloads exactly these bytes and verifies them.
-Run: python3 -I scripts/voice-catalog-add.py   (needs network; rewrites the Whisper entries, keeps the rest)
+Run: python3 -I scripts/voice-catalog-add.py [whisper] [ttskit]   (needs network). With no argument it rewrites every
+group; with names it rewrites only those groups and keeps the other entries as they are. A group follows the head of
+its Hugging Face repo, so rewrite only the one you are changing: the others stay on their pinned commit.
 """
 import hashlib
 import json
 import pathlib
 import subprocess
+import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "catalog" / "voice-models.json"
@@ -37,6 +40,27 @@ WHISPER = [
 ]
 
 
+# TTSKit (Qwen3-TTS on Core ML). The folder layout is TTSKitConfig's: modelFolder/qwen3_tts/<component>/<versionDir>/<variant>/*.mlmodelc.
+# The variants are Qwen3VariantDefaults in argmax-oss-swift v1.1.1, the ones TTSKit loads for the 0.6B model on iOS
+# (the variant strings do not depend on the platform; only 0.6B is offered on iOS). Keep both in step with the pinned package.
+TTSKIT_REPO = "argmaxinc/ttskit-coreml"
+TTSKIT_VERSION_DIR = "12hz-0.6b-customvoice"
+TTSKIT_COMPONENTS = [
+    ("code_decoder", "W8A16-stateful"),
+    ("multi_code_decoder", "W8A16-multifunction"),
+    ("code_embedder", "W16A16"),
+    ("multi_code_embedder", "W16A16"),
+    ("text_projector", "W8A16"),
+    ("speech_decoder", "W8A16-multifunction"),
+]
+# TTSKit loads its tokenizer from tokenizerFolder when tokenizer.json is there (the default is a Hub download of this repo).
+# tokenizer_config.json is read with it, and its tokenizer_class (Qwen2Tokenizer) is what picks the tokenizer.
+TTSKIT_TOKENIZER_REPO = "Qwen/Qwen3-0.6B"
+TTSKIT_TOKENIZER_FILES = ["tokenizer.json", "tokenizer_config.json"]
+# Qwen3Language in TTSKit, as language codes.
+TTSKIT_LANGUAGES = ["en", "zh", "ja", "ko", "de", "fr", "ru", "pt", "es", "it"]
+
+
 def get(url):
     # curl uses the system certificate store; python.org builds of Python do not ship one.
     return json.loads(subprocess.run(["curl", "-fsSL", "--max-time", "60", url], check=True, capture_output=True).stdout)
@@ -55,6 +79,48 @@ def tokenizer_files(entry_id):
         data = fetch_bytes(url)
         files.append({"path": name, "url": url, "sizeBytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
     return files
+
+
+def hf_file(repo, revision, remote_path, install_path, item):
+    """One catalog file. A file stored in Git rather than LFS has no sha256 in the listing, so it is hashed here."""
+    url = f"https://huggingface.co/{repo}/resolve/{revision}/{remote_path}"
+    if "lfs" in item:
+        return {"path": install_path, "url": url, "sizeBytes": item["lfs"]["size"], "sha256": item["lfs"]["oid"]}
+    data = fetch_bytes(url)
+    assert len(data) == item["size"], f"{remote_path}: listing says {item['size']} bytes, download is {len(data)}"
+    return {"path": install_path, "url": url, "sizeBytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+
+
+def ttskit_entries():
+    revision = get(API + TTSKIT_REPO)["sha"]
+    files = []
+    for component, variant in TTSKIT_COMPONENTS:
+        folder = f"qwen3_tts/{component}/{TTSKIT_VERSION_DIR}/{variant}"
+        tree = get(f"{API}{TTSKIT_REPO}/tree/{revision}/{folder}?recursive=true")
+        listed = [item for item in tree if item["type"] == "file"]
+        assert listed, f"no files under {folder}"
+        files += [hf_file(TTSKIT_REPO, revision, item["path"], item["path"], item) for item in listed]
+    tokenizer_revision = get(API + TTSKIT_TOKENIZER_REPO)["sha"]
+    tokenizer_tree = {item["path"]: item for item in get(f"{API}{TTSKIT_TOKENIZER_REPO}/tree/{tokenizer_revision}")}
+    for name in TTSKIT_TOKENIZER_FILES:
+        files.append(hf_file(TTSKIT_TOKENIZER_REPO, tokenizer_revision, name, name, tokenizer_tree[name]))
+    files.sort(key=lambda f: f["path"])
+    return [{
+        "id": "ttskit-qwen3-0.6b",
+        "kind": "tts",
+        "engine": "ttsKit",
+        "title": "Qwen3-TTS 0.6B",
+        "summary": "Natural neural voices in 10 languages: English, Chinese, Japanese, Korean, German, French, Russian, "
+                   "Portuguese, Spanish and Italian. Vietnamese is not covered, so it uses the system voice.",
+        "languages": TTSKIT_LANGUAGES,
+        "detectsLanguage": False,
+        # Qwen3-TTS-12Hz-0.6B-CustomVoice is Apache-2.0 on its model card; argmax's Core ML conversion card states no licence.
+        "license": "Apache-2.0",
+        "sourceURL": f"https://huggingface.co/{TTSKIT_REPO}/tree/{revision}/qwen3_tts",
+        "order": 1,
+        "sizeBytes": sum(f["sizeBytes"] for f in files),
+        "files": files,
+    }]
 
 
 def whisper_entries():
@@ -98,10 +164,24 @@ def whisper_entries():
     return entries
 
 
+# Entry order in the file: each group, then everything else.
+GROUPS = [("whisper", "whisperKit", whisper_entries), ("ttskit", "ttsKit", ttskit_entries)]
+
+
 def main():
+    wanted = set(sys.argv[1:])
+    unknown = wanted - {name for name, _, _ in GROUPS}
+    if unknown:
+        sys.exit(f"unknown group {', '.join(sorted(unknown))}; choose from {', '.join(name for name, _, _ in GROUPS)}")
     existing = json.loads(OUT.read_text()) if OUT.exists() else {"models": []}
-    kept = [m for m in existing["models"] if m["engine"] != "whisperKit"]
-    models = whisper_entries() + kept
+    engines = {engine for _, engine, _ in GROUPS}
+    models = []
+    for name, engine, build in GROUPS:
+        if not wanted or name in wanted:
+            models += build()
+        else:
+            models += [m for m in existing["models"] if m["engine"] == engine]
+    models += [m for m in existing["models"] if m["engine"] not in engines]
     OUT.write_text(json.dumps({"version": 1, "models": models}, indent=2, ensure_ascii=False) + "\n")
     print(f"wrote {len(models)} voice models to {OUT}")
 

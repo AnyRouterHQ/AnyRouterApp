@@ -559,6 +559,224 @@
           "sha256": "844b642c73a91359722f47b35705f7174686df33d252695d8572cf9ac03a6389"
         }
       ]
+    },
+    {
+      "id": "ttskit-qwen3-0.6b",
+      "kind": "tts",
+      "engine": "ttsKit",
+      "title": "Qwen3-TTS 0.6B",
+      "summary": "Natural neural voices in 10 languages: English, Chinese, Japanese, Korean, German, French, Russian, Portuguese, Spanish and Italian. Vietnamese is not covered, so it uses the system voice.",
+      "languages": [
+        "en",
+        "zh",
+        "ja",
+        "ko",
+        "de",
+        "fr",
+        "ru",
+        "pt",
+        "es",
+        "it"
+      ],
+      "detectsLanguage": false,
+      "license": "Apache-2.0",
+      "sourceURL": "https://huggingface.co/argmaxinc/ttskit-coreml/tree/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts",
+      "order": 1,
+      "sizeBytes": 1102450148,
+      "files": [
+        {
+          "path": "qwen3_tts/code_decoder/12hz-0.6b-customvoice/W8A16-stateful/CodeDecoder.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/code_decoder/12hz-0.6b-customvoice/W8A16-stateful/CodeDecoder.mlmodelc/analytics/coremldata.bin",
+          "sizeBytes": 243,
+          "sha256": "dbc1ea6ac3fa1e7a07a9e19a4407badc3cdf153bc2382b6a6d408a880f3964c3"
+        },
+        {
+          "path": "qwen3_tts/code_decoder/12hz-0.6b-customvoice/W8A16-stateful/CodeDecoder.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/code_decoder/12hz-0.6b-customvoice/W8A16-stateful/CodeDecoder.mlmodelc/coremldata.bin",
+          "sizeBytes": 671,
+          "sha256": "8c9e439b240cd4bf60f1a142b4c3d34ea5ae64f57c9e2fd407606cbdae76a4d2"
+        },
+        {
+          "path": "qwen3_tts/code_decoder/12hz-0.6b-customvoice/W8A16-stateful/CodeDecoder.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/code_decoder/12hz-0.6b-customvoice/W8A16-stateful/CodeDecoder.mlmodelc/metadata.json",
+          "sizeBytes": 4715,
+          "sha256": "9768fb57d7c42f2027ae19d03146e7e1fdffec898752f1433abd5ee2438a6d91"
+        },
+        {
+          "path": "qwen3_tts/code_decoder/12hz-0.6b-customvoice/W8A16-stateful/CodeDecoder.mlmodelc/model.mil",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/code_decoder/12hz-0.6b-customvoice/W8A16-stateful/CodeDecoder.mlmodelc/model.mil",
+          "sizeBytes": 1099925,
+          "sha256": "d85f30ec349615afbb31bc76c192ac17d23494282e1fecd86b5c00207109a378"
+        },
+        {
+          "path": "qwen3_tts/code_decoder/12hz-0.6b-customvoice/W8A16-stateful/CodeDecoder.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/code_decoder/12hz-0.6b-customvoice/W8A16-stateful/CodeDecoder.mlmodelc/weights/weight.bin",
+          "sizeBytes": 443885568,
+          "sha256": "c9618fdb2a96db80646b257659ec4cf01240283c211ea7fc3ad0d986d35304fa"
+        },
+        {
+          "path": "qwen3_tts/code_embedder/12hz-0.6b-customvoice/W16A16/CodeEmbedder.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/code_embedder/12hz-0.6b-customvoice/W16A16/CodeEmbedder.mlmodelc/analytics/coremldata.bin",
+          "sizeBytes": 243,
+          "sha256": "5880de6256184e5a3bdbbdd631e8fccf030f2cf82d8930c36bc9542cd5d31645"
+        },
+        {
+          "path": "qwen3_tts/code_embedder/12hz-0.6b-customvoice/W16A16/CodeEmbedder.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/code_embedder/12hz-0.6b-customvoice/W16A16/CodeEmbedder.mlmodelc/coremldata.bin",
+          "sizeBytes": 380,
+          "sha256": "2d19846f4edbd27cef1e45f4c155aad182318620c53e94897a21622774c604b8"
+        },
+        {
+          "path": "qwen3_tts/code_embedder/12hz-0.6b-customvoice/W16A16/CodeEmbedder.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/code_embedder/12hz-0.6b-customvoice/W16A16/CodeEmbedder.mlmodelc/metadata.json",
+          "sizeBytes": 1724,
+          "sha256": "aeef2a451448d0398615a1ba6058e42c0d850c872dea68cc201d66d3a86dc60e"
+        },
+        {
+          "path": "qwen3_tts/code_embedder/12hz-0.6b-customvoice/W16A16/CodeEmbedder.mlmodelc/model.mil",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/code_embedder/12hz-0.6b-customvoice/W16A16/CodeEmbedder.mlmodelc/model.mil",
+          "sizeBytes": 3164,
+          "sha256": "943242464ba087273de05fb7454a37d0ed69fb3f196475ddfc400bc6329eb233"
+        },
+        {
+          "path": "qwen3_tts/code_embedder/12hz-0.6b-customvoice/W16A16/CodeEmbedder.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/code_embedder/12hz-0.6b-customvoice/W16A16/CodeEmbedder.mlmodelc/weights/weight.bin",
+          "sizeBytes": 6291584,
+          "sha256": "5bf4059e34abbb08bea47b47e1cc305a08c690c19e42526aa97c14e9dd66b4b4"
+        },
+        {
+          "path": "qwen3_tts/multi_code_decoder/12hz-0.6b-customvoice/W8A16-multifunction/MultiCodeDecoder.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/multi_code_decoder/12hz-0.6b-customvoice/W8A16-multifunction/MultiCodeDecoder.mlmodelc/analytics/coremldata.bin",
+          "sizeBytes": 243,
+          "sha256": "4b1f35bd2ae7d47f54a1d7ea1bc0365d0811cf1638d907d18fb12e4a39d5c76b"
+        },
+        {
+          "path": "qwen3_tts/multi_code_decoder/12hz-0.6b-customvoice/W8A16-multifunction/MultiCodeDecoder.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/multi_code_decoder/12hz-0.6b-customvoice/W8A16-multifunction/MultiCodeDecoder.mlmodelc/coremldata.bin",
+          "sizeBytes": 624,
+          "sha256": "20a306ad1c06654b84a69e7b3653a75c77cb591dcc673715e1965dd4e09e22c4"
+        },
+        {
+          "path": "qwen3_tts/multi_code_decoder/12hz-0.6b-customvoice/W8A16-multifunction/MultiCodeDecoder.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/multi_code_decoder/12hz-0.6b-customvoice/W8A16-multifunction/MultiCodeDecoder.mlmodelc/metadata.json",
+          "sizeBytes": 11936,
+          "sha256": "e513b230f2637c0ee683172fea9895aa10c0cdba8b3ac49709cf3503181a0f90"
+        },
+        {
+          "path": "qwen3_tts/multi_code_decoder/12hz-0.6b-customvoice/W8A16-multifunction/MultiCodeDecoder.mlmodelc/model.mil",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/multi_code_decoder/12hz-0.6b-customvoice/W8A16-multifunction/MultiCodeDecoder.mlmodelc/model.mil",
+          "sizeBytes": 2613272,
+          "sha256": "ac9bf899efe988808b839436e6c33738d2962e14007c6bf1c0e4e8a923afb7d5"
+        },
+        {
+          "path": "qwen3_tts/multi_code_decoder/12hz-0.6b-customvoice/W8A16-multifunction/MultiCodeDecoder.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/multi_code_decoder/12hz-0.6b-customvoice/W8A16-multifunction/MultiCodeDecoder.mlmodelc/weights/weight.bin",
+          "sizeBytes": 141647584,
+          "sha256": "bd25b7ef15bf16b72f01f49f04e861cad3885de39cebce1cd1fae420f248e8c0"
+        },
+        {
+          "path": "qwen3_tts/multi_code_embedder/12hz-0.6b-customvoice/W16A16/MultiCodeEmbedder.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/multi_code_embedder/12hz-0.6b-customvoice/W16A16/MultiCodeEmbedder.mlmodelc/analytics/coremldata.bin",
+          "sizeBytes": 243,
+          "sha256": "18324dfd306ef038fcb0e0a279809ca8f8ea24e92d6bac7c15fbd81df6102220"
+        },
+        {
+          "path": "qwen3_tts/multi_code_embedder/12hz-0.6b-customvoice/W16A16/MultiCodeEmbedder.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/multi_code_embedder/12hz-0.6b-customvoice/W16A16/MultiCodeEmbedder.mlmodelc/coremldata.bin",
+          "sizeBytes": 380,
+          "sha256": "08f3c2e364b7d50fd16600725143bdfe80127688d9dd05a9391a90fdcf30d29c"
+        },
+        {
+          "path": "qwen3_tts/multi_code_embedder/12hz-0.6b-customvoice/W16A16/MultiCodeEmbedder.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/multi_code_embedder/12hz-0.6b-customvoice/W16A16/MultiCodeEmbedder.mlmodelc/metadata.json",
+          "sizeBytes": 1729,
+          "sha256": "7a051a69d65f5a2e8fe9644dc78a57c04a558c396f8b208a9c62758870f4ef5d"
+        },
+        {
+          "path": "qwen3_tts/multi_code_embedder/12hz-0.6b-customvoice/W16A16/MultiCodeEmbedder.mlmodelc/model.mil",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/multi_code_embedder/12hz-0.6b-customvoice/W16A16/MultiCodeEmbedder.mlmodelc/model.mil",
+          "sizeBytes": 3167,
+          "sha256": "5315283fa4013b164d25a418d3941fdc46ef178f3b2fb749b0a62991a254a798"
+        },
+        {
+          "path": "qwen3_tts/multi_code_embedder/12hz-0.6b-customvoice/W16A16/MultiCodeEmbedder.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/multi_code_embedder/12hz-0.6b-customvoice/W16A16/MultiCodeEmbedder.mlmodelc/weights/weight.bin",
+          "sizeBytes": 62914688,
+          "sha256": "f318d23d7db53b299b3aa472844a721d2b6245550fb57558b0d2c5ebbcd3fd82"
+        },
+        {
+          "path": "qwen3_tts/speech_decoder/12hz-0.6b-customvoice/W8A16-multifunction/SpeechDecoder.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/speech_decoder/12hz-0.6b-customvoice/W8A16-multifunction/SpeechDecoder.mlmodelc/analytics/coremldata.bin",
+          "sizeBytes": 243,
+          "sha256": "cbf0a9a3a35b57b915b95b799666902aec9ddc59650bf63d61a2f3e37b0e766c"
+        },
+        {
+          "path": "qwen3_tts/speech_decoder/12hz-0.6b-customvoice/W8A16-multifunction/SpeechDecoder.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/speech_decoder/12hz-0.6b-customvoice/W8A16-multifunction/SpeechDecoder.mlmodelc/coremldata.bin",
+          "sizeBytes": 896,
+          "sha256": "209c17e8cd64ae321ed68617d24fd86e7a6d48784ddf6e4688c091795ab2d1fa"
+        },
+        {
+          "path": "qwen3_tts/speech_decoder/12hz-0.6b-customvoice/W8A16-multifunction/SpeechDecoder.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/speech_decoder/12hz-0.6b-customvoice/W8A16-multifunction/SpeechDecoder.mlmodelc/metadata.json",
+          "sizeBytes": 15519,
+          "sha256": "925a672b0682d5799f235f90fce2ace0761891945e7417159147b09cea42861b"
+        },
+        {
+          "path": "qwen3_tts/speech_decoder/12hz-0.6b-customvoice/W8A16-multifunction/SpeechDecoder.mlmodelc/model.mil",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/speech_decoder/12hz-0.6b-customvoice/W8A16-multifunction/SpeechDecoder.mlmodelc/model.mil",
+          "sizeBytes": 806684,
+          "sha256": "9a4fb8fb4bf3b08bfe32ce3e1d45979410b3f4e2b7b6825e44b486d66df27cf2"
+        },
+        {
+          "path": "qwen3_tts/speech_decoder/12hz-0.6b-customvoice/W8A16-multifunction/SpeechDecoder.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/speech_decoder/12hz-0.6b-customvoice/W8A16-multifunction/SpeechDecoder.mlmodelc/weights/weight.bin",
+          "sizeBytes": 114238784,
+          "sha256": "5dc780657305201c968c11456f851d6cbdbf6b477664cc0d92cf09df4a1bb2a3"
+        },
+        {
+          "path": "qwen3_tts/text_projector/12hz-0.6b-customvoice/W8A16/TextProjector.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/text_projector/12hz-0.6b-customvoice/W8A16/TextProjector.mlmodelc/analytics/coremldata.bin",
+          "sizeBytes": 243,
+          "sha256": "20101f4ff618a0dfc2490dbd518b23f7581f197b758339d5fdbf9b0e0cf6172a"
+        },
+        {
+          "path": "qwen3_tts/text_projector/12hz-0.6b-customvoice/W8A16/TextProjector.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/text_projector/12hz-0.6b-customvoice/W8A16/TextProjector.mlmodelc/coremldata.bin",
+          "sizeBytes": 380,
+          "sha256": "d761ddb34a6cd7b72c38d9528a0daa2ecfb5f91f302d221e68e5c727278b1b29"
+        },
+        {
+          "path": "qwen3_tts/text_projector/12hz-0.6b-customvoice/W8A16/TextProjector.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/text_projector/12hz-0.6b-customvoice/W8A16/TextProjector.mlmodelc/metadata.json",
+          "sizeBytes": 1823,
+          "sha256": "b3862b054e6fcf6759356fffb008b58b057c7f68b48bfb6865e774ee43685a8c"
+        },
+        {
+          "path": "qwen3_tts/text_projector/12hz-0.6b-customvoice/W8A16/TextProjector.mlmodelc/model.mil",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/text_projector/12hz-0.6b-customvoice/W8A16/TextProjector.mlmodelc/model.mil",
+          "sizeBytes": 6467,
+          "sha256": "149358cd2cd4a002e40983aaf16810a91030b19b9e0f7b71cfba313b87327625"
+        },
+        {
+          "path": "qwen3_tts/text_projector/12hz-0.6b-customvoice/W8A16/TextProjector.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/argmaxinc/ttskit-coreml/resolve/065712357592bc0d194cf7cd91852c5cde3eb1b8/qwen3_tts/text_projector/12hz-0.6b-customvoice/W8A16/TextProjector.mlmodelc/weights/weight.bin",
+          "sizeBytes": 317464640,
+          "sha256": "d8185d1c91fd4ac7c782acccac91869298251539e45221da908bf3cc504a8360"
+        },
+        {
+          "path": "tokenizer.json",
+          "url": "https://huggingface.co/Qwen/Qwen3-0.6B/resolve/c1899de289a04d12100db370d81485cdf75e47ca/tokenizer.json",
+          "sizeBytes": 11422654,
+          "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "url": "https://huggingface.co/Qwen/Qwen3-0.6B/resolve/c1899de289a04d12100db370d81485cdf75e47ca/tokenizer_config.json",
+          "sizeBytes": 9732,
+          "sha256": "d5d09f07b48c3086c508b30d1c9114bd1189145b74e982a265350c923acd8101"
+        }
+      ]
     }
   ]
 }
