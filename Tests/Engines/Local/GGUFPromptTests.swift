@@ -63,7 +63,8 @@ struct PromptBuilderTests {
 }
 
 struct JinjaChatTemplateTests {
-    private let chatML = #"{% for m in messages %}<|im_start|>{{ m.role }}\n{{ m.content }}<|im_end|>\n{% endfor %}{% if add_generation_prompt %}<|im_start|>assistant\n{% endif %}"#
+    // Real newlines in the template text, as in a GGUF file: a raw string would put a backslash and an n in the output.
+    private let chatML = "{% for m in messages %}<|im_start|>{{ m.role }}\n{{ m.content }}<|im_end|>\n{% endfor %}{% if add_generation_prompt %}<|im_start|>assistant\n{% endif %}"
 
     @Test func aTemplateRendersTheConversationAndOpensTheReply() throws {
         let template = try #require(JinjaChatTemplate(source: chatML))
