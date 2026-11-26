@@ -89,7 +89,8 @@ struct AppleFoundationEngine: ChatEngine {
                             specs: host.specs, host: host, scope: scope,
                             emit: { delta in _ = continuation.yield(delta) })
                     }
-                    let session = built.instructions.map { LanguageModelSession(tools: offered, instructions: $0) }
+                    let instructions = AppleToolGuidance.instructions(base: built.instructions, offeringTools: !offered.isEmpty)
+                    let session = instructions.map { LanguageModelSession(tools: offered, instructions: $0) }
                         ?? LanguageModelSession(tools: offered)
                     let options = GenerationOptions(
                         sampling: .random(probabilityThreshold: params.topP),

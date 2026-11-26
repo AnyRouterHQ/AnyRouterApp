@@ -42,7 +42,7 @@ struct ToolProfileTests {
     }
 
     @Test func modelSourceChoosesTheProfile() {
-        #expect(ToolProfile.forModel(.apple) == .compact)
+        #expect(ToolProfile.forModel(.apple) == .apple)
         #expect(ToolProfile.forModel(.gguf) == .compact)
         #expect(ToolProfile.forModel(.mlx) == .compact)
         #expect(ToolProfile.forModel(.anyrouter) == .full)

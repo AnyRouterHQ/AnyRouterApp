@@ -75,14 +75,44 @@ final class CurrentDateTimeTests: XCTestCase {
         return tool
     }
 
-    func testDefaultsToTheDeviceTimeZone() async throws {
+    func testDefaultsToTheDeviceTimeZoneAsOnePlainSentence() async throws {
         let answer = try await tool().run(.object([:]))
-        XCTAssertEqual(answer, "2027-01-15T08:00:00Z (GMT), Friday")
+        XCTAssertEqual(answer, "Current local time: 08:00, Friday 15 January 2027 (UTC).")
     }
 
     func testAskedTimeZoneChangesTheOffsetAndTheDay() async throws {
         let answer = try await tool().run(.object(["timezone": .string("Pacific/Kiritimati")]))
-        XCTAssertEqual(answer, "2027-01-15T22:00:00+14:00 (Pacific/Kiritimati), Friday")
+        XCTAssertEqual(answer, "Current time in Pacific/Kiritimati: 22:00, Friday 15 January 2027 (UTC+14).")
+    }
+
+    /// The bug: the device zone id went to the on-device model, which then talked about a city.
+    func testTheDeviceZoneIsNeverNamedSoTheModelHasNoPlaceToTalkAbout() async throws {
+        for id in ["Asia/Ho_Chi_Minh", "Europe/Paris", "America/Argentina/Buenos_Aires", "Asia/Kolkata"] {
+            var tool = tool()
+            tool.deviceTimeZone = { TimeZone(identifier: id)! }
+            let answer = try await tool.run(.object([:]))
+            XCTAssertFalse(answer.contains("/"), answer)
+            XCTAssertFalse(answer.contains("_"), answer)
+            XCTAssertTrue(answer.hasPrefix("Current local time: "), answer)
+        }
+        var vietnam = tool()
+        vietnam.deviceTimeZone = { TimeZone(identifier: "Asia/Ho_Chi_Minh")! }
+        let answer = try await vietnam.run(.object([:]))
+        XCTAssertEqual(answer, "Current local time: 15:00, Friday 15 January 2027 (UTC+7).")
+    }
+
+    func testHalfHourAndNegativeOffsets() {
+        XCTAssertEqual(CurrentDateTimeTool.offsetText(0), "UTC")
+        XCTAssertEqual(CurrentDateTimeTool.offsetText(7 * 3600), "UTC+7")
+        XCTAssertEqual(CurrentDateTimeTool.offsetText(19_800), "UTC+5:30")
+        XCTAssertEqual(CurrentDateTimeTool.offsetText(-12_600), "UTC-3:30")
+        XCTAssertEqual(CurrentDateTimeTool.offsetText(-5 * 3600), "UTC-5")
+    }
+
+    func testTheDescriptionDoesNotInviteAPlace() {
+        let tool = CurrentDateTimeTool()
+        XCTAssertFalse(tool.description.contains("Asia"))
+        XCTAssertTrue(tool.inputSchemaJSON.contains("Leave out unless the user asks"))
     }
 
     func testUnknownTimeZoneIsAnError() async {

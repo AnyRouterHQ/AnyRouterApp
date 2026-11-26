@@ -9,12 +9,16 @@ struct ToolProfile: Equatable, Sendable {
 
     /// Cloud models.
     static let full = ToolProfile(maxTools: Int.max, maxResultCharacters: MCPToolHost.maxResultCharacters, maxDescriptionCharacters: nil)
-    /// Apple's model and local models.
+    /// Local models.
     static let compact = ToolProfile(maxTools: 8, maxResultCharacters: 6_000, maxDescriptionCharacters: 160)
+    /// Apple's model: a 4,096-token window that its instructions, every tool schema and the chat share, and Apple advises a
+    /// handful of tools. The date tool and the calculator stay in the first four (see `priority`).
+    static let apple = ToolProfile(maxTools: 4, maxResultCharacters: 6_000, maxDescriptionCharacters: 160)
 
     static func forModel(_ source: ModelSource?) -> ToolProfile {
         switch source {
-        case .apple, .gguf, .mlx: .compact
+        case .apple: .apple
+        case .gguf, .mlx: .compact
         case .anyrouter, nil: .full
         }
     }

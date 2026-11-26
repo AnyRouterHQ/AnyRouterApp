@@ -191,7 +191,7 @@ final class AppleToolRunTests: XCTestCase {
         XCTAssertEqual(text, "Error: stopped")
     }
 
-    func testOnlyTheFirstEightToolsAreOffered() async throws {
+    func testOnlyTheFirstFourToolsAreOffered() async throws {
         let specs = (0..<12).map {
             ToolSpec(name: "t\($0)", title: nil, description: "tool \($0)",
                      inputSchemaJSON: #"{"type":"object","properties":{"q":{"type":"string"}}}"#, isReadOnly: true)
@@ -202,7 +202,7 @@ final class AppleToolRunTests: XCTestCase {
         let seen = LockedBox<[ChatDelta]>([])
         let tools = AppleDynamicTool.make(
             specs: specs, host: host, scope: ToolRunScope(), emit: { seen.value += [$0] })
-        XCTAssertEqual(tools.map(\.name), (0..<8).map { "t\($0)" })
+        XCTAssertEqual(tools.map(\.name), (0..<4).map { "t\($0)" })
         XCTAssertEqual(tools[0].description, "tool 0")
         let text = await tools[0].invoke(#"{"q":"a"}"#)
         XCTAssertEqual(text, #"ok:{"q":"a"}"#)
