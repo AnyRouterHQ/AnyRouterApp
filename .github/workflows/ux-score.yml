@@ -1,0 +1,122 @@
+name: UX score
+
+# Rates every screenshot of Screenshots and Verify UI against docs/ux-rubric.md (scripts/ux-score.py): deterministic
+# checks plus a vision judge through the AnyRouter API (secret ANYROUTER_E2E_API_KEY, skipped with a note without it).
+# Report only. Linux runner, no macOS minutes. The scores and the delta against the last main run are in the job
+# summary and in the ux-score-<source> artifact. Pushes only run the scorer's own tests.
+on:
+  workflow_run:
+    workflows: ["Screenshots", "Verify UI"]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "scripts/ux-score.py"
+      - "scripts/ux-owners.json"
+      - "scripts/tests/**"
+      - "docs/ux-rubric.md"
+      - ".github/workflows/ux-score.yml"
+  pull_request:
+    paths:
+      - "scripts/ux-score.py"
+      - "scripts/ux-owners.json"
+      - "scripts/tests/**"
+      - "docs/ux-rubric.md"
+      - ".github/workflows/ux-score.yml"
+
+concurrency:
+  group: ux-score-${{ github.event.workflow_run.name || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test:
+    if: github.event_name != 'workflow_run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Pillow
+        run: python3 -m venv .venv && .venv/bin/pip install --quiet pillow
+      - name: Scorer tests
+        run: .venv/bin/python -I -m unittest discover -s scripts/tests -p 'test_ux*.py' -v
+
+  score:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event != 'pull_request' &&
+      github.event.workflow_run.conclusion != 'cancelled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOURCE: ${{ github.event.workflow_run.name == 'Screenshots' && 'screenshots' || 'verify-ui' }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      # Scripts and the owners map come from the default branch; the source files the native count reads come
+      # from the commit that was captured.
+      - uses: actions/checkout@v7
+        with:
+          path: tools
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: app
+
+      - name: Download the screenshots
+        if: env.SOURCE == 'screenshots'
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: screenshots
+          path: input
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download the verify evidence
+        if: env.SOURCE == 'verify-ui'
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: verify-evidence
+          path: input
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download the last main scores
+        run: |
+          mkdir -p previous
+          ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=ux-score-$SOURCE&per_page=20" \
+            --jq '[.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main")][0].id' || true)
+          if [ -n "$ID" ] && [ "$ID" != "null" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ID/zip" > previous.zip && unzip -q -o previous.zip -d previous \
+              || echo "::notice::could not read the previous ux-score artifact"
+          else
+            echo "::notice::no previous ux-score-$SOURCE artifact, deltas read new"
+          fi
+
+      - name: Install Pillow
+        run: python3 -m venv .venv && .venv/bin/pip install --quiet pillow
+
+      - name: Score
+        env:
+          ANYROUTER_E2E_API_KEY: ${{ secrets.ANYROUTER_E2E_API_KEY }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          COMMIT: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          mkdir -p input out
+          if [ "$SOURCE" = "screenshots" ]; then INPUT="--screenshots input"; else INPUT="--evidence input"; fi
+          .venv/bin/python -I tools/scripts/ux-score.py $INPUT --repo app --commit "$COMMIT" --run-url "$RUN_URL" \
+            --previous previous/ux-score.json --out out/ux-score.json --summary out/ux-score.md \
+            --raw-log out/ux-judge-raw.jsonl > /dev/null
+          cat out/ux-score.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ux-score-${{ env.SOURCE }}
+          path: out
+          retention-days: 30
