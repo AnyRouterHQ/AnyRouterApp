@@ -517,7 +517,7 @@ Not doing: a custom navigation container, per-token haptics, pull-to-refresh on 
 
 ## Review findings
 
-Reviewer pass over main up to bdf57b4 (2026-11-26). Fixed items are in `fix(...)` commits; the lines below were left for the owning lane. One line each; delete a line when it is done.
+Reviewer passes over main up to 66ef975 (2026-11-26). Fixed items are in `fix(...)` commits; the lines below were left for the owning lane. One line each; delete a line when it is done.
 
 - Features/Chat/ChatViewModel.swift:122 — deleting a thread while it streams: `finish` and the delta loop still touch the deleted `ThreadRecord` and `MessageRecord` (SwiftData invalid-model crash risk). Stop the stream and skip the save when the thread is gone, and add a test. Owner: lane D.
 - App/AnyRouterApp.swift:14 and Core/Records.swift:63 — `fatalError` when the store fails to open and no `VersionedSchema` or migration plan exists, so the first schema change bricks launch for installed copies. Add a versioned schema before the next `@Model` change. Owner: lane A.
@@ -531,7 +531,11 @@ Reviewer pass over main up to bdf57b4 (2026-11-26). Fixed items are in `fix(...)
 - Engines/AnyRouter/Auth/LoopbackCallback.swift:73 — accepted connections are not tracked or timed out and survive `stop()`; cancel them in `stop()` and add a short read timeout. Low risk (state check gates delivery). Owner: lane B.
 - Engines/AnyRouter/Auth/OAuthClient.swift:133 — the continuation in `present` ignores task cancellation, so a cancelled sign-in waits for the web session to end. Owner: lane B.
 - Features/Presets/PresetStore.swift:23 — a presets file that fails to decode is treated as empty and the next save overwrites it. Move the bad file aside first. Owner: presets lane.
-- .github/workflows/device-ipa.yml:5 — a second full macOS device build runs on every push to main next to `ci.yml`; macOS minutes cost 10x. Move to `workflow_dispatch` or nightly. Owner: lane A (CI).
+- .github/workflows/device-ipa.yml:5 — a second full macOS device build still runs on every push to main next to `ci.yml` (macOS minutes cost 10x); build the IPA on `workflow_dispatch` or nightly. Owner: lane A (CI).
+- Engines/MCP/MCPToolHost.swift:101 — a custom server decides alone which tools skip approval (`readOnlyHint`); the chat approver, when it lands, must also resume `decide` when the reply is stopped, or the stream task hangs on the sheet. Owner: lane T (MCP).
+- Engines/MCP/MCPClient.swift:164 — responses are read whole with no size cap; stream with a cap (a few MB) before decoding. Owner: lane T (MCP).
+- Features/Integrations/IntegrationsStore.swift:142 — the result of `credentials.save` is ignored, so a custom server can be listed without its token after a Keychain failure; also sign-out leaves the AnyRouter server `connected` with its tools until the next refresh. Owner: lane T (MCP).
+- Engines/Local/Catalog/HuggingFaceAPI.swift:27 — `fetchPrefix` reads `AsyncBytes` one byte at a time, up to 192 MB for a big vocabulary; read in chunks. Owner: lane C.
 - Not reviewed in depth: Design/, Features/Presets views, Onboarding, MarkdownTheme, HubLogic and the screenshot and smoke workflows (read for secrets and injection only; none found).
 
 ## Status log
