@@ -49,6 +49,13 @@ struct ChatScreen: View {
         .sheet(isPresented: Bindable(shell).isModelPickerPresented) {
             ModelPickerSheet()
         }
+        // Swiping the sheet away denies the call.
+        .sheet(item: Binding(
+            get: { app.toolApprovals.pending },
+            set: { if $0 == nil { app.toolApprovals.resolveCurrent(.deny) } }
+        )) { entry in
+            ToolApprovalSheet(entry: entry) { app.toolApprovals.resolveCurrent($0) }
+        }
     }
 
     /// Keeps the current model when it already shows the selected thread (a first send creates the thread itself).
@@ -57,7 +64,8 @@ struct ChatScreen: View {
         chat?.stop()
         let thread = shell.selectedThreadID.flatMap(fetchThread)
         let model = ChatViewModel(thread: thread, context: context, registry: registry,
-                                  settings: settings, models: models)
+                                  settings: settings, models: models,
+                                  toolHost: { [app] in app.integrations.makeToolHost(approver: app.toolApprovals) })
         model.onThreadCreated = { [shell] id in shell.selectedThreadID = id }
         if let modelID = thread?.modelID { models.select(modelID: modelID) }
         chat = model
@@ -136,6 +144,7 @@ private struct ChatContent: View {
             .simultaneousGesture(TapGesture().onEnded { composerFocused = false })
             .defaultScrollAnchor(.bottom)
             .onChange(of: messages.count) { proxy.scrollTo("bottom", anchor: .bottom) }
+            .onChange(of: messages.last?.toolTraceData) { proxy.scrollTo("bottom", anchor: .bottom) }
             .onChange(of: messages.last?.content.count) {
                 if chat.isStreaming { proxy.scrollTo("bottom", anchor: .bottom) }
             }

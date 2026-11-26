@@ -30,11 +30,13 @@ struct MessageRow: View {
     }
 
     private var assistantRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if message.content.isEmpty && isStreamingThis {
+        let steps = message.toolSteps
+        return VStack(alignment: .leading, spacing: 6) {
+            ForEach(steps) { ToolStepRow(step: $0) }
+            if message.content.isEmpty && isStreamingThis && !steps.contains(where: { $0.result == nil }) {
                 TypingDots()
                     .padding(.vertical, 8)
-            } else {
+            } else if !message.content.isEmpty {
                 Markdown(message.content)
                     .markdownTheme(.anyRouter)
                     .textSelection(.enabled)
@@ -56,6 +58,47 @@ struct MessageRow: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// One tool call: a spinner or status icon and a title, expandable to the arguments and the result.
+struct ToolStepRow: View {
+    let step: ToolStep
+
+    var body: some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 8) {
+                detail("Arguments", ToolRowLogic.prettyJSON(step.call.argumentsJSON))
+                if let result = step.result {
+                    detail("Result", ToolRowLogic.clipped(result.text))
+                }
+            }
+            .padding(.top, 4)
+        } label: {
+            HStack(spacing: 8) {
+                switch ToolRowLogic.status(of: step) {
+                case .running: ProgressView().controlSize(.small)
+                case .done: Image(systemName: "checkmark.circle")
+                case .failed: Image(systemName: "exclamationmark.triangle")
+                case .cancelled: Image(systemName: "xmark.circle")
+                }
+                Text(ToolRowLogic.title(for: step)).lineLimit(1)
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(minHeight: 44)
+        }
+        .accessibilityIdentifier("tool-step.\(step.call.id)")
+    }
+
+    private func detail(_ title: String, _ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(text)
+                .font(.system(.caption, design: .monospaced))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 

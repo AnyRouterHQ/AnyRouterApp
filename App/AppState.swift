@@ -16,6 +16,8 @@ final class AppState {
     let memory: MemoryMonitor
     /// Tool servers (AnyRouter MCP and custom ones).
     let integrations: IntegrationsStore
+    /// The tool approval sheet's queue.
+    let toolApprovals = ToolApprovalCenter()
     /// Typed questions answered by decision models.
     let decisions: DecisionsStore
 

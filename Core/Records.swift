@@ -38,6 +38,9 @@ final class MessageRecord {
     var content: String
     var createdAt: Date
     var thread: ThreadRecord?
+    /// Tool calls of an assistant reply as JSON. Display only: it is never sent back to a model.
+    /// Optional so existing stores migrate without a mapping.
+    var toolTraceData: Data?
 
     init(id: UUID = UUID(), role: ChatMessage.Role, content: String, createdAt: Date = Date()) {
         self.id = id
@@ -53,6 +56,11 @@ final class MessageRecord {
     var role: ChatMessage.Role {
         get { ChatMessage.Role(rawValue: roleRaw) ?? .assistant }
         set { roleRaw = newValue.rawValue }
+    }
+
+    var toolSteps: [ToolStep] {
+        get { toolTraceData.flatMap { try? JSONDecoder().decode([ToolStep].self, from: $0) } ?? [] }
+        set { toolTraceData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
     }
 
     var chatMessage: ChatMessage {

@@ -23,6 +23,27 @@ struct TestFailure: LocalizedError {
     var errorDescription: String? { message }
 }
 
+/// Records the `tools` argument of each stream call: nil, or the tool names.
+final class ToolsRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var raw: [[String]?] = []
+    var seen: [[String]?] { lock.withLock { raw } }
+    func record(_ tools: (any ToolHost)?) { lock.withLock { raw.append(tools?.specs.map(\.name)) } }
+}
+
+/// Tool host with fixed specs; never asked to run anything in these tests.
+struct StubToolHost: ToolHost {
+    var specs: [ToolSpec] = [ToolSpec(name: "search", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: true)]
+    func execute(_ call: ToolCall) async -> ToolResult {
+        ToolResult(callID: call.id, name: call.name, text: "", isError: false)
+    }
+}
+
+func testModelWithTools() -> ModelDescriptor {
+    ModelDescriptor(id: "apple/foundation", source: .apple, displayName: "tools", contextLength: nil,
+                    capabilities: ["chat", "tools"], sizeBytes: nil, isInstalled: true)
+}
+
 /// Engine that plays a script. `hangs` keeps the stream open after the chunks until it is cancelled.
 struct ScriptedEngine: ChatEngine {
     var source: ModelSource = .apple
@@ -34,12 +55,22 @@ struct ScriptedEngine: ChatEngine {
     var calls = Counter()
     /// When set, every call replies "reply N".
     var numberedReplies = false
+    /// Played after the text chunks, for example tool calls and results.
+    var deltas: [ChatDelta] = []
+    var toolsSeen = ToolsRecorder()
 
     func availableModels() async throws -> [ModelDescriptor] { models }
 
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
         -> AsyncThrowingStream<ChatDelta, Error> {
+        stream(model: model, messages: messages, params: params, tools: nil)
+    }
+
+    func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams, tools: (any ToolHost)?)
+        -> AsyncThrowingStream<ChatDelta, Error> {
+        toolsSeen.record(tools)
         let n = calls.next()
+        let deltas = self.deltas
         let chunks = numberedReplies ? ["reply \(n)"] : self.chunks
         let failure = self.failure
         let hangs = self.hangs
@@ -47,6 +78,7 @@ struct ScriptedEngine: ChatEngine {
         return AsyncThrowingStream { continuation in
             let producer = Task {
                 for chunk in chunks { continuation.yield(.text(chunk)) }
+                for delta in deltas { continuation.yield(delta) }
                 if let failure {
                     continuation.finish(throwing: TestFailure(message: failure))
                 } else if !hangs {

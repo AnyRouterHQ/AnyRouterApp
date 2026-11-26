@@ -24,12 +24,15 @@ final class ChatViewModel {
     @ObservationIgnored private let settings: AppSettings
     @ObservationIgnored private let models: ModelStore
     @ObservationIgnored private let save: (ModelContext) throws -> Void
+    @ObservationIgnored private let toolHost: @MainActor () -> (any ToolHost)?
     @ObservationIgnored private var task: Task<Void, Never>?
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
          settings: AppSettings, models: ModelStore,
+         toolHost: @escaping @MainActor () -> (any ToolHost)? = { nil },
          save: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
         self.save = save
+        self.toolHost = toolHost
         self.thread = thread
         self.context = context
         self.registry = registry
@@ -39,6 +42,13 @@ final class ChatViewModel {
     }
 
     var supportsThinking: Bool { models.selected?.supportsThinking ?? false }
+
+    /// The selected model can call tools, so the composer shows the Tools switch.
+    var supportsTools: Bool { models.selected?.capabilities.contains("tools") ?? false }
+
+    var toolsEnabled: Bool { settings.toolsEnabled }
+
+    func setToolsEnabled(_ on: Bool) { settings.toolsEnabled = on }
 
     func setThinkingEnabled(_ on: Bool) {
         thinkingEnabled = on
@@ -133,14 +143,23 @@ final class ChatViewModel {
         context.insert(assistant)
         assistant.thread = thread
         let params = settings.generationParams
-        let stream = registry.engine(for: model).stream(model: model, messages: history, params: params)
+        let host = settings.toolsEnabled && model.capabilities.contains("tools") ? toolHost() : nil
+        let stream = registry.engine(for: model).stream(
+            model: model, messages: history, params: params,
+            tools: host?.specs.isEmpty == false ? host : nil)
 
         let task = Task { [weak self] in
             var failure: String?
             do {
                 for try await delta in stream {
                     // A chunk that was already buffered when the user pressed stop is dropped.
-                    if case .text(let piece) = delta, !Task.isCancelled { assistant.content += piece }
+                    if Task.isCancelled { continue }
+                    switch delta {
+                    case .text(let piece): assistant.content += piece
+                    case .toolCall(let call): assistant.toolSteps.append(ToolStep(call: call, result: nil))
+                    case .toolResult(let result): Self.fill(result, in: assistant)
+                    case .usage, .done: break
+                    }
                 }
             } catch is CancellationError {
                 // Stopped by the user.
@@ -153,8 +172,23 @@ final class ChatViewModel {
         return task
     }
 
+    private static func fill(_ result: ToolResult, in assistant: MessageRecord) {
+        var steps = assistant.toolSteps
+        guard let index = steps.firstIndex(where: { $0.call.id == result.callID }) else { return }
+        steps[index].result = result
+        assistant.toolSteps = steps
+    }
+
     private func finish(_ assistant: MessageRecord, in thread: ThreadRecord, failure: String?) {
-        if assistant.content.isEmpty { remove(assistant) }
+        // Nothing is running any more, so a step without a result was cut off.
+        var steps = assistant.toolSteps
+        for index in steps.indices where steps[index].result == nil {
+            steps[index].result = ToolResult(
+                callID: steps[index].call.id, name: steps[index].call.name,
+                text: ToolRowLogic.cancelledText, isError: true)
+        }
+        if steps != assistant.toolSteps { assistant.toolSteps = steps }
+        if assistant.content.isEmpty && steps.isEmpty { remove(assistant) }
         thread.updatedAt = Date()
         phase = .idle
         task = nil

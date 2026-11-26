@@ -67,6 +67,15 @@ struct Composer: View {
                 Button("Take photo", systemImage: "camera") {}.disabled(true)
                 Button("Attach file", systemImage: "paperclip") {}.disabled(true)
             }
+            if model.supportsTools {
+                Section {
+                    Toggle("Tools", systemImage: "puzzlepiece.extension", isOn: Binding(
+                        get: { model.toolsEnabled },
+                        set: { model.setToolsEnabled($0) }
+                    ))
+                    .accessibilityIdentifier("composer.tools-toggle")
+                }
+            }
             if model.supportsThinking {
                 Section {
                     Toggle("Enable thinking", systemImage: "brain", isOn: Binding(
