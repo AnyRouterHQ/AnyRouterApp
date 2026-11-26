@@ -10,5 +10,7 @@ CURRENT_PROJECT_VERSION = 1
 AR_GIT_COMMIT = dev
 ANYROUTER_BASE_URL = https:/$()/anyrouter.dev/api/v1
 DEVELOPMENT_TEAM =
+// Empty means no remote crash reporting and no network. Set it in Local.xcconfig or from CI.
+SENTRY_DSN =
 
 #include? "Local.xcconfig"

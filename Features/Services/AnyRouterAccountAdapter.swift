@@ -6,6 +6,7 @@ import Observation
 final class AnyRouterAccountAdapter: AccountService {
     private let auth: AnyRouterAuth
     private let loader: AccountSummaryLoader
+    private let telemetry: any Telemetry
     private(set) var summary: AccountSummary?
 
     struct SignInFailed: LocalizedError {
@@ -13,9 +14,11 @@ final class AnyRouterAccountAdapter: AccountService {
         var errorDescription: String? { message }
     }
 
-    init(auth: AnyRouterAuth, loader: AccountSummaryLoader = AccountSummaryLoader()) {
+    init(auth: AnyRouterAuth, loader: AccountSummaryLoader = AccountSummaryLoader(),
+         telemetry: any Telemetry = NoopTelemetry()) {
         self.auth = auth
         self.loader = loader
+        self.telemetry = telemetry
     }
 
     var state: AccountState {
@@ -28,7 +31,12 @@ final class AnyRouterAccountAdapter: AccountService {
 
     func signIn() async throws {
         await auth.signIn()
-        if let message = auth.lastError { throw SignInFailed(message: message) }
+        if let message = auth.lastError {
+            telemetry.track(.signInFail(reason: "error"))
+            throw SignInFailed(message: message)
+        }
+        // No error and no key: the user closed the sign-in sheet.
+        if case .signedIn = auth.state { telemetry.track(.signInOK) } else { telemetry.track(.signInFail(reason: "cancelled")) }
     }
 
     func signOut() async {

@@ -8,14 +8,17 @@ final class ModelStore {
 
     @ObservationIgnored private let registry: EngineRegistry
     @ObservationIgnored private let defaults: UserDefaults
+    /// Shared with chats, which report through the same boundary.
+    @ObservationIgnored let telemetry: any Telemetry
 
     private(set) var models: [ModelDescriptor] = []
     private(set) var isLoading = false
     private var selectedID: String?
 
-    init(registry: EngineRegistry, defaults: UserDefaults = .standard) {
+    init(registry: EngineRegistry, defaults: UserDefaults = .standard, telemetry: any Telemetry = NoopTelemetry()) {
         self.registry = registry
         self.defaults = defaults
+        self.telemetry = telemetry
         self.selectedID = defaults.string(forKey: Self.selectedKey)
     }
 
@@ -34,6 +37,7 @@ final class ModelStore {
     func select(_ model: ModelDescriptor) {
         selectedID = model.id
         defaults.set(model.id, forKey: Self.selectedKey)
+        telemetry.track(.modelSelected(source: model.source))
     }
 
     /// Restores the model a thread used last, when it is still available.

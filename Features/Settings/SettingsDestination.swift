@@ -6,7 +6,7 @@ enum SettingsDestination: Hashable, CaseIterable, Sendable {
     case manageModels, defaultModel, inference, catalogSources
     case presets, integrations
     case theme
-    case privacy, terms, licenses
+    case diagnostics, privacy, terms, licenses
 
     enum Group: Hashable, CaseIterable, Sendable {
         case models, chat, appearance, about
@@ -25,7 +25,7 @@ enum SettingsDestination: Hashable, CaseIterable, Sendable {
             case .models: [.manageModels, .defaultModel, .inference, .catalogSources]
             case .chat: [.presets, .integrations]
             case .appearance: [.theme]
-            case .about: [.privacy, .terms, .licenses]
+            case .about: [.diagnostics, .privacy, .terms, .licenses]
             }
         }
     }
@@ -39,6 +39,7 @@ enum SettingsDestination: Hashable, CaseIterable, Sendable {
         case .presets: "Presets"
         case .integrations: "Integrations"
         case .theme: "Theme"
+        case .diagnostics: "Diagnostics"
         case .privacy: "Privacy"
         case .terms: "Terms"
         case .licenses: "Licenses"
@@ -54,6 +55,7 @@ enum SettingsDestination: Hashable, CaseIterable, Sendable {
         case .presets: "text.badge.star"
         case .integrations: "puzzlepiece.extension"
         case .theme: "circle.lefthalf.filled"
+        case .diagnostics: "waveform.path.ecg"
         case .privacy: "lock"
         case .terms: "doc.text"
         case .licenses: "doc.plaintext"

@@ -159,6 +159,10 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] G1 Settings as a drill-down sheet (Models, Chat, Appearance, About), `SettingsDestination` routing, account card with `AccountSummary` from /me, /credits and /key (926ac73)
 - [x] G2 Wide sidebar drawer on iPhone (interactive drag, edge swipe), `NavigationSplitView` sidebar on iPad, bottom search and compose buttons (926ac73)
 
+## Lane H: diagnostics
+
+- [ ] H1 `Telemetry` boundary in Core/ (events, no-op, logging), MetricKit crash/hang/metric store (newest 20) with Settings, Diagnostics, optional Sentry behind `SENTRY_DSN`, Settings, Privacy opt-out, `docs/privacy.md` (SHA pending)
+
 ## Tools & integrations (MCP)
 
 Operator request: tools and integrations through AnyRouter's MCP server. Sign-in token works against `https://mcp.anyrouter.dev/api/v1/mcp` (streamable HTTP, bearer). Core read-only tools plus Firecrawl web tools when the user connected Firecrawl; management tools are not exposed to sign-in tokens. Phases land as separate PRs.

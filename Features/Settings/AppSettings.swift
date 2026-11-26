@@ -28,6 +28,7 @@ final class AppSettings {
         static let onboarded = "settings.onboarded"
         static let showKeyboard = "settings.showKeyboardOnLaunch"
         static let toolsEnabled = "settings.toolsEnabled"
+        static let shareDiagnostics = "settings.shareDiagnostics"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -68,6 +69,17 @@ final class AppSettings {
     var hasOnboarded: Bool {
         get { access(keyPath: \.hasOnboarded); return defaults.bool(forKey: Key.onboarded) }
         set { withMutation(keyPath: \.hasOnboarded) { defaults.set(newValue, forKey: Key.onboarded) } }
+    }
+
+    /// "Share anonymous diagnostics". On by default only when this build has a Sentry DSN.
+    var shareDiagnostics: Bool {
+        get { access(keyPath: \.shareDiagnostics); return Self.sharesDiagnostics(defaults: defaults) }
+        set { withMutation(keyPath: \.shareDiagnostics) { defaults.set(newValue, forKey: Key.shareDiagnostics) } }
+    }
+
+    /// The same answer without an instance, for code that runs off the main actor (the telemetry gate).
+    nonisolated static func sharesDiagnostics(defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: Key.shareDiagnostics) as? Bool ?? Diagnostics.isConfigured
     }
 
     var showKeyboardOnLaunch: Bool {

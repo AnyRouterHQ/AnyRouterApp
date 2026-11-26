@@ -5,6 +5,11 @@ import MLXLMCommon
 /// Keeps one model loaded. Loading reads the whole snapshot into memory, so a second chat reuses it.
 actor MLXModelCache {
     private var current: (id: String, directory: URL, container: ModelContainer)?
+    private let telemetry: any Telemetry
+
+    init(telemetry: any Telemetry = NoopTelemetry()) {
+        self.telemetry = telemetry
+    }
 
     /// Id of the loaded model, nil when none is.
     var loadedID: String? { current?.id }
@@ -12,8 +17,10 @@ actor MLXModelCache {
     func container(at directory: URL, id: String) async throws -> ModelContainer {
         if let current, current.directory == directory { return current.container }
         current = nil // release the old weights before the new ones load
+        let started = ContinuousClock.now
         let loaded = try await loadModelContainer(from: directory, using: TransformersTokenizerLoader())
         current = (id, directory, loaded)
+        telemetry.track(.engineLoadMs(TelemetryEvent.milliseconds(ContinuousClock.now - started), source: .mlx))
         return loaded
     }
 
@@ -31,12 +38,14 @@ final class MLXEngine: ChatEngine {
 
     private let storage: LocalModelStorage
     private let catalog: CatalogService
-    private let cache = MLXModelCache()
+    private let cache: MLXModelCache
     private let gate = GenerationGate()
 
-    init(storage: LocalModelStorage = LocalModelStorage(), catalog: CatalogService = CatalogService()) {
+    init(storage: LocalModelStorage = LocalModelStorage(), catalog: CatalogService = CatalogService(),
+         telemetry: any Telemetry = NoopTelemetry()) {
         self.storage = storage
         self.catalog = catalog
+        self.cache = MLXModelCache(telemetry: telemetry)
     }
 
     static var availability: MLXAvailability {

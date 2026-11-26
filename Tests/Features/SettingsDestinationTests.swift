@@ -15,7 +15,7 @@ struct SettingsDestinationTests {
     @Test func routingTableMatchesTheSpec() {
         #expect(SettingsDestination.Group.models.destinations == [.manageModels, .defaultModel, .inference, .catalogSources])
         #expect(SettingsDestination.Group.chat.destinations == [.presets, .integrations])
-        #expect(SettingsDestination.Group.about.destinations == [.privacy, .terms, .licenses])
+        #expect(SettingsDestination.Group.about.destinations == [.diagnostics, .privacy, .terms, .licenses])
         #expect(SettingsDestination.presets.group == .chat)
         #expect(SettingsDestination.theme.group == .appearance)
     }

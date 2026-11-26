@@ -109,7 +109,8 @@ struct SettingsDestinationView: View {
             case .presets: PresetsSettingsView()
             case .integrations: IntegrationsSettingsView()
             case .theme: ThemeSettings()
-            case .privacy: LegalPage(kind: .privacy)
+            case .diagnostics: DiagnosticsSettings()
+            case .privacy: PrivacySettings()
             case .terms: LegalPage(kind: .terms)
             case .licenses: LicensesSheet()
             }

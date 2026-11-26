@@ -33,6 +33,9 @@ packages:
   swift-transformers:
     url: https://github.com/huggingface/swift-transformers
     minorVersion: 1.3.0
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    from: 9.36.0
 targets:
   AnyRouter:
     type: application
@@ -52,6 +55,7 @@ targets:
     info:
       path: App/Info.plist
       properties:
+        SentryDSN: $(SENTRY_DSN)
         ARGitCommit: $(AR_GIT_COMMIT)
         UILaunchScreen:
           UIImageName: LaunchLogo
@@ -72,6 +76,8 @@ targets:
         product: MLXLMCommon
       - package: swift-transformers
         product: Tokenizers
+      - package: Sentry
+        product: Sentry
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

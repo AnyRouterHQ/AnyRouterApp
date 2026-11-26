@@ -20,11 +20,17 @@ final class AppState {
     let toolApprovals = ToolApprovalCenter()
     /// Typed questions answered by decision models.
     let decisions: DecisionsStore
+    /// The one reporting door. Views and engines call this, never a vendor SDK.
+    let telemetry: any Telemetry
+    /// Saved crash, hang and metric payloads (Settings, Diagnostics).
+    let diagnostics = DiagnosticsStore()
+    @ObservationIgnored private var metricKit: MetricKitReporter?
 
     init() {
         let tokenStore = KeychainStore()
         integrations = IntegrationsStore(anyRouterToken: { tokenStore.token() })
         if DemoData.isEnabled {
+            telemetry = NoopTelemetry()
             let demo = DemoData.install(registry: registry)
             settings = demo.settings
             models = demo.models
@@ -34,10 +40,12 @@ final class AppState {
             decisions = DecisionsStore(service: DemoDecisionsService())
             return
         }
+        let telemetry = Diagnostics.makeTelemetry()
+        self.telemetry = telemetry
         settings = AppSettings()
-        models = ModelStore(registry: registry)
-        let gguf = GGUFEngine()
-        let mlx = MLXEngine()
+        models = ModelStore(registry: registry, telemetry: telemetry)
+        let gguf = GGUFEngine(telemetry: telemetry)
+        let mlx = MLXEngine(telemetry: telemetry)
         registry.register(AppleFoundationEngine())
         registry.register(gguf)
         registry.register(mlx)
@@ -68,7 +76,11 @@ final class AppState {
         let anyRouter = auth.makeEngine()
         registry.register(anyRouter)
         decisions = DecisionsStore(service: AnyRouterDecisionsAdapter(engine: anyRouter))
-        account = AnyRouterAccountAdapter(auth: auth)
-        hub = LocalModelHub()
+        account = AnyRouterAccountAdapter(auth: auth, telemetry: telemetry)
+        hub = LocalModelHub(downloads: ModelDownloadManager(telemetry: telemetry))
+        let reporter = MetricKitReporter(store: diagnostics, telemetry: telemetry)
+        reporter.start()
+        metricKit = reporter
+        telemetry.track(.appOpen)
     }
 }

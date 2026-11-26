@@ -21,6 +21,7 @@ jobs:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
     steps:
       - name: Check secrets
         id: secrets
@@ -83,6 +84,7 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
+            SENTRY_DSN="$SENTRY_DSN" \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} AR_GIT_COMMIT="${GITHUB_SHA::7}" | tail -n 200
 
       - name: Export and upload to TestFlight

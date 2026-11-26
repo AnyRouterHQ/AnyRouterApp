@@ -15,6 +15,7 @@ final class ModelDownloadManager {
 
     let storage: LocalModelStorage
     private let api: HuggingFaceAPI
+    @ObservationIgnored private let telemetry: any Telemetry
     @ObservationIgnored private var session: URLSession?
     @ObservationIgnored private var jobs: [String: Job] = [:]
     /// Identifies the latest `start` per entry, so a start that was cancelled while the file listing loaded does nothing.
@@ -26,7 +27,9 @@ final class ModelDownloadManager {
         var tracker: DownloadProgressTracker
     }
 
-    init(storage: LocalModelStorage = LocalModelStorage(), api: HuggingFaceAPI = HuggingFaceAPI()) {
+    init(storage: LocalModelStorage = LocalModelStorage(), api: HuggingFaceAPI = HuggingFaceAPI(),
+         telemetry: any Telemetry = NoopTelemetry()) {
+        self.telemetry = telemetry
         self.storage = storage
         self.api = api
         let delegate = DownloadDelegate(storage: storage) { [weak self] callback in
@@ -92,7 +95,9 @@ final class ModelDownloadManager {
                 }
             }
         } catch {
-            if startTokens[id] == token { fail(id, message: error.localizedDescription) }
+            if startTokens[id] == token {
+                fail(id, message: error.localizedDescription, reason: TelemetryEvent.reasonCode(for: error))
+            }
         }
     }
 
@@ -254,16 +259,18 @@ final class ModelDownloadManager {
             case .success:
                 jobs[id] = nil
                 apply(.verified, to: id)
+                telemetry.track(.downloadOK)
             case .failure(let error):
                 // The bad file is gone; a retry downloads only that file again.
-                fail(id, message: error.localizedDescription)
+                fail(id, message: error.localizedDescription, reason: TelemetryEvent.reasonCode(for: error))
             }
         }
     }
 
-    private func fail(_ id: String, message: String) {
+    private func fail(_ id: String, message: String, reason: String = "network") {
         jobs[id] = nil
         apply(.fail(message), to: id)
+        telemetry.track(.downloadFail(reason: reason))
         let session = session
         Task {
             for task in await session?.allTasks ?? [] {

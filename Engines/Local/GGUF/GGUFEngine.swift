@@ -3,6 +3,11 @@ import Foundation
 /// Keeps one model loaded. Loading is slow (seconds), so a second chat with the same model reuses it.
 actor LlamaModelCache {
     private var current: (id: String, path: String, model: LlamaModel)?
+    private let telemetry: any Telemetry
+
+    init(telemetry: any Telemetry = NoopTelemetry()) {
+        self.telemetry = telemetry
+    }
 
     /// Id of the loaded model, nil when none is.
     var loadedID: String? { current?.id }
@@ -10,8 +15,10 @@ actor LlamaModelCache {
     func model(at path: String, id: String) async throws -> LlamaModel {
         if let current, current.path == path { return current.model }
         current = nil // free the old weights before the new ones load
+        let started = ContinuousClock.now
         let loaded = try await Task.detached(priority: .userInitiated) { try LlamaModel(path: path) }.value
         current = (id, path, loaded)
+        telemetry.track(.engineLoadMs(TelemetryEvent.milliseconds(ContinuousClock.now - started), source: .gguf))
         return loaded
     }
 
@@ -48,12 +55,14 @@ final class GGUFEngine: ChatEngine {
 
     private let storage: LocalModelStorage
     private let catalog: CatalogService
-    private let cache = LlamaModelCache()
+    private let cache: LlamaModelCache
     private let gate = GenerationGate()
 
-    init(storage: LocalModelStorage = LocalModelStorage(), catalog: CatalogService = CatalogService()) {
+    init(storage: LocalModelStorage = LocalModelStorage(), catalog: CatalogService = CatalogService(),
+         telemetry: any Telemetry = NoopTelemetry()) {
         self.storage = storage
         self.catalog = catalog
+        self.cache = LlamaModelCache(telemetry: telemetry)
     }
 
     func availableModels() async throws -> [ModelDescriptor] {

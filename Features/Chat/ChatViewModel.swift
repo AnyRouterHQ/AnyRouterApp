@@ -84,6 +84,7 @@ final class ChatViewModel {
             return nil
         }
         let thread = ensureThread(firstMessage: text)
+        models.telemetry.track(.messageSent(source: model.source))
         let user = MessageRecord(role: .user, content: text)
         context.insert(user)
         user.thread = thread
@@ -148,14 +149,23 @@ final class ChatViewModel {
             model: model, messages: history, params: params,
             tools: host?.specs.isEmpty == false ? host : nil)
 
+        let telemetry = models.telemetry
+        let source = model.source
+        let started = ContinuousClock.now
         let task = Task { [weak self] in
             var failure: String?
+            var firstTokenSeen = false
             do {
                 for try await delta in stream {
                     // A chunk that was already buffered when the user pressed stop is dropped.
                     if Task.isCancelled { continue }
                     switch delta {
-                    case .text(let piece): assistant.content += piece
+                    case .text(let piece):
+                        if !firstTokenSeen {
+                            firstTokenSeen = true
+                            telemetry.track(.firstTokenMs(TelemetryEvent.milliseconds(ContinuousClock.now - started), source: source))
+                        }
+                        assistant.content += piece
                     case .toolCall(let call): assistant.toolSteps.append(ToolStep(call: call, result: nil))
                     case .toolResult(let result): Self.fill(result, in: assistant)
                     case .usage, .done: break
