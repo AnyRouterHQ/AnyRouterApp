@@ -503,7 +503,7 @@ Noise rule: run the perf class 3 times (3 separate xcodebuild invocations, 5 ite
 
 ### Baseline (U1, 2026-11-26)
 
-CI run [45806661476](https://github.com/AnyRouterHQ/AnyRouterApp/actions/runs/45806661476), iPhone Simulator (macOS runner), Release build, one discarded warm-up, then three runs. Means of the three run averages, with the spread across the run averages (max minus min over the mean). Raw lines and JSON are in the run's `perf` artifact.
+CI run [45806661476](https://github.com/AnyRouterHQ/AnyRouterApp/actions/runs/45806661476) on main at c69fd83 plus the U1 changes (main has moved since; the run after U1 merges is the next data point), iPhone Simulator (macOS runner), Release build, one discarded warm-up, then three runs. Means of the three run averages, with the spread across the run averages (max minus min over the mean). Raw lines and JSON are in the run's `perf` artifact.
 
 | Metric | Mean of runs | Run averages | Spread | Reading |
 |---|---|---|---|---|
