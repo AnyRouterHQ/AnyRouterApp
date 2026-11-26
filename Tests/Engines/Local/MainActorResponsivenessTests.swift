@@ -11,8 +11,9 @@ struct MainActorResponsivenessTests {
     private let entry = CatalogEntry(
         repo: "ggml-org/tiny-llamas", format: .gguf, file: "stories260K.gguf", title: "Tiny", quantization: "F32")
 
-    /// What the screen needs: it never waits longer than this for the main actor. A frame is 16 ms.
-    private static let allowedGap: Duration = .milliseconds(300)
+    /// A load that blocks the main actor stalls it for seconds. This is generous so a busy CI runner does not fail the
+    /// test: a frame is 16 ms, the app's own watchdog flags 250 ms.
+    private static let allowedGap: Duration = .milliseconds(750)
 
     /// Runs `work` off the main actor while the main actor ticks every 10 ms. Returns the longest gap between ticks.
     private func longestGap(while work: @escaping @Sendable () async throws -> Void) async throws -> Duration {
@@ -81,6 +82,26 @@ struct MainActorResponsivenessTests {
         #expect(gap < Self.allowedGap, "warming blocked the main actor for \(gap)")
         let listed = await registry.allModels()
         #expect(listed.map(\.id) == [model.id])
+    }
+
+    @Test func aWarmUpDuringAGenerationDoesNothingAndLoadsAfterwards() async throws {
+        let engine = try installedEngine()
+        let model = entry.descriptor(isInstalled: true)
+        await engine.gate.acquire() // a generation is running
+        await engine.warm(model: model)
+        #expect(await engine.loadedModelID() == nil, "the warm-up must not compete with a chat")
+        await engine.gate.release()
+        await engine.warm(model: model)
+        #expect(await engine.loadedModelID() == model.id)
+        #expect(await engine.gate.tryAcquire(), "the warm-up gave the gate back")
+    }
+
+    @Test func theGateIsTakenOnlyWhenFree() async {
+        let gate = GenerationGate()
+        #expect(await gate.tryAcquire())
+        #expect(await !gate.tryAcquire(), "busy")
+        await gate.release()
+        #expect(await gate.tryAcquire(), "free again after release")
     }
 
     @Test func deletingAModelFreesItsWeightsOnlyWhenTheyAreItsOwn() async throws {

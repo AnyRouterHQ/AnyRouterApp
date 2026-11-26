@@ -65,6 +65,13 @@ actor GenerationGate {
         await withCheckedContinuation { waiters.append($0) }
     }
 
+    /// Takes the gate only when no generation holds it and none waits. For background work that must never delay a chat.
+    func tryAcquire() -> Bool {
+        guard !busy else { return false }
+        busy = true
+        return true
+    }
+
     func release() {
         if waiters.isEmpty {
             busy = false
@@ -81,7 +88,8 @@ final class GGUFEngine: ChatEngine {
     private let storage: LocalModelStorage
     private let catalog: CatalogService
     private let cache: LlamaModelCache
-    private let gate = GenerationGate()
+    /// One generation at a time. Internal so tests can hold it.
+    let gate = GenerationGate()
 
     init(storage: LocalModelStorage = LocalModelStorage(), catalog: CatalogService = CatalogService(),
          telemetry: any Telemetry = NoopTelemetry()) {
@@ -122,11 +130,14 @@ final class GGUFEngine: ChatEngine {
     }
 
     /// Loads the weights ahead of the first message. No context is created, so it costs memory but no compute.
-    /// Does nothing for a model that is not installed.
+    /// Does nothing for a model that is not installed, and nothing while a generation is running: a warm-up never
+    /// competes with a chat. A send that arrives during the warm-up waits at the gate, then finds the weights loaded.
     func warm(model: ModelDescriptor) async {
         guard let manifest = storage.readManifest(entryID: model.id), let file = manifest.files.first else { return }
+        guard await gate.tryAcquire() else { return }
         let path = storage.fileURL(forEntryID: model.id, path: file.path).path
         _ = try? await cache.model(at: path, id: model.id, installedAt: manifest.completedAt)
+        await gate.release()
     }
 
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
