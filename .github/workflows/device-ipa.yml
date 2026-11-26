@@ -11,7 +11,9 @@ on:
 
 concurrency:
   group: device-ipa-${{ github.ref }}
-  cancel-in-progress: true
+  # On main a running build finishes and only the newest waiting push queues behind it,
+  # so frequent pushes still produce green builds. Pull requests cancel stale runs.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
