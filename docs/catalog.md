@@ -37,7 +37,7 @@ sizes. The app lists families first, then the sizes of one family.
 | `sha256` | GGUF only. The app refuses a download whose listing disagrees. |
 | `contextLength`, `license` | Display and fit. |
 | `memory` | `{"fullKVBytesPerToken", "windowKVBytesPerToken", "windowTokens", "activeFraction", "lazyWeightBytes"}`. Written by the scripts from the model's own metadata: KV cache per token, sliding-window layers, expert share, and the embedding tables that mmap keeps out of RAM. The app's fit check uses it. |
-| `vision` | `{"mmprojFile": "...", "mmprojSize": 0}`, the projector in the same repo. Data only until image input ships. |
+| `vision` | `{"mmprojFile", "mmprojSize", "imageSide"}`: the projector file in the same repo, its size, and the longest image side to feed it. The app downloads it with the model and the size accepts photos (llama.cpp `mtmd`). The family needs the `vision` tag. Add it with `--mmproj FILE --image-side 896`. |
 | `isOnboarding` | Offered first in onboarding when it fits the device. |
 | `platforms`, `minRAMBytes` | `["ios", "ipados"]`; omit for all. |
 | `createdAt`, `updatedAt` | `yyyy-MM-dd`. "Newest" sorts by them. |
@@ -79,6 +79,15 @@ longer matches.
 3. A deprecated model is hidden from browsing, search and recommendations. A person who installed it keeps using it, sees "Older model, try <replacement>" in Local Models, and can delete it.
 4. A model enters `models.json` only after it loaded and answered in the `model-smoke` workflow. New ones start in `dev-models.json`.
 5. Memory claims come from the `memory` facts and the fit check, never from prose.
+
+## Photos
+
+A GGUF size with a `vision` entry takes photos on the device. llama.cpp's `mtmd` reads the `mmproj` projector next to the
+model file; the app loads it the first time a photo is sent, not with the model. A size shows the `vision` badge only when
+the projector is on disk and `FitPlanner.imageInput` says the device has room for weights, projector and image encoder
+together. A model installed before its projector shipped has to be downloaded again. Photos are shrunk to `imageSide` before
+they are encoded, at most four per message; photos of earlier turns stay as the text read from them. The smoke test
+`testNamesTheColorOfAPhoto` sends a solid red photo and expects "red".
 
 The llama.cpp build in `Packages/LlamaBinary` decides which GGUF architectures load. A breaking change to the schema raises
 `schemaVersion`; older apps then ignore the remote file and keep their bundled list.

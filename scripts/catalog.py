@@ -305,7 +305,7 @@ def all_variants(document):
 def cmd_add(args):
     options = {"--catalog": "catalog/models.json", "--family": None, "--params": None, "--revision": None,
                "--name": None, "--publisher": None, "--line": None, "--logo": None, "--summary": None,
-               "--website": None, "--tags": None, "--status": "current"}
+               "--website": None, "--tags": None, "--status": "current", "--mmproj": None, "--image-side": None}
     flags = {"--mlx", "--onboarding", "--update"}
     positional, given = [], set()
     it = iter(args)
@@ -320,7 +320,7 @@ def cmd_add(args):
     if len(positional) != (1 if mlx else 2) or not options["--family"] or not options["--params"]:
         sys.exit("usage: catalog-add.sh <hf-repo> <file.gguf> --family ID --params 4B [options]\n"
                  "       catalog-add.sh <hf-repo> --mlx --family ID --params 4B [options]\n"
-                 "options: --catalog PATH --revision SHA --onboarding --update\n"
+                 "options: --catalog PATH --revision SHA --onboarding --update --mmproj FILE [--image-side 896]\n"
                  "new family: --name N --publisher P --line L --logo KEY --summary S --website URL [--tags a,b]")
     repo = positional[0]
     file = None if mlx else positional[1]
@@ -362,6 +362,15 @@ def cmd_add(args):
     variant["revision"] = revision
     if not mlx:
         variant["sha256"] = files[file]["sha256"]
+    if options["--mmproj"]:
+        if mlx:
+            sys.exit("--mmproj is for GGUF sizes")
+        projector = files.get(options["--mmproj"])
+        if projector is None:
+            sys.exit(f"{options['--mmproj']} is not in {repo} at {revision}")
+        variant["vision"] = {"mmprojFile": options["--mmproj"], "mmprojSize": projector["size"]}
+        if options["--image-side"]:
+            variant["vision"]["imageSide"] = int(options["--image-side"])
     if "--onboarding" in given:
         variant["isOnboarding"] = True
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -516,6 +525,12 @@ def check_file(path, offline):
             vision = m.get("vision")
             if vision is not None and (engine != "gguf" or not str(vision.get("mmprojFile", "")).endswith(".gguf")):
                 bad(vw, f"{ident}: vision needs a gguf variant and an mmprojFile ending in .gguf")
+            if vision is not None and not (isinstance(vision.get("mmprojSize"), int) and vision["mmprojSize"] > 0):
+                bad(vw, f"{ident}: vision needs the integer mmprojSize of the projector")
+            if vision is not None and "imageSide" in vision and not (isinstance(vision["imageSide"], int) and 224 <= vision["imageSide"] <= 4096):
+                bad(vw, f"{ident}: vision.imageSide must be an integer between 224 and 4096")
+            if vision is not None and "vision" not in family.get("tags", []):
+                bad(vw, f"{ident}: a size with a projector needs the family tag vision")
 
             if offline or not re.fullmatch(r"[0-9a-f]{40}", str(m.get("revision", ""))):
                 continue

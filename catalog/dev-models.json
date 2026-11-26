@@ -11,6 +11,7 @@
       "summary": "Google on-device models for text chat. Strong for their size.",
       "website": "https://ai.google.dev/gemma",
       "tags": [
+        "vision",
         "multilingual",
         "mobile"
       ],
@@ -58,7 +59,12 @@
             "lazyWeightBytes": 1926758400
           },
           "createdAt": "2026-11-26",
-          "updatedAt": "2026-11-26"
+          "updatedAt": "2026-11-26",
+          "vision": {
+            "mmprojFile": "gemma-4-E2B-it-mmproj.gguf",
+            "mmprojSize": 986833664,
+            "imageSide": 896
+          }
         },
         {
           "repo": "mlx-community/gemma-4-e2b-it-4bit",
@@ -115,7 +121,12 @@
             "lazyWeightBytes": 2312110080
           },
           "createdAt": "2026-11-26",
-          "updatedAt": "2026-11-26"
+          "updatedAt": "2026-11-26",
+          "vision": {
+            "mmprojFile": "gemma-4-E4B-it-mmproj.gguf",
+            "mmprojSize": 991552256,
+            "imageSide": 896
+          }
         },
         {
           "repo": "mlx-community/gemma-4-e4b-it-4bit",
@@ -146,6 +157,7 @@
       "website": "https://qwenlm.github.io",
       "tags": [
         "thinking",
+        "vision",
         "multilingual",
         "mobile"
       ],
@@ -168,7 +180,8 @@
           "sha256": "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517",
           "vision": {
             "mmprojFile": "mmproj-F16.gguf",
-            "mmprojSize": 204987232
+            "mmprojSize": 204987232,
+            "imageSide": 768
           },
           "isOnboarding": true,
           "memory": {
@@ -190,7 +203,8 @@
           "sha256": "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
           "vision": {
             "mmprojFile": "mmproj-F16.gguf",
-            "mmprojSize": 668227264
+            "mmprojSize": 668227264,
+            "imageSide": 768
           },
           "memory": {
             "fullKVBytesPerToken": 49152
@@ -211,7 +225,8 @@
           "sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
           "vision": {
             "mmprojFile": "mmproj-F16.gguf",
-            "mmprojSize": 672423616
+            "mmprojSize": 672423616,
+            "imageSide": 768
           },
           "memory": {
             "fullKVBytesPerToken": 131072
