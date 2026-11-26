@@ -39,7 +39,9 @@ final class AnyRouterAuth {
         lastError = nil
         do {
             let issued = try await client.signIn()
-            store.save(token: issued.accessToken, expiresAt: issued.expiresAt)
+            if !store.save(token: issued.accessToken, expiresAt: issued.expiresAt) {
+                lastError = "Could not save the sign-in to the Keychain."
+            }
         } catch {
             if case OAuthClient.Failure.cancelled = error {
                 lastError = nil

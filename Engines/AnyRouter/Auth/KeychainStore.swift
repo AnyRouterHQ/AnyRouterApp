@@ -23,9 +23,12 @@ struct KeychainStore: TokenStoring {
         return Date(timeIntervalSince1970: seconds)
     }
 
-    func save(token: String, expiresAt: Date?) {
-        write(Self.tokenAccount, token)
+    /// Returns false when the Keychain refused the token, so the caller does not report a sign-in that did not stick.
+    @discardableResult
+    func save(token: String, expiresAt: Date?) -> Bool {
+        let stored = write(Self.tokenAccount, token)
         write(Self.expiryAccount, expiresAt.map { String($0.timeIntervalSince1970) })
+        return stored
     }
 
     func clear() {
@@ -52,13 +55,15 @@ struct KeychainStore: TokenStoring {
         return String(data: data, encoding: .utf8)
     }
 
-    private func write(_ account: String, _ value: String?) {
+    /// Replaces the item. `nil` deletes it. Returns whether the Keychain accepted the change.
+    @discardableResult
+    private func write(_ account: String, _ value: String?) -> Bool {
         let query = baseQuery(account)
         SecItemDelete(query as CFDictionary)
-        guard let value, let data = value.data(using: .utf8) else { return }
+        guard let value, let data = value.data(using: .utf8) else { return true }
         var insert = query
         insert[kSecValueData as String] = data
         insert[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        SecItemAdd(insert as CFDictionary, nil)
+        return SecItemAdd(insert as CFDictionary, nil) == errSecSuccess
     }
 }
