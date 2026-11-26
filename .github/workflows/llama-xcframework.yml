@@ -1,0 +1,101 @@
+name: llama.cpp xcframework
+
+# Builds llama.xcframework (iOS device + iOS Simulator, Metal) from a pinned llama.cpp tag and publishes it as a
+# release asset of this repo. Packages/LlamaBinary points its binaryTarget at that asset.
+# Why not the official zip: since b10488 upstream releases ship device slices only, and CI runs on the Simulator.
+# To move the pin: run this workflow with a new tag, then put the printed URL and checksum in Packages/LlamaBinary/Package.swift.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "llama.cpp release tag, e.g. b12603"
+        required: true
+        default: "b12603"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: llama-xcframework-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the tag
+        run: |
+          case "$TAG" in
+            b[0-9]*) ;;
+            *) echo "::error::tag must look like b12603"; exit 1 ;;
+          esac
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then echo "No Xcode 26 on this runner"; exit 1; fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Install CMake
+        run: command -v cmake >/dev/null || brew install cmake
+
+      - name: Get llama.cpp at the tag
+        run: git clone --depth 1 --branch "$TAG" https://github.com/ggml-org/llama.cpp "$RUNNER_TEMP/llama.cpp"
+
+      - name: Build iOS device and Simulator slices
+        working-directory: ${{ runner.temp }}/llama.cpp
+        run: |
+          # Debug symbols (dSYMs) would add hundreds of MB to the zip and the app never uses them.
+          sed -i '' '/-debug-symbols/d' build-xcframework.sh
+          ./build-xcframework.sh ios-sim ios-device
+
+      - name: Check the slices
+        working-directory: ${{ runner.temp }}/llama.cpp
+        run: |
+          plist=build-apple/llama.xcframework/Info.plist
+          cat "$plist"
+          grep -q '<string>ios-arm64</string>' "$plist"
+          grep -q 'simulator' "$plist"
+          ls -la build-apple/llama.xcframework/*/llama.framework/llama
+
+      - name: Zip and checksum
+        working-directory: ${{ runner.temp }}/llama.cpp/build-apple
+        run: |
+          ditto -c -k --keepParent llama.xcframework "llama-$TAG-xcframework.zip"
+          ls -la "llama-$TAG-xcframework.zip"
+          SUM=$(swift package compute-checksum "llama-$TAG-xcframework.zip")
+          echo "CHECKSUM=$SUM" >> "$GITHUB_ENV"
+          echo "ZIP=$RUNNER_TEMP/llama.cpp/build-apple/llama-$TAG-xcframework.zip" >> "$GITHUB_ENV"
+
+      - name: Publish the release asset
+        run: |
+          NOTES="llama.cpp $TAG built for iOS (device + Simulator, Metal) by .github/workflows/llama-xcframework.yml. Checksum: $CHECKSUM"
+          if gh release view "llama-$TAG" >/dev/null 2>&1; then
+            gh release upload "llama-$TAG" "$ZIP" --clobber
+          else
+            gh release create "llama-$TAG" "$ZIP" --target "$GITHUB_SHA" --title "llama.cpp $TAG xcframework" --notes "$NOTES"
+          fi
+
+      - name: Verify the published bytes
+        run: |
+          URL="https://github.com/${{ github.repository }}/releases/download/llama-$TAG/llama-$TAG-xcframework.zip"
+          mkdir -p "$RUNNER_TEMP/verify"
+          curl -L --fail --retry 5 --retry-delay 5 -o "$RUNNER_TEMP/verify/llama.zip" "$URL"
+          PUBLISHED=$(swift package compute-checksum "$RUNNER_TEMP/verify/llama.zip")
+          echo "built     $CHECKSUM"
+          echo "published $PUBLISHED"
+          test "$PUBLISHED" = "$CHECKSUM"
+          {
+            echo "## llama.cpp $TAG xcframework"
+            echo
+            echo "url: $URL"
+            echo
+            echo "checksum: $CHECKSUM"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
