@@ -8,9 +8,19 @@ enum ModelFit: Sendable, Equatable {
 
 enum DownloadState: Sendable, Equatable {
     case notInstalled
-    case downloading(progress: Double)
+    /// `progress` is 0...1, or nil while the size is not known yet.
+    case downloading(progress: Double?)
+    case paused(progress: Double?)
+    case verifying
     case installed
     case failed(String)
+
+    var isActive: Bool {
+        switch self {
+        case .downloading, .paused, .verifying: true
+        default: false
+        }
+    }
 }
 
 /// A local (GGUF or MLX) model shown in the hub and the onboarding picker.
@@ -19,38 +29,63 @@ struct LocalModelEntry: Identifiable, Hashable, Sendable {
     var summary: String
     var tags: [String]
     var fit: ModelFit
+    /// Added by the user (custom repo), so it can be removed.
+    var isUserAdded: Bool
     var id: String { descriptor.id }
 }
 
-/// What the UI needs from local model catalog and downloads. Lane C conforms (`@MainActor @Observable` class).
-@MainActor
-protocol ModelHubService: AnyObject {
-    /// Curated plus user-added models, installed or not.
-    var catalog: [LocalModelEntry] { get }
-    func downloadState(for modelID: String) -> DownloadState
-    func search(_ query: String) async throws -> [LocalModelEntry]
-    func download(_ entry: LocalModelEntry)
-    func cancelDownload(modelID: String)
-    func delete(modelID: String) async
-    /// Extra Hugging Face repos the user added to the catalog.
-    var customRepos: [String] { get }
-    func addRepo(_ repo: String)
-    func removeRepo(_ repo: String)
-    var remoteCatalogURL: String { get set }
+/// A Hugging Face repo found by search. Its files become `LocalModelEntry` values on demand.
+struct RepoHit: Identifiable, Hashable, Sendable {
+    var repo: String
+    var source: ModelSource
+    var downloads: Int?
+    var likes: Int?
+    var id: String { "\(source.rawValue)/\(repo)" }
 }
 
-/// Default until the local engine lane provides the real service.
+/// What the UI needs from the local model catalog and downloads. `LocalModelHub` conforms.
+@MainActor
+protocol ModelHubService: AnyObject {
+    /// Curated, remote and user-added models, installed or not.
+    var catalog: [LocalModelEntry] { get }
+    var lastError: String? { get }
+    var remoteCatalogURL: String { get }
+
+    /// Reloads the catalog and refreshes install state from disk.
+    func reload() async
+    func downloadState(for modelID: String) -> DownloadState
+    func download(_ entry: LocalModelEntry)
+    func pause(modelID: String)
+    func resume(modelID: String)
+    func cancel(modelID: String)
+    func delete(modelID: String) async
+
+    func searchRepos(_ query: String) async throws -> [RepoHit]
+    func entries(for hit: RepoHit) async throws -> [LocalModelEntry]
+    /// Adds every GGUF file (or the MLX snapshot) of a repo to the user's catalog.
+    func addRepo(_ hit: RepoHit) async throws
+    func removeUserModel(modelID: String) async
+    /// Empty text clears the remote catalog.
+    func setRemoteCatalogURL(_ text: String) async throws
+}
+
+/// Inert default for previews and tests.
 @MainActor @Observable
 final class EmptyModelHubService: ModelHubService {
-    var catalog: [LocalModelEntry] { [] }
-    var customRepos: [String] = []
+    var catalog: [LocalModelEntry] = []
+    var lastError: String?
     var remoteCatalogURL: String = ""
 
+    func reload() async {}
     func downloadState(for modelID: String) -> DownloadState { .notInstalled }
-    func search(_ query: String) async throws -> [LocalModelEntry] { [] }
     func download(_ entry: LocalModelEntry) {}
-    func cancelDownload(modelID: String) {}
+    func pause(modelID: String) {}
+    func resume(modelID: String) {}
+    func cancel(modelID: String) {}
     func delete(modelID: String) async {}
-    func addRepo(_ repo: String) { if !customRepos.contains(repo) { customRepos.append(repo) } }
-    func removeRepo(_ repo: String) { customRepos.removeAll { $0 == repo } }
+    func searchRepos(_ query: String) async throws -> [RepoHit] { [] }
+    func entries(for hit: RepoHit) async throws -> [LocalModelEntry] { [] }
+    func addRepo(_ hit: RepoHit) async throws {}
+    func removeUserModel(modelID: String) async {}
+    func setRemoteCatalogURL(_ text: String) async throws { remoteCatalogURL = text }
 }

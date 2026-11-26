@@ -1,0 +1,188 @@
+import Foundation
+import Observation
+
+/// Bridges the local model catalog and download manager (lane C) to the UI's `ModelHubService`.
+@MainActor @Observable
+final class LocalModelHub: ModelHubService {
+    struct HubError: LocalizedError {
+        let message: String
+        var errorDescription: String? { message }
+    }
+
+    private(set) var catalog: [LocalModelEntry] = []
+    private(set) var lastError: String?
+    private(set) var remoteCatalogURL: String = ""
+
+    let downloads: ModelDownloadManager
+    @ObservationIgnored private let service: CatalogService
+    @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let fit: DeviceFit
+    @ObservationIgnored private var raw: [String: CatalogEntry] = [:]
+    @ObservationIgnored private var browsed: [String: CatalogEntry] = [:]
+    @ObservationIgnored private var restored = false
+
+    init(downloads: ModelDownloadManager = ModelDownloadManager(),
+         service: CatalogService = CatalogService(),
+         defaults: UserDefaults = .standard,
+         fit: DeviceFit = DeviceFit()) {
+        self.downloads = downloads
+        self.service = service
+        self.defaults = defaults
+        self.fit = fit
+        downloads.backgroundCompletionHandler = {
+            Task { @MainActor in AppDelegate.finishBackgroundEvents() }
+        }
+    }
+
+    func reload() async {
+        if !restored {
+            restored = true
+            await downloads.restore()
+        }
+        let settings = CatalogSettings.load(from: defaults)
+        remoteCatalogURL = settings.remoteCatalogURL?.absoluteString ?? ""
+        do {
+            let entries = try await service.entries()
+            let userIDs = Set(settings.userModels.map(\.id))
+            raw = Dictionary(entries.map { ($0.id, $0) }, uniquingKeysWith: { $1 })
+            downloads.refresh(entries: entries)
+            catalog = entries.map { map($0, isUser: userIDs.contains($0.id)) }
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func downloadState(for modelID: String) -> DownloadState {
+        guard let entry = raw[modelID] ?? browsed[modelID] else { return .notInstalled }
+        let state = downloads.state(for: entry)
+        switch state {
+        case .notInstalled: return .notInstalled
+        case .downloading: return .downloading(progress: state.fraction)
+        case .paused: return .paused(progress: state.fraction)
+        case .verifying: return .verifying
+        case .installed: return .installed
+        case .failed(let message): return .failed(message)
+        }
+    }
+
+    func download(_ entry: LocalModelEntry) {
+        guard let item = raw[entry.id] ?? browsed[entry.id] else { return }
+        let known = raw[entry.id] != nil
+        Task {
+            if !known { await persist(adding: [item]) }
+            await downloads.start(item)
+        }
+    }
+
+    func pause(modelID: String) { if let e = raw[modelID] { downloads.pause(e) } }
+    func resume(modelID: String) { if let e = raw[modelID] { downloads.resume(e) } }
+    func cancel(modelID: String) { if let e = raw[modelID] { downloads.cancel(e) } }
+
+    func delete(modelID: String) async {
+        guard let entry = raw[modelID] else { return }
+        do {
+            try downloads.delete(entry)
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func searchRepos(_ query: String) async throws -> [RepoHit] {
+        async let gguf = service.search(query: query, format: .gguf)
+        async let mlx = service.search(query: query, format: .mlx)
+        let (g, m) = try await (gguf, mlx)
+        let hits = g.map { RepoHit(repo: $0.id, source: .gguf, downloads: $0.downloads, likes: $0.likes) }
+            + m.map { RepoHit(repo: $0.id, source: .mlx, downloads: $0.downloads, likes: $0.likes) }
+        return hits.sorted { ($0.downloads ?? 0) > ($1.downloads ?? 0) }
+    }
+
+    func entries(for hit: RepoHit) async throws -> [LocalModelEntry] {
+        let items = try await service.entries(forRepo: hit.repo, format: format(hit.source))
+        for item in items where raw[item.id] == nil { browsed[item.id] = item }
+        return items.map { map($0, isUser: false) }
+    }
+
+    func addRepo(_ hit: RepoHit) async throws {
+        let items = try await service.entries(forRepo: hit.repo, format: format(hit.source))
+        await persist(adding: items)
+    }
+
+    func removeUserModel(modelID: String) async {
+        var settings = CatalogSettings.load(from: defaults)
+        settings.remove(id: modelID)
+        save(settings)
+        await reload()
+    }
+
+    func setRemoteCatalogURL(_ text: String) async throws {
+        var settings = CatalogSettings.load(from: defaults)
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            settings.remoteCatalogURL = nil
+        } else {
+            guard let url = URL(string: trimmed), CatalogSettings.isAcceptableRemoteCatalogURL(url) else {
+                throw HubError(message: "Enter an https URL.")
+            }
+            settings.remoteCatalogURL = url
+        }
+        try settings.save(to: defaults)
+        _ = try await service.refreshRemote()
+        await reload()
+    }
+
+    // MARK: - Private
+
+    private func persist(adding items: [CatalogEntry]) async {
+        var settings = CatalogSettings.load(from: defaults)
+        settings.add(items.map { var e = $0; e.origin = .user; return e })
+        save(settings)
+        await reload()
+    }
+
+    private func save(_ settings: CatalogSettings) {
+        do {
+            try settings.save(to: defaults)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    private func format(_ source: ModelSource) -> LocalModelFormat {
+        source == .mlx ? .mlx : .gguf
+    }
+
+    private func map(_ entry: CatalogEntry, isUser: Bool) -> LocalModelEntry {
+        var tags = [entry.format == .mlx ? "mlx" : "gguf"]
+        if let parameters = entry.parameters { tags.append(parameters) }
+        if let quantization = entry.quantization { tags.append(quantization) }
+        tags += entry.capabilities.subtracting(["chat"]).sorted()
+        let verdict: ModelFit
+        if let size = entry.sizeBytes {
+            switch fit.verdict(modelBytes: size) {
+            case .fits: verdict = .fits
+            case .tight: verdict = .tight
+            case .tooLarge: verdict = .wontFit
+            }
+        } else {
+            verdict = .unknown
+        }
+        let installed = downloads.state(for: entry) == .installed
+        return LocalModelEntry(
+            descriptor: ModelDescriptor(
+                id: entry.id,
+                source: entry.format == .mlx ? .mlx : .gguf,
+                displayName: entry.title,
+                contextLength: entry.contextLength,
+                capabilities: entry.capabilities,
+                sizeBytes: entry.sizeBytes,
+                isInstalled: installed
+            ),
+            summary: entry.summary ?? entry.repo,
+            tags: tags,
+            fit: verdict,
+            isUserAdded: isUser
+        )
+    }
+}

@@ -9,7 +9,7 @@ final class AppState {
     /// Sign-in state for AnyRouter cloud models.
     var account: any AccountService = UnavailableAccountService()
     /// Local model catalog and downloads. Lane C replaces the default.
-    var hub: any ModelHubService = EmptyModelHubService()
+    var hub: any ModelHubService = LocalModelHub()
 
     init() {
         models = ModelStore(registry: registry)
