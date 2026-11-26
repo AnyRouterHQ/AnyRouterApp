@@ -8,7 +8,7 @@ struct RoutingPreviewTests {
         {"model":"anyrouter/auto","has_byok":false,"resolved":[
          {"id":"reflection/beam-1.0","name":"Beam 1.0","provider":"reflection","context_length":1048576,
           "max_output":131072,"rank":0,"input_price_per_1m":0,"output_price_per_1m":0,"byok_only":false},
-         {"id":"openai/gpt-5.6-luna","name":"GPT-5.6 Luna","provider":"OpenAI","context_length":1050000,
+         {"id":"openai/gpt-5.6-luna","name":"GPT-5.6 Luna","provider":"OpenAI","context_length":1000000,
           "rank":38.1,"input_price_per_1m":0.2,"output_price_per_1m":1.2}]}
         """
 
