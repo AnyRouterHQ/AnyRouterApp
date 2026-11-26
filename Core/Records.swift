@@ -41,12 +41,16 @@ final class MessageRecord {
     /// Tool calls of an assistant reply as JSON. Display only: it is never sent back to a model.
     /// Optional so existing stores migrate without a mapping.
     var toolTraceData: Data?
+    /// Display name of the model that wrote this reply. Optional so existing stores migrate.
+    var modelName: String?
 
-    init(id: UUID = UUID(), role: ChatMessage.Role, content: String, createdAt: Date = Date()) {
+    init(id: UUID = UUID(), role: ChatMessage.Role, content: String, createdAt: Date = Date(),
+         modelName: String? = nil) {
         self.id = id
         self.roleRaw = role.rawValue
         self.content = content
         self.createdAt = createdAt
+        self.modelName = modelName
     }
 
     convenience init(_ message: ChatMessage) {

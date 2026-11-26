@@ -5,9 +5,17 @@ import Testing
 struct ContractTests {
     @Test func modelDescriptorRoundTripsThroughJSON() throws {
         let m = ModelDescriptor(id: "mlx/org/repo", source: .mlx, displayName: "Repo", contextLength: 4096,
-                                capabilities: ["chat", "tools"], sizeBytes: 123, isInstalled: false)
+                                capabilities: ["chat", "tools"], sizeBytes: 123, isInstalled: false, summary: "Tiny")
         let back = try JSONDecoder().decode(ModelDescriptor.self, from: JSONEncoder().encode(m))
         #expect(back == m)
+    }
+
+    @Test func modelDescriptorsSavedWithoutASummaryStillDecode() throws {
+        let old = """
+            {"id":"a","source":"apple","displayName":"A","capabilities":["chat"],"isInstalled":true}
+            """
+        let m = try JSONDecoder().decode(ModelDescriptor.self, from: Data(old.utf8))
+        #expect(m.summary == nil)
     }
 
     @Test func generationParamsDefaultsMatchContract() {

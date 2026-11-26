@@ -6,6 +6,7 @@ struct ModelsResponse: Decodable {
         var id: String
         var name: String?
         var category: String?
+        var description: String?
         var contextLength: Int?
         var capabilities: [String]?
         var supportedParameters: [String]?
@@ -18,7 +19,7 @@ struct ModelsResponse: Decodable {
         }
 
         enum CodingKeys: String, CodingKey {
-            case id, name, category, capabilities, architecture
+            case id, name, category, description, capabilities, architecture
             case contextLength = "context_length"
             case supportedParameters = "supported_parameters"
         }
@@ -47,7 +48,8 @@ struct ModelsResponse: Decodable {
                     contextLength: item.contextLength,
                     capabilities: Self.normalized(item.capabilities ?? ["chat"]),
                     sizeBytes: nil,
-                    isInstalled: usable
+                    isInstalled: usable,
+                    summary: item.description
                 )
             }
     }
