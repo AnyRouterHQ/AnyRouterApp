@@ -1,7 +1,7 @@
 Design/ARComponents.swift:25
 Design/ARGlass.swift:2
 Design/ARTheme.swift:3
-Features/Chat/ChatScreen.swift:4
+Features/Chat/ChatScreen.swift:3
 Features/Chat/Composer.swift:15
 Features/Chat/MarkdownTheme.swift:13
 Features/Chat/MemoryMenu.swift:1

@@ -30,6 +30,9 @@ struct PriceFormatTests {
         #expect(PriceFormat.context(131_072) == "128K ctx")
         #expect(PriceFormat.context(200_000) == "200K ctx")
         #expect(PriceFormat.context(512) == "512 ctx")
+        #expect(PriceFormat.context(8192) == "8K ctx")
+        #expect(PriceFormat.context(32_768) == "32K ctx")
+        #expect(PriceFormat.context(196_608) == "192K ctx")
     }
 
     @Test func requestCostKeepsSmallAmountsVisible() {

@@ -29,7 +29,8 @@ enum PriceFormat {
             let rounded = (value * 10).rounded() / 10
             return rounded == rounded.rounded() ? String(Int(rounded)) : String(rounded)
         }
-        let binary = tokens % 1024 == 0
+        // 8192, 131072 and 1048576 are binary sizes; 128000 and 1000000 are round decimal ones.
+        let binary = tokens > 0 && ((tokens & (tokens - 1)) == 0 || tokens % 65_536 == 0)
         if tokens >= 1_000_000 {
             return trimmed(Double(tokens) / (binary ? 1_048_576 : 1_000_000)) + "M ctx"
         }
