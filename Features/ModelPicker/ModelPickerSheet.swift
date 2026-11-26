@@ -252,11 +252,14 @@ struct ModelPickerSheet: View {
             models: models.models, query: debouncedQuery, sort: sort, usageRank: models.usageRank,
             showUnusable: app.account.state.isSignedIn,
             picks: TopPicks.compose(config: picksConfig, models: models.models, usageRank: models.usageRank),
-            filter: cloudFilter)
+            filter: cloudFilter, prefs: models.cloudPrefs)
     }
 
     @ViewBuilder
     private func cloudRows(_ list: CloudList) -> some View {
+        if !list.starred.isEmpty {
+            Section("Starred") { ForEach(list.starred) { modelButton($0) } }
+        }
         if !list.topPicks.isEmpty {
             Section("Top picks") { ForEach(list.topPicks) { modelButton($0) } }
         }
@@ -264,7 +267,7 @@ struct ModelPickerSheet: View {
             Section {
                 ForEach(list.rest) { modelButton($0) }
             } header: {
-                if !list.topPicks.isEmpty { Text("All models") }
+                if !list.topPicks.isEmpty || !list.starred.isEmpty { Text("All models") }
             }
         }
     }

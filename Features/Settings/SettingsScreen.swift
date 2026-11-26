@@ -88,7 +88,8 @@ private struct SettingsList: View {
         case .anyRouterModels:
             let selected = models.selected
             return SettingsLogic.anyRouterModelsSubtitle(
-                defaultName: selected?.source == .anyrouter ? selected?.shortName : nil, starredCount: 0)
+                defaultName: selected?.source == .anyrouter ? selected?.shortName : nil,
+                starredCount: models.cloudPrefs.starredCount(in: models.models))
         default:
             return nil
         }

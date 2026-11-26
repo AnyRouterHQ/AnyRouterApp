@@ -29,12 +29,14 @@ enum PickerSort: String, CaseIterable, Identifiable {
     }
 }
 
-/// Everything the AnyRouter tab shows: a short curated section, then the rest in the chosen order.
+/// Everything the AnyRouter tab shows: the models the person starred, a short curated section, then the rest in the chosen order.
 struct CloudList: Equatable {
     var topPicks: [ModelDescriptor]
     var rest: [ModelDescriptor]
+    /// Starred models that can be used, in the order they were starred. They lead the list.
+    var starred: [ModelDescriptor] = []
 
-    var isEmpty: Bool { topPicks.isEmpty && rest.isEmpty }
+    var isEmpty: Bool { starred.isEmpty && topPicks.isEmpty && rest.isEmpty }
 }
 
 enum CloudListLogic {
@@ -43,7 +45,7 @@ enum CloudListLogic {
     static func arrange(
         models: [ModelDescriptor], query: String, sort: PickerSort,
         usageRank: [String: Int], showUnusable: Bool, picks: [ModelDescriptor] = [],
-        filter: ModelFilter = ModelFilter()
+        filter: ModelFilter = ModelFilter(), prefs: CloudModelPrefs = CloudModelPrefs()
     ) -> CloudList {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let searching = !needle.isEmpty
@@ -53,6 +55,8 @@ enum CloudListLogic {
             let showLocked = showUnusable && (!filter.hideNeedsKey || searching)
             if !showLocked && !model.isInstalled { return false }
             if !filter.matches(model) { return false }
+            // A hidden model stays out of the lists. A search still finds it, so it can be brought back.
+            if !searching && prefs.isHidden(model) { return false }
             if sort == .free && model.cloud?.pricing.isFree != true { return false }
             if searching { return ModelPickerLogic.matches(model, needle) }
             return model.id != ModelDescriptor.byokRouterID
@@ -62,9 +66,13 @@ enum CloudListLogic {
             if lhs.isInstalled != rhs.isInstalled { return lhs.isInstalled }
             return precedes(lhs, rhs, sort: sort, usageRank: usageRank)
         }
-        let topPicks = searching ? [] : picks.filter { pick in candidates.contains { $0.id == pick.id } }
-        let pickIDs = Set(topPicks.map(\.id))
-        return CloudList(topPicks: topPicks, rest: candidates.filter { !pickIDs.contains($0.id) })
+        let starred = searching ? [] : prefs.starred.compactMap { wire in candidates.first { $0.wireID == wire && $0.isInstalled } }
+        let starredIDs = Set(starred.map(\.id))
+        let topPicks = searching ? [] : picks.filter { pick in
+            !starredIDs.contains(pick.id) && candidates.contains { $0.id == pick.id }
+        }
+        let shownIDs = starredIDs.union(topPicks.map(\.id))
+        return CloudList(topPicks: topPicks, rest: candidates.filter { !shownIDs.contains($0.id) }, starred: starred)
     }
 
     /// The weekly usage a row shows. Only "Top this week" shows it, because only there the rows follow that ranking.

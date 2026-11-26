@@ -20,6 +20,8 @@ final class ModelStore {
     /// Wire id to place in the weekly usage order (0 is most used). Kept in step with `weeklyUsage`.
     private(set) var usageRank: [String: Int] = [:]
     private var selectedID: String?
+    /// The person's stars and hidden cloud models. Saved at once, shared by the picker and Settings.
+    private(set) var cloudPrefs = CloudModelPrefs()
     @ObservationIgnored private let usageSource: (any WeeklyUsageSource)?
     @ObservationIgnored private let usageCache: WeeklyUsageCache
 
@@ -33,6 +35,7 @@ final class ModelStore {
         self.usageSource = usage
         self.usageCache = WeeklyUsageCache(defaults: defaults)
         self.selectedID = defaults.string(forKey: Self.selectedKey)
+        self.cloudPrefs = CloudModelPrefs.load(from: defaults)
         apply(usageCache.load())
         Perf.beginModels()
     }
@@ -94,6 +97,17 @@ final class ModelStore {
         selectedID = model.id
         defaults.set(model.id, forKey: Self.selectedKey)
         telemetry.track(.modelSelected(source: model.source))
+    }
+
+    func toggleStar(_ model: ModelDescriptor) { updatePrefs { $0.toggleStar(model.wireID) } }
+    func hide(_ model: ModelDescriptor) { updatePrefs { $0.hide(model.wireID) } }
+    func unhide(_ model: ModelDescriptor) { updatePrefs { $0.unhide(model.wireID) } }
+
+    private func updatePrefs(_ change: (inout CloudModelPrefs) -> Void) {
+        var prefs = cloudPrefs
+        change(&prefs)
+        cloudPrefs = prefs
+        prefs.save(to: defaults)
     }
 
     /// Restores the model a thread used last, when it is still available.

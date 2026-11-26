@@ -36,7 +36,7 @@ struct ModelRow: View {
                 ModelLabel(model: entry.descriptor)
                 if isDefault {
                     Spacer()
-                    Image(systemName: "star.fill").foregroundStyle(.secondary).accessibilityLabel("Default model")
+                    DefaultBadge()
                 }
             }
             Text(HubListOptions.detailLine(entry)).font(.subheadline).foregroundStyle(.secondary)

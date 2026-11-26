@@ -236,7 +236,7 @@ struct HubScreen: View {
             }
             if models.selected?.id == model.id {
                 Spacer()
-                Image(systemName: "star.fill").foregroundStyle(.secondary).accessibilityLabel("Default model")
+                DefaultBadge()
             }
         }
         .contextMenu { Button("Set as Default", systemImage: "star") { models.select(model) } }

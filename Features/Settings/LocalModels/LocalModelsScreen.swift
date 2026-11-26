@@ -191,9 +191,9 @@ struct LocalModelsScreen: View {
     }
 }
 
-/// The star that marks the default model.
+/// The word that marks the default model. The star stays for favorites.
 struct DefaultBadge: View {
     var body: some View {
-        Image(systemName: "star.fill").foregroundStyle(.secondary).accessibilityLabel("Default model")
+        Text("Default").font(.caption).foregroundStyle(.secondary).accessibilityLabel("Default model")
     }
 }
