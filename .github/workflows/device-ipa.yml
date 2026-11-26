@@ -2,30 +2,52 @@ name: Device IPA
 
 on:
   workflow_dispatch:
-  push:
+  # Only after the main CI build is green: one failing push never costs a second macOS build.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "LICENSE"
 
 concurrency:
-  group: device-ipa-${{ github.ref }}
-  # On main a running build finishes and only the newest waiting push queues behind it,
-  # so frequent pushes still produce green builds. Pull requests cancel stale runs.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: device-ipa-main
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
+  changes:
+    # Linux: decide cheaply whether the app changed at all.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.diff.outputs.app }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 2
+      - id: diff
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || git diff --name-only HEAD~1 HEAD | grep -qE '^(App|Core|Design|Features|Engines|Packages|Config)/|^project\.yml$'; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "app=false" >> "$GITHUB_OUTPUT"
+            echo "No app files changed in this commit, skipping the device build." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   ipa:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: macos-26
     timeout-minutes: 40
     env:
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.COMMIT_SHA }}
 
       - name: Select Xcode 26
         run: |
@@ -63,7 +85,7 @@ jobs:
             -clonedSourcePackagesDirPath SourcePackages \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             SENTRY_DSN="$SENTRY_DSN" \
-            CURRENT_PROJECT_VERSION=${{ github.run_number }} AR_GIT_COMMIT="${GITHUB_SHA::7}" | tail -n 200
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} AR_GIT_COMMIT="${COMMIT_SHA::7}" | tail -n 200
 
       - name: Package IPA
         run: |
@@ -94,7 +116,7 @@ jobs:
             echo "## Unsigned debug IPA"
             echo ""
             echo "- IPA size: $SIZE"
-            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Commit: \`$COMMIT_SHA\`"
             echo ""
             echo "Sideload with Sideloadly or AltStore:"
             echo "1. Download the artifact \`AnyRouter-debug-unsigned\` and unzip it to get the .ipa."
