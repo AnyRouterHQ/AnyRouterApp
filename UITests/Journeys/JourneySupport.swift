@@ -103,8 +103,11 @@ class JourneyCase: XCTestCase {
         attachment.name = "audit-\(journey)-\(currentPass.rawValue)-\(name)"
         attachment.lifetime = .keepAlways
         add(attachment)
+        // audited.tsv has one row per audit call and audit.tsv one per finding, both with the number of the step
+        // the audit ran after, so scripts/ux-score.py can tell a clean audit from no audit.
+        append("\(journey)\t\(currentPass.rawValue)\t\(name)\t\(stepNumber)", to: "audited.tsv")
         for issue in issues {
-            append("\(journey)\t\(currentPass.rawValue)\t\(name)\t\(issue.replacingOccurrences(of: "\t", with: " "))", to: "audit.tsv")
+            append("\(journey)\t\(currentPass.rawValue)\t\(name)\t\(issue.replacingOccurrences(of: "\t", with: " "))\t\(stepNumber)", to: "audit.tsv")
         }
     }
 

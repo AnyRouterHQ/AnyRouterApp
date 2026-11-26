@@ -83,6 +83,8 @@ Nothing runs on this Mac, so there is nothing to tear down except local scratch.
 
 - `scripts/journeys-report.py <evidence-dir>`: builds `journeys.md` (table of journeys, passes, steps, audit findings, failures, screenshot list). The workflow runs it; run it again on a downloaded folder with `python3 .claude/skills/verify-anyrouter-ios/scripts/journeys-report.py <scratch>/verify/<run-id>`.
 
+- `scripts/ux-score.py` (repo root): scores the screenshots and the evidence against `docs/ux-rubric.md`. `ux-score.yml` runs it after every Screenshots and Verify UI run on main; read the job summary or download the `ux-score-screenshots` and `ux-score-verify-ui` artifacts. `audited.tsv` (one row per `audit()` call) is what lets it tell a clean audit from no audit, so keep `audit()` calling it.
+
 ## Findings the harness already surfaced
 
 - The large-text pass shows model names truncated to "AnyRo…" and "Claude Sonn…" in the picker rows at AccessibilityXL.

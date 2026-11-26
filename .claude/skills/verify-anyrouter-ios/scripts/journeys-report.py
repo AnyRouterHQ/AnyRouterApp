@@ -2,7 +2,7 @@
 """Build journeys.md from an evidence folder: python3 journeys-report.py <evidence-dir> > journeys.md
 
 Reads, per device folder: results.tsv (journey, pass, step number, step name, png),
-audit.tsv (journey, pass, step, issue) and ../summary-<device>.json (xcresulttool test summary).
+audit.tsv (journey, pass, audit name, issue, step number), audited.tsv (one row per audit call) and ../summary-<device>.json (xcresulttool test summary).
 """
 import csv
 import json
@@ -53,7 +53,7 @@ def main(root: Path) -> None:
         audit = rows(device / "audit.tsv")
         if audit:
             print("\nAccessibility audit findings:\n")
-            for journey, pass_name, step, issue in audit:
+            for journey, pass_name, step, issue, *_ in audit:
                 print(f"- {journey} / {pass_name} / {step}: {issue}")
         print()
 
