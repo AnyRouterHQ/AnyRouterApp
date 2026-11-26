@@ -6,8 +6,6 @@ Features/Chat/Composer.swift:15
 Features/Chat/MarkdownTheme.swift:13
 Features/Chat/MemoryMenu.swift:1
 Features/Chat/MessageViews.swift:5
-Features/Hub/HubScreen.swift:16
-Features/Hub/ModelCard.swift:21
 Features/Integrations/IntegrationsSettingsView.swift:24
 Features/ModelPicker/ModelPickerSheet.swift:19
 Features/ModelPicker/ModelPill.swift:2

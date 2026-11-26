@@ -114,7 +114,11 @@ final class ScreenshotTests: XCTestCase {
     func testHub() {
         forEachAppearance { app, appearance in
             open(app, footer: "Browse Models")
-            XCTAssertTrue(app.staticTexts["Qwen3 0.6B"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.navigationBars["Manage models"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.otherElements["hub.storage"].exists || app.staticTexts["Storage"].exists)
+            // Rows are list cells with a link, so match by label instead of a static text id.
+            let qwen = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Qwen3 0.6B'")).firstMatch
+            XCTAssertTrue(qwen.waitForExistence(timeout: 10))
             capture("hub", appearance)
         }
     }

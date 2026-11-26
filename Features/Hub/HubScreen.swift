@@ -1,131 +1,279 @@
 import SwiftUI
 
-/// Sheet wrapper: the hub in its own navigation stack with a Done button.
+/// Sheet wrapper: Manage models in its own navigation stack with a close button.
 struct HubSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             HubScreen()
-                .navigationTitle("Browse Models")
-                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                    ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
                 }
         }
-        .tint(ARColor.accent)
     }
 }
 
-/// Browse Models content: installed and available local models, Hugging Face search, downloads.
+/// Manage models: what is on this device, what is downloading, and what can be added. A stock inset-grouped list.
+/// The caller supplies the navigation stack (the hub sheet and Settings both do).
 struct HubScreen: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models
 
     @State private var query = ""
+    @State private var sort = HubSort.recommended
+    @State private var filter = HubFilter()
     @State private var showsRepoSearch = false
+    @State private var showsAddByLink = false
+    @State private var freeBytes: Int64?
+    @State private var pendingDelete: LocalModelEntry?
+    @State private var pendingDownload: LocalModelEntry?
 
     private var hub: any ModelHubService { app.hub }
+    private var device: String { DeviceName.current }
 
     private var sections: HubLogic.Sections {
         HubLogic.sections(catalog: hub.catalog, state: { hub.downloadState(for: $0) }, query: query)
+    }
+
+    private var installed: [LocalModelEntry] {
+        HubListOptions.apply(sections.installed, sort: sort, filter: filter)
+    }
+
+    private var downloading: [LocalModelEntry] {
+        HubListOptions.apply(sections.available.filter { hub.downloadState(for: $0.id).isActive }, sort: sort, filter: filter)
+    }
+
+    private var available: [LocalModelEntry] {
+        HubListOptions.apply(sections.available.filter { !hub.downloadState(for: $0.id).isActive }, sort: sort, filter: filter)
+    }
+
+    private var appleModel: ModelDescriptor? {
+        models.models.first { $0.source == .apple && $0.isInstalled }
+    }
+
+    private var showsApple: Bool {
+        appleModel != nil && (query.isEmpty || "Apple Intelligence".localizedCaseInsensitiveContains(query))
+            && (filter.engines.isEmpty || filter.engines.contains(.apple)) && filter.capabilities.isEmpty
     }
 
     private var installedIDs: [String] {
         hub.catalog.filter { hub.downloadState(for: $0.id) == .installed }.map(\.id)
     }
 
+    private var usedBytes: Int64 {
+        hub.catalog.filter { hub.downloadState(for: $0.id) == .installed }.reduce(0) { $0 + ($1.descriptor.sizeBytes ?? 0) }
+    }
+
+    private var isEmpty: Bool { installed.isEmpty && downloading.isEmpty && available.isEmpty && !showsApple }
+
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 12) {
-                    if let error = hub.lastError { ErrorBanner(text: error) {} }
-                    installedSection
-                    availableSection
-                    if !query.trimmingCharacters(in: .whitespaces).isEmpty { searchRow }
+        List {
+            if let error = hub.lastError {
+                Section { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
+            }
+            Section {
+                LabeledContent("Storage", value: HubListOptions.storageSummary(usedBytes: usedBytes, freeBytes: freeBytes))
+                    .accessibilityIdentifier("hub.storage")
+            }
+            if !installed.isEmpty || showsApple {
+                Section("On this \(device)") {
+                    if showsApple, let appleModel { appleRow(appleModel) }
+                    ForEach(installed) { entry in row(entry) }
                 }
-                .frame(maxWidth: ARTheme.contentMaxWidth)
-                .padding(.horizontal, ARTheme.pagePadding)
-                .padding(.bottom, 24)
-                .frame(maxWidth: .infinity)
+            }
+            if !downloading.isEmpty {
+                Section("Downloading") { ForEach(downloading) { entry in row(entry) } }
+            }
+            if !available.isEmpty {
+                Section("Available") { ForEach(available) { entry in row(entry) } }
+            }
+            if !query.trimmingCharacters(in: .whitespaces).isEmpty {
+                Section {
+                    Button("Search Hugging Face for “\(query)”", systemImage: "magnifyingglass") { showsRepoSearch = true }
+                }
             }
         }
+        .listStyle(.insetGrouped)
+        .accessibilityIdentifier("hub.list")
+        .navigationTitle("Manage models")
+        .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "Search models")
-        .refreshable { await hub.refreshCatalog() }
-        .sheet(isPresented: $showsRepoSearch) {
-            RepoSearchSheet(query: query)
-        }
-        .onChange(of: installedIDs) {
-            Task { await models.refresh() }
-        }
-        .task { await app.memory.refresh() }
-    }
-
-    @ViewBuilder
-    private var installedSection: some View {
-        let apple = models.models.filter { $0.source == .apple && $0.isInstalled }
-        if !sections.installed.isEmpty || !apple.isEmpty {
-            ARSectionTitle("Installed Models")
-            ForEach(apple) { _ in
-                ModelCard(title: "Apple Intelligence", sizeText: nil,
-                          summary: "Apple Intelligence is a model for local use.",
-                          tags: ["local", "apple"], leadingIcon: "apple.logo")
+        .overlay {
+            if isEmpty {
+                if query.isEmpty {
+                    ContentUnavailableView("No models", systemImage: "cube",
+                                           description: Text("Pull down to refresh the catalog, or add a model by link."))
+                } else {
+                    ContentUnavailableView.search(text: query)
+                }
             }
-            ForEach(sections.installed) { entry in card(entry) }
+        }
+        .toolbar { toolbarContent }
+        .refreshable { await hub.refreshCatalog() }
+        .sheet(isPresented: $showsRepoSearch) { RepoSearchSheet(query: query) }
+        .sheet(isPresented: $showsAddByLink) { AddByLinkSheet() }
+        .confirmationDialog("Delete model?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+                            titleVisibility: .visible, presenting: pendingDelete) { entry in
+            Button("Delete \(entry.descriptor.displayName)", role: .destructive) {
+                Task { await hub.delete(modelID: entry.id) }
+            }
+        } message: { _ in
+            Text("The files are removed from this \(device). You can download it again later.")
+        }
+        .confirmationDialog("Download anyway?", isPresented: Binding(get: { pendingDownload != nil }, set: { if !$0 { pendingDownload = nil } }),
+                            titleVisibility: .visible, presenting: pendingDownload) { entry in
+            Button("Download anyway", role: .destructive) { hub.download(entry) }
+        } message: { entry in
+            Text(FitText.downloadWarning(entry.fitDetail, sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes), device: device) ?? "")
+        }
+        .onChange(of: installedIDs) { Task { await models.refresh() } }
+        .task {
+            await app.memory.refresh()
+            freeBytes = Self.freeDiskBytes()
         }
     }
 
-    @ViewBuilder
-    private var availableSection: some View {
-        if !sections.available.isEmpty {
-            ARSectionTitle("Browse Models").padding(.top, 8)
-            ForEach(sections.available) { entry in card(entry) }
-        } else if sections.isEmpty && !query.isEmpty {
-            Text("No matching models").font(.arSM).foregroundStyle(ARColor.mutedForeground).padding(.top, 24)
+    // MARK: Toolbar
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            Menu {
+                Picker("Sort", selection: $sort) {
+                    ForEach(HubSort.allCases) { Text($0.title).tag($0) }
+                }
+            } label: {
+                Label("Sort", systemImage: "arrow.up.arrow.down")
+            }
+            .accessibilityIdentifier("hub.sort")
+            Menu {
+                Toggle("Fits this \(device)", isOn: $filter.fitsOnly)
+                Section("Engine") {
+                    ForEach([ModelSource.gguf, .mlx], id: \.self) { source in
+                        Toggle(HubListOptions.engineName(source), isOn: engineBinding(source))
+                    }
+                }
+                let capabilities = HubListOptions.capabilities(in: hub.catalog)
+                if !capabilities.isEmpty {
+                    Section("Capabilities") {
+                        ForEach(capabilities, id: \.self) { name in
+                            Toggle(name.capitalized, isOn: capabilityBinding(name))
+                        }
+                    }
+                }
+                if filter.isActive { Button("Clear filters", role: .destructive) { filter = HubFilter() } }
+            } label: {
+                Label("Filter", systemImage: filter.isActive
+                      ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+            }
+            .accessibilityIdentifier("hub.filter")
+            Button("Add by link", systemImage: "plus") { showsAddByLink = true }
+                .accessibilityIdentifier("hub.add")
         }
     }
 
-    private func card(_ entry: LocalModelEntry) -> some View {
-        let id = entry.id
-        return ModelCard(
-            title: entry.descriptor.displayName,
-            sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes),
-            summary: entry.summary,
-            tags: entry.tags,
-            badges: entry.badges,
-            fit: entry.fit,
-            fitDetail: entry.fitDetail,
-            state: hub.downloadState(for: id),
-            unavailableReason: entry.unavailableReason,
-            onDownload: { hub.download(entry) },
-            onPause: { hub.pause(modelID: id) },
-            onResume: { hub.resume(modelID: id) },
-            onCancel: { hub.cancel(modelID: id) },
-            onDelete: { Task { await hub.delete(modelID: id) } },
-            memoryNote: app.memory.loadedModelID == id
-                ? FitText.memoryLine(footprintBytes: app.memory.readout.footprintBytes, availableBytes: app.memory.readout.availableBytes)
-                : nil,
-            onUnload: app.memory.loadedModelID == id ? { Task { await app.memory.unload() } } : nil
+    private func engineBinding(_ source: ModelSource) -> Binding<Bool> {
+        Binding(
+            get: { filter.engines.contains(source) },
+            set: { on in if on { filter.engines.insert(source) } else { filter.engines.remove(source) } }
         )
     }
 
-    private var searchRow: some View {
-        Button { showsRepoSearch = true } label: {
-            HStack {
-                Image(systemName: "magnifyingglass")
-                Text("Search Hugging Face for “\(query)”").font(.arBase)
-                Spacer()
-                Image(systemName: "chevron.right").font(.arXS)
+    private func capabilityBinding(_ name: String) -> Binding<Bool> {
+        Binding(
+            get: { filter.capabilities.contains(name) },
+            set: { on in if on { filter.capabilities.insert(name) } else { filter.capabilities.remove(name) } }
+        )
+    }
+
+    // MARK: Rows
+
+    private func appleRow(_ model: ModelDescriptor) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Apple Intelligence", systemImage: "apple.logo")
+                Text("Built in · On device").font(.subheadline).foregroundStyle(.secondary)
             }
-            .foregroundStyle(ARColor.foreground)
-            .padding(14)
-            .arCard(radius: ARTheme.radiusLarge)
+            if models.selected?.id == model.id {
+                Spacer()
+                Image(systemName: "star.fill").foregroundStyle(.secondary).accessibilityLabel("Default model")
+            }
         }
-        .buttonStyle(.plain)
+        .contextMenu { Button("Set as default", systemImage: "star") { models.select(model) } }
+    }
+
+    private func row(_ entry: LocalModelEntry) -> some View {
+        let id = entry.id
+        let state = hub.downloadState(for: id)
+        return NavigationLink {
+            ModelDetailView(entry: entry)
+        } label: {
+            ModelRow(entry: entry, state: state, isDefault: models.selected?.id == id && state == .installed)
+        }
+        .swipeActions(edge: .trailing) { swipeActions(entry, state: state) }
+        .contextMenu { menu(entry, state: state) }
+    }
+
+    @ViewBuilder
+    private func swipeActions(_ entry: LocalModelEntry, state: DownloadState) -> some View {
+        switch state {
+        case .installed:
+            Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = entry }
+        case .downloading:
+            Button("Cancel", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
+            Button("Pause", systemImage: "pause") { hub.pause(modelID: entry.id) }.tint(.orange)
+        case .paused:
+            Button("Cancel", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
+            Button("Resume", systemImage: "play") { hub.resume(modelID: entry.id) }.tint(.green)
+        case .notInstalled, .failed:
+            if entry.unavailableReason == nil {
+                Button("Download", systemImage: "arrow.down") { requestDownload(entry) }.tint(.blue)
+            }
+        case .verifying:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func menu(_ entry: LocalModelEntry, state: DownloadState) -> some View {
+        switch state {
+        case .installed:
+            if let descriptor = models.models.first(where: { $0.id == entry.id && $0.isInstalled }) {
+                Button("Set as default", systemImage: "star") { models.select(descriptor) }
+            }
+            if app.memory.loadedModelID == entry.id {
+                Button("Unload", systemImage: "memorychip") { Task { await app.memory.unload() } }
+            }
+            Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = entry }
+        case .downloading:
+            Button("Pause", systemImage: "pause") { hub.pause(modelID: entry.id) }
+            Button("Cancel download", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
+        case .paused:
+            Button("Resume", systemImage: "play") { hub.resume(modelID: entry.id) }
+            Button("Cancel download", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
+        case .notInstalled, .failed:
+            if entry.unavailableReason == nil {
+                Button("Download", systemImage: "arrow.down.circle") { requestDownload(entry) }
+            }
+        case .verifying:
+            EmptyView()
+        }
+    }
+
+    /// A model that will not fit asks first. Everything else downloads at once.
+    private func requestDownload(_ entry: LocalModelEntry) {
+        let warning = FitText.downloadWarning(entry.fitDetail, sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes), device: device)
+        if warning != nil { pendingDownload = entry } else { hub.download(entry) }
+    }
+
+    private static func freeDiskBytes() -> Int64? {
+        let values = try? URL.documentsDirectory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        return values?.volumeAvailableCapacityForImportantUsage
     }
 }
 
-/// Hugging Face repo search: pick a repo, then download one of its files or snapshot.
+/// Hugging Face repo search: pick a repo, then open one of its files or its snapshot.
 struct RepoSearchSheet: View {
     let query: String
 
@@ -135,86 +283,41 @@ struct RepoSearchSheet: View {
     @State private var hits: [RepoHit] = []
     @State private var isLoading = true
     @State private var errorText: String?
-    @State private var selected: RepoHit?
-    @State private var files: [LocalModelEntry] = []
-    @State private var isLoadingFiles = false
 
     private var hub: any ModelHubService { app.hub }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                if selected != nil {
-                    ARIconButton(systemName: "arrow.left", label: "Back") { selected = nil; files = [] }
+        NavigationStack {
+            List {
+                if let errorText { Label(errorText, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
+                ForEach(hits) { hit in
+                    NavigationLink {
+                        RepoFilesView(hit: hit)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(hit.repo)
+                            Text(subtitle(hit)).font(.subheadline).foregroundStyle(.secondary)
+                        }
+                    }
                 }
-                Text(selected?.repo ?? "Hugging Face").font(.arXL).foregroundStyle(ARColor.foreground).lineLimit(1)
-                Spacer()
-                Button("Done") { dismiss() }
             }
-            .padding(ARTheme.pagePadding)
-            ScrollView {
-                VStack(spacing: 10) {
-                    if let errorText { ErrorBanner(text: errorText) { self.errorText = nil } }
-                    if selected == nil { repoList } else { fileList }
-                }
-                .padding(.horizontal, ARTheme.pagePadding)
-                .padding(.bottom, 24)
+            .navigationTitle("Hugging Face")
+            .navigationBarTitleDisplayMode(.inline)
+            .overlay {
+                if isLoading { ProgressView() }
+                else if hits.isEmpty && errorText == nil { ContentUnavailableView.search(text: query) }
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
             }
         }
-        .background(ARColor.background.ignoresSafeArea())
-        .presentationDetents([.large])
         .task { await search() }
     }
 
-    @ViewBuilder
-    private var repoList: some View {
-        if isLoading {
-            ProgressView().padding(.top, 32)
-        } else if hits.isEmpty {
-            Text("No models found").font(.arSM).foregroundStyle(ARColor.mutedForeground).padding(.top, 32)
-        }
-        ForEach(hits) { hit in
-            Button { open(hit) } label: {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(hit.repo).font(.arBase).foregroundStyle(ARColor.foreground).lineLimit(1)
-                        HStack(spacing: 6) {
-                            ARChip(text: hit.source == .mlx ? "mlx" : "gguf")
-                            if let d = hit.downloads { Text("\(d.formatted(.number.notation(.compactName))) downloads").font(.arXS).foregroundStyle(ARColor.mutedForeground) }
-                        }
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.arXS).foregroundStyle(ARColor.mutedForeground)
-                }
-                .padding(12)
-                .arCard(radius: ARTheme.radius)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    @ViewBuilder
-    private var fileList: some View {
-        if isLoadingFiles {
-            ProgressView().padding(.top, 32)
-        } else if files.isEmpty {
-            Text("No usable files in this repo").font(.arSM).foregroundStyle(ARColor.mutedForeground).padding(.top, 32)
-        }
-        ForEach(files) { entry in
-            let id = entry.id
-            ModelCard(
-                title: entry.descriptor.displayName,
-                sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes),
-                summary: entry.summary, tags: entry.tags, fit: entry.fit, fitDetail: entry.fitDetail,
-                state: hub.downloadState(for: id),
-            unavailableReason: entry.unavailableReason,
-                onDownload: { hub.download(entry) },
-                onPause: { hub.pause(modelID: id) },
-                onResume: { hub.resume(modelID: id) },
-                onCancel: { hub.cancel(modelID: id) },
-                onDelete: { Task { await hub.delete(modelID: id) } }
-            )
-        }
+    private func subtitle(_ hit: RepoHit) -> String {
+        var parts = [HubListOptions.engineName(hit.source)]
+        if let d = hit.downloads { parts.append("\(d.formatted(.number.notation(.compactName))) downloads") }
+        return parts.joined(separator: " · ")
     }
 
     private func search() async {
@@ -222,13 +325,106 @@ struct RepoSearchSheet: View {
         do { hits = try await hub.searchRepos(query) } catch { errorText = error.localizedDescription }
         isLoading = false
     }
+}
 
-    private func open(_ hit: RepoHit) {
-        selected = hit
-        isLoadingFiles = true
+/// The files (or snapshot) of one repo as model rows.
+private struct RepoFilesView: View {
+    let hit: RepoHit
+
+    @Environment(AppState.self) private var app
+
+    @State private var files: [LocalModelEntry] = []
+    @State private var isLoading = true
+    @State private var errorText: String?
+
+    var body: some View {
+        List {
+            if let errorText { Label(errorText, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
+            ForEach(files) { entry in
+                NavigationLink {
+                    ModelDetailView(entry: entry)
+                } label: {
+                    ModelRow(entry: entry, state: app.hub.downloadState(for: entry.id))
+                }
+            }
+        }
+        .navigationTitle(hit.repo)
+        .navigationBarTitleDisplayMode(.inline)
+        .overlay {
+            if isLoading { ProgressView() }
+            else if files.isEmpty && errorText == nil {
+                ContentUnavailableView("No usable files", systemImage: "doc", description: Text("This repo has no model files the app can run."))
+            }
+        }
+        .task {
+            do { files = try await app.hub.entries(for: hit) } catch { errorText = error.localizedDescription }
+            isLoading = false
+        }
+    }
+}
+
+/// Add a model by Hugging Face link or repo id.
+struct AddByLinkSheet: View {
+    @Environment(AppState.self) private var app
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var text = ""
+    @State private var format = ModelSource.gguf
+    @State private var errorText: String?
+    @State private var isBusy = false
+
+    private var repo: String? { SettingsLogic.parseRepo(text) }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("huggingface.co/org/model", text: $text)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
+                        .accessibilityIdentifier("hub.add.field")
+                    PasteButton(payloadType: String.self) { strings in
+                        if let first = strings.first { text = first }
+                    }
+                } footer: {
+                    Text("Paste a Hugging Face link or write org/model.")
+                }
+                Section {
+                    Picker("Format", selection: $format) {
+                        Text("GGUF").tag(ModelSource.gguf)
+                        Text("MLX").tag(ModelSource.mlx)
+                    }
+                    .pickerStyle(.segmented)
+                }
+                if let errorText {
+                    Section { Label(errorText, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
+                }
+            }
+            .navigationTitle("Add by link")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add", role: .confirm) { add() }.disabled(repo == nil || isBusy)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private func add() {
+        guard let repo else { return }
+        isBusy = true
         Task {
-            do { files = try await hub.entries(for: hit) } catch { errorText = error.localizedDescription }
-            isLoadingFiles = false
+            do {
+                try await app.hub.addRepo(RepoHit(repo: repo, source: format, downloads: nil, likes: nil))
+                await app.hub.reload()
+                dismiss()
+            } catch {
+                errorText = error.localizedDescription
+            }
+            isBusy = false
         }
     }
 }
