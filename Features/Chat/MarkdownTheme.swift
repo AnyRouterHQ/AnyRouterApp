@@ -4,7 +4,7 @@ import UIKit
 
 extension Theme {
     /// Markdown look matching Atomic's `styles/markdown.css` in AnyRouter colors.
-    static var anyRouter: Theme {
+    @MainActor static var anyRouter: Theme {
         Theme()
             .text {
                 ForegroundColor(ARColor.foreground)
