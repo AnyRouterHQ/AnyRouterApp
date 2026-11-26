@@ -157,6 +157,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [ ] F6 Vision: image attachments for AnyRouter vision models and Gemma 3 4B (VLM) via MLXVLM.
 - [ ] F7 Mac: "Designed for iPad" on Apple silicon, then a native macOS destination.
 - [ ] F8 Screenshot tests (simulator) of each main screen, compared against reference screenshots.
+- [x] F15 Prompt presets: starter questions on the empty chat (tap fills the composer, long-press sends), composer presets sheet, custom presets in Settings (#PR)
 - [x] F9 Real-model smoke in CI: `model-smoke.yml` runs the smallest catalog GGUF through `GGUFEngine` on the Simulator, plus installer, download manager and Apple Foundation Models availability. MLX is device only. (#18)
 
 ## Open questions (operator)
@@ -189,3 +190,4 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - 2026-11-26 lane-E: ad-hoc release workflow, signing scripts, install doc (E1-E2); signing path untested until secrets exist; local checks skipped
 - 2026-11-26 chore: neutral references, reference notes moved to gitignored AGENTS.local.md, CI check for banned names; local checks skipped
 - 2026-11-26 lane-E: switched milestone 1 from ad-hoc to TestFlight: `testflight.yml`, `docs/testflight.md`, ITSAppUsesNonExemptEncryption=NO in project.yml (E1-E2); local checks skipped
+- 2026-11-26 lane-F15: prompt presets (empty-chat starters, composer sheet, custom presets in Settings); local checks skipped

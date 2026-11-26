@@ -4,6 +4,8 @@ import SwiftUI
 struct Composer: View {
     @Bindable var model: ChatViewModel
     var hasModel: Bool
+    var presets: PresetStore?
+    @State private var showsPresets = false
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -29,6 +31,15 @@ struct Composer: View {
                     }
                     .disabled(true)
                     .accessibilityLabel("Attachments, coming soon")
+                    if let presets, model.input.isEmpty, !model.isStreaming {
+                        Button { showsPresets = true } label: {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(ARColor.mutedForeground)
+                                .frame(width: 32, height: 32)
+                        }
+                        .accessibilityLabel("Presets")
+                    }
                     Spacer()
                     actionButton
                 }
@@ -41,6 +52,12 @@ struct Composer: View {
         .frame(maxWidth: ARTheme.contentMaxWidth)
         .padding(.horizontal, ARTheme.pagePadding)
         .padding(.bottom, 8)
+        .onChange(of: model.focusTick) { focused = true }
+        .sheet(isPresented: $showsPresets) {
+            if let presets {
+                PresetSheet(store: presets, onPick: { model.usePreset($0) }, onSend: { model.sendNow($0) })
+            }
+        }
     }
 
     @ViewBuilder

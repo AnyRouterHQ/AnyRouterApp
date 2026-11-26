@@ -8,6 +8,7 @@ struct ChatScreen: View {
     @Environment(EngineRegistry.self) private var registry
     @Environment(AppSettings.self) private var settings
     @Environment(ModelStore.self) private var models
+    @Environment(AppState.self) private var app
 
     @State private var chat: ChatViewModel?
     @State private var showsPicker = false
@@ -16,7 +17,7 @@ struct ChatScreen: View {
         VStack(spacing: 0) {
             topBar
             if let chat {
-                ChatContent(chat: chat, hasModel: models.selected != nil)
+                ChatContent(chat: chat, hasModel: models.selected != nil, presets: app.presets)
             } else {
                 Spacer()
             }
@@ -61,6 +62,7 @@ struct ChatScreen: View {
 private struct ChatContent: View {
     @Bindable var chat: ChatViewModel
     let hasModel: Bool
+    let presets: PresetStore
 
     var body: some View {
         VStack(spacing: 0) {
@@ -69,7 +71,7 @@ private struct ChatContent: View {
             } else {
                 messageList
             }
-            Composer(model: chat, hasModel: hasModel)
+            Composer(model: chat, hasModel: hasModel, presets: presets)
         }
     }
 
@@ -79,6 +81,8 @@ private struct ChatContent: View {
             ARLogoMark(size: 48).foregroundStyle(ARColor.foreground)
             Text("How can I help?").font(.arTitle).foregroundStyle(ARColor.foreground)
             Spacer()
+            PresetSuggestions(store: presets, onPick: { chat.usePreset($0) }, onSend: { chat.sendNow($0) })
+                .padding(.bottom, 8)
         }
         .frame(maxWidth: .infinity)
     }
@@ -122,6 +126,7 @@ private struct ChatContent: View {
         .environment(state.registry)
         .environment(state.settings)
         .environment(state.models)
+        .environment(state)
         .modelContainer(container)
         .background(ARColor.background)
 }
