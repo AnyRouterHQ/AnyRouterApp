@@ -60,8 +60,31 @@ struct EngineRegistryTests {
         registry.register(FakeEngine(source: .anyrouter, models: [descriptor("anyrouter/slow", .anyrouter)], delay: .milliseconds(200)))
         registry.register(FakeEngine(source: .apple, models: [descriptor("apple/fast", .apple)]))
         var listings: [[String]] = []
-        for await listing in registry.modelListings() { listings.append(listing.map(\.id)) }
+        for await listing in registry.modelListings() { listings.append(listing.models.map(\.id)) }
         #expect(listings == [["apple/fast"], ["anyrouter/slow", "apple/fast"]])
+    }
+
+    @Test func aFailingEngineIsReportedWithItsReasonInsteadOfBeingHidden() async {
+        let registry = EngineRegistry()
+        registry.register(FakeEngine(source: .apple, models: [descriptor("apple/foundation", .apple)]))
+        registry.register(FakeEngine(source: .anyrouter, fails: true))
+        var last: ModelListing?
+        for await listing in registry.modelListings() { last = listing }
+        #expect(last?.models.map(\.id) == ["apple/foundation"])
+        #expect(last?.failures[.anyrouter] == URLError(.notConnectedToInternet).localizedDescription)
+        #expect(last?.failures[.apple] == nil)
+    }
+
+    @Test func anEngineThatNeverAnswersTimesOutAndTheStreamStillEnds() async {
+        let registry = EngineRegistry(listTimeout: .milliseconds(100))
+        registry.register(FakeEngine(source: .apple, models: [descriptor("apple/foundation", .apple)]))
+        registry.register(FakeEngine(source: .anyrouter, models: [descriptor("anyrouter/a/b", .anyrouter)], delay: .seconds(600)))
+        var listings: [ModelListing] = []
+        for await listing in registry.modelListings() { listings.append(listing) }
+        #expect(listings.count == 2)
+        #expect(listings[0].failures.isEmpty)
+        #expect(listings[1].models.map(\.id) == ["apple/foundation"])
+        #expect(listings[1].failures[.anyrouter] == "The model list did not load in time.")
     }
 
     @Test func noEnginesMeansNoListings() async {

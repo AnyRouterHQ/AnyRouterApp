@@ -31,6 +31,9 @@ struct AnyRouterModelsScreen: View {
             if let note = models.defaultNote {
                 Section { Label(note, systemImage: "exclamationmark.triangle") }
             }
+            if let failure = models.loadFailures[.anyrouter], !models.isLoading, !list.isEmpty {
+                CloudListStaleNotice(message: failure) { Task { await models.refresh() } }
+            }
             if !list.starred.isEmpty {
                 Section("Starred") { ForEach(list.starred) { row($0) } }
                     .accessibilityIdentifier("anyrouter.starred")
@@ -113,7 +116,10 @@ struct AnyRouterModelsScreen: View {
                         if filter.isActive { Button("Clear filters") { filter = ModelFilter() }.buttonStyle(.bordered) }
                     }
                 } else {
-                    ContentUnavailableView("No cloud models", systemImage: "cloud")
+                    CloudListEmptyState(
+                        reason: CloudEmptyReason.reason(
+                            models: models.models, failure: models.loadFailures[.anyrouter], isLoading: models.isLoading),
+                        retry: { Task { await models.refresh() } })
                 }
             }
         }

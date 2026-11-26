@@ -27,7 +27,7 @@ struct DiagnosticsStoreTests {
 
     @Test func everyKindHasATitle() {
         #expect(DiagnosticKind.allCases.map(\.title) == [
-            "Crash", "Hang", "CPU exception", "Disk write exception", "Diagnostic", "Metrics",
+            "Crash", "Hang", "CPU exception", "Disk write exception", "Diagnostic", "Metrics", "Model list error",
         ])
     }
 
@@ -73,6 +73,18 @@ struct DiagnosticsStoreTests {
         try s.saveMetrics(Data("{}".utf8), now: now)
         try s.saveMetrics(Data("{}".utf8), now: now)
         #expect(s.list().count == 2)
+    }
+
+    @Test func aModelListFailureIsKeptWithItsSourceAndReason() throws {
+        let s = store()
+        try s.saveModelListFailure(source: "anyrouter", message: "No answer after 20 seconds.", now: Date(timeIntervalSince1970: 1_800_000_000))
+        try s.saveMetrics(Data("{}".utf8), now: Date(timeIntervalSince1970: 1_800_000_060))
+        let records = s.list()
+        #expect(records.map(\.kind) == [.metric, .modelList])
+        #expect(s.modelListMessage(of: records[1]) == "anyrouter: No answer after 20 seconds.")
+        #expect(s.modelListMessage(of: records[0]) == nil, "only model list records carry a message")
+        try Data("not json".utf8).write(to: records[1].url)
+        #expect(s.modelListMessage(of: records[1]) == nil, "a file that does not read gives no message")
     }
 
     @Test func foreignFilesInTheFolderAreIgnored() throws {

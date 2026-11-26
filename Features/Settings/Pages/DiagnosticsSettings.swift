@@ -57,6 +57,9 @@ struct DiagnosticsSettings: View {
                                 Text(record.date, format: .dateTime.year().month().day().hour().minute())
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                if let message = appState.diagnostics.modelListMessage(of: record) {
+                                    Text(message).font(.caption).foregroundStyle(.secondary)
+                                }
                             }
                             Spacer()
                             ShareLink(item: record.url) {

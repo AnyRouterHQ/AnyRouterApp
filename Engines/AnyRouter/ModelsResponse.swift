@@ -109,6 +109,8 @@ struct ModelsResponse: Decodable {
     }
 
     var data: [Item]
+    /// Entries that could not be read and were left out. One odd entry never takes the whole catalog with it.
+    var skipped = 0
 
     /// Chat models only: embedding, rerank and decision models never reach the chat picker.
     /// `isInstalled` means usable now, so it follows the sign-in state.
@@ -135,6 +137,30 @@ struct ModelsResponse: Decodable {
     /// Decision models, for the Decisions screen. Ids are the wire ids (`anyrouter/decision`).
     func decisionModels() -> [DecisionModel] {
         data.filter { $0.kind == .decision }.map { DecisionModel(id: $0.id, name: $0.name ?? $0.id) }
+    }
+
+    /// Reads `data` entry by entry: an entry that does not read is counted and skipped.
+    private enum CodingKeys: String, CodingKey { case data }
+
+    /// Moves past an entry that failed to decode, which a failed `decode` does not do by itself.
+    private struct Discarded: Decodable {
+        init(from decoder: Decoder) throws {}
+    }
+
+    init(from decoder: Decoder) throws {
+        var list = try decoder.container(keyedBy: CodingKeys.self).nestedUnkeyedContainer(forKey: .data)
+        var items: [Item] = []
+        var unreadable = 0
+        while !list.isAtEnd {
+            if let item = try? list.decode(Item.self) {
+                items.append(item)
+            } else {
+                unreadable += 1
+                _ = try? list.decode(Discarded.self)
+            }
+        }
+        data = items
+        skipped = unreadable
     }
 
     /// A string, or nil for any other shape, so a field that is only shown never breaks the whole list.

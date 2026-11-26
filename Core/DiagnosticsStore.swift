@@ -3,6 +3,8 @@ import Foundation
 /// What a saved MetricKit payload is about.
 enum DiagnosticKind: String, Sendable, CaseIterable {
     case crash, hang, cpu, disk, diagnostic, metric
+    /// A model list that could not be loaded. Written by the app, not delivered by MetricKit.
+    case modelList
 
     var title: String {
         switch self {
@@ -12,6 +14,7 @@ enum DiagnosticKind: String, Sendable, CaseIterable {
         case .disk: "Disk write exception"
         case .diagnostic: "Diagnostic"
         case .metric: "Metrics"
+        case .modelList: "Model list error"
         }
     }
 
@@ -59,6 +62,21 @@ struct DiagnosticsStore: Sendable {
 
     func saveMetrics(_ json: Data, now: Date = Date()) throws {
         try write(json, kind: .metric, now: now)
+    }
+
+    /// Keeps the reason a model list did not load, so it can be read after a relaunch. Holds the source and the error text only.
+    func saveModelListFailure(source: String, message: String, now: Date = Date()) throws {
+        let body = try JSONSerialization.data(
+            withJSONObject: ["event": "model-list-failed", "source": source, "error": message], options: [.sortedKeys])
+        try write(body, kind: .modelList, now: now)
+    }
+
+    /// The error text of a model list record, nil for any other kind or a file that does not read.
+    func modelListMessage(of record: DiagnosticRecord) -> String? {
+        guard record.kind == .modelList, let data = try? Data(contentsOf: record.url),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: String],
+              let source = object["source"], let error = object["error"] else { return nil }
+        return "\(source): \(error)"
     }
 
     /// Newest first.

@@ -13,6 +13,13 @@ final class ModelStore {
 
     private(set) var models: [ModelDescriptor] = []
     private(set) var isLoading = false
+    /// Why an engine's list could not be loaded, by source, from its latest answer. Cleared when it answers again.
+    /// The models it listed before stay in `models`, so a failed refresh never empties a list that was fine.
+    private(set) var loadFailures: [ModelSource: String] = [:]
+    /// Each engine's latest good list. `models` is these laid out in registration order.
+    @ObservationIgnored private var listsBySource: [ModelSource: [ModelDescriptor]] = [:]
+    /// Called once for each new failure message of a source, so it can be written to Settings > Diagnostics.
+    @ObservationIgnored private let onLoadFailure: (ModelSource, String) -> Void
     /// True after the first refresh, so a missing model can be told apart from "not loaded yet".
     private(set) var hasLoaded = false
     /// Each model's last 7 days by wire id. From the cache until a fresh fetch lands; empty offline on first launch.
@@ -27,8 +34,9 @@ final class ModelStore {
 
     init(
         registry: EngineRegistry, defaults: UserDefaults = .standard, telemetry: any Telemetry = NoopTelemetry(),
-        usage: (any WeeklyUsageSource)? = nil
+        usage: (any WeeklyUsageSource)? = nil, onLoadFailure: @escaping (ModelSource, String) -> Void = { _, _ in }
     ) {
+        self.onLoadFailure = onLoadFailure
         self.registry = registry
         self.defaults = defaults
         self.telemetry = telemetry
@@ -69,9 +77,14 @@ final class ModelStore {
     func refresh() async {
         isLoading = true
         // Each engine's models appear as soon as it answers, so a slow cloud list never keeps Apple and local models waiting.
+        // An engine that has not answered yet, or failed, keeps the models it listed before.
         for await listing in registry.modelListings() {
-            models = listing
-            if listing.contains(where: \.isInstalled) { Perf.endModels() }
+            listsBySource.merge(listing.lists) { _, new in new }
+            let previous = loadFailures
+            loadFailures = previous.filter { listing.lists[$0.key] == nil }.merging(listing.failures) { _, new in new }
+            for (source, message) in listing.failures where previous[source] != message { onLoadFailure(source, message) }
+            models = listing.order.flatMap { listsBySource[$0] ?? [] }
+            if models.contains(where: \.isInstalled) { Perf.endModels() }
         }
         isLoading = false
         hasLoaded = true

@@ -342,6 +342,9 @@ struct ModelPickerSheet: View {
 
     @ViewBuilder
     private func cloudRows(_ list: CloudList) -> some View {
+        if let failure = models.loadFailures[.anyrouter], !models.isLoading, !list.isEmpty {
+            CloudListStaleNotice(message: failure) { Task { await models.refresh() } }
+        }
         if let current = list.current {
             Section("Current") { modelButton(current) }
         }
@@ -393,7 +396,10 @@ struct ModelPickerSheet: View {
             case .signedIn:
                 if shown.cloud.isEmpty {
                     if debouncedQuery.isEmpty && !cloudFilter.isActive {
-                        ContentUnavailableView("No cloud models", systemImage: "cloud")
+                        CloudListEmptyState(
+                            reason: CloudEmptyReason.reason(
+                                models: models.models, failure: models.loadFailures[.anyrouter], isLoading: models.isLoading),
+                            retry: { Task { await models.refresh() } })
                     } else {
                         noMatches(clear: { cloudFilter = ModelFilter() }, isFiltered: cloudFilter.isActive)
                     }

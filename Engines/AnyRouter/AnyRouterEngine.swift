@@ -56,7 +56,8 @@ struct AnyRouterEngine: ChatEngine {
         guard (200..<300).contains(status) else {
             throw AnyRouterError.http(status: status, message: AnyRouterError.message(from: data, status: status))
         }
-        let decoded = try JSONDecoder().decode(ModelsResponse.self, from: data)
+        // Entries that do not read are skipped inside `ModelsResponse`; only a body that is not a catalog fails here.
+        guard let decoded = try? JSONDecoder().decode(ModelsResponse.self, from: data) else { throw AnyRouterError.badResponse }
         return (decoded, key != nil && status != 401)
     }
 

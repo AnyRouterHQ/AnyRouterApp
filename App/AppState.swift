@@ -82,7 +82,11 @@ final class AppState {
         let telemetry = dependencies.makeTelemetry()
         self.telemetry = telemetry
         settings = AppSettings()
-        models = ModelStore(registry: registry, telemetry: telemetry, usage: AnyRouterWeeklyUsage())
+        models = ModelStore(
+            registry: registry, telemetry: telemetry, usage: AnyRouterWeeklyUsage(),
+            onLoadFailure: { [diagnostics] source, message in
+                _ = try? diagnostics.saveModelListFailure(source: source.rawValue, message: message)
+            })
         let enginesSignpost = Perf.signposter.beginInterval("launch.engines")
         // One gate and one loaded model for both local engines: a phone has room for one of each.
         let residency = LocalResidency(telemetry: telemetry)
