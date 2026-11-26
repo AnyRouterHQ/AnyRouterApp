@@ -119,6 +119,10 @@ final class ChatViewModel {
 
     var isStreaming: Bool { phase == .streaming }
 
+    /// Changes when a reply starts or ends and when its local model has finished loading: the moments the memory
+    /// readout can change because of this chat.
+    var memoryActivity: Int { (isStreaming ? 1 : 0) | (loadingModelName == nil ? 2 : 0) }
+
     private var resolution: ModelStore.Resolution { models.resolve(preferred: preferredModelID) }
 
     /// The model the next message goes to.

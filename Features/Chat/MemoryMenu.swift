@@ -30,11 +30,15 @@ struct MemoryMenu: View {
 
 extension View {
     /// Keeps the memory readout fresh while this view is on screen. The menu above only reads it.
-    func refreshesMemory(_ monitor: MemoryMonitor) -> some View {
-        task {
-            while !Task.isCancelled {
+    /// It looks again whenever `activity` changes (a reply starts, its model finishes loading, a reply ends: the
+    /// moments a model may have been loaded) and, only while a model is in memory, every 10 seconds. With nothing
+    /// loaded there is no loop, so an idle home screen does no work.
+    func refreshesMemory(_ monitor: MemoryMonitor, activity: Int) -> some View {
+        task(id: activity) {
+            await monitor.refresh()
+            while monitor.loadedModelID != nil, !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(10))
                 await monitor.refresh()
-                try? await Task.sleep(for: .seconds(3))
             }
         }
     }

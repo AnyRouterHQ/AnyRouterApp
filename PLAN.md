@@ -674,7 +674,7 @@ Run 2 (CI run [45866770646](https://github.com/AnyRouterHQ/AnyRouterApp/actions/
 | launch.container, launch.hub | 0.10 s, 0.11 s | 0.11 s, 0.06 s | | unchanged within noise |
 | M1 cold launch to responsive | 4.37 s | 8.36 s | 12.9, 6.5, 5.6 | Slower; run 1 is again the outlier. Not from our four signposts (all small); other launch work was added meanwhile (watchdog, diagnostics store). Needs its own look |
 | M2 scroll, app CPU | 4.1 s | 10.09 s | 9.97, 10.12, 10.17 | More than doubled, spread 2%, so it is real. Suspect: the `ScrollPosition` binding I added in 8ee3458 is written every scroll frame and re-evaluates the list. Replaced by `ScrollViewReader` in 42cdb1f; unverified until the next run |
-| Idle control, app CPU over 20 s | 0.004 s | 0.052 s | | Small, but 13 times higher: something polls (the memory menu refreshes every 3 s) |
+| Idle control, app CPU over 20 s | 0.004 s | 0.052 s | | Small, but 13 times higher. Cause found in code: the main-thread watchdog ran a 50 ms timer on the main thread plus a 50 ms loop on a second thread forever (40 wake-ups a second), and the memory readout refreshed every 3 s on the home screen. Both are event-driven now; confirm with the next run |
 | Idle memory | 57 MB | 73 MB | | More code and services at launch |
 | M3 stream, M4 picker | | not measured | | The perf tests no longer matched the UI (tabbed picker, two "New chat" buttons); fixed in 42cdb1f |
 

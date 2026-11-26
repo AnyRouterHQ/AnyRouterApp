@@ -146,7 +146,7 @@ private struct ChatContent: View {
         .safeAreaBar(edge: .bottom, spacing: 0) {
             Composer(model: chat, hasModel: chat.model != nil, presets: presets, focused: $composerFocused)
         }
-        .refreshesMemory(app.memory)
+        .refreshesMemory(app.memory, activity: chat.memoryActivity)
         // A new reply cuts off the voice of the last one; "Read replies aloud" then follows the new reply as it arrives.
         .onChange(of: chat.isStreaming) { _, streaming in
             if streaming { app.speaker.stop() }

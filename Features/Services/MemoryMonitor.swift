@@ -62,8 +62,11 @@ final class MemoryMonitor {
     }
 
     func refresh() async {
-        readout = read()
-        loadedModelID = await loaded()
+        // Publish only a change: each write wakes every view that reads the monitor.
+        let latest = read()
+        if latest != readout { readout = latest }
+        let id = await loaded()
+        if id != loadedModelID { loadedModelID = id }
     }
 
     func unload() async {

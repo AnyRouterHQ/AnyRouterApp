@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import Testing
 @testable import AnyRouter
 
@@ -61,5 +62,31 @@ struct MemoryBackgroundTests {
         memory.scene(first, inBackground: true, after: .milliseconds(30))
         memory.sceneClosed(second, after: .milliseconds(30))
         #expect(await waitUntil { unloaded.value })
+    }
+
+    /// A refresh that finds nothing new must not wake the views that watch the monitor.
+    @Test func aRefreshWithNothingNewPublishesNothing() async {
+        let memory = monitor(unloaded: Flag())
+        let changed = Flag()
+        withObservationTracking {
+            _ = memory.readout
+            _ = memory.loadedModelID
+        } onChange: {
+            changed.value = true
+        }
+        await memory.refresh()
+        #expect(!changed.value)
+    }
+
+    @Test func aRefreshThatFindsAChangePublishesIt() async {
+        let loaded = Flag()
+        let memory = MemoryMonitor(
+            read: { MemoryReadout(footprintBytes: 1, availableBytes: 2) },
+            loaded: { loaded.value ? "gguf/x" : nil },
+            unload: {})
+        #expect(memory.loadedModelID == nil)
+        loaded.value = true
+        await memory.refresh()
+        #expect(memory.loadedModelID == "gguf/x")
     }
 }
