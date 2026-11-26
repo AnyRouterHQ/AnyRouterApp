@@ -3,13 +3,8 @@ name: Screenshots
 # Runs the UI tests on demo data and uploads a PNG of every main screen for iPhone and iPad.
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - "Features/**"
-      - "Design/**"
-      - "App/**"
-      - "UITests/**"
-      - ".github/workflows/screenshots.yml"
+  schedule:
+    - cron: "41 2 * * *"
 
 concurrency:
   group: screenshots-${{ github.ref }}
