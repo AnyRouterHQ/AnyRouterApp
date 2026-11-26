@@ -14,7 +14,7 @@ struct DecisionsLogicTests {
 
     @Test func aQuestionNeedsItsTextAndItsOptionsOrLevels() {
         #expect(DecisionsLogic.problem(with: draft()) == nil)
-        #expect(DecisionsLogic.problem(with: draft(prompt: "  \n")) == "Write the question.")
+        #expect(DecisionsLogic.problem(with: draft(.yesNo, "  \n")) == "Write the question.")
         #expect(DecisionsLogic.problem(with: draft(.choice, list: "only")) == "Add at least two options.")
         #expect(DecisionsLogic.problem(with: draft(.choice, list: "a, b")) == nil)
         #expect(DecisionsLogic.problem(with: draft(.rubric, list: "low")) == "Add 2 to 10 levels.")
@@ -28,7 +28,7 @@ struct DecisionsLogicTests {
         #expect(!DecisionsLogic.canRun(model: "", state: "text", questions: good))
         #expect(!DecisionsLogic.canRun(model: "m", state: " \n", questions: good))
         #expect(!DecisionsLogic.canRun(model: "m", state: "text", questions: []))
-        #expect(!DecisionsLogic.canRun(model: "m", state: "text", questions: [draft(prompt: "")]))
+        #expect(!DecisionsLogic.canRun(model: "m", state: "text", questions: [draft(.yesNo, "")]))
         #expect(!DecisionsLogic.canRun(model: "m", state: String(repeating: "x", count: 12_001), questions: good))
         #expect(DecisionsLogic.canRun(model: "m", state: String(repeating: "x", count: 12_000), questions: good))
     }
