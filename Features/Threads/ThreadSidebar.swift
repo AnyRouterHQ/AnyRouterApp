@@ -9,6 +9,9 @@ struct ThreadSidebar: View {
 
     @Environment(ShellModel.self) private var shell
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// Row and hit-area heights grow with Dynamic Type instead of clipping the text.
+    @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 44
+    @ScaledMetric(relativeTo: .subheadline) private var searchHeight: CGFloat = 36
     @Query(sort: \ThreadRecord.updatedAt, order: .reverse) private var threads: [ThreadRecord]
 
     @State private var editing = ThreadEditing()
@@ -36,15 +39,16 @@ struct ThreadSidebar: View {
 
     private var content: some View {
         List(selection: selection) {
-            // A quiet 36 pt capsule inside a 44 pt hit area: it points at the search, it is not the field.
+            // A quiet capsule (36 pt, scaled) inside a 44 pt hit area: it points at the search, it is not the field.
             Button { shell.presentSearch() } label: {
                 Label("Search chats", systemImage: "magnifyingglass")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 12)
-                    .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
-                    .background(.quaternary, in: .capsule)
-                    .frame(minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: searchHeight, alignment: .leading)
+                    .background(Color(.quaternarySystemFill), in: .capsule)
+                    .frame(minHeight: rowHeight)
                     .contentShape(.rect)
             }
             .buttonStyle(.plain)
@@ -54,6 +58,7 @@ struct ThreadSidebar: View {
                 Text("No chats yet")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
+                    .listRowSeparator(.hidden)
             }
             if !sections.pinned.isEmpty { Section { rows(sections.pinned) } header: { header("Pinned") } }
             if !sections.recent.isEmpty {
@@ -61,9 +66,9 @@ struct ThreadSidebar: View {
                     header("Recents") {
                         Button { shell.presentSearch() } label: {
                             HStack(spacing: 4) { Text("View all"); Image(systemName: "chevron.right").imageScale(.small) }
-                                .frame(minHeight: 44)
+                                .frame(minHeight: rowHeight)
                         }
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary)
                         .accessibilityIdentifier("sidebar.viewall")
                     }
                 }
@@ -71,7 +76,7 @@ struct ThreadSidebar: View {
             Section { moreRows } header: { header("More") }
         }
         .listStyle(.plain)
-        .listRowSeparator(.hidden)
+        .listSectionSeparator(.hidden)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .top, spacing: 0) { titleRow }
         .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
@@ -131,7 +136,9 @@ struct ThreadSidebar: View {
 
     private var moreRows: some View {
         Button { shell.open(.decisions, closeSidebar: isDrawer) } label: {
-            Label("Decisions", systemImage: "checklist").frame(minHeight: 44)
+            Label("Decisions", systemImage: "checklist")
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(minHeight: rowHeight)
         }
         .foregroundStyle(.primary)
         .rowInsets()
@@ -142,7 +149,8 @@ struct ThreadSidebar: View {
         ForEach(items) { thread in
             Label(thread.title, systemImage: "bubble.left")
                 .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
-                .frame(minHeight: 44)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(minHeight: rowHeight)
                 .rowInsets()
                 .tag(thread.id)
                 // A plain list does not mark the open chat on iPhone, so the row paints its own highlight.
@@ -158,7 +166,9 @@ struct ThreadSidebar: View {
 private extension View {
     /// Rows sit 12 pt from the edges so the highlight of the open chat has room; the content keeps the 20 pt of the title.
     func rowInsets() -> some View {
-        padding(.horizontal, 8).listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+        padding(.horizontal, 8)
+            .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+            .listRowSeparator(.hidden)
     }
 }
 
