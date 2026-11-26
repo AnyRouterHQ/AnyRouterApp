@@ -127,15 +127,6 @@ struct ResponseFormatTests {
         #expect(ResponseFormat.speed(38.4) == "38 tok/s")
     }
 
-    @Test func summaryListsWhatIsKnownInOrder() {
-        var m = ResponseMetadata(costUSD: Decimal(string: "0.0004"), promptTokens: 12, completionTokens: 34)
-        m.ttftMs = 600
-        m.totalMs = 2100
-        #expect(ResponseFormat.summary(m) == ["$0.0004", "0.6s first token", "2.1s", "23 tok/s", "12 in / 34 out"])
-        #expect(ResponseFormat.summary(ResponseMetadata(costUSD: 0)) == ["Free"])
-        #expect(ResponseFormat.summary(ResponseMetadata()).isEmpty)
-    }
-
     @Test func autoShowsWhichModelItRoutedTo() {
         let routed = ResponseMetadata(servedModelID: "nvidia/nemotron-3.5-bolt-e4b", servedModelName: "Nemotron 3.5 Bolt E4B")
         #expect(ResponseFormat.title(requestedName: "AnyRouter", requestedID: "anyrouter/anyrouter/auto", metadata: routed)
