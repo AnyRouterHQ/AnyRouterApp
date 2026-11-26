@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Per-folder line coverage report and gate.
 # Usage: scripts/coverage-gate.sh <Result.xcresult> [--report-only]
-# Fails when a gated file is below 100% lines. Files that cannot run on the Simulator are listed,
+# Ratchet: fails when a gated file drops below its baseline in scripts/coverage-baseline.txt, or a file not listed there is below 100%. Files that cannot run on the Simulator are listed,
 # with a reason each, in scripts/coverage-exclusions.txt; only those are skipped.
 set -euo pipefail
 
@@ -96,9 +96,34 @@ for dirpath, _, names in os.walk(root):
                 and gated(rel) and rel not in files and rel not in exclusions:
             failures.append((rel, 0, 0))
 
-lines += ["", "## 100% gate", ""]
+# Ratchet: scripts/coverage-baseline.txt lists gated files that are below 100% today ("path covered lines").
+# A listed file may not drop below its baseline; any other gated file must be at 100%.
+# Without a baseline file the gate only reports.
+baseline = {}
+baseline_path = os.path.join(root, "scripts/coverage-baseline.txt")
+has_baseline = os.path.exists(baseline_path)
+if has_baseline:
+    for raw in open(baseline_path):
+        parts = raw.split()
+        if len(parts) == 3 and not raw.startswith("#"):
+            baseline[parts[0]] = (int(parts[1]), int(parts[2]))
+
+def regressed(rel, c, e):
+    base = baseline.get(rel)
+    if base is None:
+        return True
+    return c * base[1] < base[0] * e  # c/e < base_c/base_e
+
+regressions = [f for f in failures if has_baseline and regressed(*f)]
+
+generated = "\n".join(f"{rel} {c} {e}" for rel, c, e in sorted(failures)) + "\n"
+with open(os.path.join(os.environ.get("RUNNER_TEMP", "/tmp"), "coverage-baseline.generated.txt"), "w") as f:
+    f.write("# Gated files below 100% lines: path covered lines. Regenerate from a complete main run.\n" + generated)
+
+lines += ["", "## Coverage ratchet", ""]
+lines.append("Baseline: " + (f"{len(baseline)} file(s)" if has_baseline else "none yet, report only"))
 if failures:
-    lines += ["| File | Covered | Lines | Uncovered lines |", "|---|---:|---:|---|"]
+    lines += ["| File | Covered | Lines | Baseline | Status | Uncovered functions |", "|---|---:|---:|---:|---|---|"]
     for rel, c, e in failures:
         uncovered = []
         note = ""
@@ -115,9 +140,13 @@ if failures:
             note = (proc.stderr or proc.stdout).strip().replace("|", "/").replace("\n", " ")[:160]
         if not uncovered and not note:
             note = "raw: " + proc.stdout.strip().replace("|", "/").replace("\n", " ")[:300]
-        lines.append(f"| {rel} | {c} | {e} | {'; '.join(uncovered) or note or 'no data'} |")
+        base = baseline.get(rel)
+        base_text = f"{base[0]}/{base[1]}" if base else "-"
+        status = "REGRESSED" if (rel, c, e) in regressions else "ok"
+        lines.append(f"| {rel} | {c} | {e} | {base_text} | {status} | {'; '.join(uncovered) or note or 'no data'} |")
 else:
     lines.append("All gated files are at 100% of lines.")
+lines += ["", "<details><summary>coverage-baseline.txt for this run</summary>", "", "```", generated.rstrip(), "```", "</details>"]
 
 lines += ["", "## Excluded (cannot run on the Simulator)", "", "| File | Reason |", "|---|---|"]
 lines += [f"| {p} | {r} |" for p, r in sorted(exclusions.items())]
@@ -129,7 +158,7 @@ if summary:
     with open(summary, "a") as f:
         f.write(text)
 
-if failures and mode != "--report-only":
-    print(f"::error::{len(failures)} gated file(s) below 100% line coverage")
+if regressions and mode != "--report-only":
+    print(f"::error::{len(regressions)} gated file(s) below their coverage baseline or new under 100%")
     sys.exit(1)
 PY
