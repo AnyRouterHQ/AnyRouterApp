@@ -64,7 +64,7 @@ extension ModelContainer {
     /// Schema shared by the app and tests.
     static func anyRouter(inMemory: Bool = false) throws -> ModelContainer {
         try ModelContainer(
-            for: ThreadRecord.self, MessageRecord.self,
+            for: ThreadRecord.self, MessageRecord.self, DecisionRunRecord.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: inMemory)
         )
     }

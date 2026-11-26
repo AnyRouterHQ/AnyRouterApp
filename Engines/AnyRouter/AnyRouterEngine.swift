@@ -10,10 +10,10 @@ protocol TokenStoring: Sendable {
 struct AnyRouterEngine: ChatEngine {
     var source: ModelSource { .anyrouter }
 
-    private let tokens: any TokenStoring
-    private let session: URLSession
-    private let config: AnyRouterConfig
-    private let onUnauthorized: @Sendable () async -> Void
+    let tokens: any TokenStoring
+    let session: URLSession
+    let config: AnyRouterConfig
+    let onUnauthorized: @Sendable () async -> Void
 
     init(
         tokens: any TokenStoring,
@@ -28,6 +28,16 @@ struct AnyRouterEngine: ChatEngine {
     }
 
     func availableModels() async throws -> [ModelDescriptor] {
+        let (models, usable) = try await fetchCatalog()
+        return models.descriptors(usable: usable)
+    }
+
+    /// Decision models from the same catalog call. They are not chat models, so they are not in `availableModels()`.
+    func decisionModels() async throws -> [DecisionModel] {
+        try await fetchCatalog().models.decisionModels()
+    }
+
+    private func fetchCatalog() async throws -> (models: ModelsResponse, usable: Bool) {
         let key = tokens.token()
         var request = URLRequest(url: config.baseURL.appending(path: "models"))
         // The picker waits for this list; do not let a dead connection hold it for a minute.
@@ -43,7 +53,7 @@ struct AnyRouterEngine: ChatEngine {
             throw AnyRouterError.http(status: status, message: AnyRouterError.message(from: data, status: status))
         }
         let decoded = try JSONDecoder().decode(ModelsResponse.self, from: data)
-        return decoded.descriptors(usable: key != nil && status != 401)
+        return (decoded, key != nil && status != 401)
     }
 
     func stream(
@@ -242,7 +252,7 @@ struct AnyRouterEngine: ChatEngine {
         id.hasPrefix("anyrouter/") ? String(id.dropFirst("anyrouter/".count)) : id
     }
 
-    private func applyHeaders(_ request: inout URLRequest, key: String?) {
+    func applyHeaders(_ request: inout URLRequest, key: String?) {
         if let key { request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }
         request.setValue(config.referer, forHTTPHeaderField: "HTTP-Referer")
         request.setValue(config.clientName, forHTTPHeaderField: "X-AnyRouter-Title")
