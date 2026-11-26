@@ -3,7 +3,7 @@ name: Device IPA
 on:
   workflow_dispatch:
   push:
-    branches: [main, ci/unsigned-ipa]
+    branches: [main]
 
 concurrency:
   group: device-ipa-${{ github.ref }}
