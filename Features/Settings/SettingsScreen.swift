@@ -26,8 +26,8 @@ struct SettingsScreen: View {
                     accountSection
                     providersSection
                     catalogSection
-                    generationSection(settings: settings)
-                    appearanceSection(settings: settings)
+                    generationSection(settings: $settings)
+                    appearanceSection(settings: $settings)
                     aboutSection
                 }
                 .frame(maxWidth: ARTheme.contentMaxWidth)
