@@ -1,101 +1,21 @@
 import Foundation
 
-/// Keeps one model loaded. Loading is slow (seconds), so a second chat with the same model reuses it.
-/// The cache key is the file's path and the time it was installed, so a download to the same path replaces the weights.
-actor LlamaModelCache {
-    private struct Key: Equatable {
-        var path: String
-        var installedAt: Date?
-    }
-
-    private var current: (id: String, key: Key, model: LlamaModel)?
-    /// A load in progress. A second request for the same file joins it instead of loading the weights twice.
-    private var loading: (key: Key, task: Task<LlamaModel, Error>)?
-    private let telemetry: any Telemetry
-
-    init(telemetry: any Telemetry = NoopTelemetry()) {
-        self.telemetry = telemetry
-    }
-
-    /// Id of the loaded model, nil when none is.
-    var loadedID: String? { current?.id }
-
-    func model(at path: String, id: String, installedAt: Date? = nil) async throws -> LlamaModel {
-        let key = Key(path: path, installedAt: installedAt)
-        if let current, current.key == key { return current.model }
-        if let loading, loading.key == key { return try await loading.task.value }
-        current = nil // free the old weights before the new ones load
-        let started = ContinuousClock.now
-        let task = Task.detached(priority: .userInitiated) { try LlamaModel(path: path) }
-        loading = (key, task)
-        do {
-            let loaded = try await task.value
-            if loading?.key == key {
-                loading = nil
-                current = (id, key, loaded)
-                telemetry.track(.engineLoadMs(TelemetryEvent.milliseconds(ContinuousClock.now - started), source: .gguf))
-            }
-            return loaded
-        } catch {
-            if loading?.key == key { loading = nil }
-            throw error
-        }
-    }
-
-    func unload() {
-        current = nil
-    }
-
-    /// Frees the weights only when they belong to this model (it was deleted or replaced).
-    func unload(ifID id: String) {
-        if current?.id == id { current = nil }
-    }
-}
-
-/// One generation at a time: two contexts on a phone would double the KV-cache memory.
-actor GenerationGate {
-    private var busy = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
-
-    func acquire() async {
-        if !busy {
-            busy = true
-            return
-        }
-        await withCheckedContinuation { waiters.append($0) }
-    }
-
-    /// Takes the gate only when no generation holds it and none waits. For background work that must never delay a chat.
-    func tryAcquire() -> Bool {
-        guard !busy else { return false }
-        busy = true
-        return true
-    }
-
-    func release() {
-        if waiters.isEmpty {
-            busy = false
-        } else {
-            waiters.removeFirst().resume()
-        }
-    }
-}
-
 /// Chats with downloaded GGUF models through llama.cpp.
 final class GGUFEngine: ChatEngine {
     let source: ModelSource = .gguf
 
     private let storage: LocalModelStorage
     private let catalog: CatalogService
-    private let cache: LlamaModelCache
-    /// One generation at a time. Internal so tests can hold it.
-    let gate = GenerationGate()
+    private let residency: LocalResidency
+    /// One generation at a time, shared with the other local engines. Internal so tests can hold it.
+    var gate: GenerationGate { residency.gate }
 
+    /// Pass one `LocalResidency` to every local engine of the app. Without it the engine keeps its own.
     init(storage: LocalModelStorage = LocalModelStorage(), catalog: CatalogService = CatalogService(),
-         telemetry: any Telemetry = NoopTelemetry()) {
+         telemetry: any Telemetry = NoopTelemetry(), residency: LocalResidency? = nil) {
         self.storage = storage
         self.catalog = catalog
-        self.cache = LlamaModelCache(telemetry: telemetry)
+        self.residency = residency ?? LocalResidency(telemetry: telemetry)
     }
 
     func availableModels() async throws -> [ModelDescriptor] {
@@ -105,25 +25,24 @@ final class GGUFEngine: ChatEngine {
 
     /// Frees the loaded weights, e.g. on a memory warning.
     func unload() async {
-        await cache.unload()
+        await residency.models.unload()
     }
 
     /// Id of the model whose weights are in memory now.
     func loadedModelID() async -> String? {
-        await cache.loadedID
+        await residency.models.loadedID
     }
 
     /// Frees the weights when they belong to `modelID`, for example because it was deleted.
     func unload(modelID: String) async {
-        await cache.unload(ifID: modelID)
+        await residency.models.unload(ifID: modelID)
     }
 
     /// For the smoke report: which formatter writes this model's prompt, what it writes for "hi", and which of the given
     /// special tokens stop generation. Loads the model if it is not loaded. Nil when the model is not installed.
     func promptReport(model: ModelDescriptor, stopTexts: [String]) async -> (path: String, prompt: String, stops: String)? {
         guard let manifest = storage.readManifest(entryID: model.id), let file = manifest.files.first,
-              let llama = try? await cache.model(
-                  at: storage.fileURL(forEntryID: model.id, path: file.path).path, id: model.id, installedAt: manifest.completedAt)
+              let llama = try? await loadWeights(model.id, file: file.path, installedAt: manifest.completedAt)
         else { return nil }
         let formatted = llama.format([PromptMessage(role: "user", content: "hi")])
         return (formatted.path.rawValue, formatted.text, llama.stopReport(for: stopTexts))
@@ -134,23 +53,31 @@ final class GGUFEngine: ChatEngine {
     /// competes with a chat. A send that arrives during the warm-up waits at the gate, then finds the weights loaded.
     func warm(model: ModelDescriptor) async {
         guard let manifest = storage.readManifest(entryID: model.id), let file = manifest.files.first else { return }
-        guard await gate.tryAcquire() else { return }
-        let path = storage.fileURL(forEntryID: model.id, path: file.path).path
-        _ = try? await cache.model(at: path, id: model.id, installedAt: manifest.completedAt)
-        await gate.release()
+        guard await residency.gate.tryAcquire() else { return }
+        _ = try? await loadWeights(model.id, file: file.path, installedAt: manifest.completedAt)
+        await residency.gate.release()
+    }
+
+    /// The loaded weights of an installed model, loading them first when they are not in memory.
+    private func loadWeights(_ id: String, file: String, installedAt: Date?) async throws -> LlamaModel {
+        let path = storage.fileURL(forEntryID: id, path: file).path
+        return try await residency.models.weights(
+            LlamaModel.self, at: path, id: id, installedAt: installedAt, source: .gguf
+        ) { try LlamaModel(path: path) }
     }
 
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
         -> AsyncThrowingStream<ChatDelta, Error> {
         AsyncThrowingStream { continuation in
-            let task = Task.detached(priority: .userInitiated) { [storage, cache, gate] in
-                await gate.acquire()
+            let task = Task.detached(priority: .userInitiated) { [self, storage, residency] in
+                await residency.gate.acquire()
                 do {
+                    // Stop pressed while this waited its turn: do not load a model for a reply nobody reads.
+                    try Task.checkCancellation()
                     guard let manifest = storage.readManifest(entryID: model.id), let file = manifest.files.first else {
                         throw GGUFError.modelNotInstalled(model.id)
                     }
-                    let path = storage.fileURL(forEntryID: model.id, path: file.path).path
-                    let llama = try await cache.model(at: path, id: model.id, installedAt: manifest.completedAt)
+                    let llama = try await loadWeights(model.id, file: file.path, installedAt: manifest.completedAt)
                     let result = try Self.run(llama, messages: messages, params: params) { continuation.yield(.text($0)) }
                     continuation.yield(.usage(prompt: result.promptTokens, completion: result.completionTokens))
                     continuation.yield(.done(finishReason: result.finishReason))
@@ -160,7 +87,7 @@ final class GGUFEngine: ChatEngine {
                 } catch {
                     continuation.finish(throwing: error)
                 }
-                await gate.release()
+                await residency.gate.release()
             }
             continuation.onTermination = { _ in task.cancel() }
         }

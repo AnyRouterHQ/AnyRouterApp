@@ -67,8 +67,10 @@ final class AppState {
         settings = AppSettings()
         models = ModelStore(registry: registry, telemetry: telemetry, usage: AnyRouterWeeklyUsage())
         let enginesSignpost = Perf.signposter.beginInterval("launch.engines")
-        let gguf = GGUFEngine(telemetry: telemetry)
-        let mlx = MLXEngine(telemetry: telemetry)
+        // One gate and one loaded model for both local engines: a phone has room for one of each.
+        let residency = LocalResidency(telemetry: telemetry)
+        let gguf = GGUFEngine(telemetry: telemetry, residency: residency)
+        let mlx = MLXEngine(telemetry: telemetry, residency: residency)
         registry.register(AppleFoundationEngine())
         registry.register(gguf)
         registry.register(mlx)

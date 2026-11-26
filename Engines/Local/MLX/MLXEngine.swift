@@ -2,57 +2,6 @@ import Foundation
 import MLXLLM
 import MLXLMCommon
 
-/// Keeps one model loaded. Loading reads the whole snapshot into memory, so a second chat reuses it.
-actor MLXModelCache {
-    private struct Key: Equatable {
-        var directory: URL
-        var installedAt: Date?
-    }
-
-    private var current: (id: String, key: Key, container: ModelContainer)?
-    /// A load in progress. A second request for the same snapshot joins it instead of reading the weights twice.
-    private var loading: (key: Key, task: Task<ModelContainer, Error>)?
-    private let telemetry: any Telemetry
-
-    init(telemetry: any Telemetry = NoopTelemetry()) {
-        self.telemetry = telemetry
-    }
-
-    /// Id of the loaded model, nil when none is.
-    var loadedID: String? { current?.id }
-
-    func container(at directory: URL, id: String, installedAt: Date? = nil) async throws -> ModelContainer {
-        let key = Key(directory: directory, installedAt: installedAt)
-        if let current, current.key == key { return current.container }
-        if let loading, loading.key == key { return try await loading.task.value }
-        current = nil // release the old weights before the new ones load
-        let started = ContinuousClock.now
-        let task = Task { try await loadModelContainer(from: directory, using: TransformersTokenizerLoader()) }
-        loading = (key, task)
-        do {
-            let loaded = try await task.value
-            if loading?.key == key {
-                loading = nil
-                current = (id, key, loaded)
-                telemetry.track(.engineLoadMs(TelemetryEvent.milliseconds(ContinuousClock.now - started), source: .mlx))
-            }
-            return loaded
-        } catch {
-            if loading?.key == key { loading = nil }
-            throw error
-        }
-    }
-
-    func unload() {
-        current = nil
-    }
-
-    /// Frees the weights only when they belong to this model (it was deleted or replaced).
-    func unload(ifID id: String) {
-        if current?.id == id { current = nil }
-    }
-}
-
 /// Chats with downloaded MLX models through mlx-swift-lm. Needs a real GPU: unavailable in the Simulator.
 final class MLXEngine: ChatEngine {
     let source: ModelSource = .mlx
@@ -62,14 +11,14 @@ final class MLXEngine: ChatEngine {
 
     private let storage: LocalModelStorage
     private let catalog: CatalogService
-    private let cache: MLXModelCache
-    private let gate = GenerationGate()
+    private let residency: LocalResidency
 
+    /// Pass one `LocalResidency` to every local engine of the app. Without it the engine keeps its own.
     init(storage: LocalModelStorage = LocalModelStorage(), catalog: CatalogService = CatalogService(),
-         telemetry: any Telemetry = NoopTelemetry()) {
+         telemetry: any Telemetry = NoopTelemetry(), residency: LocalResidency? = nil) {
         self.storage = storage
         self.catalog = catalog
-        self.cache = MLXModelCache(telemetry: telemetry)
+        self.residency = residency ?? LocalResidency(telemetry: telemetry)
     }
 
     static var availability: MLXAvailability {
@@ -87,31 +36,35 @@ final class MLXEngine: ChatEngine {
 
     /// Frees the loaded weights, e.g. on a memory warning.
     func unload() async {
-        await cache.unload()
+        await residency.models.unload()
     }
 
     /// Id of the model whose weights are in memory now.
     func loadedModelID() async -> String? {
-        await cache.loadedID
+        await residency.models.loadedID
     }
 
     /// Frees the weights when they belong to `modelID`, for example because it was deleted.
     func unload(modelID: String) async {
-        await cache.unload(ifID: modelID)
+        await residency.models.unload(ifID: modelID)
     }
 
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
         -> AsyncThrowingStream<ChatDelta, Error> {
         AsyncThrowingStream { continuation in
-            let task = Task.detached(priority: .userInitiated) { [storage, cache, gate] in
-                await gate.acquire()
+            let task = Task.detached(priority: .userInitiated) { [storage, residency] in
+                await residency.gate.acquire()
                 do {
+                    // Stop pressed while this waited its turn: do not load a model for a reply nobody reads.
+                    try Task.checkCancellation()
                     if case .unavailable(let reason) = Self.availability { throw MLXError.unavailable(reason) }
                     guard storage.isInstalled(entryID: model.id) else { throw MLXError.modelNotInstalled(model.id) }
                     let conversation = try MLXConversation.split(messages: messages, systemPrompt: params.systemPrompt)
-                    let container = try await cache.container(
-                        at: storage.directory(forEntryID: model.id), id: model.id,
-                        installedAt: storage.readManifest(entryID: model.id)?.completedAt)
+                    let directory = storage.directory(forEntryID: model.id)
+                    let container = try await residency.models.weights(
+                        ModelContainer.self, at: directory.path, id: model.id,
+                        installedAt: storage.readManifest(entryID: model.id)?.completedAt, source: .mlx
+                    ) { try await loadModelContainer(from: directory, using: TransformersTokenizerLoader()) }
                     try await Self.generate(container, conversation: conversation, params: params, into: continuation)
                     continuation.finish()
                 } catch is CancellationError {
@@ -119,7 +72,7 @@ final class MLXEngine: ChatEngine {
                 } catch {
                     continuation.finish(throwing: error)
                 }
-                await gate.release()
+                await residency.gate.release()
             }
             continuation.onTermination = { _ in task.cancel() }
         }

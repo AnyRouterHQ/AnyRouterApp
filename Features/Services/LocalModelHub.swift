@@ -21,7 +21,7 @@ final class LocalModelHub: ModelHubService {
     @ObservationIgnored private let memory: @Sendable () -> DeviceMemory
     /// Whether the increased memory limit is signed into this install. Reads the executable: runs off the main actor.
     @ObservationIgnored private let entitlementSigned: @Sendable () -> Bool?
-    /// Frees a model's weights before its files are deleted.
+    /// Frees a model's weights after its files are deleted.
     @ObservationIgnored private let unloadModel: @Sendable (String) async -> Void
     /// Read at each reload, so every card of one list is judged against the same numbers.
     @ObservationIgnored private var deviceMemory: DeviceMemory
@@ -110,13 +110,15 @@ final class LocalModelHub: ModelHubService {
 
     func delete(modelID: String) async {
         guard let entry = raw[modelID] else { return }
-        await unloadModel(modelID)
+        // Files first: a chat that starts after this finds no model to load, and the unload below drops a load that
+        // began before. Unloading first would let a chat load the model again before its files go.
         do {
             try downloads.delete(entry)
             lastError = nil
         } catch {
             lastError = error.localizedDescription
         }
+        await unloadModel(modelID)
     }
 
     func searchRepos(_ query: String) async throws -> [RepoHit] {
