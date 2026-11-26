@@ -46,6 +46,7 @@ struct ModelPickerSheet: View {
     @State private var sort: PickerSort = .topUsage
     @State private var signInError: String?
     @State private var keyExplainer: ModelDescriptor?
+    @State private var routerDetail: ModelDescriptor?
     @State private var detent = PresentationDetent.large
 
     private let picksConfig = TopPicksConfig.bundled()
@@ -107,6 +108,7 @@ struct ModelPickerSheet: View {
         }
         .presentationDetents([.medium, .large], selection: $detent)
         .presentationDragIndicator(.visible)
+        .sheet(item: $routerDetail) { RouterDetailSheet(router: $0) }
         .alert("Needs your provider key", isPresented: Binding(
             get: { keyExplainer != nil }, set: { if !$0 { keyExplainer = nil } }
         )) {
@@ -208,12 +210,20 @@ struct ModelPickerSheet: View {
     // MARK: - Rows
 
     private func modelButton(_ model: ModelDescriptor, fitBadge: String? = nil) -> some View {
-        Button {
-            choose(model)
-        } label: {
-            ModelRowView(row: PickerRow.make(model, fitBadge: fitBadge), isCurrent: currentID == model.id)
+        HStack(spacing: 8) {
+            Button {
+                choose(model)
+            } label: {
+                ModelRowView(row: PickerRow.make(model, fitBadge: fitBadge), isCurrent: currentID == model.id)
+            }
+            .buttonStyle(.plain)
+            if model.isRouter, (model.cloud?.memberCount ?? 0) > 0 {
+                Button { routerDetail = model } label: { Image(systemName: "info.circle") }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Models \(model.shortName) routes to")
+                    .accessibilityIdentifier("router-info.\(model.id)")
+            }
         }
-        .buttonStyle(.plain)
     }
 
     private func choose(_ model: ModelDescriptor) {
