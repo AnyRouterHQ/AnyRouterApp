@@ -209,6 +209,16 @@ struct VisionInputTests {
         #expect(textOnly.first?.capabilities.contains("vision") == false, "installed before photos shipped: download again")
     }
 
+    @Test func anEntryWithoutTheCapabilityStillShowsVisionOnceItsProjectorIsInstalled() throws {
+        var entry = visionEntry()
+        entry.capabilities = ["chat"]
+        let storage = LocalModelStorage(root: makeTempDirectory())
+        try install(entry, files: ["m-Q4.gguf", "mmproj-m.gguf"], in: storage)
+        let installed = LocalModelDescriptors.installed(format: .gguf, storage: storage, catalog: [entry], memory: memory(8))
+        #expect(installed.first?.capabilities.contains("vision") == true)
+        #expect(entry.descriptor(isInstalled: false).capabilities == ["chat"], "not installed: the catalog's capabilities as they are")
+    }
+
     @Test func aFamilyHasTheVisionTagOnlyWhenASizeTakesPhotos() throws {
         let family = try JSONDecoder().decode(CatalogFamily.self, from: Data("""
         {"id":"f","name":"F","publisher":"P","line":"f","logo":"f","summary":"S","website":"https://example.org",

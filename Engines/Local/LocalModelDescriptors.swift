@@ -3,10 +3,12 @@ import Foundation
 extension CatalogEntry {
     /// The picker/registry view of a catalog entry.
     /// `imageInput` is whether the installed copy can take photos: it has its projector and the device has room for it.
+    /// True adds the "vision" capability (the entry may not carry it, like the flat entry the smoke workflow builds), false removes it.
     /// Nil leaves the catalog's capabilities as they are.
     func descriptor(isInstalled: Bool, sizeBytes: Int64? = nil, imageInput: Bool? = nil) -> ModelDescriptor {
         let name = (format == .gguf && quantization != nil) ? "\(title) (\(quantization ?? ""))" : title
         var capabilities = self.capabilities
+        if imageInput == true { capabilities.insert("vision") }
         if imageInput == false { capabilities.remove("vision") }
         return ModelDescriptor(
             id: id, source: format == .gguf ? .gguf : .mlx, displayName: name,
