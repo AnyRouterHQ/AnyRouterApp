@@ -35,6 +35,7 @@ final class MemoryMonitor {
     @ObservationIgnored private let loaded: @Sendable () async -> String?
     @ObservationIgnored private let unloadAll: @Sendable () async -> Void
     @ObservationIgnored private let readDiagnostics: @Sendable () -> MemoryDiagnostics
+    @ObservationIgnored private var backgroundTimer: Task<Void, Never>?
 
     init(read: @escaping @Sendable () -> MemoryReadout,
          loaded: @escaping @Sendable () async -> String?,
@@ -66,5 +67,19 @@ final class MemoryMonitor {
     func unload() async {
         await unloadAll()
         await refresh()
+    }
+
+    /// Call when the app goes to the background and when it comes back. A model left loaded in the background is
+    /// the first reason the system ends the app, so it is handed back after `delay`. Coming back cancels the wait.
+    /// A reply that is still running keeps its own reference to the model, so this never cuts it short.
+    func appInBackground(_ inBackground: Bool, after delay: Duration = .seconds(300)) {
+        backgroundTimer?.cancel()
+        backgroundTimer = nil
+        guard inBackground else { return }
+        backgroundTimer = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            await self?.unload()
+        }
     }
 }

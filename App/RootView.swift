@@ -17,6 +17,7 @@ struct RootView: View {
                 WindowAppearance.apply(appearance)
             }
             .onChange(of: scenePhase) { _, phase in
+                appState.memory.appInBackground(phase == .background)
                 // A scene connected after launch has no override or tap recognizer yet.
                 if phase == .active {
                     WindowAppearance.apply(appState.settings.appearance)

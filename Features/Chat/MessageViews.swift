@@ -128,7 +128,7 @@ struct ResponseFooter: View {
                             Text(ResponseFormat.summary(metadata).joined(separator: " · ")).lineLimit(1)
                             Image(systemName: expanded ? "chevron.up" : "chevron.down").imageScale(.small)
                         }
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -159,7 +159,7 @@ struct ResponseFooter: View {
                 }
             }
         }
-        .font(.caption2)
+        .font(.caption)
         .foregroundStyle(.secondary)
     }
 

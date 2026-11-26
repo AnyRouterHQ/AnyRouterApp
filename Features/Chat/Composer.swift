@@ -80,6 +80,8 @@ struct Composer: View {
         // Send, stop and the buttons beside the field keep the keyboard up.
         .keepsKeyboardOnTap()
         .onChange(of: model.focusTick) { focused.wrappedValue = true }
+        // A light tap when a send starts a reply (not on every reply end).
+        .sensoryFeedback(.impact(weight: .light), trigger: model.isStreaming) { _, streaming in streaming }
         .photosPicker(isPresented: $showsPhotos, selection: $photoItems,
                       maxSelectionCount: AttachmentLogic.maxPerMessage, matching: .images)
         .onChange(of: photoItems) { _, items in loadPhotos(items) }

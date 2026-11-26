@@ -79,7 +79,7 @@ struct HomeTests {
             let (x, y) = (luminance(a), luminance(b))
             return (max(x, y) + 0.05) / (min(x, y) + 0.05)
         }
-        // Accent and label values from ARColor, over the system background at the darkest point of the wash.
+        // The mono accent and label values, over the system background at the darkest point of the wash.
         let light = blend(hex(0x0A0A0A), hex(0xFFFFFF), ARHomeWash.topOpacityLight)
         let dark = blend(hex(0xFAFAFA), hex(0x000000), ARHomeWash.topOpacityDark)
         #expect(contrast(hex(0x0A0A0A), light) >= 4.5)

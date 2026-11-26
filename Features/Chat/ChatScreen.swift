@@ -29,7 +29,6 @@ struct ChatScreen: View {
             if sizeClass == .compact {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { shell.toggleSidebar() } label: { Image(systemName: "line.3.horizontal") }
-                        .tint(.primary)
                         .accessibilityLabel("Menu")
                 }
             }
@@ -39,7 +38,6 @@ struct ChatScreen: View {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 MemoryMenu()
                 Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "square.and.pencil") }
-                    .tint(.primary)
                     .accessibilityLabel("New chat")
             }
         }
