@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Chat input: a rounded card with the text field and a send or stop button.
+/// Chat input: a round "+" menu and a rounded field with a send, stop or presets button inside.
 struct Composer: View {
     @Bindable var model: ChatViewModel
     var hasModel: Bool
@@ -16,49 +16,32 @@ struct Composer: View {
             if let error = model.errorMessage {
                 ErrorBanner(text: error) { model.dismissError() }
             }
-            VStack(spacing: 6) {
-                TextField("", text: $model.input, prompt: Text(hasModel ? "Ask anything" : "Choose a model to start")
-                    .foregroundStyle(ARColor.mutedForeground), axis: .vertical)
-                    .font(.arBase)
-                    .foregroundStyle(ARColor.foreground)
-                    .lineLimit(1...6)
-                    .focused(focused)
-                    .submitLabel(.return)
-                    // Hardware keyboards: Return sends, Shift-Return adds a line.
-                    .onKeyPress(.return, phases: .down) { press in
-                        guard !press.modifiers.contains(.shift), !model.isStreaming else { return .ignored }
-                        if model.canSend { _ = model.send() }
-                        return .handled
-                    }
-                    .padding(.horizontal, 4)
-                HStack {
-                    Button {} label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(ARColor.mutedForeground)
-                            .frame(width: 32, height: 32)
-                    }
-                    .disabled(true)
-                    .accessibilityLabel("Attachments, coming soon")
-                    if let presets, model.input.isEmpty, !model.isStreaming {
-                        Button { showsPresets = true } label: {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(ARColor.mutedForeground)
-                                .frame(width: 32, height: 32)
+            HStack(alignment: .bottom, spacing: 8) {
+                plusMenu
+                HStack(alignment: .bottom, spacing: 6) {
+                    TextField("", text: $model.input, prompt: Text(hasModel ? "Ask anything" : "Choose a model to start")
+                        .foregroundStyle(ARColor.mutedForeground), axis: .vertical)
+                        .font(.arBase)
+                        .foregroundStyle(ARColor.foreground)
+                        .lineLimit(1...6)
+                        .focused(focused)
+                        .submitLabel(.return)
+                        // Hardware keyboards: Return sends, Shift-Return adds a line.
+                        .onKeyPress(.return, phases: .down) { press in
+                            guard !press.modifiers.contains(.shift), !model.isStreaming else { return .ignored }
+                            if model.canSend { _ = model.send() }
+                            return .handled
                         }
-                        .accessibilityLabel("Presets")
-                    }
-                    Spacer()
-                    actionButton
+                        .padding(.vertical, 8)
+                    trailingButton
                 }
+                .padding(.leading, 14)
+                .padding(.trailing, 4)
+                .padding(.vertical, 4)
+                .arGlass(in: RoundedRectangle(cornerRadius: ARTheme.radiusXL, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: ARTheme.radiusXL, style: .continuous))
+                .onTapGesture { focused.wrappedValue = true }
             }
-            .padding(.horizontal, 12)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-            .arGlass(in: RoundedRectangle(cornerRadius: ARTheme.radiusXL, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: ARTheme.radiusXL, style: .continuous))
-            .onTapGesture { focused.wrappedValue = true }
         }
         .frame(maxWidth: ARTheme.contentMaxWidth)
         .padding(.horizontal, ARTheme.pagePadding)
@@ -76,6 +59,47 @@ struct Composer: View {
         }
     }
 
+    /// Round button outside the field. Attachments are not wired yet, so they sit disabled under "Coming soon".
+    private var plusMenu: some View {
+        Menu {
+            Section("Coming soon") {
+                Button("Attach photo", systemImage: "photo") {}.disabled(true)
+                Button("Take photo", systemImage: "camera") {}.disabled(true)
+                Button("Attach file", systemImage: "paperclip") {}.disabled(true)
+            }
+            if model.supportsThinking {
+                Section {
+                    Toggle("Enable thinking", systemImage: "brain", isOn: Binding(
+                        get: { model.thinkingEnabled },
+                        set: { model.setThinkingEnabled($0) }
+                    ))
+                }
+            }
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(ARColor.foreground)
+                .frame(width: 44, height: 44)
+                .arGlass(in: Circle(), interactive: true)
+        }
+        .accessibilityLabel("Add")
+    }
+
+    @ViewBuilder
+    private var trailingButton: some View {
+        if model.isStreaming || !model.input.isEmpty {
+            actionButton
+        } else if presets != nil {
+            Button { showsPresets = true } label: {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(ARColor.mutedForeground)
+                    .frame(width: 36, height: 36)
+            }
+            .accessibilityLabel("Presets")
+        }
+    }
+
     @ViewBuilder
     private var actionButton: some View {
         if model.isStreaming {
@@ -83,7 +107,7 @@ struct Composer: View {
                 Image(systemName: "stop.fill")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(ARColor.primaryForeground)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 36, height: 36)
                     .background(ARColor.primary, in: Circle())
             }
             .accessibilityLabel("Stop")
@@ -92,7 +116,7 @@ struct Composer: View {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(ARColor.primaryForeground)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 36, height: 36)
                     .background(ARColor.primary.opacity(model.canSend ? 1 : 0.3), in: Circle())
             }
             .disabled(!model.canSend)

@@ -17,7 +17,8 @@ struct ChatScreen: View {
     var body: some View {
         Group {
             if let chat {
-                ChatContent(chat: chat, hasModel: models.selected != nil, presets: app.presets)
+                ChatContent(chat: chat, hasModel: models.selected != nil, presets: app.presets,
+                            subtitle: HomeLogic.subtitle(for: models.selected))
             } else {
                 Color.clear
             }
@@ -40,6 +41,8 @@ struct ChatScreen: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .background { if chat?.messages.isEmpty ?? true { ARHomeBackground().transition(.opacity) } }
+        .animation(.easeInOut(duration: 0.3), value: chat?.messages.isEmpty)
         .task(id: shell.selectedThreadID) { prepare() }
         .sheet(isPresented: Bindable(shell).isModelPickerPresented) {
             ModelPickerSheet()
@@ -69,6 +72,7 @@ private struct ChatContent: View {
     @Bindable var chat: ChatViewModel
     let hasModel: Bool
     let presets: PresetStore
+    let subtitle: String
     @FocusState private var composerFocused: Bool
 
     var body: some View {
@@ -88,12 +92,17 @@ private struct ChatContent: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Spacer()
-            ARLogoMark(size: 48).foregroundStyle(ARColor.foreground)
-            Text("How can I help?").font(.arTitle).foregroundStyle(ARColor.foreground)
+            ARLogoMark(size: 56).foregroundStyle(ARColor.foreground)
+            Text(HomeLogic.greeting)
+                .font(.system(size: 32, weight: .bold))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(ARColor.foreground)
+            Text(subtitle).font(.arSM).foregroundStyle(ARHomePalette.secondaryText)
             Spacer()
             PresetSuggestions(store: presets, onPick: { chat.usePreset($0) }, onSend: { chat.sendNow($0) })
                 .padding(.bottom, 8)
         }
+        .padding(.horizontal, ARTheme.pagePadding)
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .simultaneousGesture(TapGesture().onEnded { composerFocused = false })

@@ -10,6 +10,8 @@ final class ThreadRecord {
     var isPinned: Bool
     /// `ModelDescriptor.id` last used in this thread.
     var modelID: String?
+    /// "Enable thinking" for this thread. Engines read it once reasoning is wired.
+    var thinkingEnabled: Bool = false
     @Relationship(deleteRule: .cascade, inverse: \MessageRecord.thread)
     var messages: [MessageRecord] = []
 

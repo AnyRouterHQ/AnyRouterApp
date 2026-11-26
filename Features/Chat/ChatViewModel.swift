@@ -13,6 +13,8 @@ final class ChatViewModel {
     private(set) var thread: ThreadRecord?
     /// Bumps when the composer should take focus (after a preset fills it).
     private(set) var focusTick = 0
+    /// Per-thread "Enable thinking"; a new chat keeps it here until the first send creates the thread.
+    private(set) var thinkingEnabled = false
 
     /// Called once when the first send creates the thread.
     @ObservationIgnored var onThreadCreated: (@MainActor (UUID) -> Void)?
@@ -33,6 +35,16 @@ final class ChatViewModel {
         self.registry = registry
         self.settings = settings
         self.models = models
+        self.thinkingEnabled = thread?.thinkingEnabled ?? false
+    }
+
+    var supportsThinking: Bool { models.selected?.supportsThinking ?? false }
+
+    func setThinkingEnabled(_ on: Bool) {
+        thinkingEnabled = on
+        guard let thread else { return }
+        thread.thinkingEnabled = on
+        try? context.save()
     }
 
     var messages: [MessageRecord] {
@@ -105,6 +117,7 @@ final class ChatViewModel {
     private func ensureThread(firstMessage: String) -> ThreadRecord {
         if let thread { return thread }
         let created = ThreadRecord(title: ThreadListLogic.title(fromFirstMessage: firstMessage))
+        created.thinkingEnabled = thinkingEnabled
         context.insert(created)
         thread = created
         onThreadCreated?(created.id)
