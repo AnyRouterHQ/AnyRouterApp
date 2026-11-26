@@ -5,14 +5,17 @@ import Observation
 @MainActor @Observable
 final class AnyRouterAccountAdapter: AccountService {
     private let auth: AnyRouterAuth
+    private let loader: AccountSummaryLoader
+    private(set) var summary: AccountSummary?
 
     struct SignInFailed: LocalizedError {
         let message: String
         var errorDescription: String? { message }
     }
 
-    init(auth: AnyRouterAuth) {
+    init(auth: AnyRouterAuth, loader: AccountSummaryLoader = AccountSummaryLoader()) {
         self.auth = auth
+        self.loader = loader
     }
 
     var state: AccountState {
@@ -30,5 +33,15 @@ final class AnyRouterAccountAdapter: AccountService {
 
     func signOut() async {
         auth.signOut()
+        summary = nil
+    }
+
+    func refreshSummary() async {
+        guard let token = auth.store.token() else {
+            summary = nil
+            return
+        }
+        // A failed reload keeps the last good summary.
+        if let loaded = await loader.load(token: token) { summary = loaded }
     }
 }
