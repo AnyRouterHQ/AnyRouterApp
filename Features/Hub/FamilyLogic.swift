@@ -61,6 +61,22 @@ enum FamilyLogic {
         return candidates.max { quality($0) < quality($1) }?.id
     }
 
+    /// The short list at the top of the local models: each family's recommended size, with catalog top picks first, then by
+    /// quality (bigger model, GGUF, bigger file). At most `limit`.
+    static func recommendedEntries(from families: [LocalModelFamily], limit: Int = 5) -> [LocalModelEntry] {
+        let picks: [(entry: LocalModelEntry, topPick: Bool)] = families.compactMap { family in
+            guard let id = recommendedVariantID(in: family), let entry = family.variants.first(where: { $0.id == id })
+            else { return nil }
+            return (entry, isTopPick(family))
+        }
+        let ordered = picks.enumerated().sorted { l, r in
+            if l.element.topPick != r.element.topPick { return l.element.topPick }
+            let (a, b) = (quality(l.element.entry), quality(r.element.entry))
+            return a == b ? l.offset < r.offset : a > b
+        }
+        return ordered.prefix(max(0, limit)).map(\.element.entry)
+    }
+
     /// Compared in order: parameter count, GGUF over MLX, then file size. Tuples of Comparable compare lexicographically.
     private static func quality(_ entry: LocalModelEntry) -> (Double, Int, Int64) {
         (entry.parameterBillions ?? 0, entry.descriptor.source == .gguf ? 1 : 0, entry.descriptor.sizeBytes ?? 0)

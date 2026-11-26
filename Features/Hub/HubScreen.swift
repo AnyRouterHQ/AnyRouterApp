@@ -43,6 +43,16 @@ struct HubScreen: View {
         sections.available.filter { hub.downloadState(for: $0.id).isActive }
     }
 
+    /// The short list of sizes that run well on this device, best first. Not shown while searching, and not for models
+    /// that are already installed or downloading: those have their own sections.
+    private var recommended: [LocalModelEntry] {
+        guard query.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
+        return FamilyLogic.recommendedEntries(from: hub.families).filter { entry in
+            let state = hub.downloadState(for: entry.id)
+            return state != .installed && !state.isActive
+        }
+    }
+
     private var families: [LocalModelFamily] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let matched = needle.isEmpty ? hub.families : hub.families.filter { HubListOptions.matches($0, needle) }
@@ -97,6 +107,12 @@ struct HubScreen: View {
             }
             if !downloading.isEmpty {
                 Section("Downloading") { ForEach(downloading) { entry in row(entry) } }
+            }
+            if !recommended.isEmpty {
+                Section("Recommended for this \(device)") {
+                    ForEach(recommended) { entry in row(entry) }
+                }
+                .accessibilityIdentifier("hub.recommended")
             }
             if !families.isEmpty || !ungrouped.isEmpty {
                 Section("Available") {

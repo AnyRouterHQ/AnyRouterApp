@@ -34,25 +34,6 @@ struct RepoFilesTests {
         #expect(choices.map(\.quantization) == ["Q2_K", "Q4_K_M", "Q8_0"])
     }
 
-    @Test func defaultChoicePrefersQ4KMWhenItFits() {
-        let choices = RepoFiles.ggufChoices(listing)
-        let roomy = DeviceFit(physicalMemory: 64 * 1024 * 1024 * 1024)
-        #expect(RepoFiles.defaultChoice(choices, fit: roomy)?.quantization == "Q4_K_M")
-    }
-
-    @Test func defaultChoiceFallsBackToTheSmallestFileWhenNothingFits() {
-        let choices = [
-            GGUFChoice(path: "a-Q4_K_M.gguf", sizeBytes: 9_000_000_000, quantization: "Q4_K_M"),
-            GGUFChoice(path: "b-Q2_K.gguf", sizeBytes: 5_000_000_000, quantization: "Q2_K"),
-        ]
-        let small = DeviceFit(physicalMemory: 4 * 1024 * 1024 * 1024)
-        #expect(RepoFiles.defaultChoice(choices, fit: small)?.path == "b-Q2_K.gguf")
-    }
-
-    @Test func defaultChoiceOfNothingIsNil() {
-        #expect(RepoFiles.defaultChoice([]) == nil)
-    }
-
     @Test func mlxSnapshotKeepsWeightsConfigAndTokenizerOnly() {
         let files = [
             ".gitattributes", "README.md", "config.json", "model.safetensors", "model.safetensors.index.json",
@@ -111,38 +92,5 @@ struct RepoFilesTests {
         #expect(throws: LocalModelError.noFiles("org/model-4bit")) {
             try RepoFiles.downloadPlan(for: sampleMLX(), files: [HFFile(path: "config.json", size: 1)])
         }
-    }
-}
-
-struct DeviceFitTests {
-    private let gib: UInt64 = 1024 * 1024 * 1024
-
-    @Test func smallModelsFitAnEightGigabytePhone() {
-        let fit = DeviceFit(physicalMemory: 8 * gib)
-        #expect(fit.verdict(modelBytes: 396_705_472) == .fits)
-        #expect(fit.verdict(modelBytes: 1_107_409_472) == .fits)
-        #expect(fit.verdict(modelBytes: 2_019_377_696) == .fits)
-    }
-
-    @Test func aFourBillionParameterModelIsTightOnEightGigabytes() {
-        #expect(DeviceFit(physicalMemory: 8 * gib).verdict(modelBytes: 2_497_281_312) == .tight)
-    }
-
-    @Test func modelsAboveHalfOfRAMAreTooLarge() {
-        #expect(DeviceFit(physicalMemory: 8 * gib).verdict(modelBytes: 6_000_000_000) == .tooLarge)
-        #expect(DeviceFit(physicalMemory: 4 * gib).verdict(modelBytes: 2_497_281_312) == .tooLarge)
-    }
-
-    @Test func workingSetAddsOverheadToTheWeights() {
-        let fit = DeviceFit(physicalMemory: 8 * gib)
-        #expect(fit.workingSetBytes(modelBytes: 1_000_000_000) == 1_000_000_000 + 200_000_000 + 512 * 1024 * 1024)
-    }
-
-    @Test func unknownMemoryNeverClaimsAFit() {
-        #expect(DeviceFit(physicalMemory: 0).verdict(modelBytes: 1) == .tooLarge)
-    }
-
-    @Test func negativeSizesAreTreatedAsZero() {
-        #expect(DeviceFit(physicalMemory: 8 * gib).verdict(modelBytes: -5) == .fits)
     }
 }

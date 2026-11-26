@@ -9,9 +9,6 @@ struct GGUFChoice: Hashable, Sendable {
 
 /// Turns a repo listing into what the app can download.
 enum RepoFiles {
-    /// Best first. Q4_K_M is the usual quality/size balance on a phone.
-    static let preferredQuantizations = ["Q4_K_M", "Q4_K_S", "Q4_0", "Q5_K_M", "Q5_K_S", "Q6_K", "Q3_K_M", "Q8_0", "IQ4_XS"]
-
     private static let quantPattern =
         #"(?i)(?<![A-Za-z0-9])((?:IQ|Q)\d(?:_[A-Z0-9]+)*|BF16|F16|F32)(?![A-Za-z0-9])"#
 
@@ -32,17 +29,6 @@ enum RepoFiles {
             return GGUFChoice(path: file.path, sizeBytes: file.size, quantization: quantization(inFileName: name))
         }
         .sorted { $0.sizeBytes < $1.sizeBytes }
-    }
-
-    /// The preferred quantization that is not too large for the device, else the smallest file.
-    static func defaultChoice(_ choices: [GGUFChoice], fit: DeviceFit = DeviceFit()) -> GGUFChoice? {
-        for quant in preferredQuantizations {
-            if let match = choices.first(where: { $0.quantization == quant }),
-               fit.verdict(modelBytes: match.sizeBytes) != .tooLarge {
-                return match
-            }
-        }
-        return choices.min { $0.sizeBytes < $1.sizeBytes }
     }
 
     private static let mlxExtensions: Set<String> = ["safetensors", "json", "model", "txt", "jinja", "tiktoken"]

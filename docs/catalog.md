@@ -22,7 +22,7 @@ sizes. The app lists families first, then the sizes of one family.
 | `line` | The model line across generations (`gemma`). At most one **current** family per line. |
 | `logo` | Short key for the logo (`gemma`, `qwen`, `llama`, `liquid`). Unknown keys get a generic mark. |
 | `summary`, `website` | One line, and an https link. The summary makes no memory claims. |
-| `tags` | `thinking`, `vision`, `audio`, `tools`, `code`, `multilingual`. Only what the app can use today. |
+| `tags` | `thinking`, `vision`, `audio`, `tools`, `code`, `multilingual`, `mobile`. Only what the app can use today. `mobile` means a size runs well on a 6 GB phone; a test checks it against the fit check. |
 | `badges` | `best`, `recommended`, `new`. |
 | `status`, `replacedBy` | `current` or `deprecated`. A deprecated family names the current family that replaces it. |
 | `order` | Smaller first. |

@@ -280,7 +280,7 @@ FAMILY_KEYS = ["id", "name", "publisher", "line", "logo", "summary", "website", 
                "replacedBy", "order", "variants"]
 VARIANT_KEYS = ["repo", "engine", "file", "params", "quant", "sizeBytes", "contextLength", "license", "revision",
                 "sha256", "vision", "isOnboarding", "platforms", "minRAMBytes", "memory", "createdAt", "updatedAt"]
-TAGS = {"thinking", "vision", "audio", "tools", "code", "multilingual"}
+TAGS = {"thinking", "vision", "audio", "tools", "code", "multilingual", "mobile"}
 BADGES = {"best", "recommended", "new"}
 STATUSES = {"current", "deprecated"}
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")

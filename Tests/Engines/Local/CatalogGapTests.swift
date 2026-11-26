@@ -303,23 +303,6 @@ struct RepoFilesGapTests {
             try RepoFiles.entries(repo: "org/m", format: .gguf, files: [file("mmproj-F16.gguf"), file("README.md")])
         }
     }
-
-    @Test func smallestFileWinsWhenNoPreferredQuantizationFits() {
-        let choices = [
-            GGUFChoice(path: "a-F16.gguf", sizeBytes: 9_000_000_000, quantization: "F16"),
-            GGUFChoice(path: "b-F32.gguf", sizeBytes: 20_000_000_000, quantization: "F32"),
-        ]
-        #expect(RepoFiles.defaultChoice(choices, fit: DeviceFit(physicalMemory: 8_000_000_000))?.path == "a-F16.gguf")
-        #expect(RepoFiles.defaultChoice([]) == nil)
-    }
-
-    @Test func preferredQuantizationTooLargeForTheDeviceIsSkipped() {
-        let choices = [
-            GGUFChoice(path: "m-Q4_K_M.gguf", sizeBytes: 9_000_000_000, quantization: "Q4_K_M"),
-            GGUFChoice(path: "m-Q3_K_M.gguf", sizeBytes: 1_000_000_000, quantization: "Q3_K_M"),
-        ]
-        #expect(RepoFiles.defaultChoice(choices, fit: DeviceFit(physicalMemory: 6_000_000_000))?.path == "m-Q3_K_M.gguf")
-    }
 }
 
 struct StorageGapTests {

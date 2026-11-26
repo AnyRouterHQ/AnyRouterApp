@@ -28,6 +28,26 @@ struct FamilyLogicTests {
             variants: variants)
     }
 
+    /// The bundled catalog's current families, with each size judged by `FitPlanner` over a device class.
+    private func families(_ deviceClass: DeviceClass, _ kind: MemoryLimitKind) throws -> [LocalModelFamily] {
+        let memory = deviceClass.memory(kind)
+        let entries = try BundledCatalog.load().models.map { model -> LocalModelEntry in
+            let fit: ModelFit
+            switch model.memoryProfile.map({ FitPlanner.estimate($0, memory: memory) })?.verdict {
+            case .runsWell?: fit = .fits
+            case .tight?: fit = .tight
+            case .wontFit?: fit = .wontFit
+            case nil: fit = .unknown
+            }
+            return LocalModelEntry(
+                descriptor: model.descriptor(isInstalled: false), summary: "", tags: [], fit: fit, isUserAdded: false,
+                badges: model.badges.map { ModelBadge(label: $0.label) }, familyID: model.familyID,
+                familyName: model.familyName, parameters: model.parameters,
+                parameterBillions: FamilyLogic.billions(of: model.parameters), isDeprecated: model.status == .deprecated)
+        }
+        return FamilyLogic.families(from: entries)
+    }
+
     // MARK: Grouping
 
     @Test func entriesAreGroupedByFamilyInCatalogOrderAndDeprecatedOnesAreLeftOut() {
@@ -118,27 +138,10 @@ struct FamilyLogicTests {
         #expect(FamilyLogic.recommendedVariantID(in: family("f", variants: [blocked, ok])) == "ok")
     }
 
-    /// The real catalog on phones of 6, 8, 12 and 16 GB. The budget is 70% of RAM with the increased memory limit and
-    /// 50% without it, minus the 0.3 GB the app itself uses.
-    private func recommended(ram gigabytes: Double, limitShare: Double) throws -> [String: String?] {
-        let memory = DeviceMemory(
-            budgetBytes: Int64(gigabytes * limitShare * 1_000_000_000) - DeviceMemory.appBaselineBytes,
-            physicalBytes: Int64(gigabytes * 1_000_000_000))
-        let entries = try BundledCatalog.load().models.map { model -> LocalModelEntry in
-            let estimate = model.memoryProfile.map { FitPlanner.estimate($0, memory: memory) }
-            let fit: ModelFit
-            switch estimate?.verdict {
-            case .runsWell?: fit = .fits
-            case .tight?: fit = .tight
-            case .wontFit?: fit = .wontFit
-            case nil: fit = .unknown
-            }
-            return LocalModelEntry(
-                descriptor: model.descriptor(isInstalled: false), summary: "", tags: [], fit: fit, isUserAdded: false,
-                familyID: model.familyID, familyName: model.familyName, parameters: model.parameters,
-                parameterBillions: FamilyLogic.billions(of: model.parameters), isDeprecated: model.status == .deprecated)
-        }
-        return Dictionary(uniqueKeysWithValues: FamilyLogic.families(from: entries).map { family in
+    /// The real catalog on one device class: the recommended size of each family.
+    private func recommended(_ deviceClass: DeviceClass, _ kind: MemoryLimitKind) throws -> [String: String?] {
+        let list = try families(deviceClass, kind)
+        return Dictionary(uniqueKeysWithValues: list.map { family in
             (family.id, FamilyLogic.recommendedVariantID(in: family).map { id in
                 family.variants.first { $0.id == id }.map { "\($0.parameters ?? "")/\($0.descriptor.source.rawValue)" } ?? id
             })
@@ -146,17 +149,46 @@ struct FamilyLogicTests {
     }
 
     @Test func theRecommendedSizeGrowsWithTheDevicesMemory() throws {
-        // Without the increased limit (a sideloaded install): half of RAM.
-        let sixStandard = try recommended(ram: 6, limitShare: 0.5)
-        #expect(sixStandard["gemma-4"] == .some(nil), "no Gemma 4 size runs well in 2.7 GB")
-        #expect(sixStandard["qwen-3-5"] == "0.8B/gguf")
-        #expect(try recommended(ram: 8, limitShare: 0.5) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf"])
-        #expect(try recommended(ram: 12, limitShare: 0.5) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf"])
-        // With the increased limit (TestFlight, App Store): 70% of RAM.
-        #expect(try recommended(ram: 6, limitShare: 0.7) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf"])
-        #expect(try recommended(ram: 8, limitShare: 0.7) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf"])
-        #expect(try recommended(ram: 12, limitShare: 0.7) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf"])
-        #expect(try recommended(ram: 16, limitShare: 0.7) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf"])
+        // A sideloaded install has the standard limit.
+        #expect(try recommended(.gb4, .standard) == ["gemma-4": .some(nil), "qwen-3-5": .some(nil)])
+        #expect(try recommended(.gb6, .standard) == ["gemma-4": .some(nil), "qwen-3-5": "0.8B/gguf"])
+        #expect(try recommended(.gb8, .standard) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf"])
+        #expect(try recommended(.gb12, .standard) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf"])
+        #expect(try recommended(.gb16, .standard) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf"])
+        // TestFlight and App Store builds have the increased limit.
+        #expect(try recommended(.gb4, .increased) == ["gemma-4": .some(nil), "qwen-3-5": "0.8B/gguf"])
+        #expect(try recommended(.gb6, .increased) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf"])
+        #expect(try recommended(.gb8, .increased) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf"])
+        #expect(try recommended(.gb12, .increased) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf"])
+        #expect(try recommended(.gb16, .increased) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf"])
+    }
+
+    // MARK: Short list
+
+    @Test func theShortListHasTopPicksFirstThenTheBiggerModelAndHonorsTheLimit() {
+        let pick = family("pick", badges: ["recommended"], variants: [entry("pick-2b", params: "2B", size: 2)])
+        let big = family("big", variants: [entry("big-4b", params: "4B", size: 4)])
+        let small = family("small", variants: [entry("small-1b", params: "1B", size: 1)])
+        let tooBig = family("too-big", variants: [entry("huge", params: "27B", fit: .wontFit)])
+        let sameA = family("same-a", variants: [entry("same-a-1b", params: "1B", size: 1)])
+        let all = [small, tooBig, big, pick, sameA]
+        #expect(FamilyLogic.recommendedEntries(from: all).map(\.id) == ["pick-2b", "big-4b", "small-1b", "same-a-1b"])
+        #expect(FamilyLogic.recommendedEntries(from: all, limit: 2).map(\.id) == ["pick-2b", "big-4b"])
+        #expect(FamilyLogic.recommendedEntries(from: all, limit: 0).isEmpty)
+        #expect(FamilyLogic.recommendedEntries(from: [tooBig]).isEmpty, "nothing runs well: no section")
+    }
+
+    @Test func theShortListOnEachDeviceClassLeadsWithGemma4WhenItRunsWell() throws {
+        func lead(_ deviceClass: DeviceClass, _ kind: MemoryLimitKind) throws -> [String] {
+            FamilyLogic.recommendedEntries(from: try families(deviceClass, kind)).map {
+                "\($0.familyName ?? "")/\($0.parameters ?? "")/\($0.descriptor.source.rawValue)"
+            }
+        }
+        #expect(try lead(.gb4, .increased) == ["Qwen 3.5/0.8B/gguf"])
+        #expect(try lead(.gb6, .increased) == ["Gemma 4/E2B/gguf", "Qwen 3.5/2B/gguf"])
+        #expect(try lead(.gb8, .increased) == ["Gemma 4/E4B/gguf", "Qwen 3.5/4B/gguf"])
+        #expect(try lead(.gb12, .standard) == ["Gemma 4/E2B/gguf", "Qwen 3.5/2B/gguf"])
+        #expect(try lead(.gb4, .standard).isEmpty)
     }
 
     // MARK: Sort
