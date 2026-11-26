@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings › Integrations: the AnyRouter tool server, custom MCP servers, and per-tool switches.
+/// Settings › Integrations: the AnyRouter tool server, built-in tools and custom MCP servers.
 /// Pushed from the Settings list, so it relies on that NavigationStack.
 struct IntegrationsSettingsView: View {
     @Environment(AppState.self) private var app
@@ -9,37 +9,50 @@ struct IntegrationsSettingsView: View {
 
     private var store: IntegrationsStore { app.integrations }
 
+    private var builtInTools: [RegisteredTool] { app.tools.tools.filter { $0.source == .builtIn } }
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                SettingsGroup("AnyRouter") {
-                    IntegrationServerRow(server: .anyRouter)
-                }
-                SettingsGroup("Custom servers") {
-                    if store.customServers.isEmpty {
-                        SettingsText("Add a remote MCP server to give chats more tools.")
-                    }
-                    ForEach(store.customServers) { server in
-                        IntegrationServerRow(server: server)
-                    }
-                    Button("Add MCP server") { showsAdd = true }.buttonStyle(.arSecondary)
-                }
+        Form {
+            Section("AnyRouter") {
+                IntegrationServerRow(server: .anyRouter)
             }
-            .frame(maxWidth: ARTheme.contentMaxWidth)
-            .padding(.horizontal, ARTheme.pagePadding)
-            .padding(.bottom, 24)
-            .frame(maxWidth: .infinity)
+            Section {
+                ForEach(builtInTools) { tool in
+                    Toggle(isOn: Binding(
+                        get: { app.tools.isBuiltInEnabled(tool.name) },
+                        set: { app.tools.setBuiltIn(tool.name, enabled: $0) }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(tool.title)
+                            Text(tool.description).font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            } header: {
+                Text("Built-in tools")
+            } footer: {
+                Text("Turned-off tools are never offered to the model.")
+            }
+            Section {
+                ForEach(store.customServers) { IntegrationServerRow(server: $0) }
+                    .onDelete { offsets in
+                        let doomed = offsets.map { store.customServers[$0] }
+                        doomed.forEach { store.removeServer($0) }
+                    }
+                Button("Add MCP server") { showsAdd = true }
+            } header: {
+                Text("Custom servers")
+            } footer: {
+                if store.customServers.isEmpty { Text("Add a remote MCP server to give chats more tools.") }
+            }
         }
-        .background(ARColor.background.ignoresSafeArea())
-        .navigationDestination(for: MCPServer.self) { server in
-            IntegrationServerScreen(server: server)
-        }
+        .navigationDestination(for: MCPServer.self) { IntegrationServerScreen(server: $0) }
         .sheet(isPresented: $showsAdd) { AddMCPServerSheet() }
         .task { await store.refreshAll() }
     }
 }
 
-/// One server card: name, address, status, tool count.
+/// One server: name and status line, opens its tool list.
 private struct IntegrationServerRow: View {
     @Environment(AppState.self) private var app
     let server: MCPServer
@@ -47,42 +60,19 @@ private struct IntegrationServerRow: View {
     var body: some View {
         let state = app.integrations.state(for: server)
         NavigationLink(value: server) {
-            HStack(spacing: 12) {
-                Group {
-                    if server.auth == .anyRouterSignIn {
-                        ARLogoMark(size: 22)
-                    } else {
-                        Image(systemName: "server.rack").foregroundStyle(.secondary)
-                    }
-                }
-                .frame(width: 22)
-                .accessibilityHidden(true)
+            Label {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(server.name).font(.arBase).foregroundStyle(ARColor.foreground)
-                    Text(server.url.host() ?? server.url.absoluteString)
-                        .font(.arXS).foregroundStyle(ARColor.mutedForeground).lineLimit(1)
+                    Text(server.name)
+                    Text(IntegrationsLogic.statusText(state.status, toolCount: state.tools.count))
+                        .font(.footnote).foregroundStyle(.secondary).lineLimit(2)
                 }
-                Spacer()
-                IntegrationStatusChip(status: state.status, toolCount: state.tools.count)
-                Image(systemName: "chevron.right").font(.arXS).foregroundStyle(ARColor.mutedForeground)
+            } icon: {
+                if server.auth == .anyRouterSignIn {
+                    ARLogoMark(size: 22)
+                } else {
+                    Image(systemName: "server.rack")
+                }
             }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-struct IntegrationStatusChip: View {
-    let status: IntegrationsStore.Status
-    let toolCount: Int
-
-    var body: some View {
-        switch status {
-        case .idle: ARChip(text: "Not connected")
-        case .connecting: ARChip(text: "Connecting")
-        case .needsSignIn: ARChip(text: "Sign in", tint: ARColor.accent)
-        case .connected: ARChip(text: toolCount == 1 ? "1 tool" : "\(toolCount) tools", tint: ARColor.accent)
-        case .failed: ARChip(text: "Error", tint: ARColor.destructive)
         }
     }
 }
@@ -99,40 +89,35 @@ struct IntegrationServerScreen: View {
 
     var body: some View {
         let state = store.state(for: server)
-        ScrollView {
-            VStack(spacing: 20) {
-                SettingsGroup("Connection") {
-                    HStack(spacing: 12) {
-                        Image(systemName: "link").frame(width: 22).foregroundStyle(ARColor.mutedForeground)
-                        Text("Server").font(.arBase).foregroundStyle(ARColor.foreground)
-                        Spacer()
-                        Text(server.url.host() ?? "").font(.arSM).foregroundStyle(ARColor.mutedForeground).lineLimit(1)
-                    }
-                    statusBody(state)
-                    Button(state.status == .connecting ? "Connecting…" : "Reconnect") {
-                        Task { await store.refresh(server) }
-                    }
-                    .buttonStyle(.arSecondary)
-                    .disabled(state.status == .connecting)
+        Form {
+            Section("Connection") {
+                LabeledContent("Server", value: server.url.host() ?? server.url.absoluteString)
+                if case .failed(let message) = state.status {
+                    Text(message).foregroundStyle(.red)
+                } else {
+                    Text(IntegrationsLogic.statusText(state.status, toolCount: state.tools.count))
+                        .foregroundStyle(.secondary)
                 }
-                if !state.tools.isEmpty {
-                    SettingsGroup("Tools") {
-                        SettingsText("Turned-off tools are never offered to the model.")
-                        ForEach(state.tools) { tool in
-                            toolRow(tool)
-                        }
-                    }
+                Button(state.status == .connecting ? "Connecting…" : "Reconnect") {
+                    Task { await store.refresh(server) }
                 }
-                if server.id != MCPServer.anyRouter.id {
-                    Button("Remove server") { confirmsRemove = true }.buttonStyle(.arDestructive)
+                .disabled(state.status == .connecting)
+            }
+            if !state.tools.isEmpty {
+                Section {
+                    ForEach(state.tools) { toolRow($0) }
+                } header: {
+                    Text("Tools")
+                } footer: {
+                    Text("Turned-off tools are never offered to the model.")
                 }
             }
-            .frame(maxWidth: ARTheme.contentMaxWidth)
-            .padding(.horizontal, ARTheme.pagePadding)
-            .padding(.bottom, 24)
-            .frame(maxWidth: .infinity)
+            if server.id != MCPServer.anyRouter.id {
+                Section {
+                    Button("Remove server", role: .destructive) { confirmsRemove = true }
+                }
+            }
         }
-        .background(ARColor.background.ignoresSafeArea())
         .navigationTitle(server.name)
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Remove \(server.name)?", isPresented: $confirmsRemove, titleVisibility: .visible) {
@@ -145,39 +130,26 @@ struct IntegrationServerScreen: View {
         }
     }
 
-    @ViewBuilder
-    private func statusBody(_ state: IntegrationsStore.ServerState) -> some View {
-        switch state.status {
-        case .idle: SettingsText("Not connected yet.")
-        case .connecting: HStack { ProgressView(); SettingsText("Connecting…") }
-        case .needsSignIn: SettingsText("Sign in with AnyRouter in Settings to use these tools.")
-        case .connected: SettingsText("Connected. \(state.tools.count) tools available.")
-        case .failed(let message):
-            Text(message).font(.arSM).foregroundStyle(ARColor.destructive)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
+    private func needsApproval(_ tool: MCPTool) -> Bool {
+        let id = IntegrationsLogic.toolKey(serverID: server.id, toolName: tool.name)
+        return app.tools.tools.first { $0.id == id }?.needsApproval ?? false
     }
 
     private func toolRow(_ tool: MCPTool) -> some View {
-        let binding = Binding(
+        Toggle(isOn: Binding(
             get: { store.isEnabled(tool, on: server) },
             set: { store.setEnabled($0, tool: tool, on: server) }
-        )
-        return Toggle(isOn: binding) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(tool.displayName).font(.arBase).foregroundStyle(ARColor.foreground)
-                    if tool.isReadOnly { ARChip(text: "read-only") }
-                }
-                if tool.displayName != tool.name {
-                    Text(tool.name).font(.arXS).foregroundStyle(ARColor.mutedForeground)
+        )) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tool.displayName)
+                if needsApproval(tool) {
+                    Text("Needs approval").font(.footnote).foregroundStyle(.secondary)
                 }
                 if let description = tool.description, !description.isEmpty {
-                    Text(description).font(.arSM).foregroundStyle(ARColor.mutedForeground).lineLimit(4)
+                    Text(description).font(.footnote).foregroundStyle(.secondary).lineLimit(4)
                 }
             }
         }
-        .tint(ARColor.accent)
     }
 }
 
@@ -197,53 +169,37 @@ struct AddMCPServerSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    SettingsGroup("Server") {
-                        field("Name (optional)", text: $name)
-                        field("https://example.com/mcp", text: $urlText, url: true)
-                        SecureField("Bearer token (optional)", text: $token)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .padding(10)
-                            .background(ARColor.input.opacity(0.5), in: RoundedRectangle(cornerRadius: ARTheme.radius, style: .continuous))
-                        SettingsText("The token is stored in the Keychain on this device and sent only to this server.")
-                    }
-                    if let message {
-                        if isError {
-                            Text(message).font(.arSM).foregroundStyle(ARColor.destructive)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        } else {
-                            SettingsText(message)
-                        }
-                    }
-                    Button(isBusy ? "Working…" : "Test connection") { test() }
-                        .buttonStyle(.arSecondary)
-                        .disabled(!canSubmit)
-                    Button("Add server") { add() }
-                        .buttonStyle(.arFilled)
-                        .disabled(!canSubmit)
+            Form {
+                Section {
+                    TextField("Name (optional)", text: $name)
+                    TextField("https://example.com/mcp", text: $urlText)
+                        .keyboardType(.URL)
+                    SecureField("Bearer token (optional)", text: $token)
+                } header: {
+                    Text("Server")
+                } footer: {
+                    Text("The token is stored in the Keychain on this device and sent only to this server.")
                 }
-                .padding(.horizontal, ARTheme.pagePadding)
-                .padding(.bottom, 24)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                Section {
+                    Button(isBusy ? "Working…" : "Test connection") { test() }
+                        .disabled(!canSubmit)
+                    if let message {
+                        Text(message).foregroundStyle(isError ? Color.red : Color.secondary)
+                    }
+                }
             }
-            .background(ARColor.background.ignoresSafeArea())
             .navigationTitle("Add MCP server")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") { add() }.disabled(!canSubmit)
+                }
             }
         }
         .presentationDetents([.large])
-    }
-
-    private func field(_ prompt: String, text: Binding<String>, url: Bool = false) -> some View {
-        TextField(prompt, text: text)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .keyboardType(url ? .URL : .default)
-            .padding(10)
-            .background(ARColor.input.opacity(0.5), in: RoundedRectangle(cornerRadius: ARTheme.radius, style: .continuous))
     }
 
     private func test() {

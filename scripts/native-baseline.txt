@@ -6,7 +6,6 @@ Features/Chat/Composer.swift:15
 Features/Chat/MarkdownTheme.swift:13
 Features/Chat/MemoryMenu.swift:1
 Features/Chat/MessageViews.swift:5
-Features/Integrations/IntegrationsSettingsView.swift:23
 Features/ModelPicker/ModelPill.swift:1
 Features/Onboarding/OnboardingScreen.swift:23
 Features/Presets/PresetViews.swift:21

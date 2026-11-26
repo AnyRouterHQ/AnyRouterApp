@@ -46,6 +46,17 @@ enum IntegrationsLogic {
         return host
     }
 
+    /// One line for a server row: "Connected · 3 tools", "Sign in to connect", or the error text.
+    static func statusText(_ status: IntegrationsStore.Status, toolCount: Int) -> String {
+        switch status {
+        case .idle: return "Not connected"
+        case .connecting: return "Connecting"
+        case .needsSignIn: return "Sign in to connect"
+        case .connected: return "Connected · \(toolCount == 1 ? "1 tool" : "\(toolCount) tools")"
+        case .failed(let message): return message
+        }
+    }
+
     /// Key of the per-tool on/off switch.
     static func toolKey(serverID: String, toolName: String) -> String {
         "\(serverID)/\(toolName)"
