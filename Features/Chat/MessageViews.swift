@@ -171,20 +171,21 @@ struct ToolStepRow: View {
             }
             .padding(.top, 4)
         } label: {
-            HStack(spacing: 8) {
+            Label {
+                Text(ToolRowLogic.title(for: step)).lineLimit(2)
+            } icon: {
                 switch ToolRowLogic.status(of: step) {
                 case .running: ProgressView().controlSize(.small)
                 case .done: Image(systemName: "checkmark.circle")
                 case .failed: Image(systemName: "exclamationmark.triangle")
                 case .cancelled: Image(systemName: "xmark.circle")
                 }
-                Text(ToolRowLogic.title(for: step)).lineLimit(1)
             }
             .font(.footnote)
             .foregroundStyle(.secondary)
             .frame(minHeight: 44)
         }
-        .accessibilityIdentifier("tool-step.\(step.call.id)")
+        .accessibilityIdentifier("tool.row")
     }
 
     private func detail(_ title: String, _ text: String) -> some View {

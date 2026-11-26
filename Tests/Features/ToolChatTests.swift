@@ -11,28 +11,52 @@ private func done(_ name: String, isError: Bool = false, text: String = "ok") ->
     ToolResult(callID: "c1", name: name, text: text, isError: isError)
 }
 
+private func args(_ name: String, _ json: String, result: ToolResult? = nil) -> ToolStep {
+    ToolStep(call: ToolCall(id: "c1", name: name, argumentsJSON: json), result: result)
+}
+
 struct ToolRowLogicTests {
-    @Test func runningTitlesNameTheKindOfWork() {
-        #expect(ToolRowLogic.title(for: step("firecrawl_search")) == "Searching the web · firecrawl_search")
-        #expect(ToolRowLogic.title(for: step("firecrawl_scrape")) == "Reading a page · firecrawl_scrape")
-        #expect(ToolRowLogic.title(for: step("fetch_url")) == "Reading a page · fetch_url")
-        #expect(ToolRowLogic.title(for: step("site_crawl")) == "Reading a page · site_crawl")
-        #expect(ToolRowLogic.title(for: step("list_models")) == "Using a tool · list_models")
+    @Test func titlesNameWhatTheToolDid() {
+        let search = #"{"query":"swift 7 release"}"#
+        #expect(ToolRowLogic.title(for: args("web_search", search)) == "Searching the web for “swift 7 release”")
+        #expect(ToolRowLogic.title(for: args("web_search", search, result: done("web_search"))) == "Searched the web for “swift 7 release”")
+        #expect(ToolRowLogic.title(for: args("fetch_url", #"{"url":"https://example.com/docs/a?x=1"}"#, result: done("fetch_url"))) == "Read example.com/docs/a")
+        #expect(ToolRowLogic.title(for: args("fetch_url", #"{"url":"https://example.com/"}"#)) == "Reading example.com")
+        #expect(ToolRowLogic.title(for: args("calculator", #"{"expression":"2 + 2"}"#, result: done("calculator"))) == "Calculated 2 + 2")
+        #expect(ToolRowLogic.title(for: args("current_date_time", "{}", result: done("current_date_time"))) == "Checked the date and time")
+        #expect(ToolRowLogic.title(for: args("read_attachment", #"{"name":"notes.txt"}"#, result: done("read_attachment"))) == "Read notes.txt")
     }
 
-    @Test func doneAndFailedTitlesUsePastTense() {
-        #expect(ToolRowLogic.title(for: step("web_search", result: done("web_search"))) == "Searched the web · web_search")
-        #expect(ToolRowLogic.title(for: step("scrape", result: done("scrape"))) == "Read a page · scrape")
-        #expect(ToolRowLogic.title(for: step("x", result: done("x"))) == "Used a tool · x")
-        #expect(ToolRowLogic.title(for: step("web_search", result: done("web_search", isError: true))) == "Search failed · web_search")
-        #expect(ToolRowLogic.title(for: step("scrape", result: done("scrape", isError: true))) == "Read failed · scrape")
-        #expect(ToolRowLogic.title(for: step("x", result: done("x", isError: true))) == "Tool failed · x")
+    @Test func otherSearchToolsAndUnknownToolsGetGenericTitles() {
+        #expect(ToolRowLogic.title(for: step("firecrawl_search")) == "Searching the web")
+        #expect(ToolRowLogic.title(for: step("firecrawl_search", result: done("firecrawl_search"))) == "Searched the web")
+        #expect(ToolRowLogic.title(for: step("list_models")) == "Using list_models")
+        #expect(ToolRowLogic.title(for: step("list_models", result: done("list_models"))) == "Used list_models")
     }
 
-    @Test func cancelledIsNotShownAsFailed() {
+    @Test func missingOrBadArgumentsFallBackToShortTitles() {
+        #expect(ToolRowLogic.title(for: args("web_search", "not json")) == "Searching the web")
+        #expect(ToolRowLogic.title(for: args("fetch_url", #"{"url":"nope"}"#)) == "Reading a page")
+        #expect(ToolRowLogic.title(for: args("read_attachment", "{}")) == "Reading the attachments")
+    }
+
+    @Test func longQueriesAreTruncatedOnOneLine() {
+        let long = String(repeating: "word ", count: 30)
+        let title = ToolRowLogic.title(for: args("web_search", #"{"query":"\#(long)"}"#, result: done("web_search")))
+        #expect(title.hasPrefix("Searched the web for “word word"))
+        #expect(title.hasSuffix("…”"))
+        #expect(title.count < 100)
+        let multiline = ToolRowLogic.title(for: args("calculator", #"{"expression":"1+\n2"}"#))
+        #expect(!multiline.contains("\n"))
+    }
+
+    @Test func failedAndCancelledStepsSaySo() {
+        let failed = args("web_search", #"{"query":"x"}"#, result: done("web_search", isError: true))
+        #expect(ToolRowLogic.title(for: failed) == "Searched the web for “x” failed")
+        #expect(ToolRowLogic.title(for: step("list_models", result: done("list_models", isError: true))) == "Used list_models failed")
         let cancelled = step("web_search", result: done("web_search", isError: true, text: ToolRowLogic.cancelledText))
         #expect(ToolRowLogic.status(of: cancelled) == .cancelled)
-        #expect(ToolRowLogic.title(for: cancelled) == "Search cancelled · web_search")
+        #expect(ToolRowLogic.title(for: cancelled) == "Searched the web cancelled")
     }
 
     @Test func prettyJSONIndentsAndKeepsOtherTextAsIs() {
