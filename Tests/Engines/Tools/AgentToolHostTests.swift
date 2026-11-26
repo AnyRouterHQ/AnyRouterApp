@@ -336,7 +336,7 @@ final class AnyRouterRealToolsTests: XCTestCase {
         }
     }
 
-    private func registry() -> ToolRegistry {
+    private func makeRegistry() -> ToolRegistry {
         let defaults = testDefaults()
         let store = IntegrationsStore(
             defaults: defaults, credentials: FakeCredentialStore(),
@@ -346,7 +346,7 @@ final class AnyRouterRealToolsTests: XCTestCase {
 
     func testDefaultsOfferOnlyReadingToolsAndShowSearchAndScrapeAsBuiltIns() async throws {
         serve { MCPFixtures.reply(MCPFixtures.callText, to: $0) }
-        let registry = registry()
+        let registry = makeRegistry()
         await registry.integrations.refresh(.anyRouter)
 
         let listed = registry.tools.filter { $0.source != .builtIn }
@@ -368,7 +368,7 @@ final class AnyRouterRealToolsTests: XCTestCase {
     func testAToolThatActsNeedsApprovalEvenAfterTheUserTurnsItOn() async throws {
         let seen = SeenCalls()
         serve { seen.add($0); return MCPFixtures.reply(MCPFixtures.callText, to: $0) }
-        let registry = registry()
+        let registry = makeRegistry()
         await registry.integrations.refresh(.anyRouter)
         let create = try XCTUnwrap(registry.integrations.state(for: .anyRouter).tools.first { $0.name == "firecrawl__firecrawl_monitor_create" })
         registry.integrations.setEnabled(true, tool: create, on: .anyRouter)
@@ -395,7 +395,7 @@ final class AnyRouterRealToolsTests: XCTestCase {
                 ? MCPFixtures.reply(MCPFixtures.callError, to: request)
                 : MCPFixtures.reply(##"{"jsonrpc":"2.0","id":0,"result":{"content":[{"type":"text","text":"# Page\nHello"}]}}"##, to: request)
         }
-        let registry = registry()
+        let registry = makeRegistry()
         await registry.integrations.refresh(.anyRouter)
         let host = try XCTUnwrap(registry.makeHost(approver: NeverAsks()))
         let call = ToolCall(id: "f", name: "fetch_url", argumentsJSON: #"{"url":"https://example.com/a"}"#)
