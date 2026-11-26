@@ -7,8 +7,9 @@ import XCTest
 /// Skipped unless `ANYROUTER_SMOKE_MLX_TOKENIZER_DIR` is set.
 final class MLXChatTemplateSmokeTests: XCTestCase {
     func testGemma4TemplateRendersAUserTurnAndOpensTheModelTurn() async throws {
-        let dir = try XCTUnwrap(
-            SmokeEnv.mlxTokenizerDir, "ANYROUTER_SMOKE_MLX_TOKENIZER_DIR is not set. This check runs only in model-smoke.yml.")
+        let path = SmokeEnv.mlxTokenizerDir
+        try XCTSkipUnless(path != nil, "ANYROUTER_SMOKE_MLX_TOKENIZER_DIR is not set. This check runs only in model-smoke.yml.")
+        let dir = try XCTUnwrap(path)
         let tokenizer = try await TransformersTokenizerLoader().load(from: URL(fileURLWithPath: dir))
         let ids = try tokenizer.applyChatTemplate(
             messages: [
