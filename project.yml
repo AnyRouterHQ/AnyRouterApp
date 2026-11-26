@@ -55,6 +55,7 @@ targets:
         optional: true
       - path: Shared
       - path: catalog/models.json
+      - path: catalog/voice-models.json
     excludes:
       - "**/.gitkeep"
     info:
