@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 fail=0
 # One target per group; names only have to be unique inside a target.
-for group in "App Core Design Engines Features" "Tests" "UITests"; do
+for group in "App Core Design Engines Features Shared Controls" "Tests" "UITests"; do
   # shellcheck disable=SC2086
   dups=$(git ls-files -- $(printf '%s/*.swift ' $group) | xargs -n1 basename 2>/dev/null | sort | uniq -d)
   for d in $dups; do

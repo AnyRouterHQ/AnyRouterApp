@@ -53,6 +53,7 @@ targets:
         optional: true
       - path: Engines
         optional: true
+      - path: Shared
       - path: catalog/models.json
     excludes:
       - "**/.gitkeep"
@@ -85,6 +86,8 @@ targets:
         product: Jinja
       - package: Sentry
         product: Sentry
+      # The Control Center and Lock Screen controls, embedded in the app's PlugIns folder.
+      - target: AnyRouterControls
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -93,6 +96,25 @@ targets:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+  AnyRouterControls:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Controls
+      # The intents the controls run, and the mailbox they leave a request in. Also compiled into the app.
+      - path: Shared
+    info:
+      path: Controls/Info.plist
+      properties:
+        CFBundleDisplayName: AnyRouter Controls
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_NAME: AnyRouterControls
+        PRODUCT_BUNDLE_IDENTIFIER: dev.anyrouter.app.controls
+        INFOPLIST_KEY_CFBundleDisplayName: AnyRouter Controls
+        SKIP_INSTALL: YES
   AnyRouterTests:
     type: bundle.unit-test
     platform: iOS

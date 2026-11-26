@@ -142,6 +142,47 @@ struct InboundChatTests {
         #expect(request.sendNow)
     }
 
+    // MARK: Controls
+
+    @Test func theControlsOpenAFreshChatAndPasteAndFixAsksForTheText() async throws {
+        let mailbox = InboundChatMailbox.shared
+        _ = mailbox.take()
+
+        _ = try await NewChatControlIntent().perform()
+        let fresh = try #require(mailbox.take())
+        #expect(fresh.text == nil && fresh.presetID == nil && !fresh.sendNow && !fresh.asksForText)
+
+        _ = try await VoiceControlIntent().perform()
+        let voice = try #require(mailbox.take())
+        #expect(voice.text == nil && voice.presetID == nil && !voice.asksForText)
+
+        _ = try await PasteAndFixControlIntent().perform()
+        let fix = try #require(mailbox.take())
+        #expect(fix.presetID == InboundPreset.fixEnglish)
+        #expect(fix.asksForText && !fix.sendNow, "the clipboard is not read: the person pastes with the system button")
+    }
+
+    @Test func aRequestThatAsksForTextOpensThePresetSheetWithoutFillingTheComposer() async throws {
+        let vm = try await chat()
+        let fix = preset("Fix:\n", id: "fix")
+        let task = vm.start(InboundChat(presetID: "fix", asksForText: true), preset: fix)
+        #expect(task == nil)
+        #expect(vm.presetNeedingChoices?.id == "fix")
+        #expect(vm.input.isEmpty)
+        #expect(vm.messages.isEmpty)
+
+        vm.presetNeedingChoices = nil
+        _ = vm.start(InboundChat(text: "me and him goes", presetID: "fix", asksForText: true), preset: fix)
+        #expect(vm.input == "me and him goes", "the text is the sheet's message")
+    }
+
+    @Test func aRequestThatAsksForTextWithoutItsPresetJustFillsTheComposer() async throws {
+        let vm = try await chat()
+        _ = vm.start(InboundChat(text: "hello", presetID: "gone", asksForText: true), preset: nil)
+        #expect(vm.presetNeedingChoices == nil)
+        #expect(vm.input == "hello")
+    }
+
     @Test func shortcutsListThePresetsTheUserSees() async throws {
         let all = await PresetEntityQuery.visible()
         #expect(all.contains { $0.id == InboundPreset.fixEnglish })

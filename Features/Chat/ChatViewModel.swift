@@ -312,6 +312,12 @@ final class ChatViewModel {
     /// when the request says so.
     @discardableResult
     func start(_ request: InboundChat, preset: PromptPreset?) -> Task<Void, Never>? {
+        if request.asksForText, let preset {
+            // The preset's sheet has the system Paste button; the text so far is its message.
+            fill(InboundChatLogic.composerText(preset: nil, text: request.text))
+            presetNeedingChoices = preset
+            return nil
+        }
         fill(InboundChatLogic.composerText(preset: preset, text: request.text))
         return request.sendNow ? send() : nil
     }

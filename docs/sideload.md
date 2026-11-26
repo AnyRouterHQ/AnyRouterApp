@@ -20,3 +20,7 @@ Or with the CLI: `gh run download --name AnyRouter-debug-unsigned`.
 - The increased-memory-limit entitlement is dropped when signing with a free account. Large models can run out of memory: **0.6B to 1.7B models are fine, 4B models may crash**.
 - Apple Foundation Models needs Apple Intelligence turned on and iOS 26.
 - Free accounts allow only a few active app IDs; remove old sideloaded apps if the install is refused.
+
+## Extensions in the IPA
+
+The IPA carries the Control Center and Lock Screen controls as an embedded extension (`dev.anyrouter.app.controls`, in `AnyRouter.app/PlugIns`). Sideloadly and AltStore re-sign every embedded extension with your Apple ID. Each extension takes one more App ID from the free-account limit, so install it once and renew it, rather than reinstalling. The controls need no App Group: their intents open the app and run there. Add them from Control Center (Edit, Add a Control, AnyRouter) or the Lock Screen.
