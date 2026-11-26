@@ -19,7 +19,7 @@ final class ModelStore {
     /// Each engine's latest good list. `models` is these laid out in registration order.
     @ObservationIgnored private var listsBySource: [ModelSource: [ModelDescriptor]] = [:]
     /// Called once for each new failure message of a source, so it can be written to Settings > Diagnostics.
-    @ObservationIgnored private let onLoadFailure: (ModelSource, String) -> Void
+    @ObservationIgnored private let onLoadFailure: ((ModelSource, String) -> Void)?
     /// True after the first refresh, so a missing model can be told apart from "not loaded yet".
     private(set) var hasLoaded = false
     /// Each model's last 7 days by wire id. From the cache until a fresh fetch lands; empty offline on first launch.
@@ -34,7 +34,7 @@ final class ModelStore {
 
     init(
         registry: EngineRegistry, defaults: UserDefaults = .standard, telemetry: any Telemetry = NoopTelemetry(),
-        usage: (any WeeklyUsageSource)? = nil, onLoadFailure: @escaping (ModelSource, String) -> Void = { _, _ in }
+        usage: (any WeeklyUsageSource)? = nil, onLoadFailure: ((ModelSource, String) -> Void)? = nil
     ) {
         self.onLoadFailure = onLoadFailure
         self.registry = registry
@@ -82,7 +82,7 @@ final class ModelStore {
             listsBySource.merge(listing.lists) { _, new in new }
             let previous = loadFailures
             loadFailures = previous.filter { listing.lists[$0.key] == nil }.merging(listing.failures) { _, new in new }
-            for (source, message) in listing.failures where previous[source] != message { onLoadFailure(source, message) }
+            for (source, message) in listing.failures where previous[source] != message { onLoadFailure?(source, message) }
             models = listing.order.flatMap { listsBySource[$0] ?? [] }
             if models.contains(where: \.isInstalled) { Perf.endModels() }
         }

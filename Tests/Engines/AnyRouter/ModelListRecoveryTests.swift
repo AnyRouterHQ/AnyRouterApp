@@ -7,7 +7,9 @@ import Testing
 /// and no reason.
 struct ModelListRecoveryTests {
     private func recorded() throws -> Data {
-        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        // Tests/Engines/AnyRouter/<this file>: four steps up is the repo root.
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
         return try Data(contentsOf: root.appendingPathComponent("Tests/Fixtures/anyrouter-models-live.json"))
     }
 
