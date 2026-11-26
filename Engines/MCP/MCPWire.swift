@@ -19,10 +19,10 @@ enum MCPWire {
     /// The `result` for request `id`, or the JSON-RPC error answering it.
     static func result(id: Int, in messages: [JSONValue]) throws -> JSONValue {
         for message in messages {
-            guard let number = message["id"]?.number, Int(number) == id else { continue }
+            guard let number = message["id"]?.number, Int(exactly: number) == id else { continue }
             if let error = message["error"] {
                 throw MCPError.rpc(
-                    code: Int(error["code"]?.number ?? 0),
+                    code: error["code"]?.number.flatMap { Int(exactly: $0) } ?? 0,
                     message: error["message"]?.string ?? "Unknown error."
                 )
             }
