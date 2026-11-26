@@ -105,8 +105,11 @@ final class ScreenshotTests: XCTestCase {
         forEachAppearance { app, appearance in
             XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
             app.buttons["Model"].tap()
-            XCTAssertTrue(app.staticTexts["Choose model"].waitForExistence(timeout: 5))
-            app.staticTexts["Choose model"].swipeUp()
+            let tabs = app.segmentedControls.firstMatch
+            XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+            capture("model-picker-local", appearance)
+            tabs.buttons["AnyRouter"].tap()
+            XCTAssertTrue(app.staticTexts["Top picks"].waitForExistence(timeout: 5))
             capture("model-picker", appearance)
         }
     }

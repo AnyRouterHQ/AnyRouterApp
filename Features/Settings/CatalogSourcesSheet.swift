@@ -53,8 +53,7 @@ struct CatalogSourcesSheet: View {
                     Text("Nothing added yet.").foregroundStyle(.secondary)
                 }
                 ForEach(userModels) { entry in
-                    Text(entry.descriptor.displayName)
-                        .lineLimit(1)
+                    ModelLabel(model: entry.descriptor, style: .row)
                         .swipeActions {
                             Button(role: .destructive) {
                                 Task { await hub.removeUserModel(modelID: entry.id) }

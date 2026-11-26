@@ -119,6 +119,7 @@ private struct ChatContent: View {
     private var messageList: some View {
         let messages = chat.messages
         let lastID = messages.last?.id
+        let switchNotes = SwitchNotes.make(messages)
         return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 20) {
@@ -127,7 +128,8 @@ private struct ChatContent: View {
                             message: message,
                             isStreamingThis: chat.isStreaming && message.id == lastID,
                             showsRegenerate: message.id == lastID && chat.canRegenerate,
-                            onRegenerate: { chat.regenerate() }
+                            onRegenerate: { chat.regenerate() },
+                            switchNote: switchNotes[message.id]
                         )
                     }
                     Color.clear.frame(height: 1).id("bottom")

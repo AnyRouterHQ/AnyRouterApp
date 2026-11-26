@@ -60,5 +60,11 @@ struct LicenseNotice: Identifiable, Equatable {
             license: "MIT License",
             url: "https://github.com/ggml-org/llama.cpp"
         ),
+        LicenseNotice(
+            name: "lobe-icons",
+            copyright: ["Copyright (c) 2023 LobeHub"],
+            license: "MIT License. Logos are trademarks of their owners.",
+            url: "https://github.com/lobehub/lobe-icons"
+        ),
     ]
 }

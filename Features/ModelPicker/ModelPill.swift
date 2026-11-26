@@ -9,17 +9,20 @@ struct ModelPill: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Text(model?.shortName ?? (isLoading ? "Loading…" : "Choose model"))
-                    .font(.system(size: 15, weight: .medium))
-                    .lineLimit(1)
-                Image(systemName: "chevron.down").font(.system(size: 11, weight: .semibold))
+                if let model {
+                    ModelLabel(model: model, style: .pill)
+                } else {
+                    Text(isLoading ? "Loading…" : "Choose model").font(.subheadline.weight(.medium)).lineLimit(1)
+                }
+                Image(systemName: "chevron.down").font(.caption2.weight(.semibold))
             }
-            .foregroundStyle(ARColor.foreground)
+            .foregroundStyle(.primary)
             .padding(.horizontal, 14)
             .frame(height: ARTheme.controlSize)
             .arGlass(in: Capsule(), interactive: true)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Model")
+        .accessibilityValue(model?.shortName ?? "")
     }
 }

@@ -16,7 +16,7 @@ struct DefaultModelSettings: View {
                         } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(model.shortName).foregroundStyle(.primary)
+                                    ModelLabel(model: model, style: .row).foregroundStyle(.primary)
                                     Text(ModelPickerLogic.subtitle(for: model)).font(.footnote).foregroundStyle(.secondary)
                                 }
                                 Spacer()

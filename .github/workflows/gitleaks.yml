@@ -35,3 +35,5 @@ jobs:
           fi
       - name: Native-first ratchet
         run: bash scripts/native-ratchet.sh
+      - name: Model names carry their logo
+        run: bash scripts/model-name-check.sh

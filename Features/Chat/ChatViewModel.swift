@@ -169,7 +169,7 @@ final class ChatViewModel {
         errorMessage = nil
         thread.modelID = model.id
         preferredModelID = model.id
-        let assistant = MessageRecord(role: .assistant, content: "", modelName: model.shortName)
+        let assistant = MessageRecord(role: .assistant, content: "", modelName: model.shortName, modelID: model.id)
         let history = thread.orderedMessages
         context.insert(assistant)
         assistant.thread = thread

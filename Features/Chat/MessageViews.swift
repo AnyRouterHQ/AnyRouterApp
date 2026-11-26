@@ -7,6 +7,17 @@ struct MessageRow: View {
     let isStreamingThis: Bool
     let showsRegenerate: Bool
     var onRegenerate: () -> Void
+    /// "Switched to <model>" above a reply written by a different model than the one before.
+    var switchNote: String?
+
+    init(message: MessageRecord, isStreamingThis: Bool, showsRegenerate: Bool,
+         onRegenerate: @escaping () -> Void, switchNote: String? = nil) {
+        self.message = message
+        self.isStreamingThis = isStreamingThis
+        self.showsRegenerate = showsRegenerate
+        self.onRegenerate = onRegenerate
+        self.switchNote = switchNote
+    }
 
     var body: some View {
         switch message.role {
@@ -32,6 +43,14 @@ struct MessageRow: View {
     private var assistantRow: some View {
         let steps = message.toolSteps
         return VStack(alignment: .leading, spacing: 6) {
+            if let switchNote {
+                Text(switchNote)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.bottom, 6)
+                    .accessibilityIdentifier("switch-note")
+            }
             ForEach(steps) { ToolStepRow(step: $0) }
             if message.content.isEmpty && isStreamingThis && !steps.contains(where: { $0.result == nil }) {
                 TypingDots()
@@ -55,10 +74,11 @@ struct MessageRow: View {
                         .accessibilityLabel("Regenerate")
                     }
                     if let name = message.modelName {
-                        Text(name)
-                            .font(.caption2)
+                        ModelLabel(
+                            name: name,
+                            brand: message.modelID.map { ModelBrand.resolve(id: $0) } ?? ModelBrand.unknown,
+                            style: .inline)
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
                             .padding(.leading, 4)
                     }
                 }

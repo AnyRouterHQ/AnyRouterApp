@@ -16,6 +16,10 @@ The GGUF engine links the official llama.cpp xcframework (https://github.com/ggm
 
 The MLX engine uses mlx-swift (https://github.com/ml-explore/mlx-swift) and mlx-swift-lm (https://github.com/ml-explore/mlx-swift-lm), MIT License, Copyright (c) Apple Inc.
 
+## Provider and model logos
+
+The monochrome provider and model logos in `Design/Assets.xcassets` (`Logo-*`) come from lobe-icons (https://github.com/lobehub/lobe-icons, `@lobehub/icons-static-svg`), MIT License, Copyright (c) 2023 LobeHub. The marks are trademarks of their owners and are shown only to identify a model's provider.
+
 ## swift-transformers
 
 Tokenizers come from swift-transformers (https://github.com/huggingface/swift-transformers), Apache License 2.0, Copyright Hugging Face.

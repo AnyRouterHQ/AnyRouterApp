@@ -1,134 +1,228 @@
 import SwiftUI
 
-/// Model picker: search, groups by source, install state, sign-in prompt.
+/// One picker row: logo, name and id, then price, context and upstreams. Two lines, fixed height.
+struct ModelRowView: View {
+    let row: ModelRowModel
+    let isCurrent: Bool
+
+    @ScaledMetric(relativeTo: .body) private var logoSize: CGFloat = 26
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ModelLogo(brand: row.brand, size: logoSize)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(row.title).font(.body).lineLimit(1).layoutPriority(1)
+                    Text(row.idLabel).font(.footnote).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                }
+                Text(row.detailLine).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            if isCurrent { Image(systemName: "checkmark").fontWeight(.semibold) }
+        }
+        .opacity(row.isDimmed ? 0.45 : 1)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("model-row.\(row.id)")
+    }
+}
+
+/// Model picker: a Local tab and an AnyRouter tab, searchable, with a sort menu for cloud models.
 struct ModelPickerSheet: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models
     @Environment(ShellModel.self) private var shell
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     /// The model the chat uses now.
-    var currentID: String?
+    let currentID: String?
     /// Called with the pick; the chat applies it to the next message.
-    var onSelect: (ModelDescriptor) -> Void
+    let onSelect: (ModelDescriptor) -> Void
 
+    @State private var tab: PickerTab
     @State private var query = ""
+    @State private var sort: PickerSort = .topUsage
     @State private var signInError: String?
+    @State private var keyExplainer: ModelDescriptor?
+    @State private var detent = PresentationDetent.large
+
+    private let picksConfig = TopPicksConfig.bundled()
+    private static let providerKeysURL = URL(string: "https://anyrouter.dev/dashboard/byok")!
+
+    init(currentID: String?, onSelect: @escaping (ModelDescriptor) -> Void) {
+        self.currentID = currentID
+        self.onSelect = onSelect
+        _tab = State(initialValue: currentID?.hasPrefix("anyrouter/") == true ? .anyrouter : .local)
+    }
 
     var body: some View {
-        let sections = ModelPickerLogic.sections(models: models.models, query: query)
-        return VStack(spacing: 0) {
-            HStack {
-                Text("Choose model").font(.arXL).foregroundStyle(ARColor.foreground)
-                Spacer()
-                Button("Done") { dismiss() }.font(.arBase)
-            }
-            .padding(.horizontal, ARTheme.pagePadding)
-            .padding(.top, 20)
-            ARSearchField(text: $query, prompt: "Search models")
-                .padding(.horizontal, ARTheme.pagePadding)
-                .padding(.vertical, 12)
-            ScrollView {
-                // Lazy: the cloud list has hundreds of rows.
-                LazyVStack(spacing: 8) {
-                    ForEach(sections) { section in
-                        ARSectionTitle(section.title)
-                            .padding(.top, 12)
-                        if section.kind == .anyrouter { cloudPrompt(isEmpty: section.models.isEmpty) }
-                        ForEach(section.models) { model in row(model) }
-                    }
-                    if sections.allSatisfy({ $0.models.isEmpty }) && !query.isEmpty {
-                        Text("No matching models").font(.arSM).foregroundStyle(ARColor.mutedForeground)
-                    }
-                    browseRow
+        NavigationStack {
+            List {
+                switch tab {
+                case .local: localRows
+                case .anyrouter: cloudRows
                 }
-                .padding(.horizontal, ARTheme.pagePadding)
-                .padding(.bottom, 24)
+            }
+            .overlay { stateOverlay }
+            .navigationTitle("Model")
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $query, prompt: "Search models")
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Picker("Source", selection: $tab) {
+                    ForEach(PickerTab.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if tab == .local {
+                    Button {
+                        dismiss()
+                        shell.open(.hub, closeSidebar: true)
+                    } label: {
+                        Label("Browse models", systemImage: "square.stack.3d.up").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .padding()
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+                if tab == .anyrouter, app.account.state.isSignedIn {
+                    ToolbarItem(placement: .primaryAction) {
+                        Menu {
+                            Picker("Sort", selection: $sort) {
+                                ForEach(PickerSort.allCases) { Text($0.title).tag($0) }
+                            }
+                        } label: {
+                            Label("Sort", systemImage: "arrow.up.arrow.down")
+                        }
+                    }
+                }
             }
         }
-        .background(ARColor.background.ignoresSafeArea())
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium, .large], selection: $detent)
         .presentationDragIndicator(.visible)
-    }
-
-    private func fitDetail(for model: ModelDescriptor) -> FitDetail? {
-        guard model.source == .gguf || model.source == .mlx else { return nil }
-        return app.hub.catalog.first { $0.id == model.id }?.fitDetail
-    }
-
-    /// "GGUF · 2.5 GB", plus what the model needs in memory when the fit check has numbers for it.
-    private func subtitle(for model: ModelDescriptor) -> String {
-        let base = ModelPickerLogic.subtitle(for: model)
-        guard let detail = fitDetail(for: model) else { return base }
-        return "\(base) · \(FitText.needs(detail))"
-    }
-
-    private func row(_ model: ModelDescriptor) -> some View {
-        let isSelected = currentID == model.id
-        return Button {
-            onSelect(model)
-            dismiss()
-        } label: {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(model.shortName).font(.arBase).foregroundStyle(ARColor.foreground).lineLimit(1)
-                    Text(subtitle(for: model)).font(.arXS).foregroundStyle(ARColor.mutedForeground)
-                }
-                Spacer()
-                if let detail = fitDetail(for: model), let badge = FitText.badge(detail, device: DeviceName.current) {
-                    ARChip(text: badge, tint: detail.verdict == .fits ? .green : detail.verdict == .tight ? .orange : ARColor.destructive)
-                }
-                if isSelected { Image(systemName: "checkmark").foregroundStyle(ARColor.accent) }
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity)
-            .arCard(radius: ARTheme.radius)
-            .overlay(RoundedRectangle(cornerRadius: ARTheme.radius, style: .continuous)
-                .strokeBorder(isSelected ? ARColor.accent : .clear, lineWidth: 1.5))
+        .alert("Needs your provider key", isPresented: Binding(
+            get: { keyExplainer != nil }, set: { if !$0 { keyExplainer = nil } }
+        )) {
+            Button("Open provider keys") { openURL(Self.providerKeysURL) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("\(keyExplainer?.shortName ?? "This model") runs on your own provider account. Add the key in your AnyRouter dashboard, then pick it here.")
         }
-        .buttonStyle(.plain)
+    }
+
+    // MARK: - Local tab
+
+    private var localModels: [ModelDescriptor] {
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let local = models.models.filter { model in
+            switch model.source {
+            case .apple: return true
+            case .gguf, .mlx: return model.isInstalled
+            case .anyrouter: return false
+            }
+        }
+        let matched = needle.isEmpty ? local : local.filter { ModelPickerLogic.matches($0, needle) }
+        return matched.sorted { lhs, rhs in
+            if (lhs.source == .apple) != (rhs.source == .apple) { return lhs.source == .apple }
+            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+        }
     }
 
     @ViewBuilder
-    private func cloudPrompt(isEmpty: Bool) -> some View {
-        switch app.account.state {
-        case .signedOut where isEmpty:
-            VStack(spacing: 8) {
-                Text("Sign in to use cloud models through AnyRouter.")
-                    .font(.arSM).foregroundStyle(ARColor.mutedForeground)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Button("Sign in with AnyRouter") { signIn() }.buttonStyle(.arFilled)
-                if let signInError { Text(signInError).font(.arXS).foregroundStyle(ARColor.destructive) }
+    private var localRows: some View {
+        Section("Downloaded") {
+            ForEach(localModels) { model in
+                modelButton(model, fitBadge: fitBadge(for: model))
             }
-            .padding(12)
-            .arCard(radius: ARTheme.radius)
-        case .signingIn:
-            HStack { ProgressView(); Text("Signing in…").font(.arSM).foregroundStyle(ARColor.mutedForeground); Spacer() }
-                .padding(12)
-        case .signedIn where isEmpty:
-            Text("No cloud models available.").font(.arSM).foregroundStyle(ARColor.mutedForeground)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        default:
-            EmptyView()
         }
     }
 
-    private var browseRow: some View {
-        Button {
-            dismiss()
-            shell.open(.hub, closeSidebar: true)
-        } label: {
-            HStack {
-                Image(systemName: "square.stack.3d.up")
-                Text("Browse more models").font(.arBase)
-                Spacer()
-                Image(systemName: "chevron.right").font(.arXS)
+    private func fitBadge(for model: ModelDescriptor) -> String? {
+        guard model.source == .gguf || model.source == .mlx,
+              let detail = app.hub.catalog.first(where: { $0.id == model.id })?.fitDetail else { return nil }
+        return FitText.badge(detail, device: DeviceName.current)
+    }
+
+    // MARK: - AnyRouter tab
+
+    private var cloudList: CloudList {
+        CloudListLogic.arrange(
+            models: models.models, query: query, sort: sort, usageRank: models.usageRank,
+            showUnusable: app.account.state.isSignedIn,
+            picks: TopPicks.compose(config: picksConfig, models: models.models, usageRank: models.usageRank))
+    }
+
+    @ViewBuilder
+    private var cloudRows: some View {
+        if app.account.state.isSignedIn {
+            let list = cloudList
+            if !list.topPicks.isEmpty {
+                Section("Top picks") { ForEach(list.topPicks) { modelButton($0) } }
             }
-            .foregroundStyle(ARColor.foreground)
-            .padding(12)
-            .arCard(radius: ARTheme.radius)
+            if !list.rest.isEmpty {
+                Section {
+                    ForEach(list.rest) { modelButton($0) }
+                } header: {
+                    if !list.topPicks.isEmpty { Text("All models") }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var stateOverlay: some View {
+        if tab == .anyrouter {
+            switch app.account.state {
+            case .signedOut:
+                ContentUnavailableView {
+                    Label("Sign in to use cloud models", systemImage: "cloud")
+                } description: {
+                    Text("AnyRouter picks the best model for each message.")
+                    if let signInError { Text(signInError).foregroundStyle(.red) }
+                } actions: {
+                    Button("Sign in with AnyRouter") { signIn() }.buttonStyle(.borderedProminent)
+                }
+            case .signingIn:
+                ProgressView("Signing in…")
+            case .signedIn:
+                if cloudList.isEmpty {
+                    if query.isEmpty {
+                        ContentUnavailableView("No cloud models", systemImage: "cloud")
+                    } else {
+                        ContentUnavailableView.search(text: query)
+                    }
+                }
+            }
+        } else if localModels.isEmpty, !query.isEmpty {
+            ContentUnavailableView.search(text: query)
+        }
+    }
+
+    // MARK: - Rows
+
+    private func modelButton(_ model: ModelDescriptor, fitBadge: String? = nil) -> some View {
+        Button {
+            choose(model)
+        } label: {
+            ModelRowView(row: ModelRow.make(model, fitBadge: fitBadge), isCurrent: currentID == model.id)
         }
         .buttonStyle(.plain)
+    }
+
+    private func choose(_ model: ModelDescriptor) {
+        guard model.isInstalled else {
+            if model.cloud?.availability == .needsKey { keyExplainer = model }
+            return
+        }
+        onSelect(model)
+        dismiss()
     }
 
     private func signIn() {
