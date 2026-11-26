@@ -132,6 +132,21 @@ struct PresetOptionsTests {
         #expect(sent.hasSuffix("Message:\nDinner at 5?"))
     }
 
+    @Test func aPastedMessageOffersReplyAndAsksForTheToneWithThePasteAsTheMessage() async throws {
+        let preset = try reply()
+        #expect(preset.offerOnPaste)
+        let vm = try await chat()
+        let pasted = "Can you join the planning call tomorrow at five?"
+        vm.input = pasted
+        vm.inputChanged(from: "", to: pasted)
+        #expect(vm.pasteOffered)
+
+        vm.applyToPaste(preset)
+        #expect(vm.presetNeedingChoices?.id == "reply-to-this")
+        #expect(!vm.pasteOffered)
+        #expect(vm.input == pasted, "the sheet takes the pasted text as its message")
+    }
+
     @Test func sendNowAndShortcutsUseTheDefaultChoices() async throws {
         let vm = try await chat()
         let preset = try reply()

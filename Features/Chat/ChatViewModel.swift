@@ -184,11 +184,10 @@ final class ChatViewModel {
     func useScan(_ preset: PromptPreset?, selection: PresetSelection, text: String) {
         scannedText = nil
         if let preset {
-            input = PresetOptionsLogic.composerText(preset, selection: selection, message: text)
+            fill(PresetOptionsLogic.composerText(preset, selection: selection, message: text))
         } else {
-            input = OCRLogic.appended(text, to: input)
+            fill(OCRLogic.appended(text, to: input))
         }
-        focusTick += 1
     }
 
     func removePending(_ attachment: ChatAttachment) {
@@ -280,7 +279,13 @@ final class ChatViewModel {
 
     /// Applies a preset to what was pasted: the composer gets the prompt, then the text, ready to edit or send.
     func applyToPaste(_ preset: PromptPreset) {
-        fill(PasteOfferLogic.apply(preset, to: input))
+        if preset.hasOptions {
+            // A preset with pickers (Reply to this) asks for its choices, with the pasted text as the message.
+            pasteOffered = false
+            presetNeedingChoices = preset
+        } else {
+            fill(PasteOfferLogic.apply(preset, to: input))
+        }
     }
 
     func dismissPasteOffer() { pasteOffered = false }
@@ -299,8 +304,7 @@ final class ChatViewModel {
     @discardableResult
     func finishChoices(_ preset: PromptPreset, selection: PresetSelection, message: String) -> Task<Void, Never>? {
         presetNeedingChoices = nil
-        input = PresetOptionsLogic.composerText(preset, selection: selection, message: message)
-        focusTick += 1
+        fill(PresetOptionsLogic.composerText(preset, selection: selection, message: message))
         return send()
     }
 

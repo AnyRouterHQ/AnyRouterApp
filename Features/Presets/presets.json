@@ -29,6 +29,7 @@
   },
   {
     "id": "reply-to-this",
+    "offerOnPaste": true,
     "title": "Reply to this",
     "prompt": "Write a reply to the message below. Tone: {tone}. Language: {language}. Give the reply text only, with no introduction and no notes.\n\nMessage:\n",
     "category": "write",

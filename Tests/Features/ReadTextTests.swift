@@ -115,4 +115,12 @@ struct ReadTextTests {
         #expect(vm.input.hasSuffix("Text:\nXin chao"))
         #expect(vm.messages.isEmpty, "the composer is filled, nothing is sent")
     }
+
+    @Test func aScanThePhotoFilledInIsNotTreatedAsAPaste() async throws {
+        let vm = try await chat()
+        let long = "CAFE SAIGON Pho bo 65,000 Tra da 15,000 TOTAL 80,000"
+        vm.useScan(nil, selection: PresetSelection(), text: long)
+        vm.inputChanged(from: "", to: vm.input)
+        #expect(!vm.pasteOffered)
+    }
 }
