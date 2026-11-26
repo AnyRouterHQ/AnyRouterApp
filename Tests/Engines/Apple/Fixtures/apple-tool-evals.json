@@ -1,0 +1,82 @@
+{
+  "note": "Prompts for the on-device model with the built-in tools. AppleToolEvalTests runs them on a device with Apple Intelligence and skips everywhere else. Placeholders: {year}, {month}, {weekday} are filled from the clock at run time. Matching ignores case.",
+  "cases": [
+    {
+      "id": "time",
+      "prompt": "What time is it right now?",
+      "expectTool": "current_date_time",
+      "mustContain": [],
+      "mustNotContain": [
+        "Asia/",
+        "Hanoi",
+        "Ho Chi Minh",
+        "Vietnam",
+        "Tokyo",
+        "Paris"
+      ]
+    },
+    {
+      "id": "date",
+      "prompt": "What is today's date?",
+      "expectTool": "current_date_time",
+      "mustContain": [
+        "{year}",
+        "{month}"
+      ],
+      "mustNotContain": [
+        "Asia/",
+        "Hanoi",
+        "Vietnam"
+      ]
+    },
+    {
+      "id": "weekday",
+      "prompt": "Which day of the week is it today?",
+      "expectTool": "current_date_time",
+      "mustContain": [
+        "{weekday}"
+      ],
+      "mustNotContain": [
+        "Asia/",
+        "Hanoi",
+        "Vietnam"
+      ]
+    },
+    {
+      "id": "multiply",
+      "prompt": "What is 17 times 23? Use the calculator.",
+      "expectTool": "calculator",
+      "mustContain": [
+        "391"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "expression",
+      "prompt": "Calculate (1234 + 4321) / 5.",
+      "expectTool": "calculator",
+      "mustContain": [
+        "1111"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "percent",
+      "prompt": "What is 15% of 240?",
+      "expectTool": "calculator",
+      "mustContain": [
+        "36"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "plain-chat",
+      "prompt": "Write one short sentence about cats.",
+      "expectTool": null,
+      "mustContain": [
+        "cat"
+      ],
+      "mustNotContain": []
+    }
+  ]
+}
