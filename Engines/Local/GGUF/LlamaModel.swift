@@ -57,11 +57,11 @@ final class LlamaModel: @unchecked Sendable {
             gpuBudgetBytes: MTLCreateSystemDefaultDevice().map { Int64($0.recommendedMaxWorkingSetSize) })
         #endif
         guard let model = llama_model_load_from_file(path, params) else {
-            throw GGUFError.loadFailed((path as NSString).lastPathComponent)
+            throw GGUFError.loadFailed(name)
         }
         guard let vocab = llama_model_get_vocab(model) else {
             llama_model_free(model)
-            throw GGUFError.loadFailed((path as NSString).lastPathComponent)
+            throw GGUFError.loadFailed(name)
         }
         self.model = model
         self.vocab = vocab

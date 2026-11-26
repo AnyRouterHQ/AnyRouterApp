@@ -33,6 +33,10 @@ The script fills size, `sha256` (the LFS oid), the pinned commit `revision`, con
 Hugging Face API. Then edit by hand what it cannot know: `summary`, `badges`, `vision`, `platforms`, `isOnboarding`, `recommended`.
 `--update` refreshes an existing entry (new revision, size, sha256) and keeps your hand-written fields.
 
+The same script fills `memory` (KV-cache bytes per token, sliding-window layers, expert share) from the model's own GGUF header or MLX
+`config.json`. The app uses it to say whether the model runs on the device and which context it can load with. `scripts/catalog-memory.sh`
+refreshes it for every entry.
+
 Check before you push:
 
 ```bash
@@ -63,6 +67,7 @@ Test a new entry in `dev-models.json` or with the `model-smoke` workflow before 
 | `recommended` | Top pick. |
 | `platforms` | `["ios", "ipados"]`. Omit for all. |
 | `minRAMBytes` | Do not offer as runnable below this much RAM. |
+| `memory` | `{"fullKVBytesPerToken": n, "windowKVBytesPerToken": n, "windowTokens": n, "activeFraction": 0.119}`. Written by the scripts. Without it the app estimates from the file size. |
 | `createdAt`, `updatedAt` | `yyyy-MM-dd`. |
 | `order` | Smaller first. |
 
