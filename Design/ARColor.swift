@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 /// Color tokens for the light and dark themes, as sRGB values.
-/// Brand accent comes from anyrouter.dev.
+/// Monochrome theme: the accent is black in light mode and white in dark mode.
 enum ARColor {
     static let background = dynamic(light: 0xFFFFFF, dark: 0x121212)
     static let foreground = dynamic(light: 0x0A0A0A, dark: 0xFAFAFA)
@@ -19,9 +19,9 @@ enum ARColor {
     static let ring = dynamic(light: 0xA1A1A1, dark: 0xA4A4A4)
     static let sidebar = dynamic(light: 0xF2F2F2, dark: 0x1B1B1B)
     static let sidebarAccent = dynamic(light: 0xF5F5F5, dark: 0x262626)
-    /// AnyRouter brand accent.
-    static let accent = dynamic(light: 0xBB4D00, dark: 0xE87D45)
-    static let accentForeground = dynamic(light: 0xFFFBEB, dark: 0x461901)
+    /// App tint (black / white). Status colors such as fit warnings keep their own hues.
+    static let accent = dynamic(light: 0x0A0A0A, dark: 0xFAFAFA)
+    static let accentForeground = dynamic(light: 0xFAFAFA, dark: 0x0A0A0A)
 
     private static func dynamic(light: UInt32, dark: UInt32, darkAlpha: Double = 1) -> Color {
         Color(uiColor: UIColor { traits in

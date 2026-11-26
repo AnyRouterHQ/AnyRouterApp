@@ -91,7 +91,7 @@ struct ThreadSidebar: View {
                 .tag(thread.id)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) { deleting = thread } label: { Label("Delete", systemImage: "trash") }
-                    Button { ThreadActions.togglePin(thread) } label: { pinLabel(thread) }.tint(.orange)
+                    Button { ThreadActions.togglePin(thread) } label: { pinLabel(thread) }.tint(.gray)
                 }
                 .contextMenu {
                     Button { beginRename(thread) } label: { Label("Rename", systemImage: "pencil") }
