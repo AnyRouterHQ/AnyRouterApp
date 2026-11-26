@@ -42,13 +42,25 @@ struct ModelRowView: View {
     private func detailLine(usage: String?) -> some View {
         HStack(spacing: 6) {
             if row.isFree, let badge = row.details.first {
-                Label(badge, systemImage: "gift").labelStyle(.titleAndIcon)
+                Label {
+                    Text(badge)
+                } icon: {
+                    Image(systemName: "gift").font(.caption2).imageScale(.small)
+                }
+                .labelStyle(.titleAndIcon)
             }
             let rest = row.detailsAfterBadge
             if row.isFree && !rest.isEmpty { Text("·") }
             if !rest.isEmpty { Text(rest).lineLimit(1) }
-            ForEach(row.capabilities) { capability in
-                Image(systemName: capability.symbol).accessibilityLabel(capability.title)
+            if !row.capabilities.isEmpty {
+                // Small, tight symbols so they read as part of the line, not as buttons.
+                HStack(spacing: 3) {
+                    ForEach(row.capabilities) { capability in
+                        Image(systemName: capability.symbol).accessibilityLabel(capability.title)
+                    }
+                }
+                .font(.caption2)
+                .imageScale(.small)
             }
             Spacer(minLength: 0)
             if let usage { Text(usage).lineLimit(1) }
