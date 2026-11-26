@@ -22,6 +22,8 @@ struct Composer: View {
     @Environment(ShellModel.self) private var shell
     @Environment(\.scenePhase) private var scenePhase
     @ScaledMetric(relativeTo: .body) private var fieldRadius: CGFloat = 26
+    /// The round button keeps its 44 pt minimum at the default size and grows with Dynamic Type.
+    @ScaledMetric(relativeTo: .body) private var buttonSize: CGFloat = 44
 
     var body: some View {
         VStack(spacing: 8) {
@@ -274,7 +276,7 @@ struct Composer: View {
         .buttonStyle(.glassProminent)
         .buttonBorderShape(.circle)
         .controlSize(.large)
-        .frame(minWidth: 44, minHeight: 44)
+        .frame(minWidth: buttonSize, minHeight: buttonSize)
         .disabled(action == .send && !model.canSend)
         .accessibilityLabel(action.title)
         .accessibilityIdentifier("composer.action")

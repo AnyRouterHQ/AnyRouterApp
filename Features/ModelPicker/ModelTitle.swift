@@ -13,6 +13,8 @@ struct ModelTitle: View {
                 Text(name ?? (isLoading ? "Loading…" : "Choose model"))
                     .font(.headline)
                     .lineLimit(1)
+                    // Shrinks a little first, so a long name stays readable at large text sizes, then cuts in the middle.
+                    .minimumScaleFactor(0.8)
                     .truncationMode(.middle)
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
