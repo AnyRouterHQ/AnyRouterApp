@@ -496,6 +496,25 @@ Top 10 for the next lanes, by user-visible effect per day of work: U1, U3 with U
 
 Not doing: a custom navigation container, per-token haptics, pull-to-refresh on the thread list (local data, nothing to refresh), UIKit views, replacing MarkdownUI before U5 is measured.
 
+## Review findings
+
+Reviewer pass over main up to bdf57b4 (2026-11-26). Fixed items are in `fix(...)` commits; the lines below were left for the owning lane. One line each; delete a line when it is done.
+
+- Features/Chat/ChatViewModel.swift:122 — deleting a thread while it streams: `finish` and the delta loop still touch the deleted `ThreadRecord` and `MessageRecord` (SwiftData invalid-model crash risk). Stop the stream and skip the save when the thread is gone, and add a test. Owner: lane D.
+- App/AnyRouterApp.swift:14 and Core/Records.swift:63 — `fatalError` when the store fails to open and no `VersionedSchema` or migration plan exists, so the first schema change bricks launch for installed copies. Add a versioned schema before the next `@Model` change. Owner: lane A.
+- Engines/Local/GGUF/LlamaModel.swift:98 — `llama_tokenize` runs with `add_special: true` on text the chat template already starts with BOS, so Llama and Gemma style prompts get two BOS tokens. Skip the added BOS when the prompt starts with the vocab BOS text. Owner: lane C.
+- Engines/Local/GGUF/GGUFEngine.swift:7 and Engines/Local/MLX/MLXEngine.swift:9 — model caches key on the path only: a re-download to the same path, or a delete while loaded, keeps serving the old weights. Key on the manifest `completedAt` and unload on delete. Owner: lane C.
+- Engines/Local/Catalog/HuggingFaceAPI.swift:109 — the tree API is paginated (Link header); a repo with many files is cut off, so an MLX snapshot can install without all its files. Follow the next page. Owner: lane C.
+- Engines/Local/Downloads/ModelDownloadManager.swift:121 — `cancel` then an immediate `start`: the async `discard` can delete the new attempt's partial files. Have `start` wait for the discard of the same id. Owner: lane C.
+- Features/ModelPicker/ModelPickerSheet.swift:17 — the picker never refreshes on open, so a download that finishes while the Hub is not on screen is missing from the list until the next refresh. Add `.task { await models.refresh() }`. Owner: lane D (picker).
+- Features/Chat/MessageViews.swift:38 — `Markdown(message.content)` re-parses the whole reply on every token; throttle updates or cache the parsed prefix. Owner: perf lane.
+- Engines/AnyRouter/AnyRouterEngine.swift:76 — the stream loop reads one byte at a time from `AsyncBytes` and splits lines again before `SSEParser`; read bigger chunks. Owner: lane B.
+- Engines/AnyRouter/Auth/LoopbackCallback.swift:73 — accepted connections are not tracked or timed out and survive `stop()`; cancel them in `stop()` and add a short read timeout. Low risk (state check gates delivery). Owner: lane B.
+- Engines/AnyRouter/Auth/OAuthClient.swift:133 — the continuation in `present` ignores task cancellation, so a cancelled sign-in waits for the web session to end. Owner: lane B.
+- Features/Presets/PresetStore.swift:23 — a presets file that fails to decode is treated as empty and the next save overwrites it. Move the bad file aside first. Owner: presets lane.
+- .github/workflows/device-ipa.yml:5 — a second full macOS device build runs on every push to main next to `ci.yml`; macOS minutes cost 10x. Move to `workflow_dispatch` or nightly. Owner: lane A (CI).
+- Not reviewed in depth: Design/, Features/Presets views, Onboarding, MarkdownTheme, HubLogic and the screenshot and smoke workflows (read for secrets and injection only; none found).
+
 ## Status log
 
 - 2026-11-26 lane-ux: native UX and performance audit, boundary decision D15, plan U1-U18 and measurement plan; docs only, local checks skipped
