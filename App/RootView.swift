@@ -12,7 +12,10 @@ struct RootView: View {
             .environment(appState.models)
             .tint(ARColor.accent)
             .preferredColorScheme(appState.settings.appearance.colorScheme)
-            .task { await appState.models.refresh() }
+            .task {
+                await appState.hub.reload()
+                await appState.models.refresh()
+            }
     }
 }
 

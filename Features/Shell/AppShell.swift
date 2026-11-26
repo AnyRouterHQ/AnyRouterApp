@@ -60,22 +60,11 @@ private struct Detail: View {
         Group {
             switch shell.route {
             case .chat: ChatScreen()
-            case .hub: HubPlaceholder()
+            case .hub: HubScreen()
             case .settings: SettingsPlaceholder()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-private struct HubPlaceholder: View {
-    @Environment(ShellModel.self) private var shell
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ARPageHeader(title: "Browse Models") { shell.open(.chat, closeSidebar: false) }
-            ARComingSoon(title: "Browse Models", systemImage: "square.stack.3d.up")
-        }
     }
 }
 
