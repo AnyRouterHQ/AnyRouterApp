@@ -23,3 +23,13 @@ jobs:
           tar -xzf gitleaks.tar.gz gitleaks
       - name: Scan
         run: ./gitleaks git . --no-banner --redact
+  neutral-names:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Banned reference names
+        run: |
+          a=atom; m=men; l=lo
+          if git grep -n -i -E "${a}ic ?chat|${a}icbot|${a}ic\.chat|${m}${l}"; then
+            echo "::error::banned reference name found"; exit 1
+          fi

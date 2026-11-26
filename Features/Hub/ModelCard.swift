@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Hub model card (Atomic hub): name, size, description, tags and one action.
+/// Hub model card: name, size, description, tags and one action.
 struct ModelCard: View {
     let title: String
     let sizeText: String?

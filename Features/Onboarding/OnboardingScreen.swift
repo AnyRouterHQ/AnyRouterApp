@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// First launch (Atomic `onboarding`): pick how to chat. Apple Intelligence, a small local model, or AnyRouter cloud.
+/// First launch: pick how to chat. Apple Intelligence, a small local model, or AnyRouter cloud.
 struct OnboardingScreen: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models

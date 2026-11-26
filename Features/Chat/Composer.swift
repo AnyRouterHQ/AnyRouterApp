@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Atomic's chat input: a rounded card with the text field and a send or stop button.
+/// Chat input: a rounded card with the text field and a send or stop button.
 struct Composer: View {
     @Bindable var model: ChatViewModel
     var hasModel: Bool

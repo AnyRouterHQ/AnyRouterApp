@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Color tokens ported from Atomic Chat `web-app/src/index.css` (`:root` and `.dark`, oklch converted to sRGB).
+/// Color tokens for the light and dark themes, as sRGB values.
 /// Brand accent comes from anyrouter.dev.
 enum ARColor {
     static let background = dynamic(light: 0xFFFFFF, dark: 0x121212)

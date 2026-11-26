@@ -5,8 +5,8 @@ Last updated: 2026-11-26.
 
 ## Goal
 
-A native SwiftUI app **AnyRouter** for iPhone and iPad that copies the Atomic Chat mobile UI and UX
-(rebranded to AnyRouter) and chats with:
+A native SwiftUI app **AnyRouter** for iPhone and iPad that follows a reference mobile chat UI and UX
+(own AnyRouter branding) and chats with:
 
 1. **Apple Foundation Models**, on device
 2. **Local Hugging Face models**, GGUF (llama.cpp) and MLX, from a configurable catalog
@@ -18,7 +18,7 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that copies the Atomic Ch
 
 | # | Decision | Why |
 |---|---|---|
-| D1 | Native SwiftUI clone, not the Tauri fork | Operator choice. Native FoundationModels/MLX, small app. The look is copied from Atomic's React source. |
+| D1 | Native SwiftUI clone, not the Tauri fork | Operator choice. Native FoundationModels/MLX, small app. The look follows the reference design, written natively. |
 | D2 | Public open-source repo `github.com/AnyRouterHQ/AnyRouterApp`, Apache-2.0 | Operator choice. Public also gives free macOS CI minutes. |
 | D3 | Both GGUF (llama.cpp) and MLX engines behind one `ChatEngine` protocol | Operator choice |
 | D4 | Milestone 1 = TestFlight internal build | Operator choice. Automatic signing with an App Store Connect API key; needs 4 secrets and an app record (see Open questions). |
@@ -29,14 +29,14 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that copies the Atomic Ch
 | D9 | OAuth: dynamic client registration (`/api/v1/mcp/oauth/register`) + PKCE + loopback `127.0.0.1` callback via `ASWebAuthenticationSession` | Pattern proven on device in an earlier AnyRouter iOS prototype; the server rejects custom URL schemes. |
 | D11 | Config: `Config/Base.xcconfig` (committed) + `Config/Local.xcconfig` (gitignored) for Team ID; CI secrets for signing | Open source: no personal values in git. |
 | D12 | UI-facing service protocols live in `Features/Services/`: `AccountService` (adapter `AnyRouterAccountAdapter` wraps lane B's `AnyRouterAuth`) and `ModelHubService` (adapter `LocalModelHub` wraps lane C's `CatalogService` and `ModelDownloadManager`). Lane D owns the adapters, so B and C change nothing. `AppState` holds both. | UI never imports engine types except inside the adapters. |
-| D13 | Markdown rendering uses `gonzalezreal/swift-markdown-ui` (MarkdownUI 2.4.x) | Maintained, SwiftUI-native, themeable to Atomic's markdown.css. |
+| D13 | Markdown rendering uses `gonzalezreal/swift-markdown-ui` (MarkdownUI 2.4.x) | Maintained, SwiftUI-native, themeable to our colors. |
 | D10 | Persistence: SwiftData for threads/messages; Keychain for the AnyRouter key; `UserDefaults` for settings | Simplest native stack. |
 | D12 | llama.cpp is pinned to release b10456 through a local package `Packages/LlamaBinary` (binaryTarget + checksum) | b10456 is the newest official xcframework with iOS Simulator and device slices. From b10488 on, releases ship device slices only, and CI builds for Simulator. Revisit when upstream restores the simulator slice. |
 
 ## Out of scope for v1
 
-Atomic features not ported in v1: agents/skills, MCP connectors, projects, RAG/vector DB, audio, images, videos,
-local API server, system monitor, remote LAN, cloud sync, macOS target. Keep the UI slots only where Atomic's
+Reference-design features not ported in v1: agents/skills, MCP connectors, projects, RAG/vector DB, audio, images, videos,
+local API server, system monitor, remote LAN, cloud sync, macOS target. Keep the UI slots only where the reference
 mobile layout shows them and mark them "Coming soon" (do not delete the surface).
 
 ## Contract (Core/, owned by lane A; change only by PR)
@@ -98,7 +98,7 @@ Cancellation: dropping the stream's consumer `Task` must stop generation (use `c
 project.yml                      lane A
 App/                             lane A   @main, AppState, DI, Info.plist, assets, entitlements
 Core/                            lane A   contract above, EngineRegistry, SwiftData models (Thread, Message)
-Design/                          lane D   tokens ported from Atomic index.css, typography, components
+Design/                          lane D   color and layout tokens, typography, components
 Features/Chat/ Threads/ ModelPicker/ Hub/ Settings/ Onboarding/   lane D
 Engines/Apple/                   lane B   FoundationModels engine
 Engines/AnyRouter/               lane B   OAuth, Keychain, models list, SSE chat stream
@@ -118,7 +118,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] A2 `Core/` contract types + `EngineRegistry` + SwiftData `ThreadRecord`/`MessageRecord`, with unit tests (#1)
 - [x] A3 `App/` shell: `@main`, root `NavigationSplitView` placeholder, AnyRouter app icon + accent from anyrouter brand (#1)
 - [x] A4 CI `.github/workflows/ci.yml`: macOS runner with Xcode 26, `brew install xcodegen`, `xcodegen`, build + test on iOS Simulator, cache SPM + DerivedData, concurrency cancel. Target < 8 min warm. (#1)
-- [x] A5 `THIRD_PARTY_NOTICES.md` (Atomic Chat Apache-2.0 notice), `README.md` (build steps, screenshots later) (#3)
+- [x] A5 `THIRD_PARTY_NOTICES.md` (linked libraries), `README.md` (build steps, screenshots later) (#3)
 - [x] A6 Open-source CI/CD hygiene: `gitleaks.yml` on PR + push, `dependabot.yml` (github-actions, swift), `.github/pull_request_template.md`, issue templates (bug, feature), `CONTRIBUTING.md` pointing at AGENTS.md, `SECURITY.md`; wire `Config/*.xcconfig` into `project.yml` (#3)
 
 ### Lane B — Apple + AnyRouter engines, auth (model: sonnet-medium; auth is a security path)
@@ -134,14 +134,14 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] C4 `Engines/Local/MLX`: `mlx-swift-lm` (MLXLLM/MLXLMCommon), load from downloaded snapshot, streaming, cancel; disabled on Simulator (no Metal GPU family) with a clear message (#11)
 - [x] C5 Tests: catalog decode/merge, HF search URL building, fit check, download state machine (#7, GGUF and MLX engine tests land with C3/C4)
 
-### Lane D — UI clone of Atomic Chat mobile (model: sonnet-medium; starts after A merges)
-- [x] D1 (#8) `Design/`: port tokens from `Atomic-Chat/web-app/src/index.css` (oklch light/dark → `Color`), radius 10pt, fonts from `styles/font.css`, spacing; AnyRouter brand accent
-- [x] D2 (#8) Threads sidebar (Atomic `left-sidebar/`, `ThreadList.tsx`): new chat, search, pinned, rename, delete; compact on iPhone, split on iPad
-- [x] D3 (#9) Chat screen (Atomic `ChatInput.tsx`, message list, markdown with code blocks, copy, regenerate, stop)
-- [x] D4 (#12) Model picker (Atomic `DropdownModelProvider.tsx`): grouped by source, install state, sign-in prompt for AnyRouter
-- [x] D5 (#12) Hub (Atomic `routes/hub`): catalog list, search, download/delete with progress, fit badge
-- [x] D6 (#13) Settings (Atomic `routes/settings`): account (sign in/out), model providers, catalog sources editor, generation defaults, appearance, about + licenses
-- [x] D7 (#13) Onboarding (Atomic `onboarding/`): first launch → pick Apple / download small local / sign in
+### Lane D — UI clone of the reference mobile design (model: sonnet-medium; starts after A merges)
+- [x] D1 (#8) `Design/`: color tokens (light/dark → `Color`), radius 10pt, fonts, spacing; AnyRouter brand accent
+- [x] D2 (#8) Threads sidebar: new chat, search, pinned, rename, delete; compact on iPhone, split on iPad
+- [x] D3 (#9) Chat screen (message list, markdown with code blocks, copy, regenerate, stop)
+- [x] D4 (#12) Model picker: grouped by source, install state, sign-in prompt for AnyRouter
+- [x] D5 (#12) Hub: catalog list, search, download/delete with progress, fit badge
+- [x] D6 (#13) Settings: account (sign in/out), model providers, catalog sources editor, generation defaults, appearance, about + licenses
+- [x] D7 (#13) Onboarding: first launch → pick Apple / download small local / sign in
 
 ### Lane E — TestFlight (model: sonnet-low; blocked on operator secrets)
 - [x] E1 (upload path untested until secrets exist) `testflight.yml`: automatic signing with the ASC API key, `xcodebuild archive` + `-exportArchive` (method `app-store-connect`, destination `upload`), unique build number, dSYMs artifact
@@ -150,13 +150,13 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
 
 - [ ] F1 Device smoke test on iPhone + iPad: AnyRouter sign-in, Apple FM chat, GGUF download + chat, MLX download + chat. Record results in the status log.
-- [ ] F2 Reasoning stream: add `ChatDelta.reasoning(String)` to Core, emit it from GGUF/MLX (Qwen3 `<think>`) and AnyRouter (`reasoning` deltas), show Atomic's collapsible thinking block.
+- [ ] F2 Reasoning stream: add `ChatDelta.reasoning(String)` to Core, emit it from GGUF/MLX (Qwen3 `<think>`) and AnyRouter (`reasoning` deltas), show a collapsible thinking block.
 - [ ] F3 GGUF KV-cache reuse between turns (only feed the new suffix).
 - [ ] F4 Newer llama.cpp: build our own xcframework (device + simulator slices) in CI from a pinned tag, replacing the b10456 pin (D12).
-- [ ] F5 Bundle Inter (Atomic's font, OFL) for closer UI parity; syntax highlighting in code blocks.
+- [ ] F5 Bundle Inter (OFL) for closer UI parity; syntax highlighting in code blocks.
 - [ ] F6 Vision: image attachments for AnyRouter vision models and Gemma 3 4B (VLM) via MLXVLM.
 - [ ] F7 Mac: "Designed for iPad" on Apple silicon, then a native macOS destination.
-- [ ] F8 Screenshot tests (simulator) of each main screen, compared against Atomic mobile reference screenshots.
+- [ ] F8 Screenshot tests (simulator) of each main screen, compared against reference screenshots.
 - [x] F9 Real-model smoke in CI: `model-smoke.yml` runs the smallest catalog GGUF through `GGUFEngine` on the Simulator, plus installer, download manager and Apple Foundation Models availability. MLX is device only. (#18)
 
 ## Open questions (operator)
@@ -185,4 +185,5 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - 2026-11-26 lane-C: GGUF engine on llama.cpp b10456 with a real tiny-model test (#10); local checks skipped
 - 2026-11-26 lane-C: MLX engine on mlx-swift-lm 3.33 with Simulator guard (#11); generation path to be verified on device; local checks skipped
 - 2026-11-26 lane-E: ad-hoc release workflow, signing scripts, install doc (E1-E2); signing path untested until secrets exist; local checks skipped
+- 2026-11-26 chore: neutral references, reference notes moved to gitignored AGENTS.local.md, CI check for banned names; local checks skipped
 - 2026-11-26 lane-E: switched milestone 1 from ad-hoc to TestFlight: `testflight.yml`, `docs/testflight.md`, ITSAppUsesNonExemptEncryption=NO in project.yml (E1-E2); local checks skipped

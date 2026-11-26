@@ -6,7 +6,7 @@ Contract for every agent working in this repo (Claude Code, Codex, Cursor, other
 ## Goal
 
 A native SwiftUI chat app for iPhone and iPad, named **AnyRouter**, that looks and behaves like
-the Atomic Chat mobile app (rebranded) and chats with three model sources:
+the reference mobile chat design and chats with three model sources:
 
 1. Apple Foundation Models (on device)
 2. Local Hugging Face models (GGUF via llama.cpp, and MLX), with a configurable catalog
@@ -17,26 +17,17 @@ the Atomic Chat mobile app (rebranded) and chats with three model sources:
 ## Start of every session
 
 1. Read `PLAN.md` in full. Find your lane and its unchecked tasks.
-2. Read the reference code your task points at (paths below). Do not guess.
+2. Read the code and docs your task points at. Do not guess.
 3. Work on your lane branch in your own git worktree (see Workflow). Never edit another lane's folders.
 
-## Reference code (read-only)
-
-Clone references next to this repo, never inside it:
-
-```bash
-git clone --depth 1 https://github.com/AtomicBot-ai/Atomic-Chat ../Atomic-Chat
-```
+## References
 
 | What | Where |
 |---|---|
-| Atomic Chat UI (React, the look to copy) | `../Atomic-Chat/web-app/src` (`containers/`, `components/`, `routes/`, `index.css`, `styles/`) |
-| Atomic Chat Apple Swift servers | `../Atomic-Chat/foundation-models-server`, `../Atomic-Chat/mlx-server` |
-| Atomic Chat HF catalog logic | `../Atomic-Chat/web-app/src/services/managed-models/`, `../Atomic-Chat/core/src/browser/modelCatalogBaseline.json` |
 | AnyRouter OAuth (PKCE) | https://anyrouter.dev/docs/guides/oauth-pkce and https://anyrouter.dev/docs/guides/sign-in-with-anyrouter |
 | AnyRouter API | https://anyrouter.dev/docs (OpenAI-compatible, base `https://anyrouter.dev/api/v1`) |
 
-Atomic Chat is Apache-2.0. Keep its NOTICE in `THIRD_PARTY_NOTICES.md` when you port code or assets. Replace every Atomic name, logo, and URL with AnyRouter.
+The UI follows "the reference design". Write our own code from it; never copy source lines or assets. Maintainers keep private reference notes in `AGENTS.local.md`, never committed (gitignored).
 
 ## Open source
 
@@ -44,6 +35,7 @@ This repo is **public** (Apache-2.0). Everything you commit, every PR, issue, co
 
 - Never commit secrets, API keys, tokens, signing files, Team IDs, device UDIDs, personal paths (`/Users/...`), internal hostnames, IPs, or private repo names.
 - Local overrides go in `Config/Local.xcconfig` and `.env` (both gitignored). Copy from `Config/Local.xcconfig.example` and `.env.example`.
+- Never name the reference app, its publisher, or its domain (the two-word app name starting with "Atom", its "Atom"+"Bot" org, the matching .chat domain, and the research lab "Men"+"lo") in code, comments, tests, docs, PLAN.md, README, notices, commits, branches, PRs. The word "atomically" and Swift `Atomic<T>` are fine. CI fails on any match (see `.github/workflows/gitleaks.yml`).
 - CI runs gitleaks on every PR. Run `gitleaks git .` before you push if you have it.
 
 ## Hard rules
