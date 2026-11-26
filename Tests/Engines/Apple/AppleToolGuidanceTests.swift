@@ -9,7 +9,6 @@ final class AppleToolGuidanceTests: XCTestCase {
 
     func testAppleGetsFourToolsAndLocalModelsKeepEight() {
         XCTAssertEqual(ToolProfile.apple.maxTools, 4)
-        XCTAssertEqual(AppleDynamicTool.maxTools, 4)
         XCTAssertEqual(ToolProfile.forModel(.apple), .apple)
         XCTAssertEqual(ToolProfile.forModel(.gguf).maxTools, 8)
     }

@@ -14,13 +14,32 @@ struct ToolProfileTests {
         #expect(ToolProfile.full.shaped(specs) == specs)
     }
 
-    @Test func smallModelsGetEightToolsAndSearchComesFirst() {
+    @Test func smallModelsGetEightToolsAndTheClockThenTheCalculatorThenSearchComeFirst() {
         let filler = (0..<9).map { spec("other\($0)") }
         let specs = filler + [spec("calculator"), spec("web_fetch_exa"), spec("web_search_exa")]
         let shaped = ToolProfile.compact.shaped(specs)
         #expect(shaped.count == 8)
-        #expect(shaped.map(\.name).prefix(3) == ["web_search_exa", "web_fetch_exa", "calculator"])
+        #expect(shaped.map(\.name).prefix(3) == ["calculator", "web_search_exa", "web_fetch_exa"])
         #expect(shaped.map(\.name).dropFirst(3) == ["other0", "other1", "other2", "other3", "other4"])
+    }
+
+    /// The one cap on Apple's four-tool window: the clock, the calculator, search and one page reader.
+    @Test func appleKeepsTheClockTheCalculatorSearchAndOnePageReader() {
+        let names = ["fetch_url", "current_date_time", "calculator", "read_attachment", "web_search_exa", "web_fetch_exa"]
+        #expect(ToolProfile.apple.shaped(names.map { spec($0) }).map(\.name) == [
+            "current_date_time", "calculator", "web_search_exa", "fetch_url",
+        ])
+        let signedIn = ["fetch_url", "current_date_time", "calculator", "read_attachment", "web_search"]
+            + (0..<26).map { "firecrawl__tool\($0)" }
+        #expect(ToolProfile.apple.shaped(signedIn.map { spec($0) }).map(\.name) == [
+            "current_date_time", "calculator", "web_search", "fetch_url",
+        ])
+    }
+
+    @Test func localModelsKeepEightAndAppleFour() {
+        #expect(ToolProfile.apple.maxTools == 4)
+        #expect(ToolProfile.compact.maxTools == 8)
+        #expect(ToolProfile.apple.maxResultCharacters == ToolProfile.compact.maxResultCharacters)
     }
 
     @Test func smallModelsKeepTheGivenOrderWhenNothingIsDropped() {

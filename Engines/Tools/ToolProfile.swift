@@ -23,8 +23,9 @@ struct ToolProfile: Equatable, Sendable {
         }
     }
 
-    /// At most `maxTools` specs with short descriptions. When tools must be dropped, search comes first, then reading
-    /// a page, then the calculator and the clock, then the rest, each group in its given order.
+    /// At most `maxTools` specs with short descriptions. This is the only cap on the tools a model sees. When tools must
+    /// be dropped, the clock comes first, then the calculator, web search, reading a page, then the rest, each group in its
+    /// given order. Four tools (Apple) are therefore the clock, the calculator, search and one page reader.
     func shaped(_ specs: [ToolSpec]) -> [ToolSpec] {
         var list = specs
         if list.count > maxTools {
@@ -48,10 +49,11 @@ struct ToolProfile: Equatable, Sendable {
 
     private static func priority(of name: String) -> Int {
         let lowered = name.lowercased()
-        if lowered.contains("search") { return 0 }
-        if ["fetch_url", "web_fetch", "scrape", "read_url"].contains(where: { lowered.contains($0) }) { return 1 }
-        if ["calculator", "date"].contains(where: { lowered.contains($0) }) { return 2 }
-        return 3
+        if lowered.contains("date") { return 0 }
+        if lowered.contains("calculator") { return 1 }
+        if lowered.contains("search") { return 2 }
+        if ["fetch_url", "web_fetch", "scrape", "read_url"].contains(where: { lowered.contains($0) }) { return 3 }
+        return 4
     }
 
     /// One line: whitespace collapsed, cut after a sentence when one fits, else at a word, with an ellipsis.

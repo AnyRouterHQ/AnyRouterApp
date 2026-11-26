@@ -15,10 +15,6 @@ struct AppleDynamicTool: Tool {
         await invoke(arguments.jsonString)
     }
 
-    /// Apple's model has a small context and every tool schema is placed in it, so only a few tools are offered
-    /// (the host already ranks them with `ToolProfile`, date and calculator among the first).
-    static let maxTools = ToolProfile.apple.maxTools
-
     /// A spec whose schema the framework rejects is left out rather than offered broken.
     static func make(
         specs: [ToolSpec],
@@ -26,7 +22,8 @@ struct AppleDynamicTool: Tool {
         scope: ToolRunScope,
         emit: @escaping @Sendable (ChatDelta) -> Void
     ) -> [AppleDynamicTool] {
-        specs.lazy.compactMap { spec -> AppleDynamicTool? in
+        // How many tools the model gets is decided once, by `ToolProfile`, before the host hands over its specs.
+        specs.compactMap { spec -> AppleDynamicTool? in
             guard let schema = try? ToolSchemaNode.parse(spec.inputSchemaJSON).generationSchema(name: spec.name)
             else { return nil }
             return AppleDynamicTool(
@@ -35,7 +32,5 @@ struct AppleDynamicTool: Tool {
                     await scope.run(name: spec.name, argumentsJSON: json, host: host, emit: emit)
                 })
         }
-        .prefix(maxTools)
-        .map { $0 }
     }
 }

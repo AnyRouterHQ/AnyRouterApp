@@ -35,14 +35,17 @@ final class ToolSourceRegistryTests: XCTestCase {
 
     private let device = ["fetch_url", "current_date_time", "calculator"]
     private let exa = ["web_search_exa", "web_fetch_exa"]
+    /// Apple's model gets four tools: the clock, the calculator, search and one page reader.
+    private let apple = ["current_date_time", "calculator", "web_search_exa", "fetch_url"]
 
     // MARK: Defaults per sign-in state and model source
 
     func testSignedOutStartsWithDeviceToolsAndExaForEveryModel() {
         let registry = makeRegistry()
-        for source in [ModelSource.apple, .gguf, .mlx, .anyrouter] {
+        for source in [ModelSource.gguf, .mlx, .anyrouter] {
             XCTAssertEqual(names(registry, source), device + exa, "\(source)")
         }
+        XCTAssertEqual(names(registry, .apple), apple)
         XCTAssertEqual(names(registry, nil), device + exa)
     }
 
@@ -54,9 +57,10 @@ final class ToolSourceRegistryTests: XCTestCase {
 
     func testSignedInOnADeviceModelStillGetsExa() {
         let registry = makeRegistry(signedIn: true)
-        for source in [ModelSource.apple, .gguf, .mlx] {
+        for source in [ModelSource.gguf, .mlx] {
             XCTAssertEqual(names(registry, source), device + exa, "\(source)")
         }
+        XCTAssertEqual(names(registry, .apple), apple)
     }
 
     func testOtherPublicServicesStartOffAndOnlyTheirMainToolIsOn() {
@@ -160,19 +164,25 @@ final class ToolSourceRegistryTests: XCTestCase {
 
     // MARK: Small models
 
-    func testASmallModelGetsAtMostEightToolsWithShortDescriptions() {
+    func testLocalModelsGetEightToolsAndAppleFourWithShortDescriptions() {
         let registry = makeRegistry()
         registry.setSource(ToolSourceCatalog.deepWiki, on: true)
         registry.setSource(ToolSourceCatalog.microsoftLearn, on: true)
         for source in [ToolSourceCatalog.deepWiki, ToolSourceCatalog.microsoftLearn] {
             for pin in source.tools { registry.integrations.setEnabled(true, tool: pin.mcpTool, on: source.server!) }
         }
-        let host = registry.makeHost(approver: Refuses(), context: ToolContext(modelSource: .apple))!
+        let host = registry.makeHost(approver: Refuses(), context: ToolContext(modelSource: .gguf))!
         let list = host.specs.map(\.name)
         XCTAssertEqual(list.count, 8)
-        XCTAssertEqual(list.prefix(2), ["web_search_exa", "microsoft_docs_search"])
-        XCTAssertTrue(list.contains("fetch_url") && list.contains("calculator"))
+        XCTAssertEqual(list.prefix(5), [
+            "current_date_time", "calculator", "web_search_exa", "microsoft_docs_search", "microsoft_code_sample_search",
+        ])
+        XCTAssertTrue(list.contains("fetch_url"))
+        XCTAssertFalse(list.contains("microsoft_docs_fetch"))
         XCTAssertTrue(host.specs.allSatisfy { $0.description.count <= 160 })
+
+        let onApple = registry.makeHost(approver: Refuses(), context: ToolContext(modelSource: .apple))!
+        XCTAssertEqual(onApple.specs.map(\.name), ["current_date_time", "calculator", "web_search_exa", "microsoft_docs_search"])
 
         let cloud = registry.makeHost(approver: Refuses(), context: ToolContext(modelSource: .anyrouter))!
         XCTAssertEqual(cloud.specs.count, 11, "a cloud model is offered every tool that is on")

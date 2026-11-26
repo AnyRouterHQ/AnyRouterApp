@@ -3,9 +3,6 @@ import Foundation
 /// Runs the calls the on-device model makes through the `ToolHost` and reports them as stream deltas.
 /// One scope per `stream` call: cancelling it stops every call still running.
 final class ToolRunScope: @unchecked Sendable {
-    /// The model's context is small (about 4k tokens). A longer result is cut before it goes back to the model.
-    static let maxResultCharacters = ToolProfile.compact.maxResultCharacters
-
     private let lock = NSLock()
     private var running: [String: Task<ToolResult, Never>] = [:]
     private var finished = 0
@@ -56,9 +53,8 @@ final class ToolRunScope: @unchecked Sendable {
         return result
     }
 
+    /// The host has already cut the result to the model's `ToolProfile`; an error is marked as one.
     static func modelText(for result: ToolResult) -> String {
-        let text = result.isError ? "Error: " + result.text : result.text
-        guard text.count > maxResultCharacters else { return text }
-        return String(text.prefix(maxResultCharacters)) + "\n[truncated]"
+        result.isError ? "Error: " + result.text : result.text
     }
 }

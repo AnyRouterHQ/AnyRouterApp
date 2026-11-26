@@ -123,13 +123,12 @@ final class AppleToolRunTests: XCTestCase {
         XCTAssertEqual(scope.finishedCalls, 1)
     }
 
-    func testErrorsAreMarkedAndLongResultsAreCut() {
+    func testErrorsAreMarkedAndTheResultIsNotCutAgain() {
         let failed = ToolResult(callID: "1", name: "t", text: "denied", isError: true)
         XCTAssertEqual(ToolRunScope.modelText(for: failed), "Error: denied")
         let long = ToolResult(callID: "1", name: "t", text: String(repeating: "x", count: 7000), isError: false)
-        let cut = ToolRunScope.modelText(for: long)
-        XCTAssertTrue(cut.hasSuffix("[truncated]"))
-        XCTAssertEqual(cut.count, ToolRunScope.maxResultCharacters + "\n[truncated]".count)
+        // The cap is ToolProfile's, applied by the host; the engine adds none of its own.
+        XCTAssertEqual(ToolRunScope.modelText(for: long), long.text)
     }
 
     func testFreshIDsByDefault() async {
@@ -191,7 +190,7 @@ final class AppleToolRunTests: XCTestCase {
         XCTAssertEqual(text, "Error: stopped")
     }
 
-    func testOnlyTheFirstFourToolsAreOffered() async throws {
+    func testTheEngineOffersEveryToolTheProfileLeftIn() async throws {
         let specs = (0..<12).map {
             ToolSpec(name: "t\($0)", title: nil, description: "tool \($0)",
                      inputSchemaJSON: #"{"type":"object","properties":{"q":{"type":"string"}}}"#, isReadOnly: true)
@@ -200,8 +199,10 @@ final class AppleToolRunTests: XCTestCase {
             ToolResult(callID: call.id, name: call.name, text: "ok:" + call.argumentsJSON, isError: false)
         }
         let seen = LockedBox<[ChatDelta]>([])
+        XCTAssertEqual(AppleDynamicTool.make(specs: specs, host: host, scope: ToolRunScope(), emit: { _ in }).count, 12)
+        let shaped = ToolProfile.apple.shaped(specs)
         let tools = AppleDynamicTool.make(
-            specs: specs, host: host, scope: ToolRunScope(), emit: { seen.value += [$0] })
+            specs: shaped, host: host, scope: ToolRunScope(), emit: { seen.value += [$0] })
         XCTAssertEqual(tools.map(\.name), (0..<4).map { "t\($0)" })
         XCTAssertEqual(tools[0].description, "tool 0")
         let text = await tools[0].invoke(#"{"q":"a"}"#)
