@@ -1,0 +1,165 @@
+import Foundation
+
+enum LocalModelFormat: String, Codable, Sendable, CaseIterable {
+    case gguf
+    case mlx
+}
+
+/// Where a catalog entry came from. Not part of the JSON; set when catalogs are merged.
+enum CatalogOrigin: Int, Sendable, Comparable {
+    case bundled = 0
+    case remote = 1
+    case user = 2
+
+    static func < (lhs: CatalogOrigin, rhs: CatalogOrigin) -> Bool { lhs.rawValue < rhs.rawValue }
+}
+
+/// One downloadable local model: a single GGUF file, or a whole MLX repo snapshot.
+struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
+    /// Hugging Face repo id, `org/name`.
+    var repo: String
+    var format: LocalModelFormat
+    /// GGUF only: the `.gguf` file inside the repo.
+    var file: String?
+    var title: String
+    var summary: String?
+    /// Display only, e.g. "1.7B".
+    var parameters: String?
+    /// Display only, e.g. "Q4_K_M" or "4-bit".
+    var quantization: String?
+    /// Download size. The GGUF file, or the sum of the MLX snapshot files.
+    var sizeBytes: Int64?
+    var contextLength: Int?
+    var license: String?
+    /// Commit sha or branch to download from. `main` when nil.
+    var revision: String?
+    var capabilities: Set<String>
+    /// Smaller sorts first. Entries without one sort last.
+    var order: Int?
+    var origin: CatalogOrigin
+
+    /// Matches `ModelDescriptor.id`: `gguf/<repo>/<file>` or `mlx/<repo>`.
+    var id: String {
+        switch format {
+        case .gguf: "gguf/\(repo)/\(file ?? "")"
+        case .mlx: "mlx/\(repo)"
+        }
+    }
+
+    init(
+        repo: String, format: LocalModelFormat, file: String? = nil, title: String,
+        summary: String? = nil, parameters: String? = nil, quantization: String? = nil,
+        sizeBytes: Int64? = nil, contextLength: Int? = nil, license: String? = nil,
+        revision: String? = nil, capabilities: Set<String> = ["chat"], order: Int? = nil,
+        origin: CatalogOrigin = .bundled
+    ) {
+        self.repo = repo
+        self.format = format
+        self.file = file
+        self.title = title
+        self.summary = summary
+        self.parameters = parameters
+        self.quantization = quantization
+        self.sizeBytes = sizeBytes
+        self.contextLength = contextLength
+        self.license = license
+        self.revision = revision
+        self.capabilities = capabilities
+        self.order = order
+        self.origin = origin
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case repo, format, file, title, summary, parameters, quantization, sizeBytes
+        case contextLength, license, revision, capabilities, order
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let repo = try c.decode(String.self, forKey: .repo)
+        let format = try c.decode(LocalModelFormat.self, forKey: .format)
+        let file = try c.decodeIfPresent(String.self, forKey: .file)
+        guard HuggingFaceAPI.isValidRepo(repo) else { throw LocalModelError.invalidRepo(repo) }
+        if format == .gguf {
+            guard let file, HuggingFaceAPI.isSafeFilePath(file) else {
+                throw LocalModelError.invalidFilePath(file ?? "(missing)")
+            }
+        }
+        self.init(
+            repo: repo, format: format, file: file,
+            title: try c.decode(String.self, forKey: .title),
+            summary: try c.decodeIfPresent(String.self, forKey: .summary),
+            parameters: try c.decodeIfPresent(String.self, forKey: .parameters),
+            quantization: try c.decodeIfPresent(String.self, forKey: .quantization),
+            sizeBytes: try c.decodeIfPresent(Int64.self, forKey: .sizeBytes),
+            contextLength: try c.decodeIfPresent(Int.self, forKey: .contextLength),
+            license: try c.decodeIfPresent(String.self, forKey: .license),
+            revision: try c.decodeIfPresent(String.self, forKey: .revision),
+            capabilities: try c.decodeIfPresent(Set<String>.self, forKey: .capabilities) ?? ["chat"],
+            order: try c.decodeIfPresent(Int.self, forKey: .order)
+        )
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(repo, forKey: .repo)
+        try c.encode(format, forKey: .format)
+        try c.encodeIfPresent(file, forKey: .file)
+        try c.encode(title, forKey: .title)
+        try c.encodeIfPresent(summary, forKey: .summary)
+        try c.encodeIfPresent(parameters, forKey: .parameters)
+        try c.encodeIfPresent(quantization, forKey: .quantization)
+        try c.encodeIfPresent(sizeBytes, forKey: .sizeBytes)
+        try c.encodeIfPresent(contextLength, forKey: .contextLength)
+        try c.encodeIfPresent(license, forKey: .license)
+        try c.encodeIfPresent(revision, forKey: .revision)
+        try c.encode(capabilities.sorted(), forKey: .capabilities)
+        try c.encodeIfPresent(order, forKey: .order)
+    }
+}
+
+/// The JSON shape of `catalog.json` and of a remote catalog.
+struct CatalogDocument: Codable, Sendable {
+    static let supportedSchemaVersion = 1
+
+    var schemaVersion: Int
+    var updatedAt: String?
+    var models: [CatalogEntry]
+
+    static func decode(_ data: Data) throws -> CatalogDocument {
+        // Read the version first so a newer schema reports its version, not a decoding error.
+        struct Header: Decodable { var schemaVersion: Int }
+        let header = try JSONDecoder().decode(Header.self, from: data)
+        guard header.schemaVersion <= supportedSchemaVersion else {
+            throw LocalModelError.unsupportedCatalogVersion(header.schemaVersion)
+        }
+        return try JSONDecoder().decode(CatalogDocument.self, from: data)
+    }
+}
+
+enum CatalogMerger {
+    /// Same id: the higher origin wins (user over remote over bundled).
+    /// Result order is fixed: `order`, then title, then id. The input order never matters.
+    static func merge(
+        bundled: [CatalogEntry] = [], remote: [CatalogEntry] = [], user: [CatalogEntry] = []
+    ) -> [CatalogEntry] {
+        var byID: [String: CatalogEntry] = [:]
+        let sources: [(CatalogOrigin, [CatalogEntry])] = [(.bundled, bundled), (.remote, remote), (.user, user)]
+        for (origin, entries) in sources {
+            for var entry in entries {
+                entry.origin = origin
+                byID[entry.id] = entry
+            }
+        }
+        return byID.values.sorted { lhs, rhs in
+            let l = lhs.order ?? Int.max
+            let r = rhs.order ?? Int.max
+            if l != r { return l < r }
+            // Plain lowercase compare: locale-aware compare would reorder per device language.
+            let lt = lhs.title.lowercased()
+            let rt = rhs.title.lowercased()
+            if lt != rt { return lt < rt }
+            return lhs.id < rhs.id
+        }
+    }
+}
