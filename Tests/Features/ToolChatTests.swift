@@ -70,14 +70,6 @@ struct ToolTraceTests {
         #expect(record.chatMessage.content == "hi")
     }
 
-    @Test func toolsSettingDefaultsOnAndPersists() {
-        let defaults = testDefaults()
-        let settings = AppSettings(defaults: defaults)
-        #expect(settings.toolsEnabled)
-        settings.toolsEnabled = false
-        #expect(!AppSettings(defaults: defaults).toolsEnabled)
-    }
-
     private struct Rig {
         let vm: ChatViewModel
         let engine: ScriptedEngine
@@ -127,7 +119,7 @@ struct ToolTraceTests {
         #expect(on.engine.toolsSeen.seen == [["search"]])
 
         let off = try await rig(ScriptedEngine(chunks: ["a"]))
-        off.settings.toolsEnabled = false
+        off.vm.setToolsEnabled(false)
         off.vm.input = "Hi"
         await off.vm.send()?.value
         #expect(off.engine.toolsSeen.seen == [nil])
@@ -149,13 +141,56 @@ struct ToolTraceTests {
         #expect(missing.engine.toolsSeen.seen == [nil])
     }
 
-    @Test func toolsSwitchFollowsSettingsAndCapability() async throws {
+    @Test func toolsAreOnByDefaultAndFollowCapability() async throws {
         let r = try await rig(ScriptedEngine())
         #expect(r.vm.supportsTools)
         #expect(r.vm.toolsEnabled)
         r.vm.setToolsEnabled(false)
-        #expect(!r.settings.toolsEnabled)
         #expect(!r.vm.toolsEnabled)
+        let plain = try await rig(ScriptedEngine(), model: testModel())
+        #expect(!plain.vm.supportsTools)
+    }
+
+    @Test func offChoiceIsKeptByTheThreadAndOtherThreadsAreUnaffected() async throws {
+        let engine = ScriptedEngine(models: [testModelWithTools()], chunks: ["a"])
+        let container = try ModelContainer.anyRouter(inMemory: true)
+        let context = ModelContext(container)
+        let registry = EngineRegistry()
+        registry.register(engine)
+        let models = ModelStore(registry: registry, defaults: testDefaults())
+        await models.refresh()
+        func makeVM(_ thread: ThreadRecord?) -> ChatViewModel {
+            ChatViewModel(thread: thread, context: context, registry: registry,
+                          settings: AppSettings(defaults: testDefaults()), models: models,
+                          toolHost: { StubToolHost() })
+        }
+
+        // Off before the first send: the new thread keeps the choice.
+        let first = makeVM(nil)
+        first.setToolsEnabled(false)
+        first.input = "Hi"
+        await first.send()?.value
+        let firstThread = try #require(first.thread)
+        #expect(firstThread.toolsDisabled)
+
+        // A thread nobody touched stays on.
+        let second = makeVM(nil)
+        #expect(second.toolsEnabled)
+        second.input = "Hi"
+        await second.send()?.value
+        let secondThread = try #require(second.thread)
+        #expect(!secondThread.toolsDisabled)
+
+        // Reopening restores each choice; switching back on is saved.
+        let reopened = makeVM(firstThread)
+        #expect(!reopened.toolsEnabled)
+        #expect(makeVM(secondThread).toolsEnabled)
+        reopened.setToolsEnabled(true)
+        #expect(!firstThread.toolsDisabled)
+    }
+
+    @Test func threadRecordDefaultsToToolsOn() {
+        #expect(!ThreadRecord().toolsDisabled)
     }
 
     @Test func stopMarksRunningStepsCancelled() async throws {

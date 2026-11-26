@@ -27,7 +27,6 @@ final class AppSettings {
         static let appearance = "settings.appearance"
         static let onboarded = "settings.onboarded"
         static let showKeyboard = "settings.showKeyboardOnLaunch"
-        static let toolsEnabled = "settings.toolsEnabled"
         static let shareDiagnostics = "settings.shareDiagnostics"
         static let showResponseDetails = "settings.showResponseDetails"
     }
@@ -86,12 +85,6 @@ final class AppSettings {
     var showKeyboardOnLaunch: Bool {
         get { access(keyPath: \.showKeyboardOnLaunch); return defaults.bool(forKey: Key.showKeyboard) }
         set { withMutation(keyPath: \.showKeyboardOnLaunch) { defaults.set(newValue, forKey: Key.showKeyboard) } }
-    }
-
-    /// Lets models that support it call the enabled tools. On by default.
-    var toolsEnabled: Bool {
-        get { access(keyPath: \.toolsEnabled); return defaults.object(forKey: Key.toolsEnabled) as? Bool ?? true }
-        set { withMutation(keyPath: \.toolsEnabled) { defaults.set(newValue, forKey: Key.toolsEnabled) } }
     }
 
     /// Model, cost and speed under each reply. On by default.

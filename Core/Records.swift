@@ -12,6 +12,8 @@ final class ThreadRecord {
     var modelID: String?
     /// "Enable thinking" for this thread. Engines read it once reasoning is wired.
     var thinkingEnabled: Bool = false
+    /// Agent mode is off for this thread. Tools are on unless the user turned them off here.
+    var toolsDisabled: Bool = false
     @Relationship(deleteRule: .cascade, inverse: \MessageRecord.thread)
     var messages: [MessageRecord] = []
 

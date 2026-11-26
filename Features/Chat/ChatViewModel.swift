@@ -15,6 +15,7 @@ final class ChatViewModel {
     private(set) var focusTick = 0
     /// Per-thread "Enable thinking"; a new chat keeps it here until the first send creates the thread.
     private(set) var thinkingEnabled = false
+    private(set) var toolsDisabled = false
     /// Model id saved on this thread. `nil` follows the default for new chats.
     private(set) var preferredModelID: String?
 
@@ -46,6 +47,7 @@ final class ChatViewModel {
         self.settings = settings
         self.models = models
         self.thinkingEnabled = thread?.thinkingEnabled ?? false
+        self.toolsDisabled = thread?.toolsDisabled ?? false
     }
 
     var supportsThinking: Bool { model?.supportsThinking ?? false }
@@ -53,9 +55,15 @@ final class ChatViewModel {
     /// The selected model can call tools, so the composer shows the Tools switch.
     var supportsTools: Bool { model?.capabilities.contains("tools") ?? false }
 
-    var toolsEnabled: Bool { settings.toolsEnabled }
+    /// Agent mode for this thread. On by default; a new chat keeps the choice until the first send creates the thread.
+    var toolsEnabled: Bool { !toolsDisabled }
 
-    func setToolsEnabled(_ on: Bool) { settings.toolsEnabled = on }
+    func setToolsEnabled(_ on: Bool) {
+        toolsDisabled = !on
+        guard let thread else { return }
+        thread.toolsDisabled = !on
+        try? context.save()
+    }
 
     func setThinkingEnabled(_ on: Bool) {
         thinkingEnabled = on
@@ -162,6 +170,7 @@ final class ChatViewModel {
         if let thread { return thread }
         let created = ThreadRecord(title: ThreadListLogic.title(fromFirstMessage: firstMessage))
         created.thinkingEnabled = thinkingEnabled
+        created.toolsDisabled = toolsDisabled
         context.insert(created)
         thread = created
         onThreadCreated?(created.id)
@@ -178,7 +187,7 @@ final class ChatViewModel {
         context.insert(assistant)
         assistant.thread = thread
         let params = settings.generationParams
-        let host = settings.toolsEnabled && model.capabilities.contains("tools") ? toolHost() : nil
+        let host = toolsEnabled && model.capabilities.contains("tools") ? toolHost() : nil
         let stream = registry.engine(for: model).stream(
             model: model, messages: history, params: params,
             tools: host?.specs.isEmpty == false ? host : nil)
