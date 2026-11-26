@@ -172,6 +172,13 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    func testAttachmentChip() {
+        forEachAppearance(extra: ["-ARDemoAttachFile", "YES"]) { app, appearance in
+            XCTAssertTrue(app.descendants(matching: .any)["attachment-chip.notes.txt"].waitForExistence(timeout: 20))
+            capture("attachment-chip", appearance)
+        }
+    }
+
     func testSettings() {
         forEachAppearance { app, appearance in
             open(app, footer: "Settings")
