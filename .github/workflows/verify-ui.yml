@@ -1,0 +1,148 @@
+name: Verify UI
+
+# Drives user journeys (UITests/Journeys) on demo data in the iOS Simulator and uploads the evidence:
+# a screenshot at every step, accessibility audit findings, an xcresult summary and journeys.md.
+# Run it with: gh workflow run verify-ui.yml -f journeys=theme   (see .claude/skills/verify-anyrouter-ios)
+on:
+  workflow_dispatch:
+    inputs:
+      journeys:
+        description: "Comma list of journeys (theme, drawer, composer, model-picker, settings, hub) or all"
+        default: all
+      ipad:
+        description: "Also run on an iPad Pro 13-inch simulator"
+        type: boolean
+        default: false
+
+concurrency:
+  group: verify-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      JOURNEYS: ${{ inputs.journeys }}
+      WITH_IPAD: ${{ inputs.ipad }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then echo "No Xcode 26 on this runner"; ls /Applications | grep -i xcode; exit 1; fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Cache SwiftPM and DerivedData
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            .build
+            SourcePackages
+            DerivedData
+          key: spm-dd-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            spm-dd-${{ runner.os }}-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Pick simulators
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json, subprocess
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))["devices"]
+          def pick(prefix, want_pro=False):
+              for runtime in sorted(data, reverse=True):
+                  if "iOS" not in runtime:
+                      continue
+                  names = [d for d in data[runtime] if d["isAvailable"] and d["name"].startswith(prefix)]
+                  if want_pro:
+                      names = [d for d in names if "Pro" in d["name"] and "Max" not in d["name"]]
+                  names.sort(key=lambda d: d["name"], reverse=True)
+                  if names:
+                      return names[0]
+              raise SystemExit("no simulator for " + prefix)
+          iphone = pick("iPhone 1", want_pro=True)
+          ipad = pick("iPad Pro 13")
+          print("IPHONE_UDID=" + iphone["udid"])
+          print("IPHONE_NAME=" + iphone["name"].replace(" ", "-"))
+          print("IPAD_UDID=" + ipad["udid"])
+          print("IPAD_NAME=" + ipad["name"].replace(" ", "-"))
+          PY
+
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project AnyRouter.xcodeproj -scheme AnyRouterVerify \
+            -destination "platform=iOS Simulator,id=$IPHONE_UDID" \
+            -derivedDataPath DerivedData \
+            -clonedSourcePackagesDirPath SourcePackages \
+            CODE_SIGNING_ALLOWED=NO | tail -n 100
+
+      - name: Run journeys
+        run: |
+          mkdir -p evidence
+          only=()
+          if [ "$JOURNEYS" != "all" ] && [ -n "$JOURNEYS" ]; then
+            for id in $(echo "$JOURNEYS" | tr ',' ' '); do
+              case "$id" in
+                theme) c=ThemeJourney ;;
+                drawer) c=DrawerJourney ;;
+                composer) c=ComposerJourney ;;
+                model-picker) c=ModelPickerJourney ;;
+                settings) c=SettingsJourney ;;
+                hub) c=HubJourney ;;
+                *) echo "unknown journey: $id"; exit 2 ;;
+              esac
+              only+=("-only-testing:AnyRouterJourneys/$c")
+            done
+          fi
+          devices="IPHONE"
+          [ "$WITH_IPAD" = "true" ] && devices="IPHONE IPAD"
+          for device in $devices; do
+            udid_var="${device}_UDID"; name_var="${device}_NAME"
+            udid="${!udid_var}"; name="${!name_var}"
+            xcrun simctl boot "$udid" || true
+            TEST_RUNNER_SCREENSHOT_DIR="$PWD/evidence/$name" \
+            xcodebuild test-without-building \
+              -project AnyRouter.xcodeproj -scheme AnyRouterVerify \
+              -destination "platform=iOS Simulator,id=$udid" \
+              -derivedDataPath DerivedData \
+              -resultBundlePath "TestResults-$name.xcresult" \
+              "${only[@]}" \
+              CODE_SIGNING_ALLOWED=NO > "test-$name.log" 2>&1 || echo "FAILED=$name" >> failed.txt
+            tail -n 40 "test-$name.log"
+            xcrun xcresulttool get test-results summary --path "TestResults-$name.xcresult" --compact > "evidence/summary-$name.json" || true
+          done
+          test ! -e failed.txt || { cat failed.txt; exit 1; }
+
+      - name: Report
+        if: always()
+        run: |
+          python3 .claude/skills/verify-anyrouter-ios/scripts/journeys-report.py evidence > evidence/journeys.md || true
+          cat evidence/journeys.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: verify-evidence
+          path: evidence
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: TestResults
+          path: TestResults-*.xcresult
+          retention-days: 7
