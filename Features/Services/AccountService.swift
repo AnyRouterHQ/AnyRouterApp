@@ -13,10 +13,15 @@ protocol AccountService: AnyObject {
     var state: AccountState { get }
     /// Profile and spend for the account card. Nil until loaded, or when signed out.
     var summary: AccountSummary? { get }
-    func signIn() async throws
+    /// Opens the browser sign-in (`.signIn`) or sign-up (`.signUp`). Both end signed in. Returns on cancel without an error.
+    func signIn(mode: AuthMode) async throws
     func signOut() async
     /// Reloads `summary`. Does nothing when signed out.
     func refreshSummary() async
+}
+
+extension AccountService {
+    func signIn() async throws { try await signIn(mode: .signIn) }
 }
 
 extension AccountState {
@@ -35,7 +40,7 @@ final class UnavailableAccountService: AccountService {
         var errorDescription: String? { "Sign-in is not available in this build." }
     }
 
-    func signIn() async throws { throw Unavailable() }
+    func signIn(mode: AuthMode) async throws { throw Unavailable() }
     func signOut() async {}
     var summary: AccountSummary? { nil }
     func refreshSummary() async {}

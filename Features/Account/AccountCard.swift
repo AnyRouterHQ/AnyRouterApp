@@ -5,9 +5,12 @@ import SwiftUI
 struct AccountCard: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models
+    @Environment(\.scenePhase) private var scenePhase
     @State private var signInError: String?
 
     private static let manageURL = URL(string: "https://anyrouter.dev/dashboard")!
+    /// Where the verification link is sent and resent from. The API has no resend call.
+    private static let emailSettingsURL = URL(string: "https://anyrouter.dev/dashboard/settings")!
 
     var body: some View {
         Group {
@@ -19,6 +22,10 @@ struct AccountCard: View {
             }
         }
         .task(id: app.account.state) { await app.account.refreshSummary() }
+        // Coming back from the browser after verifying: clear the note without a restart.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await app.account.refreshSummary() } }
+        }
     }
 
     @ViewBuilder
@@ -31,11 +38,12 @@ struct AccountCard: View {
         } icon: {
             ARLogoMark(size: 32).foregroundStyle(.primary)
         }
-        Button("Sign in with AnyRouter") { signIn() }
+        Button("Sign in with AnyRouter") { signIn(.signIn) }
+        Button("Create account") { signIn(.signUp) }
         if let signInError {
             // Plain, neutral text: server details are not shown to the user.
             Text(signInError).font(.footnote).foregroundStyle(.secondary)
-            Button("Try again") { signIn() }
+            Button("Try again") { signIn(.signIn) }
         }
     }
 
@@ -54,6 +62,15 @@ struct AccountCard: View {
                 }
             }
         }
+        if summary?.needsEmailVerification == true {
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Verify your email", systemImage: "envelope.badge")
+                Text("Chat works as usual. Some free credits wait until your email is verified.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            Link("Open anyrouter.dev", destination: Self.emailSettingsURL)
+        }
         if let line = summary?.usageLine { Text(line) }
         Link("Manage on anyrouter.dev", destination: Self.manageURL)
         Button("Sign out", role: .destructive) {
@@ -61,11 +78,11 @@ struct AccountCard: View {
         }
     }
 
-    private func signIn() {
+    private func signIn(_ mode: AuthMode) {
         signInError = nil
         Task {
             do {
-                try await app.account.signIn()
+                try await app.account.signIn(mode: mode)
                 signInError = nil
                 await models.refresh()
             } catch {

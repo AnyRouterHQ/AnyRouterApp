@@ -25,11 +25,13 @@ private final class ScriptedSigner: OAuthSigning {
     var gate: CheckedContinuation<Void, Never>?
     var holds = false
     var calls = 0
+    var modes: [AuthMode] = []
 
     init(_ result: Result<IssuedToken, Error>) { self.result = result }
 
-    func signIn() async throws -> IssuedToken {
+    func signIn(mode: AuthMode) async throws -> IssuedToken {
         calls += 1
+        modes.append(mode)
         if holds { await withCheckedContinuation { gate = $0 } }
         return try result.get()
     }
@@ -71,6 +73,25 @@ struct AnyRouterAuthTests {
         await auth.signIn()
         #expect(auth.state == .signedOut)
         #expect(auth.lastError == "Registration failed")
+    }
+
+    @Test func theModeReachesTheBrowserStep() async {
+        let signer = ScriptedSigner(.failure(OAuthClient.Failure.cancelled))
+        let auth = AnyRouterAuth(store: makeStore(), client: signer)
+        await auth.signIn()
+        await auth.signIn(mode: .signUp)
+        #expect(signer.modes == [.signIn, .signUp])
+    }
+
+    @Test func aServerErrorIsFlaggedBusyAndAnythingElseIsNot() async {
+        let busy = AnyRouterAuth(store: makeStore(), client: ScriptedSigner(.failure(OAuthClient.Failure.busy)))
+        await busy.signIn(mode: .signUp)
+        #expect(busy.lastFailureWasBusy)
+        #expect(busy.lastError == "AnyRouter is busy. Try again.")
+
+        let other = AnyRouterAuth(store: makeStore(), client: ScriptedSigner(.failure(OAuthClient.Failure.message("nope"))))
+        await other.signIn()
+        #expect(!other.lastFailureWasBusy)
     }
 
     @Test func cancellingSignInIsNotAnError() async {

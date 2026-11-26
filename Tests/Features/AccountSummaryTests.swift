@@ -105,6 +105,26 @@ struct AccountSummaryLoaderTests {
     }
 }
 
+struct AccountSummaryEmailTests {
+    private func summary(_ me: String) -> AccountSummary {
+        AccountSummary.parse(me: Data(me.utf8), credits: nil, key: nil)
+    }
+
+    @Test func anUnverifiedEmailAsksForVerification() {
+        let s = summary(#"{"id":"u","name":"Ada","email_verified":false}"#)
+        #expect(s.emailVerified == false)
+        #expect(s.needsEmailVerification)
+    }
+
+    @Test func aVerifiedEmailOrAServerThatDoesNotSayAsksForNothing() {
+        #expect(!summary(#"{"name":"Ada","email_verified":true}"#).needsEmailVerification)
+        let silent = summary(#"{"name":"Ada"}"#)
+        #expect(silent.emailVerified == nil)
+        #expect(!silent.needsEmailVerification)
+        #expect(!summary(#"{"name":"Ada","email_verified":"false"}"#).needsEmailVerification, "only a real boolean counts")
+    }
+}
+
 final class CallLog: @unchecked Sendable {
     private let lock = NSLock()
     private var entries: [(String, String?)] = []

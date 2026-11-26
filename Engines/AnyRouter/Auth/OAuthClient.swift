@@ -10,6 +10,9 @@ struct IssuedToken: Sendable {
 /// Authorization code + PKCE against AnyRouter's sign-in endpoints. Public client, no secret.
 /// The access token is an `sk-ar-` key.
 ///
+/// Credentials are typed into `ASWebAuthenticationSession`, never a `WKWebView`: the app cannot read what
+/// the page collects, and the system browser brings passkeys and the password manager.
+///
 /// The server rejects custom URL schemes, and an https callback needs an associated
 /// domain. So the browser is redirected to a loopback port and the web session is
 /// cancelled once that listener has the code. PKCE stays in the app.
@@ -43,7 +46,7 @@ final class OAuthClient: NSObject, OAuthSigning, ASWebAuthenticationPresentation
         self.urlSession = urlSession
     }
 
-    func signIn() async throws -> IssuedToken {
+    func signIn(mode: AuthMode) async throws -> IssuedToken {
         let state = try PKCE.makeVerifier()
         let loopback = LoopbackCallback(expectedState: state)
         defer { loopback.stop() }
@@ -63,7 +66,8 @@ final class OAuthClient: NSObject, OAuthSigning, ASWebAuthenticationPresentation
         ]
         guard let url = components.url else { throw Failure.message("Could not build the authorize URL.") }
 
-        let callback = try await present(url, loopback: loopback)
+        let start = Self.startURL(mode: mode, authorize: url, origin: config.origin)
+        let callback = try await present(start, loopback: loopback)
         guard let items = URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems else {
             throw Failure.message("Sign-in returned no parameters.")
         }
@@ -74,6 +78,24 @@ final class OAuthClient: NSObject, OAuthSigning, ASWebAuthenticationPresentation
         }
         guard let code = query("code"), !code.isEmpty else { throw Failure.message("Sign-in returned no code.") }
         return try await exchange(code: code, verifier: verifier, clientID: clientID, redirect: redirect)
+    }
+
+    /// The first page of the web session. Sign-in opens the authorize URL, which sends a signed-out user to
+    /// the sign-in page and back. Create account opens the sign-up page with the authorize URL as its
+    /// `redirect_url`, so a new user lands on the same consent screen and the app gets its code.
+    nonisolated static func startURL(mode: AuthMode, authorize: URL, origin: URL) -> URL {
+        switch mode {
+        case .signIn:
+            return authorize
+        case .signUp:
+            var components = URLComponents(url: origin.appending(path: "sign-up"), resolvingAgainstBaseURL: false)!
+            // URLQueryItem leaves `&` and `=` raw, which would split the nested URL. Encode it by hand.
+            let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+            // Never nil: percent-encoding only fails on an invalid UTF-8 string.
+            let nested = authorize.absoluteString.addingPercentEncoding(withAllowedCharacters: allowed)!
+            components.percentEncodedQuery = "redirect_url=\(nested)"
+            return components.url!
+        }
     }
 
     nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {

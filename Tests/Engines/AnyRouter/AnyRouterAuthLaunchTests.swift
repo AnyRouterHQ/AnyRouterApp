@@ -50,7 +50,7 @@ final class SpyTokenStore: AuthTokenStore, @unchecked Sendable {
 private final class HeldSigner: OAuthSigning {
     private var gate: CheckedContinuation<Void, Never>?
 
-    func signIn() async throws -> IssuedToken {
+    func signIn(mode: AuthMode) async throws -> IssuedToken {
         await withCheckedContinuation { gate = $0 }
         return IssuedToken(accessToken: "t", expiresAt: nil)
     }

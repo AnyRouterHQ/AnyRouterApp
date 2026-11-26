@@ -4,7 +4,7 @@ import Observation
 /// The browser sign-in step. `OAuthClient` is the real one; tests script it.
 @MainActor
 protocol OAuthSigning {
-    func signIn() async throws -> IssuedToken
+    func signIn(mode: AuthMode) async throws -> IssuedToken
 }
 
 /// Sign-in state the UI observes. Owns the Keychain store and the OAuth flow.
@@ -19,6 +19,8 @@ final class AnyRouterAuth {
 
     private(set) var state: State = .signedOut
     private(set) var lastError: String?
+    /// The last failure was the server answering 5xx, so trying again is reasonable.
+    private(set) var lastFailureWasBusy = false
 
     /// How the first state is found. A Keychain read can block for seconds on a cold boot, so launch uses `deferred`.
     enum Restore {
@@ -104,12 +106,13 @@ final class AnyRouterAuth {
         apply(signedIn: found.signedIn, expiresAt: found.expiresAt)
     }
 
-    func signIn() async {
+    func signIn(mode: AuthMode = .signIn) async {
         guard state != .signingIn else { return }
         state = .signingIn
         lastError = nil
+        lastFailureWasBusy = false
         do {
-            let issued = try await client.signIn()
+            let issued = try await client.signIn(mode: mode)
             if !store.save(token: issued.accessToken, expiresAt: issued.expiresAt) {
                 lastError = "Could not save the sign-in to the Keychain."
             }
@@ -118,6 +121,7 @@ final class AnyRouterAuth {
                 lastError = nil
             } else {
                 lastError = error.localizedDescription
+                if case OAuthClient.Failure.busy = error { lastFailureWasBusy = true }
             }
         }
         refresh()

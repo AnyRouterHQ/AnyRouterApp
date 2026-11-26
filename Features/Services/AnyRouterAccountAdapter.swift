@@ -11,6 +11,8 @@ final class AnyRouterAccountAdapter: AccountService {
 
     struct SignInFailed: LocalizedError {
         let message: String
+        /// The server was briefly unavailable; the same request is worth another try.
+        var isBusy = false
         var errorDescription: String? { message }
     }
 
@@ -29,11 +31,11 @@ final class AnyRouterAccountAdapter: AccountService {
         }
     }
 
-    func signIn() async throws {
-        await auth.signIn()
+    func signIn(mode: AuthMode) async throws {
+        await auth.signIn(mode: mode)
         if let message = auth.lastError {
-            telemetry.track(.signInFail(reason: "error"))
-            throw SignInFailed(message: message)
+            telemetry.track(.signInFail(reason: auth.lastFailureWasBusy ? "busy" : "error"))
+            throw SignInFailed(message: message, isBusy: auth.lastFailureWasBusy)
         }
         // No error and no key: the user closed the sign-in sheet.
         if case .signedIn = auth.state { telemetry.track(.signInOK) } else { telemetry.track(.signInFail(reason: "cancelled")) }

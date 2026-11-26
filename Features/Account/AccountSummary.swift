@@ -25,6 +25,8 @@ struct AccountSummary: Equatable, Sendable {
     var email: String?
     var avatarURL: URL?
     var plan: String?
+    /// `email_verified` from /me. Nil when the server does not say, which counts as verified.
+    var emailVerified: Bool?
     var credits: Credits?
     var freeRequests: FreeRequests?
     var keyUsage: KeyUsage?
@@ -33,6 +35,9 @@ struct AccountSummary: Equatable, Sendable {
         displayName == nil && email == nil && avatarURL == nil && plan == nil
             && credits == nil && freeRequests == nil && keyUsage == nil
     }
+
+    /// The server says the email is not verified yet. Chat keeps working; Settings asks once, quietly.
+    var needsEmailVerification: Bool { emailVerified == false }
 
     /// Name, else email, else a neutral title.
     var title: String { displayName ?? email ?? "AnyRouter account" }
@@ -73,6 +78,7 @@ struct AccountSummary: Equatable, Sendable {
                 .flatMap(URL.init(string:))
                 .flatMap { $0.scheme == "https" ? $0 : nil }
             summary.plan = planName(profile)
+            summary.emailVerified = profile["email_verified"] as? Bool
             // Sign-in keys get 403 on /credits, so /me's balance is the usual source.
             if let balance = number(profile, ["balance"]) { summary.credits = Credits(balance: balance, used: nil) }
         }

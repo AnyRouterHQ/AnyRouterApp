@@ -1,163 +1,148 @@
 import SwiftUI
 
-/// First launch: pick how to chat. Apple Intelligence, a small local model, or AnyRouter cloud.
+/// First launch. Say what the app can chat with, then offer the two ways in: AnyRouter (sign in or create an
+/// account in the system web sheet) or on-device only. Standard Form rows and system buttons only.
 struct OnboardingScreen: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models
 
     var onFinish: () -> Void
 
-    @State private var choice: OnboardingLogic.Choice?
-    @State private var signInError: String?
+    @State private var flow = SignInFlow.State.signedOut
+    @State private var showsLocalStep = false
 
-    private var hub: any ModelHubService { app.hub }
-    private var recommended: LocalModelEntry? { OnboardingLogic.recommendedLocal(in: hub.catalog) }
     private var appleAvailable: Bool { models.models.contains { $0.source == .apple && $0.isInstalled } }
-    private var localState: DownloadState { recommended.map { hub.downloadState(for: $0.id) } ?? .notInstalled }
     private var signedIn: Bool { app.account.state.isSignedIn }
-
-    private var canFinish: Bool {
-        OnboardingLogic.canFinish(choice: choice, appleAvailable: appleAvailable, localState: localState, signedIn: signedIn)
+    private var authorizing: Bool {
+        if case .authorizing = flow { return true }
+        return false
     }
 
     var body: some View {
         NavigationStack {
-            List {
+            Form {
                 Section {
                     VStack(spacing: 8) {
-                        ARLogoMark(size: 52).foregroundStyle(.primary)
-                        Text("Choose how to chat").font(.largeTitle.bold()).multilineTextAlignment(.center)
-                        Text("You can change this any time in Settings.").font(.subheadline).foregroundStyle(.secondary)
+                        ARLogoMark(size: 52).foregroundStyle(.primary).accessibilityHidden(true)
+                        Text("Welcome to AnyRouter").font(.largeTitle.bold()).multilineTextAlignment(.center)
+                            .accessibilityAddTraits(.isHeader)
+                        Text("One chat for models on your device and in the cloud.")
+                            .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
                     .listRowBackground(Color.clear)
                     .padding(.vertical, 8)
                 }
-                Section {
-                    option(.apple, title: "Apple Intelligence", detail: appleAvailable
-                           ? "Private, on device. No download."
-                           : "Not available on this device.", icon: "apple.logo", enabled: appleAvailable)
-                    localOption
-                    cloudOption
+                Section("Chat with") {
+                    source("Apple Intelligence", detail: "Private and on device. No download.", icon: "apple.logo")
+                    source("Local models", detail: "Download open models and run them on this device.", icon: "iphone")
+                    source("AnyRouter cloud", detail: "Hundreds of cloud models with one account.", icon: "cloud")
+                }
+                if case .failed(let reason, let mode) = flow {
+                    Section {
+                        Label(reason.text, systemImage: "exclamationmark.triangle")
+                        Button("Try again") { authorize(mode) }
+                    }
                 }
             }
-            .listStyle(.insetGrouped)
+            .formStyle(.grouped)
             .navigationBarTitleDisplayMode(.inline)
             // The actions stay reachable at the bottom, above the home indicator.
-            .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 8) {
-                    Button { finish() } label: { Text("Continue").frame(maxWidth: .infinity) }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .disabled(!canFinish)
-                    Button("Skip for now") { onFinish() }
-                        .controlSize(.large)
-                }
-                .padding()
-                .background(.bar)
-            }
-        }
-        .task { await hub.reload() }
-    }
-
-    // MARK: Options
-
-    @ViewBuilder
-    private var localOption: some View {
-        option(.local, title: recommended?.descriptor.displayName ?? "Local model",
-               detail: recommended?.summary ?? "Download a small model to run on this device.",
-               icon: "iphone", enabled: recommended != nil,
-               trailing: HubLogic.sizeText(recommended?.descriptor.sizeBytes))
-        if choice == .local, let recommended {
-            switch localState {
-            case .notInstalled, .failed:
-                Button("Download\(HubLogic.sizeText(recommended.descriptor.sizeBytes).map { " (\($0))" } ?? "")") {
-                    hub.download(recommended)
-                }
-            case .downloading(let progress), .paused(let progress):
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("Downloading")
-                        Spacer()
-                        Text(HubLogic.percent(progress)).foregroundStyle(.secondary)
-                    }
-                    if let progress { ProgressView(value: min(max(progress, 0), 1)) }
-                    else { ProgressView().progressViewStyle(.linear) }
-                    Text("Closing the app may pause the download.").font(.footnote).foregroundStyle(.secondary)
-                }
-            case .verifying:
-                HStack { ProgressView(); Text("Verifying").foregroundStyle(.secondary) }
-            case .installed:
-                Label("Ready", systemImage: "checkmark.circle.fill")
-            }
+            .safeAreaInset(edge: .bottom) { actions }
+            .navigationDestination(isPresented: $showsLocalStep) { OnboardingLocalStep(onFinish: onFinish) }
         }
     }
 
-    @ViewBuilder
-    private var cloudOption: some View {
-        option(.cloud, title: "AnyRouter cloud", detail: "Hundreds of cloud models with one sign-in.", icon: "cloud", enabled: true)
-        if choice == .cloud {
-            switch app.account.state {
-            case .signedOut:
-                Button("Sign in with AnyRouter") { signIn() }
-                if let signInError {
-                    Text(signInError).font(.footnote).foregroundStyle(.secondary)
-                    Button("Try again") { signIn() }
-                }
-            case .signingIn:
-                HStack { ProgressView(); Text("Signing in…").foregroundStyle(.secondary) }
-            case .signedIn:
-                Label("Signed in", systemImage: "checkmark.circle.fill")
+    private func source(_ title: String, detail: String, icon: String) -> some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.headline)
+                Text(detail).font(.subheadline).foregroundStyle(.secondary)
             }
+        } icon: {
+            Image(systemName: icon).imageScale(.large)
         }
-    }
-
-    private func option(_ value: OnboardingLogic.Choice, title: String, detail: String, icon: String,
-                        enabled: Bool, trailing: String? = nil) -> some View {
-        let selected = choice == value
-        return Button { choice = value } label: {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: icon).imageScale(.large).frame(width: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Text(title).font(.headline)
-                        Spacer()
-                        if let trailing { Text(trailing).font(.subheadline).foregroundStyle(.secondary) }
-                    }
-                    Text(detail).font(.subheadline).foregroundStyle(.secondary)
-                }
-                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(selected ? Color.accentColor : Color.secondary)
-            }
-        }
-        .foregroundStyle(.primary)
-        .disabled(!enabled)
-        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: Actions
 
-    private func signIn() {
-        signInError = nil
+    private var actions: some View {
+        VStack(spacing: 8) {
+            Button { signedIn ? finishWithCloud() : authorize(.signIn) } label: {
+                Group {
+                    if authorizing {
+                        HStack(spacing: 8) { ProgressView(); Text("Opening AnyRouter…") }
+                    } else {
+                        Text(signedIn ? "Continue" : "Continue with AnyRouter")
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(authorizing)
+            .accessibilityIdentifier("onboarding.signIn")
+            if !signedIn {
+                Button { authorize(.signUp) } label: { Text("Create account").frame(maxWidth: .infinity) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .disabled(authorizing)
+                    .accessibilityIdentifier("onboarding.signUp")
+            }
+            Button("Use on-device only") { useOnDevice() }
+                .controlSize(.large)
+                .disabled(authorizing)
+                .accessibilityIdentifier("onboarding.onDevice")
+        }
+        // A readable width on iPad instead of buttons across the whole screen.
+        .frame(maxWidth: 560)
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(.bar)
+    }
+
+    /// Opens the web sheet. A new account comes back signed in: the sheet ends at the same consent step as
+    /// sign-in, so there is no second login. The email can be verified later (see Settings).
+    private func authorize(_ mode: AuthMode) {
+        guard !authorizing else { return }
+        flow = SignInFlow.reduce(flow, .start(mode))
+        guard authorizing else { return }
         Task {
             do {
-                try await app.account.signIn()
-                await models.refresh()
+                try await app.account.signIn(mode: mode)
+            } catch let error as AnyRouterAccountAdapter.SignInFailed where error.isBusy {
+                flow = SignInFlow.reduce(flow, .failed(.busy))
+                return
             } catch {
-                signInError = error.localizedDescription
+                flow = SignInFlow.reduce(flow, .failed(.message(error.localizedDescription)))
+                return
             }
+            guard app.account.state.isSignedIn else {
+                flow = SignInFlow.reduce(flow, .cancelled)
+                return
+            }
+            await app.account.refreshSummary()
+            flow = SignInFlow.reduce(flow, .succeeded(emailVerified: app.account.summary?.emailVerified))
+            await finish(.cloud)
         }
     }
 
-    private func finish() {
-        guard let choice else { return }
-        Task {
-            await models.refresh()
-            if let id = OnboardingLogic.modelID(for: choice, models: models.models, local: recommended) {
-                models.select(modelID: id)
-            }
-            onFinish()
+    private func useOnDevice() {
+        switch OnboardingLogic.onDeviceRoute(appleAvailable: appleAvailable) {
+        case .chat(let choice): Task { await finish(choice) }
+        case .pickLocal: showsLocalStep = true
         }
+    }
+
+    private func finishWithCloud() { Task { await finish(.cloud) } }
+
+    private func finish(_ choice: OnboardingLogic.Choice) async {
+        await models.refresh()
+        if let id = OnboardingLogic.modelID(for: choice, models: models.models, local: nil) {
+            models.select(modelID: id)
+        }
+        onFinish()
     }
 }
 

@@ -379,7 +379,7 @@ final class DemoAccount: AccountService {
             key: nil)
     }
 
-    func signIn() async throws { state = .signedIn(label: "you@example.com") }
+    func signIn(mode: AuthMode) async throws { state = .signedIn(label: "you@example.com") }
     func signOut() async { state = .signedOut }
     func refreshSummary() async {}
 }
