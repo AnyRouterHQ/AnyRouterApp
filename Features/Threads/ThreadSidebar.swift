@@ -46,18 +46,32 @@ struct ThreadSidebar: View {
         }
         .listStyle(.sidebar)
         .scrollDismissesKeyboard(.interactively)
-        .navigationTitle("AnyRouter")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, isPresented: $isSearching, prompt: "Search chats")
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                // The logo mark alone; the app name is not repeated here.
+                ARLogoMark(size: 26)
+                    .foregroundStyle(.primary)
+                    .accessibilityLabel("AnyRouter")
+                    .accessibilityIdentifier("sidebar.header")
+            }
             ToolbarItem(placement: .topBarTrailing) {
-                Button { shell.presentSettings(closeSidebar: isDrawer) } label: { Image(systemName: "gearshape") }
-                    .accessibilityLabel("Settings")
+                Button { shell.presentSettings(closeSidebar: isDrawer) } label: {
+                    Image(systemName: "gearshape").imageScale(.large).frame(minWidth: 44, minHeight: 44)
+                }
+                .accessibilityLabel("Settings")
+                .accessibilityIdentifier("sidebar.settings")
             }
             ToolbarItemGroup(placement: .bottomBar) {
                 Spacer()
-                Button { shell.newChat(closeSidebar: isDrawer) } label: { Image(systemName: "square.and.pencil") }
-                    .accessibilityLabel("New chat")
+                Button { shell.newChat(closeSidebar: isDrawer) } label: {
+                    Image(systemName: "square.and.pencil").imageScale(.large).frame(minWidth: 44, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .accessibilityLabel("New chat")
+                .accessibilityIdentifier("sidebar.compose")
             }
         }
         .onChange(of: shell.searchRequest) { isSearching = true }

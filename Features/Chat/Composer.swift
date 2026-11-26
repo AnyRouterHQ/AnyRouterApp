@@ -32,6 +32,7 @@ struct Composer: View {
                         .foregroundStyle(ARColor.foreground)
                         .lineLimit(1...6)
                         .focused(focused)
+                        .accessibilityIdentifier("composer.input")
                         .submitLabel(.return)
                         // Hardware keyboards: Return sends, Shift-Return adds a line.
                         .onKeyPress(.return, phases: .down) { press in
@@ -53,6 +54,8 @@ struct Composer: View {
         .frame(maxWidth: ARTheme.contentMaxWidth)
         .padding(.horizontal, ARTheme.pagePadding)
         .padding(.bottom, 8)
+        // Send, stop and the buttons beside the field keep the keyboard up.
+        .keepsKeyboardOnTap()
         .onChange(of: model.focusTick) { focused.wrappedValue = true }
         .sheet(isPresented: $showsPresets) {
             if let presets {

@@ -17,9 +17,13 @@ struct RootView: View {
                 WindowAppearance.apply(appearance)
             }
             .onChange(of: scenePhase) { _, phase in
-                // A scene connected after launch has no override yet.
-                if phase == .active { WindowAppearance.apply(appState.settings.appearance) }
+                // A scene connected after launch has no override or tap recognizer yet.
+                if phase == .active {
+                    WindowAppearance.apply(appState.settings.appearance)
+                    KeyboardDismissal.install()
+                }
             }
+            .onAppear { KeyboardDismissal.install() }
             .fullScreenCover(isPresented: $showsOnboarding) {
                 OnboardingScreen {
                     appState.settings.hasOnboarded = true

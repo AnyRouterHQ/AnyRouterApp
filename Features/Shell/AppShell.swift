@@ -91,6 +91,9 @@ private struct PhoneShell: View {
         .contentShape(Rectangle())
         .simultaneousGesture(drag(width: width))
         .animation(settle, value: shell.isSidebarOpen)
+        // The keyboard belongs to whichever side the user is typing in. Opening the drawer ends the
+        // composer's editing; the search field in the sidebar only takes focus when tapped.
+        .onChange(of: shell.isSidebarOpen) { _, open in if open { KeyboardDismissal.endEditing() } }
     }
 
     private func sidebar(width: CGFloat) -> some View {
@@ -105,6 +108,8 @@ private struct PhoneShell: View {
         Detail()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemBackground))
+            // While the drawer is open the keyboard (the sidebar search) never resizes the chat.
+            .ignoresSafeArea(.keyboard, edges: shell.isSidebarOpen ? .bottom : [])
             .allowsHitTesting(!shell.isSidebarOpen)
             .accessibilityHidden(shell.isSidebarOpen)
             .overlay {
@@ -116,6 +121,18 @@ private struct PhoneShell: View {
                     .accessibilityAddTraits(.isButton)
                     .accessibilityHidden(!shell.isSidebarOpen)
             }
+            // Concentric with the display corners while the drawer is open or moving; no clip when closed.
+            .clipShape(progress > 0.001 ? AnyShape(ConcentricRectangle()) : AnyShape(Rectangle()))
+            .overlay(alignment: .leading) {
+                // A soft edge on the side that meets the sidebar.
+                LinearGradient(colors: [.black.opacity(0.14 * progress), .clear], startPoint: .trailing, endPoint: .leading)
+                    .frame(width: 12)
+                    .offset(x: -12)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("main.container")
     }
 
     private func drag(width: CGFloat) -> some Gesture {

@@ -84,6 +84,8 @@ private struct ChatContent: View {
     let subtitle: String
     let showsDetails: Bool
     @FocusState private var composerFocused: Bool
+    /// A tapped-in tip that replaces the model subtitle until the chat changes.
+    @State private var tip: String?
 
     var body: some View {
         Group {
@@ -103,19 +105,30 @@ private struct ChatContent: View {
         VStack(spacing: 12) {
             Spacer()
             ARLogoMark(size: 56).foregroundStyle(ARColor.foreground)
-            Text(HomeLogic.greeting)
-                .font(.system(size: 32, weight: .bold))
+            // A hidden gem: tapping the greeting swaps the line below for a tip. Not announced as a button.
+            Button { tip = HomeTips.next(after: tip ?? subtitle) } label: {
+                Text(HomeLogic.greeting)
+                    .font(.system(size: 32, weight: .bold))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(ARColor.foreground)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Shows a tip")
+            .accessibilityIdentifier("home.greeting")
+            Text(tip ?? subtitle)
+                .font(.arSM)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(ARColor.foreground)
-            Text(subtitle).font(.arSM).foregroundStyle(.secondary)
+                .contentTransition(.opacity)
+                .animation(.easeInOut(duration: 0.25), value: tip)
+                .accessibilityIdentifier("home.subtitle")
             Spacer()
             PresetSuggestions(store: presets, onPick: { chat.usePreset($0) }, onSend: { chat.sendNow($0) })
                 .padding(.bottom, 8)
         }
         .padding(.horizontal, ARTheme.pagePadding)
         .frame(maxWidth: .infinity)
-        .contentShape(Rectangle())
-        .simultaneousGesture(TapGesture().onEnded { composerFocused = false })
+        .sensoryFeedback(.selection, trigger: tip)
     }
 
     private var messageList: some View {
@@ -144,7 +157,6 @@ private struct ChatContent: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .scrollEdgeEffectStyle(.soft, for: .all)
-            .simultaneousGesture(TapGesture().onEnded { composerFocused = false })
             .defaultScrollAnchor(.bottom)
             .onChange(of: messages.count) { proxy.scrollTo("bottom", anchor: .bottom) }
             .onChange(of: messages.last?.toolTraceData) { proxy.scrollTo("bottom", anchor: .bottom) }
