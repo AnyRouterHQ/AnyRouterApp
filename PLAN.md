@@ -12,7 +12,7 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that copies the Atomic Ch
 2. **Local Hugging Face models**, GGUF (llama.cpp) and MLX, from a configurable catalog
 3. **AnyRouter models**, after **Sign in with AnyRouter** (OAuth + PKCE)
 
-**Milestone 1:** an ad-hoc signed build installed on the operator's own iPhone and iPad.
+**Milestone 1:** a TestFlight internal build installed on the operator's own iPhone and iPad.
 
 ## Decisions (from the operator interview, 2026-11-26)
 
@@ -21,7 +21,7 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that copies the Atomic Ch
 | D1 | Native SwiftUI clone, not the Tauri fork | Operator choice. Native FoundationModels/MLX, small app. The look is copied from Atomic's React source. |
 | D2 | Public open-source repo `github.com/AnyRouterHQ/AnyRouterApp`, Apache-2.0 | Operator choice. Public also gives free macOS CI minutes. |
 | D3 | Both GGUF (llama.cpp) and MLX engines behind one `ChatEngine` protocol | Operator choice |
-| D4 | Milestone 1 = ad-hoc device build | Operator choice. Needs Team ID + ad-hoc profile (see Open questions). |
+| D4 | Milestone 1 = TestFlight internal build | Operator choice. Automatic signing with an App Store Connect API key; needs 4 secrets and an app record (see Open questions). |
 | D5 | iOS/iPadOS 26.0 minimum, universal app (iPhone + iPad) | FoundationModels needs 26. One target. |
 | D6 | Bundle id `dev.anyrouter.app`, display name `AnyRouter` | Matches the `dev.anyrouter.*` family. |
 | D7 | XcodeGen `project.yml`, no committed `.xcodeproj` | Parallel lanes add files without pbxproj conflicts. |
@@ -143,9 +143,9 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] D6 (#13) Settings (Atomic `routes/settings`): account (sign in/out), model providers, catalog sources editor, generation defaults, appearance, about + licenses
 - [x] D7 (#13) Onboarding (Atomic `onboarding/`): first launch → pick Apple / download small local / sign in
 
-### Lane E — ad-hoc signing and install (model: sonnet-low; blocked on operator secrets)
-- [x] E1 (signing path untested until secrets exist) `release-adhoc.yml`: import cert + profile from secrets, `xcodebuild archive` + `-exportArchive` (method `release-testing`/ad-hoc), upload IPA artifact
-- [x] E2 Install doc: Apple Configurator 2 or OTA manifest page; size report of the IPA
+### Lane E — TestFlight (model: sonnet-low; blocked on operator secrets)
+- [x] E1 (upload path untested until secrets exist) `testflight.yml`: automatic signing with the ASC API key, `xcodebuild archive` + `-exportArchive` (method `app-store-connect`, destination `upload`), unique build number, dSYMs artifact
+- [x] E2 `docs/testflight.md`: app record, API key, secrets, run, internal testers, TestFlight install
 
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
 
@@ -160,9 +160,8 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 
 ## Open questions (operator)
 
-- Q1 Apple Developer **Team ID**, and is the account paid (ad-hoc needs a paid team)?
-- Q2 Device **UDIDs** of the iPhone and iPad (for the ad-hoc profile), or permission to register them in the Apple Developer portal.
-- Q3 GitHub secrets for signing: `IOS_CERT_P12_BASE64`, `IOS_CERT_PASSWORD`, `IOS_ADHOC_PROFILE_BASE64`, `APPLE_TEAM_ID`.
+- Q1 Add GitHub secrets: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_BASE64` (API key role App Manager).
+- Q2 Create the app record in App Store Connect (bundle id `dev.anyrouter.app`, name AnyRouter).
 - Q4 Resolved: icon from the public AnyRouter logo, anyrouter.dev orange accent (#8).
 
 ## Status log
@@ -184,3 +183,4 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - 2026-11-26 lane-C: GGUF engine on llama.cpp b10456 with a real tiny-model test (#10); local checks skipped
 - 2026-11-26 lane-C: MLX engine on mlx-swift-lm 3.33 with Simulator guard (#11); generation path to be verified on device; local checks skipped
 - 2026-11-26 lane-E: ad-hoc release workflow, signing scripts, install doc (E1-E2); signing path untested until secrets exist; local checks skipped
+- 2026-11-26 lane-E: switched milestone 1 from ad-hoc to TestFlight: `testflight.yml`, `docs/testflight.md`, ITSAppUsesNonExemptEncryption=NO in project.yml (E1-E2); local checks skipped

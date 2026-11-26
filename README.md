@@ -62,9 +62,9 @@ Planned, not built yet:
 - Syntax highlighting in code blocks
 - A native Mac version
 
-## Install on a device
+## Install via TestFlight
 
-Ad-hoc signing and install steps are in [docs/install.md](./docs/install.md).
+TestFlight setup and install steps are in [docs/testflight.md](./docs/testflight.md).
 
 ## Contributing
 
