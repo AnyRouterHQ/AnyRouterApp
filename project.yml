@@ -212,9 +212,11 @@ schemes:
       targets:
         AnyRouter: all
         AnyRouterJourneys: [test]
+        AnyRouterUITests: [test]
     test:
       targets:
         - AnyRouterJourneys
+        - AnyRouterUITests
   AnyRouterScreenshots:
     build:
       targets:

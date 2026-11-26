@@ -1,22 +1,30 @@
 name: Verify UI
 
-# Drives user journeys (UITests/Journeys) on demo data in the iOS Simulator and uploads the evidence:
-# a screenshot at every step, accessibility audit findings, an xcresult summary and journeys.md.
-# Run it with: gh workflow run verify-ui.yml -f journeys=theme   (see .claude/skills/verify-anyrouter-ios)
+# Drives user journeys (UITests/Journeys) and the functional UI tests (UITests/*Tests.swift, "flows") on demo data
+# in the iOS Simulator, with one build. Uploads evidence: a screenshot at every journey step, accessibility audit
+# findings, an xcresult summary per device, results-<device>.txt and journeys.md.
+# Run it with: gh workflow run verify-ui.yml --ref main -f journeys=theme -f flows=none
+# (see .claude/skills/verify-anyrouter-ios). Nightly it runs everything on iPhone and iPad.
 on:
   workflow_dispatch:
     inputs:
       journeys:
-        description: "Comma list of journeys (theme, drawer, composer, model-picker, settings, hub, response-details) or all"
+        description: "Comma list of journeys (theme, drawer, composer, model-picker, settings, hub, response-details), all, or none"
         default: all
+      flows:
+        description: "Comma list of UITests classes (for example KeyboardTests,ThemeTests), all, or none"
+        default: none
       ipad:
         description: "Also run on an iPad Pro 13-inch simulator"
         type: boolean
         default: false
+  schedule:
+    - cron: "17 3 * * *"
 
 concurrency:
   group: verify-ui-${{ github.ref }}
-  cancel-in-progress: true
+  # Runner budget: a run in progress finishes; the next one waits.
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -26,8 +34,9 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 60
     env:
-      JOURNEYS: ${{ inputs.journeys }}
-      WITH_IPAD: ${{ inputs.ipad }}
+      JOURNEYS: ${{ inputs.journeys || 'all' }}
+      FLOWS: ${{ inputs.flows || (github.event_name == 'schedule' && 'all' || 'none') }}
+      WITH_IPAD: ${{ inputs.ipad || github.event_name == 'schedule' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -93,22 +102,35 @@ jobs:
       - name: Run journeys
         run: |
           mkdir -p evidence
-          only=()
-          if [ "$JOURNEYS" != "all" ] && [ -n "$JOURNEYS" ]; then
-            for id in $(echo "$JOURNEYS" | tr ',' ' '); do
-              case "$id" in
-                theme) c=ThemeJourney ;;
-                drawer) c=DrawerJourney ;;
-                composer) c=ComposerJourney ;;
-                model-picker) c=ModelPickerJourney ;;
-                settings) c=SettingsJourney ;;
-                hub) c=HubJourney ;;
-                response-details) c=ResponseDetailsJourney ;;
-                *) echo "unknown journey: $id"; exit 2 ;;
-              esac
-              only+=("-only-testing:AnyRouterJourneys/$c")
-            done
-          fi
+          only=(); skip=()
+          case "$JOURNEYS" in
+            none|"") ;;
+            all) only+=("-only-testing:AnyRouterJourneys") ;;
+            *)
+              for id in $(echo "$JOURNEYS" | tr ',' ' '); do
+                case "$id" in
+                  theme) c=ThemeJourney ;;
+                  drawer) c=DrawerJourney ;;
+                  composer) c=ComposerJourney ;;
+                  model-picker) c=ModelPickerJourney ;;
+                  settings) c=SettingsJourney ;;
+                  hub) c=HubJourney ;;
+                  response-details) c=ResponseDetailsJourney ;;
+                  *) echo "unknown journey: $id"; exit 2 ;;
+                esac
+                only+=("-only-testing:AnyRouterJourneys/$c")
+              done ;;
+          esac
+          case "$FLOWS" in
+            none|"") ;;
+            all)
+              only+=("-only-testing:AnyRouterUITests")
+              # Screenshots have their own workflow, performance has perf.yml.
+              skip+=("-skip-testing:AnyRouterUITests/ScreenshotTests" "-skip-testing:AnyRouterUITests/PerformanceTests") ;;
+            *)
+              for c in $(echo "$FLOWS" | tr ',' ' '); do only+=("-only-testing:AnyRouterUITests/$c"); done ;;
+          esac
+          if [ ${#only[@]} -eq 0 ]; then echo "nothing selected: set journeys or flows"; exit 2; fi
           devices="IPHONE"
           [ "$WITH_IPAD" = "true" ] && devices="IPHONE IPAD"
           for device in $devices; do
@@ -121,9 +143,13 @@ jobs:
               -destination "platform=iOS Simulator,id=$udid" \
               -derivedDataPath DerivedData \
               -resultBundlePath "TestResults-$name.xcresult" \
-              "${only[@]}" \
+              -test-timeouts-enabled YES \
+              -default-test-execution-time-allowance 240 \
+              -maximum-test-execution-time-allowance 420 \
+              "${only[@]}" "${skip[@]}" \
               CODE_SIGNING_ALLOWED=NO > "test-$name.log" 2>&1 || echo "FAILED=$name" >> failed.txt
             tail -n 40 "test-$name.log"
+            grep -E "Test Case .* (passed|failed)" "test-$name.log" | sed 's/^.*Test Case //' > "evidence/results-$name.txt" || true
             xcrun xcresulttool get test-results summary --path "TestResults-$name.xcresult" --compact > "evidence/summary-$name.json" || true
           done
           test ! -e failed.txt || { cat failed.txt; exit 1; }
