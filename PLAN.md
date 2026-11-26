@@ -576,16 +576,22 @@ Not doing: a custom navigation container, per-token haptics, pull-to-refresh on 
 
 ## Review findings
 
-Reviewer passes over main up to 66ef975 (2026-11-26). Fixed items are in `fix(...)` commits; the lines below were left for the owning lane. One line each; delete a line when it is done.
+Reviewer passes over main up to 8e275cd (2026-11-27). Fixed items are in `fix(...)` commits; the lines below were left for the owning lane. One line each; delete a line when it is done.
 
-- App/AnyRouterApp.swift:14 and Core/Records.swift:63 — `fatalError` when the store fails to open and no `VersionedSchema` or migration plan exists, so the first schema change bricks launch for installed copies. Add a versioned schema before the next `@Model` change. Owner: lane A.
-- Features/ModelPicker/ModelPickerSheet.swift:17 — the picker never refreshes on open, so a download that finishes while the Hub is not on screen is missing from the list until the next refresh. Add `.task { await models.refresh() }`. Owner: lane D (picker).
-- Engines/AnyRouter/AnyRouterEngine.swift:76 — the stream loop reads one byte at a time from `AsyncBytes` and splits lines again before `SSEParser`; read bigger chunks. Owner: lane B.
-- Engines/AnyRouter/Auth/LoopbackCallback.swift:73 — accepted connections are not tracked or timed out and survive `stop()`; cancel them in `stop()` and add a short read timeout. Low risk (state check gates delivery). Owner: lane B.
-- Engines/AnyRouter/Auth/OAuthClient.swift:133 — the continuation in `present` ignores task cancellation, so a cancelled sign-in waits for the web session to end. Owner: lane B.
+- Features/Settings/AppSettings.swift:81 and Core/Telemetry.swift:130 — diagnostics sharing is on by default whenever a DSN is built in, so a release with a DSN reports without the user opting in. For a privacy-first open source chat app, default it off and ask once (onboarding or Settings). Operator decision.
+- Engines/MCP/AnyRouterToolPolicy.swift:25 — any AnyRouter tool whose name starts with `research_` runs without approval, but a research start can spend credits. Use an explicit list of read-only names, as for the others. Owner: lane T (MCP).
+- Engines/Tools/FetchURLTool.swift:17, Engines/Tools/WebSearchBinding.swift:11 — `fetch_url`, the scrape tool and `web_search` run without approval on model-chosen URLs and queries, so text injected through a page, a tool result or an attachment can send conversation text to any https host in the URL. Ask first when the URL does not appear in the user's own messages, or drop the query string. Owner: lane T.
+- Core/ChatAttachment.swift:6 — the synthesized `Decodable` needs every non-optional key (`isOCR`, `isTruncated`); the next field added makes old rows fail `try?` in `MessageRecord.attachments` and their attachments vanish. Add `init(from:)` with `decodeIfPresent` defaults before any change. Same for `ToolStep`, `ToolCall`, `ToolResult`. Owner: lane D (attachments).
+- Features/Chat/ChatViewModel.swift:200 — `try? attachmentStore.adopt` drops an attachment that failed to move, and the message is sent without it and without a notice. Report it. Owner: lane D.
+- Core/Records.swift:75 — `attachments`, `metadata` and `toolSteps` decode JSON on every access, and rows read them on every render. Decode once per row or cache. Owner: perf lane.
+- Engines/Local/GGUF/GGUFEngine.swift:25 — `warm` is not behind the generation gate, so a warm-up and a send for another model can load two models at once. Take the gate in `warm` or have the cache load one at a time. Owner: lane C.
+- App/AnyRouterApp.swift:16 and Core/Records.swift — `fatalError` when the store fails to open and no `VersionedSchema` or migration plan exists; the new optional fields migrate on their own, but the first rename or required field bricks launch. Add a versioned schema, or move the store aside and start empty with a notice. Owner: lane A.
+- Engines/AnyRouter/AnyRouterEngine.swift:146 — the stream loop reads one byte at a time from `AsyncBytes` and splits lines again before `SSEParser`; read bigger chunks. Same in MCPClient.read and FetchURLTool. Owner: lane B.
+- Engines/AnyRouter/Auth/LoopbackCallback.swift:68 — accepted connections are not tracked or timed out and survive `stop()`. Low risk (state check gates delivery). Owner: lane B.
 - Features/Presets/PresetStore.swift:23 — a presets file that fails to decode is treated as empty and the next save overwrites it. Move the bad file aside first. Owner: presets lane.
-- .github/workflows/device-ipa.yml:5 — a second full macOS device build still runs on every push to main next to `ci.yml` (macOS minutes cost 10x); build the IPA on `workflow_dispatch` or nightly. Owner: lane A (CI).
-- Not reviewed in depth: Design/, Features/Presets views, Onboarding, MarkdownTheme, HubLogic and the screenshot and smoke workflows (read for secrets and injection only; none found).
+- Features/ModelPicker/ModelPickerSheet.swift:312 — the list is refreshed on sign-in only; a download that finishes while the Hub is closed shows up after the next refresh. Refresh on open. Owner: lane D (picker).
+- .github/workflows/device-ipa.yml:5 — a second full macOS device build runs on every push to main next to `ci.yml` (macOS minutes cost 10x); build the IPA on `workflow_dispatch` or nightly. Owner: lane A (CI).
+- Not reviewed in depth: Hub families and filters UI, the picker and Decisions screens, onboarding, the drawer shell, screenshot and perf tests.
 
 ## Status log
 
