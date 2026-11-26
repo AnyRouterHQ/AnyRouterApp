@@ -2,7 +2,8 @@ import CoreGraphics
 
 /// Pure geometry and thresholds for the iPhone sidebar drawer.
 enum DrawerLogic {
-    static let widthFraction: CGFloat = 0.82
+    /// The chat keeps this much of the screen visible next to the open drawer.
+    static let peek: CGFloat = 64
     static let maxWidth: CGFloat = 360
     /// A closed drawer opens only from a drag that starts this close to the left edge.
     static let edgeWidth: CGFloat = 24
@@ -11,7 +12,7 @@ enum DrawerLogic {
     static let grabWidth: CGFloat = 32
 
     static func width(forScreen screenWidth: CGFloat) -> CGFloat {
-        min(screenWidth * widthFraction, maxWidth)
+        max(0, min(screenWidth - peek, maxWidth))
     }
 
     /// 0 closed ... 1 open, following the finger and clamped.

@@ -64,36 +64,31 @@ struct HomeTests {
         #expect(stored?.thinkingEnabled == false)
     }
 
-    @Test func secondaryTextKeepsContrastOnEveryMeshColor() {
-        func luminance(_ hex: UInt32) -> Double {
-            func lin(_ v: UInt32) -> Double {
-                let c = Double(v) / 255
-                return c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
-            }
-            return 0.2126 * lin((hex >> 16) & 0xFF) + 0.7152 * lin((hex >> 8) & 0xFF) + 0.0722 * lin(hex & 0xFF)
+    @Test func labelsKeepContrastOnTheTopWash() {
+        func channel(_ v: Double) -> Double { v <= 0.03928 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+        func luminance(_ rgb: (Double, Double, Double)) -> Double {
+            0.2126 * channel(rgb.0) + 0.7152 * channel(rgb.1) + 0.0722 * channel(rgb.2)
         }
-        func contrast(_ a: UInt32, _ b: UInt32) -> Double {
+        func hex(_ v: UInt32) -> (Double, Double, Double) {
+            (Double((v >> 16) & 0xFF) / 255, Double((v >> 8) & 0xFF) / 255, Double(v & 0xFF) / 255)
+        }
+        func blend(_ top: (Double, Double, Double), _ base: (Double, Double, Double), _ alpha: Double) -> (Double, Double, Double) {
+            (top.0 * alpha + base.0 * (1 - alpha), top.1 * alpha + base.1 * (1 - alpha), top.2 * alpha + base.2 * (1 - alpha))
+        }
+        func contrast(_ a: (Double, Double, Double), _ b: (Double, Double, Double)) -> Double {
             let (x, y) = (luminance(a), luminance(b))
             return (max(x, y) + 0.05) / (min(x, y) + 0.05)
         }
-        for hex in ARHomePalette.lightMesh {
-            #expect(contrast(ARHomePalette.lightSecondaryText, hex) >= 4.5, "light \(String(hex, radix: 16))")
-            #expect(contrast(0x0A0A0A, hex) >= 4.5)
-        }
-        for hex in ARHomePalette.darkMesh {
-            #expect(contrast(ARHomePalette.darkSecondaryText, hex) >= 4.5, "dark \(String(hex, radix: 16))")
-            #expect(contrast(0xFAFAFA, hex) >= 4.5)
-        }
+        // Accent and label values from ARColor, over the system background at the darkest point of the wash.
+        let light = blend(hex(0xBB4D00), hex(0xFFFFFF), ARHomeWash.topOpacityLight)
+        let dark = blend(hex(0xE87D45), hex(0x000000), ARHomeWash.topOpacityDark)
+        #expect(contrast(hex(0x0A0A0A), light) >= 4.5)
+        #expect(contrast(hex(0xFAFAFA), dark) >= 4.5)
     }
 
-    @Test func meshIsCompleteAndMotionStaysSmall() {
-        #expect(ARHomePalette.lightMesh.count == 9 && ARHomePalette.darkMesh.count == 9)
-        let still = ARHomePalette.points(at: 0)
-        #expect(still.count == 9)
-        for t in stride(from: 0.0, to: 120.0, by: 7) {
-            let p = ARHomePalette.points(at: t)
-            #expect(p[0] == [0, 0] && p[8] == [1, 1])
-            #expect(abs(p[4].x - 0.5) <= 0.07 + 0.001 && abs(p[4].y - 0.45) <= 0.06 + 0.001)
-        }
+    @Test func washIsSubtleAndFadesBeforeTheMiddle() {
+        #expect(ARHomeWash.topOpacityLight <= 0.14 && ARHomeWash.topOpacityDark <= 0.22)
+        #expect(ARHomeWash.topOpacityDark > ARHomeWash.topOpacityLight)
+        #expect(ARHomeWash.fadeEnd <= 0.5)
     }
 }

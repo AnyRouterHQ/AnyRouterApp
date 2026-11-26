@@ -14,7 +14,7 @@ struct AppShell: View {
         Group {
             if isRegular { PadShell() } else { PhoneShell() }
         }
-        .background(ARColor.background.ignoresSafeArea())
+        .background(Color(.systemBackground).ignoresSafeArea())
         .sheet(isPresented: Bindable(shell).isSettingsPresented) { SettingsScreen() }
         .sheet(isPresented: Bindable(shell).isHubPresented) { HubSheet() }
         .sheet(isPresented: Bindable(shell).isDecisionsPresented) { DecisionsSheet() }
@@ -48,7 +48,6 @@ private struct PadShell: View {
         NavigationSplitView(columnVisibility: visibility) {
             ThreadSidebar(isDrawer: false)
                 .navigationSplitViewColumnWidth(min: 320, ideal: 320, max: 320)
-                .toolbar(.hidden, for: .navigationBar)
         } detail: {
             Detail()
         }
@@ -60,6 +59,8 @@ private struct PhoneShell: View {
     @Environment(ShellModel.self) private var shell
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// Full screen width, measured on the container that ignores the safe area.
+    @State private var screenWidth: CGFloat = 390
     /// Finger offset while a drag is tracked; the drawer follows it directly, without animation.
     @State private var dragX: CGFloat = 0
     /// nil until the first movement decides whether the drag belongs to the drawer.
@@ -70,50 +71,51 @@ private struct PhoneShell: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            let width = DrawerLogic.width(forScreen: geo.size.width)
-            let progress = DrawerLogic.progress(isOpen: shell.isSidebarOpen, drag: dragX, width: width)
-            ZStack(alignment: .leading) {
-                if reduceMotion {
-                    chat(progress: progress, shifted: false, width: geo.size.width)
-                    ThreadSidebar(isDrawer: true)
-                        .frame(width: width)
-                        .frame(maxHeight: .infinity)
-                        .opacity(progress)
-                        .allowsHitTesting(shell.isSidebarOpen)
-                        .accessibilityHidden(!shell.isSidebarOpen)
-                } else {
-                    ThreadSidebar(isDrawer: true)
-                        .frame(width: width)
-                        .frame(maxHeight: .infinity)
-                        .accessibilityHidden(!shell.isSidebarOpen)
-                    chat(progress: progress, shifted: true, width: geo.size.width)
-                        .offset(x: progress * width)
-                }
+        let width = DrawerLogic.width(forScreen: screenWidth)
+        let progress = DrawerLogic.progress(isOpen: shell.isSidebarOpen, drag: dragX, width: width)
+        // The container fills the screen, status bar and home indicator included. The chat and the
+        // sidebar are full-height siblings: the chat slides next to the sidebar and never covers it.
+        // Their navigation stacks apply the real safe area to their own content.
+        ZStack(alignment: .leading) {
+            Color(.systemBackground)
+            if reduceMotion {
+                chat(progress: progress, width: width)
+                sidebar(width: width).opacity(progress)
+            } else {
+                sidebar(width: width)
+                chat(progress: progress, width: width).offset(x: progress * width)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .simultaneousGesture(drag(width: width))
-            .animation(settle, value: shell.isSidebarOpen)
         }
+        .ignoresSafeArea(.container)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { screenWidth = $0 }
+        .contentShape(Rectangle())
+        .simultaneousGesture(drag(width: width))
+        .animation(settle, value: shell.isSidebarOpen)
     }
 
-    private func chat(progress: CGFloat, shifted: Bool, width: CGFloat) -> some View {
-        Detail()
+    private func sidebar(width: CGFloat) -> some View {
+        ThreadSidebar(isDrawer: true)
             .frame(width: width)
-            .background(ARColor.background)
+            .frame(maxHeight: .infinity)
+            .allowsHitTesting(shell.isSidebarOpen)
+            .accessibilityHidden(!shell.isSidebarOpen)
+    }
+
+    private func chat(progress: CGFloat, width: CGFloat) -> some View {
+        Detail()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemBackground))
             .allowsHitTesting(!shell.isSidebarOpen)
             .accessibilityHidden(shell.isSidebarOpen)
             .overlay {
-                Color.black.opacity(0.22 * progress)
+                // Dims the chat and closes the drawer on tap. It covers the whole chat, edge to edge.
+                Color.black.opacity(0.2 * progress)
                     .allowsHitTesting(shell.isSidebarOpen)
                     .onTapGesture { setOpen(false) }
                     .accessibilityLabel("Close sidebar")
                     .accessibilityAddTraits(.isButton)
                     .accessibilityHidden(!shell.isSidebarOpen)
             }
-            .clipShape(RoundedRectangle(cornerRadius: shifted ? 28 * progress : 0, style: .continuous))
-            .shadow(color: .black.opacity(shifted ? 0.18 * progress : 0), radius: 18)
     }
 
     private func drag(width: CGFloat) -> some Gesture {

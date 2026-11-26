@@ -3,9 +3,10 @@ import Testing
 @testable import AnyRouter
 
 struct DrawerLogicTests {
-    @Test func widthIs82PercentCappedAt360() {
-        #expect(DrawerLogic.width(forScreen: 390) == 390 * 0.82)
+    @Test func widthLeavesA64ptPeekAndCapsAt360() {
+        #expect(DrawerLogic.width(forScreen: 390) == 326)
         #expect(DrawerLogic.width(forScreen: 600) == 360)
+        #expect(DrawerLogic.width(forScreen: 40) == 0)
     }
 
     @Test func progressFollowsTheFingerAndClamps() {

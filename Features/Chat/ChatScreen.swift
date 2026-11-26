@@ -28,6 +28,7 @@ struct ChatScreen: View {
             if sizeClass == .compact {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { shell.toggleSidebar() } label: { Image(systemName: "line.3.horizontal") }
+                        .tint(.primary)
                         .accessibilityLabel("Menu")
                 }
             }
@@ -36,7 +37,8 @@ struct ChatScreen: View {
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
                 MemoryMenu()
-                Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "plus") }
+                Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "square.and.pencil") }
+                    .tint(.primary)
                     .accessibilityLabel("New chat")
             }
         }
@@ -97,7 +99,7 @@ private struct ChatContent: View {
                 .font(.system(size: 32, weight: .bold))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(ARColor.foreground)
-            Text(subtitle).font(.arSM).foregroundStyle(ARHomePalette.secondaryText)
+            Text(subtitle).font(.arSM).foregroundStyle(.secondary)
             Spacer()
             PresetSuggestions(store: presets, onPick: { chat.usePreset($0) }, onSend: { chat.sendNow($0) })
                 .padding(.bottom, 8)

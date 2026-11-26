@@ -20,7 +20,7 @@ struct PresetSuggestions: View {
                 Button { salt &+= 1 } label: {
                     Image(systemName: "shuffle")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(ARHomePalette.secondaryText)
+                        .foregroundStyle(.secondary)
                         .frame(width: 40, height: 52)
                         .background(ARColor.card.opacity(0.7), in: Capsule())
                         .overlay(Capsule().strokeBorder(ARColor.border, lineWidth: 1))
@@ -35,7 +35,7 @@ struct PresetSuggestions: View {
     private func chip(_ preset: PromptPreset) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(preset.title).font(.arSM.weight(.semibold)).foregroundStyle(ARColor.foreground).lineLimit(1)
-            Text(preset.prompt).font(.arXS).foregroundStyle(ARHomePalette.secondaryText).lineLimit(1)
+            Text(preset.prompt).font(.arXS).foregroundStyle(.secondary).lineLimit(1)
         }
         .frame(width: 190, alignment: .leading)
         .padding(.horizontal, 14)
