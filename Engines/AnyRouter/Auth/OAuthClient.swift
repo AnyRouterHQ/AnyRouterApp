@@ -14,7 +14,7 @@ struct IssuedToken: Sendable {
 /// domain. So the browser is redirected to a loopback port and the web session is
 /// cancelled once that listener has the code. PKCE stays in the app.
 @MainActor
-final class OAuthClient: NSObject, ASWebAuthenticationPresentationContextProviding {
+final class OAuthClient: NSObject, OAuthSigning, ASWebAuthenticationPresentationContextProviding {
     enum Failure: LocalizedError {
         case message(String)
         case cancelled

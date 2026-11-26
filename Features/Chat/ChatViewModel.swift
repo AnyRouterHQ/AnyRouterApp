@@ -21,10 +21,13 @@ final class ChatViewModel {
     @ObservationIgnored private let registry: EngineRegistry
     @ObservationIgnored private let settings: AppSettings
     @ObservationIgnored private let models: ModelStore
+    @ObservationIgnored private let save: (ModelContext) throws -> Void
     @ObservationIgnored private var task: Task<Void, Never>?
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
-         settings: AppSettings, models: ModelStore) {
+         settings: AppSettings, models: ModelStore,
+         save: @escaping (ModelContext) throws -> Void = { try $0.save() }) {
+        self.save = save
         self.thread = thread
         self.context = context
         self.registry = registry
@@ -123,8 +126,8 @@ final class ChatViewModel {
             var failure: String?
             do {
                 for try await delta in stream {
-                    if Task.isCancelled { break }
-                    if case .text(let piece) = delta { assistant.content += piece }
+                    // A chunk that was already buffered when the user pressed stop is dropped.
+                    if case .text(let piece) = delta, !Task.isCancelled { assistant.content += piece }
                 }
             } catch is CancellationError {
                 // Stopped by the user.
@@ -144,7 +147,7 @@ final class ChatViewModel {
         task = nil
         errorMessage = failure
         do {
-            try context.save()
+            try save(context)
         } catch {
             errorMessage = "Could not save the chat: \(error.localizedDescription)"
         }
