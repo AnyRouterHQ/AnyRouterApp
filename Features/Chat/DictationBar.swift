@@ -68,7 +68,7 @@ struct VoicePermissionSheet: View {
                 .font(.body)
                 .multilineTextAlignment(.center)
             Button(action: onContinue) {
-                Text("Continue").frame(maxWidth: .infinity)
+                Text("Continue").prominentLabel().frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)

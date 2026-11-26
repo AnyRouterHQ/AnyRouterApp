@@ -32,7 +32,7 @@ struct CloudListEmptyState: View {
             } description: {
                 Text(message)
             } actions: {
-                Button("Retry", action: retry)
+                Button(action: retry) { Text("Retry").prominentLabel() }
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("cloud-list.retry")
             }

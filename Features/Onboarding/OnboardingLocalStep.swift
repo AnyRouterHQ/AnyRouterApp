@@ -35,7 +35,7 @@ struct OnboardingLocalStep: View {
         .navigationTitle("On-device")
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
-            Button { finish() } label: { Text("Continue").frame(maxWidth: .infinity) }
+            Button { finish() } label: { Text("Continue").prominentLabel().frame(maxWidth: .infinity) }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .disabled(localState != .installed)

@@ -14,8 +14,9 @@ struct MarkdownReply: View {
         let blocks = MarkdownBlocks.split(text)
         Perf.signposter.endInterval("markdown.split", signpost)
         return VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+            ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 MarkdownBlock(text: block, size: size).equatable()
+                    .padding(.top, index == 0 ? 0 : size * MarkdownBlocks.gap(before: block, after: blocks[index - 1]))
             }
         }
     }

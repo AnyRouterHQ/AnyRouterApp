@@ -102,7 +102,7 @@ struct ThreadSidebar: View {
             .accessibilityIdentifier("sidebar.settings")
             Spacer()
             Button { shell.newChat(closeSidebar: isDrawer) } label: {
-                Label("New chat", systemImage: "plus").frame(minHeight: 44)
+                Label("New chat", systemImage: "plus").prominentLabel().frame(minHeight: 44)
             }
             .buttonStyle(.glassProminent)
             .buttonBorderShape(.capsule)

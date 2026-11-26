@@ -35,6 +35,29 @@ enum MarkdownBlocks {
         return blocks
     }
 
+    enum Kind: Equatable { case heading, code, list, other }
+
+    /// What a block is, from its first line: a heading, a fenced code block, a list, or anything else.
+    static func kind(of block: String) -> Kind {
+        let first = block.prefix(while: { $0 != "\n" })
+        let text = first.drop(while: { $0 == " " })
+        if text.hasPrefix("#") { return .heading }
+        if text.hasPrefix("```") || text.hasPrefix("~~~") { return .code }
+        if isListItem(first) { return .list }
+        return .other
+    }
+
+    /// The space above a block, in ems of the body text size: about 0.7 between paragraphs, a little more around
+    /// lists and code, more above a heading and less below it, so a heading stays with what it introduces.
+    /// Lists keep their own tight spacing inside; this is only the space between blocks.
+    static func gap(before block: String, after previous: String) -> Double {
+        let (above, below) = (kind(of: previous), kind(of: block))
+        if above == .heading { return 0.4 }
+        if below == .heading { return 1.1 }
+        if above == .code || above == .list || below == .code || below == .list { return 0.9 }
+        return 0.7
+    }
+
     private static func startsNewBlock(_ line: Substring, after first: Substring) -> Bool {
         if line.first?.isWhitespace == true { return false }
         return !(isListItem(line) && isListItem(first))

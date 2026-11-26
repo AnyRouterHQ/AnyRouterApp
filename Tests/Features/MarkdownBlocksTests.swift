@@ -74,4 +74,23 @@ struct MarkdownBlocksTests {
         let streaming = "intro\n\n```swift\nlet a = 1\n\nlet b"
         #expect(MarkdownBlocks.split(streaming) == ["intro", "```swift\nlet a = 1\n\nlet b"])
     }
+
+    @Test func eachBlockIsKnownByItsFirstLine() {
+        #expect(MarkdownBlocks.kind(of: "## Title") == .heading)
+        #expect(MarkdownBlocks.kind(of: "```swift\nlet a = 1\n```") == .code)
+        #expect(MarkdownBlocks.kind(of: "~~~\nx\n~~~") == .code)
+        #expect(MarkdownBlocks.kind(of: "- one\n- two") == .list)
+        #expect(MarkdownBlocks.kind(of: "1. one") == .list)
+        #expect(MarkdownBlocks.kind(of: "Plain words") == .other)
+    }
+
+    @Test func blocksAreSpacedByWhatTheyAre() {
+        #expect(MarkdownBlocks.gap(before: "Second paragraph", after: "First paragraph") == 0.7)
+        #expect(MarkdownBlocks.gap(before: "- item", after: "Key points:") == 0.9)
+        #expect(MarkdownBlocks.gap(before: "Closing sentence.", after: "```\ncode\n```") == 0.9)
+        #expect(MarkdownBlocks.gap(before: "```\ncode\n```", after: "Intro") == 0.9)
+        #expect(MarkdownBlocks.gap(before: "Paragraph", after: "- item") == 0.9)
+        #expect(MarkdownBlocks.gap(before: "## Next", after: "Paragraph") == 1.1)
+        #expect(MarkdownBlocks.gap(before: "Text under it", after: "## Heading") == 0.4)
+    }
 }

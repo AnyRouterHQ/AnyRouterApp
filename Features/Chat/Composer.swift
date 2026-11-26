@@ -289,6 +289,7 @@ struct Composer: View {
                     .symbolEffect(.pulse, isActive: action == .stopDictation)
             }
             .labelStyle(.iconOnly)
+            .prominentLabel()
         }
         .buttonStyle(.glassProminent)
         .buttonBorderShape(.circle)

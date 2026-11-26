@@ -20,7 +20,7 @@ struct CloudSignInSheet: View {
                 .multilineTextAlignment(.center)
             if let error { Text(error).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center) }
             VStack(spacing: 8) {
-                Button { signIn(.signIn) } label: { Text("Sign in").frame(maxWidth: .infinity) }
+                Button { signIn(.signIn) } label: { Text("Sign in").prominentLabel().frame(maxWidth: .infinity) }
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("cloud-signin.sign-in")
                 Button { signIn(.signUp) } label: { Text("Create account").frame(maxWidth: .infinity) }

@@ -101,7 +101,7 @@ struct AnyRouterModelsScreen: View {
                 Text("AnyRouter picks the best model for each message.")
                 if let signInError { Text(signInError).foregroundStyle(.red) }
             } actions: {
-                Button("Sign in with AnyRouter") { signIn() }.buttonStyle(.borderedProminent)
+                Button { signIn() } label: { Text("Sign in with AnyRouter").prominentLabel() }.buttonStyle(.borderedProminent)
             }
         case .signingIn:
             ProgressView("Signing in…")

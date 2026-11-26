@@ -77,6 +77,7 @@ struct OnboardingScreen: View {
                         Text(signedIn ? "Continue" : "Continue with AnyRouter")
                     }
                 }
+                .prominentLabel()
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
