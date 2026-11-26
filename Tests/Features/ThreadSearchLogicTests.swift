@@ -49,11 +49,11 @@ struct ThreadSearchLogicTests {
 
     @Test func bodyMatchCarriesTheTextAroundIt() throws {
         let c = try makeContext()
-        let hits = ThreadSearchLogic.results(
-            in: [thread(c, "Untitled", messages: ["how do actors work in Swift"]), thread(c, "Other", messages: ["hello"])],
-            query: "ACTORS")
+        let match = thread(c, "Untitled", messages: ["hello", "how do actors work in Swift", "actors again, later"])
+        let hits = ThreadSearchLogic.results(in: [match, thread(c, "Other", messages: ["hello"])], query: "ACTORS")
         #expect(titles(hits) == ["Untitled"])
-        #expect(hits.first?.snippet == "how do actors work in Swift")
+        #expect(hits.first?.id == match.id)
+        #expect(hits.first?.snippet == "how do actors work in Swift", "the first message that matches, in creation order")
     }
 
     @Test func longBodyIsCutAroundTheMatchOnOneLine() throws {
