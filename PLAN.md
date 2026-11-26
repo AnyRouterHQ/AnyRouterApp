@@ -31,6 +31,7 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that copies the Atomic Ch
 | D12 | UI-facing service protocols live in `Features/Services/`: `AccountService` (sign-in state; lane B conforms, `@MainActor @Observable` class) and `ModelHubService` (catalog, download state, search, custom repos; lane C conforms). Lane D ships inert defaults in `AppState` (`account`, `hub`); B/C assign their real service there. | UI never imports engine types. |
 | D13 | Markdown rendering uses `gonzalezreal/swift-markdown-ui` (MarkdownUI 2.4.x) | Maintained, SwiftUI-native, themeable to Atomic's markdown.css. |
 | D10 | Persistence: SwiftData for threads/messages; Keychain for the AnyRouter key; `UserDefaults` for settings | Simplest native stack. |
+| D12 | llama.cpp is pinned to release b10456 through a local package `Packages/LlamaBinary` (binaryTarget + checksum) | b10456 is the newest official xcframework with iOS Simulator and device slices. From b10488 on, releases ship device slices only, and CI builds for Simulator. Revisit when upstream restores the simulator slice. |
 
 ## Out of scope for v1
 
