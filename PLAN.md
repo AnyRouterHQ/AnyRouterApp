@@ -162,6 +162,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - 2026-11-26 lane-D: chat screen, composer, markdown (MarkdownUI), view model tests (#9); AppState now registers the Apple and AnyRouter engines; local checks skipped
 - 2026-11-26 lane-D: model picker, hub, `LocalModelHub` adapter, background session app delegate (#12); local checks skipped
 - 2026-11-26 lane-D: settings, onboarding, licenses (#13); lane D tasks D1-D7 done; local checks skipped
+- 2026-11-26 lane-D: engine wiring: GGUF and MLX registered, increased-memory-limit entitlement, MLX unavailable reason in the hub; restore and background session handler already wired in #12 (#14); local checks skipped
 - 2026-11-26 lane-A: hygiene (gitleaks, dependabot, templates, README, notices) (#3); PR #1 merged, CI green
 - 2026-11-26 lane-B: Apple + AnyRouter engines, OAuth sign-in, SSE/PKCE tests (#2); local checks skipped, CI is the gate
 - 2026-11-26 lane-C: catalog, HF client, device fit, background downloads and installer with tests (#7); local checks skipped

@@ -8,7 +8,7 @@ enum OnboardingLogic {
 
     /// First catalog entry that fits the device and is small; else the smallest one that fits at all.
     static func recommendedLocal(in catalog: [LocalModelEntry]) -> LocalModelEntry? {
-        let usable = catalog.filter { $0.fit != .wontFit }
+        let usable = catalog.filter { $0.fit != .wontFit && $0.unavailableReason == nil }
         if let small = usable.first(where: { ($0.descriptor.sizeBytes ?? .max) <= recommendedMaxBytes }) { return small }
         return usable.min { ($0.descriptor.sizeBytes ?? .max) < ($1.descriptor.sizeBytes ?? .max) }
     }

@@ -19,6 +19,13 @@ struct OnboardingLogicTests {
         #expect(OnboardingLogic.recommendedLocal(in: catalog)?.id == "ok")
     }
 
+    @Test func skipsModelsThatCannotRunOnThisDevice() {
+        var mlx = entry("mlx", size: 400_000_000)
+        mlx.unavailableReason = "MLX needs a GPU"
+        let catalog = [mlx, entry("gguf", size: 900_000_000)]
+        #expect(OnboardingLogic.recommendedLocal(in: catalog)?.id == "gguf")
+    }
+
     @Test func fallsBackToSmallestWhenNothingIsSmall() {
         let catalog = [entry("b", size: 4_000_000_000), entry("a", size: 2_000_000_000)]
         #expect(OnboardingLogic.recommendedLocal(in: catalog)?.id == "a")
