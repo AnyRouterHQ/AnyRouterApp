@@ -36,6 +36,8 @@ final class MemoryMonitor {
     @ObservationIgnored private let unloadAll: @Sendable () async -> Void
     @ObservationIgnored private let readDiagnostics: @Sendable () -> MemoryDiagnostics
     @ObservationIgnored private var backgroundTimer: Task<Void, Never>?
+    /// Scene id to "is in the background".
+    @ObservationIgnored private var scenes: [UUID: Bool] = [:]
 
     init(read: @escaping @Sendable () -> MemoryReadout,
          loaded: @escaping @Sendable () async -> String?,
@@ -69,13 +71,25 @@ final class MemoryMonitor {
         await refresh()
     }
 
-    /// Call when the app goes to the background and when it comes back. A model left loaded in the background is
-    /// the first reason the system ends the app, so it is handed back after `delay`. Coming back cancels the wait.
-    /// A reply that is still running keeps its own reference to the model, so this never cuts it short.
-    func appInBackground(_ inBackground: Bool, after delay: Duration = .seconds(300)) {
+    /// Each window (scene) reports its phase. A model left loaded while every window is in the background is the
+    /// first reason the system ends the app, so it is handed back after `delay`. Any window coming back cancels the
+    /// wait, so a model another iPad window is using is never unloaded. A reply that is still running keeps its own
+    /// reference to the model, so this never cuts it short.
+    func scene(_ id: UUID, inBackground: Bool, after delay: Duration = .seconds(300)) {
+        scenes[id] = inBackground
+        reschedule(after: delay)
+    }
+
+    /// A window was closed: it no longer counts as using the model.
+    func sceneClosed(_ id: UUID, after delay: Duration = .seconds(300)) {
+        scenes[id] = nil
+        reschedule(after: delay)
+    }
+
+    private func reschedule(after delay: Duration) {
         backgroundTimer?.cancel()
         backgroundTimer = nil
-        guard inBackground else { return }
+        guard !scenes.isEmpty, scenes.values.allSatisfy({ $0 }) else { return }
         backgroundTimer = Task { [weak self] in
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }

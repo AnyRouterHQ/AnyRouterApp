@@ -6,6 +6,8 @@ struct RootView: View {
     @State private var shell = ShellModel(selectedThreadID: DemoData.initialThreadID)
     @State private var showsOnboarding = false
     @Environment(\.scenePhase) private var scenePhase
+    /// This window's id for the memory monitor, which unloads only when every window is in the background.
+    @State private var sceneID = UUID()
 
     var body: some View {
         AppShell()
@@ -18,7 +20,7 @@ struct RootView: View {
                 WindowAppearance.apply(appearance)
             }
             .onChange(of: scenePhase) { _, phase in
-                appState.memory.appInBackground(phase == .background)
+                appState.memory.scene(sceneID, inBackground: phase == .background)
                 // A scene connected after launch has no override or tap recognizer yet.
                 if phase == .active {
                     WindowAppearance.apply(appState.settings.appearance)
@@ -26,6 +28,7 @@ struct RootView: View {
                 }
             }
             .onAppear { KeyboardDismissal.install() }
+            .onDisappear { appState.memory.sceneClosed(sceneID) }
             .fullScreenCover(isPresented: $showsOnboarding) {
                 OnboardingScreen {
                     appState.settings.hasOnboarded = true
