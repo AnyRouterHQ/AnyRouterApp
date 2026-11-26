@@ -231,8 +231,8 @@ Entry points (reach AnyRouter from anywhere on the phone; owner sonnet-medium-lo
 - [x] LA18 (6819aaa; the @/plugin list entry waits for sonnet-high-public-tools) Reply helper: built-in "Reply to this" with tone (Polite, Short, Friendly, Formal) and language (Same, English, Vietnamese) pickers; in the launcher row and the @/plugin list; Copy button copies the answer only
 - [x] LA19 (7a24e71; the Share route comes with LA22) Read a photo: composer + menu (Camera, Photos) and Share run on-device Vision text recognition (vi, en) into the composer, with presets Translate, Split this bill, Summarize
 - [x] LA20 (44bc847) Offline mode: `NWPathMonitor`; offline skips AnyRouter models and web tools ("Offline"), the picker suggests the installed local or Apple model, a chat note says a tool was skipped
-- [ ] LA21 Control Center and Lock Screen controls (`ControlWidget`, new widget extension `dev.anyrouter.app.controls`): New chat, Voice, Paste and fix, through the LA17 intent. Edits `project.yml`
-- [ ] LA22 Share extension "Ask AnyRouter" (text, URL, PDF, image) through the App Group `group.dev.anyrouter.app`; degrades with a clear message where App Groups are not available (free Apple ID sideload). Edits `project.yml` and entitlements
+- [x] LA21 (df9b363) Control Center and Lock Screen controls (`ControlWidget`, new widget extension `dev.anyrouter.app.controls`): New chat, Voice, Paste and fix, through the LA17 intent. Edits `project.yml`
+- [x] LA22 (b48900a; App Group availability unverified on a device, see docs/sideload.md) Share extension "Ask AnyRouter" (text, URL, PDF, image) through the App Group `group.dev.anyrouter.app`; degrades with a clear message where App Groups are not available (free Apple ID sideload). Edits `project.yml` and entitlements
 
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
 

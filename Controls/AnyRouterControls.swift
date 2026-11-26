@@ -3,7 +3,7 @@ import SwiftUI
 import WidgetKit
 
 @main
-struct AnyRouterControls: WidgetBundle {
+struct ControlsBundle: WidgetBundle {
     var body: some Widget {
         NewChatControl()
         VoiceControl()
