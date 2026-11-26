@@ -58,12 +58,18 @@ final class ScreenshotTests: XCTestCase {
 
     private func open(_ app: XCUIApplication, footer title: String) {
         showSidebar(app)
-        button(app, containing: title).tap()
+        tapRow(button(app, containing: title))
+    }
+
+    /// Taps by coordinate: rows in the open drawer can report "not hittable" while they are visible.
+    private func tapRow(_ element: XCUIElement) {
+        XCTAssertTrue(element.waitForExistence(timeout: 10), "row \(element)")
+        element.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).tap()
     }
 
     private func scrollTo(_ element: XCUIElement, in app: XCUIApplication) {
         var tries = 0
-        while !element.isHittable && tries < 8 {
+        while (!element.exists || !element.isHittable) && tries < 8 {
             app.swipeUp()
             tries += 1
         }
@@ -107,7 +113,7 @@ final class ScreenshotTests: XCTestCase {
     func testChatWithMarkdown() {
         forEachAppearance { app, appearance in
             showSidebar(app)
-            app.staticTexts["Explain Swift actors"].tap()
+            tapRow(app.staticTexts["Explain Swift actors"])
             XCTAssertTrue(app.staticTexts["Key points:"].waitForExistence(timeout: 10))
             capture("chat-markdown", appearance)
         }
@@ -116,7 +122,7 @@ final class ScreenshotTests: XCTestCase {
     func testResponseDetailsAndSwitchNote() {
         forEachAppearance { app, appearance in
             showSidebar(app)
-            app.staticTexts["Switch models in a chat"].tap()
+            tapRow(app.staticTexts["Switch models in a chat"])
             XCTAssertTrue(app.staticTexts["switch-note"].waitForExistence(timeout: 10))
             capture("response-footer", appearance)
             let details = app.buttons["response-details"].firstMatch
@@ -173,7 +179,6 @@ final class ScreenshotTests: XCTestCase {
             // The sidebar has no hub entry any more: Settings > Models > Local Models.
             open(app, footer: "Settings")
             let manage = button(app, containing: "Local Models")
-            XCTAssertTrue(manage.waitForExistence(timeout: 10))
             scrollTo(manage, in: app)
             manage.tap()
             XCTAssertTrue(app.navigationBars["Local Models"].waitForExistence(timeout: 10))
@@ -185,7 +190,7 @@ final class ScreenshotTests: XCTestCase {
     func testDecisions() {
         forEachAppearance { app, appearance in
             showSidebar(app)
-            app.buttons["sidebar-decisions"].tap()
+            tapRow(app.buttons["sidebar-decisions"])
             XCTAssertTrue(app.navigationBars["Decisions"].waitForExistence(timeout: 10))
             capture("decisions", appearance)
         }
