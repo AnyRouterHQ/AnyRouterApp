@@ -17,7 +17,7 @@ struct ModelRowModel: Equatable, Identifiable {
     var detailLine: String { details.joined(separator: " · ") }
 }
 
-enum ModelRow {
+enum PickerRow {
     static let needsKeyText = "Needs your provider key"
     static let unavailableText = "Unavailable"
     static let idLimit = 34

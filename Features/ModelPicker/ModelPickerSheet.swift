@@ -211,7 +211,7 @@ struct ModelPickerSheet: View {
         Button {
             choose(model)
         } label: {
-            ModelRowView(row: ModelRow.make(model, fitBadge: fitBadge), isCurrent: currentID == model.id)
+            ModelRowView(row: PickerRow.make(model, fitBadge: fitBadge), isCurrent: currentID == model.id)
         }
         .buttonStyle(.plain)
     }
