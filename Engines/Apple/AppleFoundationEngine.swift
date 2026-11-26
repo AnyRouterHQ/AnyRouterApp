@@ -36,16 +36,22 @@ struct AppleFoundationEngine: ChatEngine {
         }
     }
 
+    /// Tool calling needs the model itself, so it is advertised only while the model is ready.
+    static func capabilities(available: Bool) -> Set<String> {
+        available ? ["chat", "tools"] : ["chat"]
+    }
+
     func availableModels() async throws -> [ModelDescriptor] {
-        [
+        let ready = Self.unavailabilityNote() == nil
+        return [
             ModelDescriptor(
                 id: Self.modelID,
                 source: .apple,
                 displayName: "Apple Intelligence",
                 contextLength: 4096,
-                capabilities: ["chat"],
+                capabilities: Self.capabilities(available: ready),
                 sizeBytes: nil,
-                isInstalled: Self.unavailabilityNote() == nil
+                isInstalled: ready
             )
         ]
     }
@@ -55,7 +61,17 @@ struct AppleFoundationEngine: ChatEngine {
         messages: [ChatMessage],
         params: GenerationParams
     ) -> AsyncThrowingStream<ChatDelta, Error> {
+        stream(model: model, messages: messages, params: params, tools: nil)
+    }
+
+    func stream(
+        model: ModelDescriptor,
+        messages: [ChatMessage],
+        params: GenerationParams,
+        tools: (any ToolHost)?
+    ) -> AsyncThrowingStream<ChatDelta, Error> {
         AsyncThrowingStream { continuation in
+            let scope = ToolRunScope()
             let task = Task {
                 do {
                     if let note = Self.unavailabilityNote() { throw Failure.unavailable(note) }
@@ -65,16 +81,28 @@ struct AppleFoundationEngine: ChatEngine {
                     } catch {
                         throw Failure.emptyPrompt
                     }
-                    let session = built.instructions.map { LanguageModelSession(instructions: $0) }
-                        ?? LanguageModelSession()
+                    var offered: [any Tool] = []
+                    if let host = tools {
+                        offered = AppleDynamicTool.make(
+                            specs: host.specs, host: host, scope: scope,
+                            emit: { delta in _ = continuation.yield(delta) })
+                    }
+                    let session = built.instructions.map { LanguageModelSession(tools: offered, instructions: $0) }
+                        ?? LanguageModelSession(tools: offered)
                     let options = GenerationOptions(
                         sampling: .random(probabilityThreshold: params.topP),
                         temperature: params.temperature,
                         maximumResponseTokens: params.maxTokens
                     )
                     var tracker = SnapshotDeltaTracker()
+                    var seenCalls = 0
                     for try await snapshot in session.streamResponse(to: built.prompt, options: options) {
                         try Task.checkCancellation()
+                        let finished = scope.finishedCalls
+                        if finished != seenCalls {
+                            seenCalls = finished
+                            tracker.markToolBoundary()
+                        }
                         if let delta = tracker.delta(for: snapshot.content) {
                             continuation.yield(.text(delta))
                         }
@@ -87,7 +115,10 @@ struct AppleFoundationEngine: ChatEngine {
                     continuation.finish(throwing: error)
                 }
             }
-            continuation.onTermination = { _ in task.cancel() }
+            continuation.onTermination = { _ in
+                task.cancel()
+                scope.cancelAll()
+            }
         }
     }
 }

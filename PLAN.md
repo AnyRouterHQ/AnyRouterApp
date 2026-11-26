@@ -170,7 +170,7 @@ Decision: a small focused client (`Engines/MCP/`) instead of the official MCP Sw
 - [x] T3 Core data shape (3e41ef6): `ToolSpec`, `ToolCall`, `ToolResult`, `ToolStep`, `ToolHost`, `ChatDelta.toolCall` / `.toolResult`, and a `stream(...tools:)` overload with a plain-text default. `ChatMessage` is unchanged on purpose: an engine runs its agent loop inside one `stream` call and reports steps as deltas; steps are kept on the assistant `MessageRecord` for display, not replayed to the model on later turns.
 - [x] T4 AnyRouter engine (a9f68eb, 728056a): enabled tools sent as OpenAI `tools` (catalog tag `function-calling` maps to the `tools` capability), streamed `tool_calls` fragments joined by index, agent loop (max 8 rounds, then `tool_choice: none`), one summed usage delta, cancel-safe; `MCPToolHost` runs calls through MCP with approval for tools not marked read-only and per-tool "always allow"
 - [x] T5 Chat UI (c6b1b4b): tool-call rows (expandable), approval sheet for tools not marked read-only, "Tools" toggle in the composer and menu
-- [ ] T6 Apple Foundation Models: wrap enabled tools as `Tool` conformances with a dynamic `GenerationSchema`
+- [ ] T6 Apple Foundation Models: wrap enabled tools as `Tool` conformances with a dynamic `GenerationSchema` (`Tool.Arguments = GeneratedContent` works, verified in Apple docs; first 8 tools, results capped at 6000 chars for the 4k context)
 - [ ] T7 Local GGUF and MLX tool calling (Later): needs chat-template tool rendering and parsing of the model's tool-call tokens per model family
 
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
