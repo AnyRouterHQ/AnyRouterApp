@@ -103,7 +103,7 @@ Use of space on iPad and Mac: readable line width (about 720 pt for chat), sideb
 - 5: the layout fits the size class: a readable column, a sidebar or split view where wide.
 - 3: usable but wasteful or too wide for reading.
 - 0: the phone layout stretched edge to edge, or content lost in a large empty area.
-- Deterministic part: on iPad and Mac portrait chat screens, the 90th percentile width of the text rows: up to 780 pt is 5, up to 900 pt is 4, up to 1000 pt is 2, more is 0.
+- Deterministic part: on iPad and Mac chat screens (portrait, landscape and with a sidebar open), the 90th percentile width of the widest text run in each row, where a sidebar and the chat beside it count as separate runs: up to 780 pt is 5, up to 900 pt is 4, up to 1000 pt is 2, more is 0.
 
 ### `semantics` (audit only)
 

@@ -45,7 +45,7 @@ API_BASE = "https://anyrouter.dev/api/v1"
 DEFAULT_MODEL = "anyrouter/auto"
 DEVICE_ORDER = ["iphone", "ipad-pro", "ipad-mini", "ipad", "mac"]
 SCALE = {"iphone": 3, "ipad-pro": 2, "ipad-mini": 2, "ipad": 2, "mac": 2}
-CHAT_LIKE = re.compile(r"chat|home|reply|replied|response|markdown|conversation|typed|composer")
+CHAT_LIKE = re.compile(r"chat|home|reply|replied|response|markdown|conversation|typed|composer|split|landscape")
 DRAWER_LIKE = re.compile(r"drawer|thread-list")
 SHOT_RE = re.compile(r"^(?P<dev>.+?)-(?P<variant>light|dark)-(?P<screen>.+)\.png$")
 
@@ -240,24 +240,39 @@ def check_drawer_dim(facts):
     return score, reason, lum
 
 
+RUN_GAP_PT = 48  # ink closer than this is one run of text; a sidebar and the chat beside it are two runs
+
+
 def readable_width_pt(facts, scale):
-    """90th percentile width in pt of the text rows between the toolbar and the composer, or None."""
+    """90th percentile width in pt of the widest text run per row, between the toolbar and the composer, or None.
+    Splitting a row into runs at wide gaps measures the chat column on its own when a sidebar is open (iPad
+    landscape, Mac), so the same check serves portrait, landscape and split layouts."""
     w, h = facts["size"]
-    full_w = facts["full"][0]
+    pt_per_px = facts["full"][0] / w / scale
+    gap = RUN_GAP_PT / pt_per_px
     lo, hi = int(w * 0.015), int(w * 0.985)
-    spans = []
+    widths = []
     for row in _rows(facts)[int(h * 0.12):int(h * 0.88)]:
         xs = [x for x in range(lo, hi) if _ink(row[x], facts["bg"])]
         if not xs:
             continue
-        span = xs[-1] - xs[0] + 1
-        if len(xs) / span > 0.97:  # a solid bar or hairline, not text
-            continue
-        spans.append(span / w * full_w / scale)
-    if not spans:
+        best, start, prev = 0, xs[0], xs[0]
+        for x in xs[1:] + [None]:
+            if x is None or x - prev > gap:
+                run = [i for i in xs if start <= i <= prev]
+                span = prev - start + 1
+                if len(run) / span <= 0.97:  # a solid bar or hairline is not text
+                    best = max(best, span)
+                if x is None:
+                    break
+                start = x
+            prev = x
+        if best:
+            widths.append(best * pt_per_px)
+    if not widths:
         return None
-    spans.sort()
-    return spans[min(len(spans) - 1, math.ceil(len(spans) * 0.9) - 1)]
+    widths.sort()
+    return widths[min(len(widths) - 1, math.ceil(len(widths) * 0.9) - 1)]
 
 
 def width_score(pt):
@@ -334,7 +349,7 @@ def deterministic(screen, owner, repo, criteria):
                 put("hierarchy", min(checked[0], out.get("hierarchy", {}).get("score", 5)),
                     [checked[1]] + out.get("hierarchy", {}).get("reasons", []))
         wide = screen["device"] in ("ipad-pro", "ipad-mini", "ipad", "mac")
-        if wide and facts["full"][1] >= facts["full"][0] and CHAT_LIKE.search(screen["screen"]):
+        if wide and CHAT_LIKE.search(screen["screen"]):
             pt = readable_width_pt(facts, SCALE.get(screen["device"], 2))
             if pt is not None:
                 put("space", width_score(pt), [f"text rows span {pt:.0f} pt at the 90th percentile (readable width is about 720 pt)"]

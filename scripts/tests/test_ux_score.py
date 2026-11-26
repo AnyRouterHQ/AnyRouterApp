@@ -185,13 +185,29 @@ class Deterministic(unittest.TestCase):
         self.assertEqual(self.width_score(150, 1900), 4)  # about 875 pt
         self.assertEqual(self.width_score(300, 1700), 5)  # 700 pt
 
-    def test_landscape_and_non_chat_screens_are_not_width_scored(self):
+    def landscape(self, sidebar, chat, device="ipad-pro", name="empty-chat", mac=False):
         def body(d, s):
-            text_rows(d, s, 150, 2500)
+            if sidebar:
+                text_rows(d, s, *sidebar)
+            text_rows(d, s, *chat)
+        size = (2752, 2064)
         with tempfile.TemporaryDirectory() as tmp:
-            path = save(page((2752, 2064), (255, 255, 255), body), tmp, "l.png")
-            det, _ = ux.deterministic(screen(path, device="ipad-pro"), {"lane": "x", "files": []}, tmp, ["space"])
-        self.assertNotIn("space", det)
+            path = save(page(size, (255, 255, 255), body), tmp, "l.png")
+            det, _ = ux.deterministic(screen(path, device=device, name=name), {"lane": "x", "files": []}, tmp, ["space"])
+        return det.get("space", {}).get("score")
+
+    def test_landscape_with_a_sidebar_measures_the_chat_column_alone(self):
+        # sidebar 40-600 px (280 pt) and a 600 pt chat column: five. The same layout measured as one row would be 1130 pt.
+        self.assertEqual(self.landscape((40, 600), (1300, 2500)), 5)
+        # the chat stretched across the rest of the window (about 1000 pt) is flagged
+        self.assertLessEqual(self.landscape((40, 600), (700, 2700)), 2)
+
+    def test_mac_windows_are_scored_the_same_way(self):
+        self.assertEqual(self.landscape((40, 600), (1300, 2500), device="mac"), 5)
+        self.assertLessEqual(self.landscape(None, (40, 2700), device="mac"), 2)
+
+    def test_non_chat_screens_are_not_width_scored(self):
+        self.assertIsNone(self.landscape(None, (40, 2700), name="settings"))
 
     def test_full_width_hairlines_are_not_text(self):
         def body(d, s):
