@@ -12,7 +12,11 @@ final class ToolRowTests: XCTestCase {
         // iPhone: the thread list is a drawer behind the menu button. iPad: a column, open in landscape only.
         let thread = app.staticTexts["Latest Swift news"]
         app.revealSidebar(whenVisible: thread)
+        // The drawer and the iPad column animate in; tap only once the row can take the tap.
+        let tappable = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isHittable == true"), object: thread)
+        XCTAssertEqual(XCTWaiter().wait(for: [tappable], timeout: 10), .completed, "the thread row never became tappable")
         thread.tap()
+        // The drawer closes on iPhone but the iPad column stays, so the open chat is what proves the tap worked.
 
         let rows = app.descendants(matching: .any).matching(NSPredicate(
             format: "identifier == %@ AND label BEGINSWITH %@", "tool.row", "Searched the web for"))
