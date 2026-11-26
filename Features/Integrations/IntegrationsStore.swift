@@ -66,9 +66,15 @@ final class IntegrationsStore {
 
     // MARK: Connecting
 
+    /// A Keychain read can block for seconds on a cold boot, so it never runs on the main thread.
+    private func readAnyRouterToken() async -> String? {
+        let read = anyRouterToken
+        return await Task.detached(priority: .userInitiated) { read() }.value
+    }
+
     /// Connects with a fresh session and reads the tool list.
     func refresh(_ server: MCPServer) async {
-        if server.auth == .anyRouterSignIn, anyRouterToken() == nil {
+        if server.auth == .anyRouterSignIn, await readAnyRouterToken() == nil {
             clients[server.id] = nil
             states[server.id] = ServerState(status: .needsSignIn)
             return

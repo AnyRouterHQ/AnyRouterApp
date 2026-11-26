@@ -45,7 +45,10 @@ final class AnyRouterAccountAdapter: AccountService {
     }
 
     func refreshSummary() async {
-        guard let token = auth.store.token() else {
+        let store = auth.store
+        // Off the main thread: a Keychain read can block for seconds on a cold boot.
+        let stored = await Task.detached(priority: .userInitiated) { store.token() }.value
+        guard let token = stored else {
             summary = nil
             return
         }

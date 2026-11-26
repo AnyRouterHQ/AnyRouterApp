@@ -1,8 +1,14 @@
 import Foundation
 import Security
 
+/// What `AnyRouterAuth` needs from the token store. Tests and the launch-path spies use a fake.
+protocol AuthTokenStore: TokenStoring {
+    func expiresAt() -> Date?
+    @discardableResult func save(token: String, expiresAt: Date?) -> Bool
+}
+
 /// The access token lives in the Keychain only: never UserDefaults, never a log line.
-struct KeychainStore: TokenStoring {
+struct KeychainStore: AuthTokenStore {
     private let service: String
     private let add: @Sendable (CFDictionary) -> OSStatus
     private static let tokenAccount = "oauth-access-token"

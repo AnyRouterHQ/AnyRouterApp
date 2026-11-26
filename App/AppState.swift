@@ -1,6 +1,15 @@
 import Observation
 import UIKit
 
+/// The pieces of launch that touch the Keychain, the network SDKs or UserDefaults, injectable so a test can
+/// prove none of them does blocking work inside `AppState.init`.
+struct LaunchDependencies {
+    var tokenStore: any AuthTokenStore = KeychainStore()
+    /// Remembers the sign-in state between launches, so the UI can show it before the Keychain answers.
+    var hints: UserDefaults = .standard
+    var makeTelemetry: @MainActor () -> any Telemetry = { Diagnostics.makeTelemetry() }
+}
+
 /// App-wide state and dependency root. Lanes register their engines and services here.
 @MainActor @Observable
 final class AppState {
@@ -30,10 +39,12 @@ final class AppState {
     let diagnostics = DiagnosticsStore()
     @ObservationIgnored private var metricKit: MetricKitReporter?
 
-    init() {
+    init(dependencies: LaunchDependencies = LaunchDependencies()) {
         // First, so a stall anywhere in launch is recorded (Settings > Diagnostics).
         MainThreadWatchdog.shared.start()
-        let tokenStore = KeychainStore()
+        let launchSignpost = Perf.signposter.beginInterval("launch.appstate")
+        defer { Perf.signposter.endInterval("launch.appstate", launchSignpost) }
+        let tokenStore = dependencies.tokenStore
         // Files that were picked but never sent are not kept across launches.
         if !DemoData.isEnabled { Task.detached { AttachmentStore.shared.purgePending() } }
         let integrations = IntegrationsStore(anyRouterToken: { tokenStore.token() })
@@ -51,7 +62,7 @@ final class AppState {
             decisions = DecisionsStore(service: DemoDecisionsService())
             return
         }
-        let telemetry = Diagnostics.makeTelemetry()
+        let telemetry = dependencies.makeTelemetry()
         self.telemetry = telemetry
         settings = AppSettings()
         models = ModelStore(registry: registry, telemetry: telemetry, usage: AnyRouterUsageOrder())
@@ -95,8 +106,9 @@ final class AppState {
                     physicalBytes: snapshot.physicalBytes, budgetBytes: snapshot.deviceMemory.budgetBytes,
                     limitBytes: snapshot.processLimitBytes, entitlementSigned: MemoryEntitlement.isSignedForThisApp())
             })
+        // The Keychain is read off the main thread after launch; the first frame shows the remembered state.
         let authSignpost = Perf.signposter.beginInterval("launch.auth")
-        let auth = AnyRouterAuth()
+        let auth = AnyRouterAuth(store: tokenStore, restore: .deferred, hints: dependencies.hints)
         Perf.signposter.endInterval("launch.auth", authSignpost)
         // Signing in connects the AnyRouter MCP server with the same token; signing out disconnects it.
         auth.onSignedInChange = { [integrations] in _ = integrations.accountChanged(signedIn: $0) }
