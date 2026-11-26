@@ -51,6 +51,7 @@ struct LocalModelsScreen: View {
                 Section("Installed") { ForEach(installed) { installedRow($0) } }
                     .accessibilityIdentifier("local.installed")
             }
+            voiceSection
             Section("Sources") {
                 NavigationLink {
                     CatalogSourcesScreen()
@@ -135,6 +136,30 @@ struct LocalModelsScreen: View {
             }
         }
         .accessibilityIdentifier("local.featured")
+    }
+
+    /// Voice models are listed with their size and a plain "Coming soon": the app cannot speak with them yet.
+    private var voiceSection: some View {
+        Section {
+            ForEach(VoiceModelCatalog.all) { voice in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        ModelLabel(name: voice.name, brand: .symbol("waveform"))
+                        Spacer()
+                        Text(VoiceModelCatalog.status).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    Text(voice.summary).font(.subheadline)
+                    Text(voice.detailLine).font(.subheadline).foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("voice.\(voice.id)")
+            }
+        } header: {
+            Text("Voice")
+        } footer: {
+            Text(VoiceModelCatalog.footer)
+        }
+        .accessibilityIdentifier("local.voice")
     }
 
     private var storageSection: some View {

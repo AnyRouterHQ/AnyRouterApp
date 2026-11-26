@@ -41,6 +41,19 @@ final class SettingsModelsTests: XCTestCase {
         XCTAssertTrue(reason.waitForExistence(timeout: 5), "each row says how much memory it needs")
     }
 
+    func testVoiceModelsAreListedWithSizeAndComingSoon() {
+        let app = openLocalModels()
+        let kokoro = app.descendants(matching: .any)["voice.kokoro"]
+        var tries = 0
+        while !kokoro.exists && tries < 8 {
+            app.swipeUp()
+            tries += 1
+        }
+        XCTAssertTrue(kokoro.exists)
+        XCTAssertTrue(kokoro.label.contains("Coming soon"))
+        XCTAssertTrue(kokoro.label.contains("MB"), "the size is shown")
+    }
+
     func testStarAndHideACloudModel() {
         let app = XCUIApplication()
         app.launchArguments = ["-ARDemoData", "YES"]
