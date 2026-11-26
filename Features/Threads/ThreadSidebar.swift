@@ -60,20 +60,24 @@ struct ThreadSidebar: View {
                     .frame(maxWidth: .infinity)
                     .listRowSeparator(.hidden)
             }
-            if !sections.pinned.isEmpty { Section { rows(sections.pinned) } header: { header("Pinned") } }
+            if !sections.pinned.isEmpty { Section("Pinned") { rows(sections.pinned) } }
             if !sections.recent.isEmpty {
-                Section { rows(sections.recent) } header: {
-                    header("Recents") {
+                Section {
+                    rows(sections.recent)
+                } header: {
+                    // The system header style; only the trailing button is added.
+                    HStack {
+                        Text("Recents")
+                        Spacer()
                         Button { shell.presentSearch() } label: {
                             HStack(spacing: 4) { Text("View all"); Image(systemName: "chevron.right").imageScale(.small) }
                                 .frame(minHeight: rowHeight)
                         }
-                        .foregroundStyle(.primary)
                         .accessibilityIdentifier("sidebar.viewall")
                     }
                 }
             }
-            Section { moreRows } header: { header("More") }
+            Section("More") { moreRows }
         }
         .listStyle(.plain)
         .listSectionSeparator(.hidden)
@@ -116,22 +120,6 @@ struct ThreadSidebar: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 8)
-    }
-
-    /// Section titles in the quiet secondary style, with an optional trailing control.
-    private func header(_ title: LocalizedStringKey) -> some View {
-        header(title) { EmptyView() }
-    }
-
-    private func header(_ title: LocalizedStringKey, @ViewBuilder trailing: () -> some View) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            trailing()
-        }
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-        .textCase(nil)
     }
 
     private var moreRows: some View {
