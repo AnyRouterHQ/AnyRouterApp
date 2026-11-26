@@ -157,6 +157,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [ ] F6 Vision: image attachments for AnyRouter vision models and Gemma 3 4B (VLM) via MLXVLM.
 - [ ] F7 Mac: "Designed for iPad" on Apple silicon, then a native macOS destination.
 - [ ] F8 Screenshot tests (simulator) of each main screen, compared against Atomic mobile reference screenshots.
+- [x] F9 Real-model smoke in CI: `model-smoke.yml` runs the smallest catalog GGUF through `GGUFEngine` on the Simulator, plus installer, download manager and Apple Foundation Models availability. MLX is device only. (#18)
 
 ## Open questions (operator)
 
@@ -168,6 +169,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 
 - 2026-11-26 lane-docs: rewrite README for users; contributor detail already in AGENTS.md (#17); local checks skipped
 
+- 2026-11-26 lane-F9: model-smoke workflow and Tests/Integration (GGUF real-model, installer, download manager, Apple availability); local checks skipped
 - 2026-11-26 manager: lanes A-D done (#1-#14), backlog F1-F8 added, lane E started (workflow gated on signing secrets).
 
 - 2026-11-26 manager: interviewed operator, wrote AGENTS.md + PLAN.md + base config, created public repo AnyRouterHQ/AnyRouterApp, started lanes A, B, C.
