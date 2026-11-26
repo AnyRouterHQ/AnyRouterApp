@@ -13,6 +13,8 @@ final class ModelStore {
 
     private(set) var models: [ModelDescriptor] = []
     private(set) var isLoading = false
+    /// True after the first refresh, so a missing model can be told apart from "not loaded yet".
+    private(set) var hasLoaded = false
     private var selectedID: String?
 
     init(registry: EngineRegistry, defaults: UserDefaults = .standard, telemetry: any Telemetry = NoopTelemetry()) {
@@ -22,18 +24,35 @@ final class ModelStore {
         self.selectedID = defaults.string(forKey: Self.selectedKey)
     }
 
-    /// The chosen model when it is still usable, else the first usable one.
+    /// The model for a chat that has no pick of its own. `preferredUnavailable` is set when a
+    /// pick exists but cannot be used any more, so the chat shows a notice.
+    struct Resolution: Equatable {
+        var model: ModelDescriptor?
+        var preferredUnavailable: Bool
+    }
+
+    /// The default for new chats: the last pick when still usable, else `DefaultModelPolicy`.
     var selected: ModelDescriptor? {
-        let usable = models.filter(\.isInstalled)
-        return usable.first { $0.id == selectedID } ?? usable.first
+        DefaultModelPolicy.resolve(saved: selectedID, models: models)
+    }
+
+    /// The model a chat should use, given the model id saved on its thread (nil for a new chat).
+    func resolve(preferred: String?) -> Resolution {
+        guard let preferred else { return Resolution(model: selected, preferredUnavailable: false) }
+        if let match = models.first(where: { $0.id == preferred && $0.isInstalled }) {
+            return Resolution(model: match, preferredUnavailable: false)
+        }
+        return Resolution(model: selected, preferredUnavailable: hasLoaded)
     }
 
     func refresh() async {
         isLoading = true
         models = await registry.allModels()
         isLoading = false
+        hasLoaded = true
     }
 
+    /// Remembers the pick as the default for new chats.
     func select(_ model: ModelDescriptor) {
         selectedID = model.id
         defaults.set(model.id, forKey: Self.selectedKey)
