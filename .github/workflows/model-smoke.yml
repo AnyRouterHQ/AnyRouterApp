@@ -1,0 +1,151 @@
+name: Model smoke
+
+# Runs real models on the iOS Simulator. Slow, so it is not part of ci.yml.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
+  pull_request:
+    paths:
+      - "Engines/Local/**"
+      - "Tests/Integration/**"
+      - ".github/workflows/model-smoke.yml"
+
+concurrency:
+  group: model-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then echo "No Xcode 26 on this runner"; ls /Applications | grep -i xcode; exit 1; fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Pick the smallest GGUF in the bundled catalog
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json, urllib.request
+          doc = json.load(open("Engines/Local/Catalog/catalog.json"))
+          entry = min((m for m in doc["models"] if m["format"] == "gguf"), key=lambda m: m.get("sizeBytes", 1 << 62))
+          repo, file, rev = entry["repo"], entry["file"], entry["revision"]
+          url = f"https://huggingface.co/api/models/{repo}/tree/{rev}"
+          listing = json.load(urllib.request.urlopen(url))
+          sha = next(f["lfs"]["oid"] for f in listing if f["path"] == file)
+          print(f"MODEL_REPO={repo}")
+          print(f"MODEL_FILE={file}")
+          print(f"MODEL_REV={rev}")
+          print(f"MODEL_SHA256={sha}")
+          print(f"MODEL_TITLE={entry['title']}")
+          PY
+
+      - name: Cache the model file
+        id: model-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/model
+          key: gguf-${{ env.MODEL_SHA256 }}
+
+      - name: Download the model
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/model"
+          curl -L --fail --retry 5 --retry-delay 5 -o "$RUNNER_TEMP/model/$MODEL_FILE" \
+            "https://huggingface.co/$MODEL_REPO/resolve/$MODEL_REV/$MODEL_FILE"
+
+      - name: Check the model file
+        run: |
+          ACTUAL=$(shasum -a 256 "$RUNNER_TEMP/model/$MODEL_FILE" | cut -d' ' -f1)
+          echo "expected $MODEL_SHA256"
+          echo "actual   $ACTUAL"
+          test "$ACTUAL" = "$MODEL_SHA256"
+
+      - name: Cache SwiftPM and DerivedData
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            .build
+            SourcePackages
+            DerivedData
+          key: spm-dd-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            spm-dd-${{ runner.os }}-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Pick an iPhone simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)["devices"]
+          for runtime in sorted(data, reverse=True):
+              if "iOS" not in runtime:
+                  continue
+              for d in data[runtime]:
+                  if d["name"].startswith("iPhone") and d["isAvailable"]:
+                      print(d["udid"]); sys.exit(0)
+          sys.exit(1)')
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project AnyRouter.xcodeproj -scheme AnyRouter \
+            -destination "platform=iOS Simulator,id=$SIM_UDID" \
+            -derivedDataPath DerivedData \
+            -clonedSourcePackagesDirPath SourcePackages \
+            CODE_SIGNING_ALLOWED=NO | tail -n 200
+
+      - name: Run smoke tests
+        env:
+          TEST_RUNNER_ANYROUTER_SMOKE: "1"
+          TEST_RUNNER_ANYROUTER_SMOKE_GGUF_PATH: ${{ runner.temp }}/model/${{ env.MODEL_FILE }}
+          TEST_RUNNER_ANYROUTER_SMOKE_GGUF_SHA256: ${{ env.MODEL_SHA256 }}
+          TEST_RUNNER_ANYROUTER_SMOKE_REPORT: ${{ runner.temp }}/smoke-report.md
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project AnyRouter.xcodeproj -scheme AnyRouter \
+            -destination "platform=iOS Simulator,id=$SIM_UDID" \
+            -derivedDataPath DerivedData \
+            -resultBundlePath SmokeResults.xcresult \
+            -only-testing:AnyRouterTests/GGUFModelSmokeTests \
+            -only-testing:AnyRouterTests/ModelDownloadSmokeTests \
+            -only-testing:AnyRouterTests/AppleFoundationSmokeTests \
+            CODE_SIGNING_ALLOWED=NO | tail -n 200
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Model smoke"
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            if [ -f "$RUNNER_TEMP/smoke-report.md" ]; then cat "$RUNNER_TEMP/smoke-report.md"; else echo "| report | none written, see the test log |"; fi
+            echo "| MLX | device only, the Simulator has no Metal GPU family |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: SmokeResults
+          path: SmokeResults.xcresult
+          retention-days: 7

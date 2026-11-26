@@ -1,0 +1,29 @@
+import Foundation
+
+/// Real-model smoke tests only run in `model-smoke.yml`, which sets these (as `TEST_RUNNER_*` on xcodebuild).
+enum SmokeEnv {
+    private static let env = ProcessInfo.processInfo.environment
+
+    /// `1` when the smoke job runs. Gates tests that need the network or the real Apple model.
+    static var enabled: Bool { env["ANYROUTER_SMOKE"] == "1" }
+    /// The cached GGUF file the workflow downloaded.
+    static var ggufPath: String? { env["ANYROUTER_SMOKE_GGUF_PATH"] }
+    /// Expected sha256 of that file, from the Hugging Face listing.
+    static var ggufSHA256: String? { env["ANYROUTER_SMOKE_GGUF_SHA256"] }
+}
+
+/// Collects findings as Markdown table rows for the job summary. Does nothing when `ANYROUTER_SMOKE_REPORT` is unset.
+enum SmokeReport {
+    static func record(_ key: String, _ value: String) {
+        guard let path = ProcessInfo.processInfo.environment["ANYROUTER_SMOKE_REPORT"] else { return }
+        let clean = value.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "|", with: "\\|")
+        let row = Data("| \(key) | \(clean) |\n".utf8)
+        if !FileManager.default.fileExists(atPath: path) {
+            FileManager.default.createFile(atPath: path, contents: nil)
+        }
+        guard let handle = FileHandle(forWritingAtPath: path) else { return }
+        defer { try? handle.close() }
+        _ = try? handle.seekToEnd()
+        try? handle.write(contentsOf: row)
+    }
+}
