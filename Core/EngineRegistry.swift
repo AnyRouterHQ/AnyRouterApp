@@ -12,14 +12,18 @@ final class EngineRegistry {
     }
 
     /// Models from every engine, in registration order. An engine that throws is skipped.
+    /// Engines are asked at the same time, so a slow cloud listing does not hold back the on-device models.
     func allModels() async -> [ModelDescriptor] {
-        var result: [ModelDescriptor] = []
-        for engine in engines {
-            if let models = try? await engine.availableModels() {
-                result.append(contentsOf: models)
+        let snapshot = engines
+        let listings = await withTaskGroup(of: (Int, [ModelDescriptor]).self) { group in
+            for (index, engine) in snapshot.enumerated() {
+                group.addTask { (index, (try? await engine.availableModels()) ?? []) }
             }
+            var collected: [(Int, [ModelDescriptor])] = []
+            for await listing in group { collected.append(listing) }
+            return collected
         }
-        return result
+        return listings.sorted { $0.0 < $1.0 }.flatMap { $0.1 }
     }
 
     /// Returns the engine for the model's source. With none registered, the returned engine fails its stream.

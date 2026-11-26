@@ -6,8 +6,10 @@ struct FakeEngine: ChatEngine {
     let source: ModelSource
     var models: [ModelDescriptor] = []
     var fails = false
+    var delay: Duration = .zero
 
     func availableModels() async throws -> [ModelDescriptor] {
+        if delay > .zero { try await Task.sleep(for: delay) }
         if fails { throw URLError(.notConnectedToInternet) }
         return models
     }
@@ -44,6 +46,13 @@ struct EngineRegistryTests {
         registry.register(FakeEngine(source: .anyrouter, models: [descriptor("anyrouter/a/b", .anyrouter)]))
         let ids = await registry.allModels().map(\.id)
         #expect(ids == ["apple/foundation", "anyrouter/a/b"])
+    }
+
+    @Test func allModelsKeepsRegistrationOrderWhenEnginesAnswerOutOfOrder() async {
+        let registry = EngineRegistry()
+        registry.register(FakeEngine(source: .anyrouter, models: [descriptor("anyrouter/slow", .anyrouter)], delay: .milliseconds(150)))
+        registry.register(FakeEngine(source: .apple, models: [descriptor("apple/fast", .apple)]))
+        #expect(await registry.allModels().map(\.id) == ["anyrouter/slow", "apple/fast"])
     }
 
     @Test func registeringSameSourceReplacesEngine() async {

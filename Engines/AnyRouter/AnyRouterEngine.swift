@@ -30,6 +30,8 @@ struct AnyRouterEngine: ChatEngine {
     func availableModels() async throws -> [ModelDescriptor] {
         let key = tokens.token()
         var request = URLRequest(url: config.baseURL.appending(path: "models"))
+        // The picker waits for this list; do not let a dead connection hold it for a minute.
+        request.timeoutInterval = 15
         applyHeaders(&request, key: key)
         let (data, response) = try await session.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
