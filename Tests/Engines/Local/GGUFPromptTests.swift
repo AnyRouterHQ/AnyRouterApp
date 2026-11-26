@@ -1,0 +1,104 @@
+import Foundation
+import Testing
+@testable import AnyRouter
+
+struct PromptBuilderTests {
+    private func chat(_ role: ChatMessage.Role, _ text: String) -> ChatMessage {
+        ChatMessage(role: role, content: text)
+    }
+
+    @Test func systemPromptComesFirstWhenTheChatHasNone() {
+        let result = PromptBuilder.promptMessages(from: [chat(.user, "hi")], systemPrompt: "Be brief.")
+        #expect(result == [PromptMessage(role: "system", content: "Be brief."), PromptMessage(role: "user", content: "hi")])
+    }
+
+    @Test func anExistingSystemMessageWinsOverTheParamsPrompt() {
+        let result = PromptBuilder.promptMessages(
+            from: [chat(.system, "From thread"), chat(.user, "hi")], systemPrompt: "From params")
+        #expect(result.map(\.content) == ["From thread", "hi"])
+    }
+
+    @Test func emptyOrMissingSystemPromptAddsNothing() {
+        #expect(PromptBuilder.promptMessages(from: [chat(.user, "hi")], systemPrompt: nil).count == 1)
+        #expect(PromptBuilder.promptMessages(from: [chat(.user, "hi")], systemPrompt: "").count == 1)
+    }
+
+    private let history = [
+        PromptMessage(role: "system", content: "sys"),
+        PromptMessage(role: "user", content: "u1"),
+        PromptMessage(role: "assistant", content: "a1"),
+        PromptMessage(role: "user", content: "u2"),
+        PromptMessage(role: "assistant", content: "a2"),
+        PromptMessage(role: "user", content: "u3"),
+    ]
+
+    @Test func nothingIsDroppedWhenTheChatFits() {
+        #expect(PromptBuilder.trimmed(history) { _ in true } == history)
+    }
+
+    @Test func theOldestTurnsGoFirstAndTheSystemMessageAndLastMessageStay() {
+        let result = PromptBuilder.trimmed(history) { $0.count <= 4 }
+        #expect(result?.first?.role == "system")
+        #expect(result?.last?.content == "u3")
+        #expect(result?.map(\.content) == ["sys", "u2", "a2", "u3"])
+    }
+
+    @Test func aLastMessageThatNeverFitsIsReportedNotTruncated() {
+        #expect(PromptBuilder.trimmed(history) { _ in false } == nil)
+    }
+
+    @Test func trimmingPropagatesErrorsFromTheMeasure() {
+        struct Boom: Error {}
+        #expect(throws: Boom.self) {
+            _ = try PromptBuilder.trimmed(history) { _ in throw Boom() }
+        }
+    }
+
+    @Test func chatMLFallbackOpensAnAssistantTurn() {
+        let text = ChatMLFormatter.format([
+            PromptMessage(role: "system", content: "S"), PromptMessage(role: "user", content: "U"),
+        ])
+        #expect(text == "<|im_start|>system\nS<|im_end|>\n<|im_start|>user\nU<|im_end|>\n<|im_start|>assistant\n")
+    }
+}
+
+struct UTF8AccumulatorTests {
+    @Test func plainASCIIPassesStraightThrough() {
+        var acc = UTF8Accumulator()
+        #expect(acc.append(Array("Hello".utf8)) == "Hello")
+        #expect(acc.flush() == nil)
+    }
+
+    @Test func aCharacterSplitAcrossTokensIsHeldBackUntilItIsComplete() {
+        let bytes = Array("a\u{1F600}b".utf8) // a, 4-byte emoji, b
+        var acc = UTF8Accumulator()
+        #expect(acc.append(Array(bytes[0..<2])) == "a")
+        #expect(acc.append(Array(bytes[2..<4])) == nil)
+        #expect(acc.append(Array(bytes[4..<5])) == "\u{1F600}")
+        #expect(acc.append(Array(bytes[5..<6])) == "b")
+    }
+
+    @Test func aTwoByteCharacterSplitInHalf() {
+        let bytes = Array("\u{00E9}".utf8)
+        var acc = UTF8Accumulator()
+        #expect(acc.append([bytes[0]]) == nil)
+        #expect(acc.append([bytes[1]]) == "\u{00E9}")
+    }
+
+    @Test func flushReleasesAnUnfinishedTailLossily() {
+        var acc = UTF8Accumulator()
+        #expect(acc.append([0xF0, 0x9F]) == nil)
+        #expect(acc.flush() == "\u{FFFD}")
+        #expect(acc.flush() == nil)
+    }
+
+    @Test func invalidBytesInTheMiddleDoNotStallTheStream() {
+        var acc = UTF8Accumulator()
+        #expect(acc.append([0x68, 0xFF, 0x69]) == "h\u{FFFD}i")
+    }
+
+    @Test func emptyInputGivesNothing() {
+        var acc = UTF8Accumulator()
+        #expect(acc.append([]) == nil)
+    }
+}
