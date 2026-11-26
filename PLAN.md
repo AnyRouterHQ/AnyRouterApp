@@ -533,7 +533,7 @@ Sources: [Moonshine TTS](https://github.com/moonshine-ai/moonshine/blob/main/doc
 - [x] V2 (fe56bf3) Dictation in the composer: mic button, live partial text, level meter, language badge, permissions sheet, Info.plist strings.
 - [x] V3 (6c0f843) Spoken replies: speaker button, "Read replies aloud", sentence streaming, stop on new input.
 - [x] V4 (2123b36) Settings › Local Models › Voice: Speech to text and Text to speech sections, Get and Delete, default, Test voice.
-- [ ] V5 `WhisperKit` STT engine and catalog entries (tiny, base, small, large-v3 turbo compressed).
+- [x] V5 (4bce970) `WhisperKit` STT engine and catalog entries (tiny, base, small, large-v3 turbo compressed). Read from the v1.1.1 source: with `modelFolder`, `tokenizerFolder` set to the install folder and `download: false`, the tokenizer is found at the folder root (`ModelUtilities.loadTokenizer` search order), so the four files already there are enough; if loading it fails WhisperKit falls back to a Hub download, so a damaged tokenizer.json needs Delete and Get again. WhisperKit carries its own tokenizer copy inside its ArgmaxCore module (no swift-transformers dependency). Its `AudioProcessor` sets its own audio session category when recording starts. Not measured: load time, memory and latency per model (on-device eval list above).
 - [ ] V6 `Moonshine` TTS engine and catalog entries after each voice's licence is checked.
 - [ ] V7 (Later) Moonshine streaming STT for Vietnamese and English after the language is known; VieNeu-TTS through llama.cpp.
 
