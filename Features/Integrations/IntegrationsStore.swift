@@ -40,13 +40,17 @@ final class IntegrationsStore {
     @ObservationIgnored private let anyRouterToken: @Sendable () -> String?
     @ObservationIgnored private let session: URLSession
     @ObservationIgnored private var clients: [String: MCPClient] = [:]
+    /// "Always allow" choices for tools that are not read-only.
+    @ObservationIgnored let permissions: ToolPermissionStore
 
     init(
         defaults: UserDefaults = .standard,
         credentials: any MCPCredentialStoring = MCPKeychainCredentialStore(),
         anyRouterToken: @escaping @Sendable () -> String?,
-        session: URLSession = .shared
+        session: URLSession = .shared,
+        permissions: ToolPermissionStore? = nil
     ) {
+        self.permissions = permissions ?? ToolPermissionStore(defaults: defaults)
         self.defaults = defaults
         self.credentials = credentials
         self.anyRouterToken = anyRouterToken
@@ -144,6 +148,7 @@ final class IntegrationsStore {
     func removeServer(_ server: MCPServer) {
         guard server.id != MCPServer.anyRouter.id else { return }
         credentials.remove(for: server.id)
+        permissions.revokeAll(serverID: server.id)
         customServers.removeAll { $0.id == server.id }
         states[server.id] = nil
         clients[server.id] = nil
@@ -171,6 +176,18 @@ final class IntegrationsStore {
             guard state.status == .connected else { return [] }
             return state.tools.filter { isEnabled($0, on: server) }.map { (server: server, tool: $0) }
         }
+    }
+
+    /// Tool host for one chat request, or nil when no connected server has a tool turned on.
+    func makeToolHost(approver: any ToolApproving) -> MCPToolHost? {
+        let enabled = enabledTools
+        guard !enabled.isEmpty else { return nil }
+        return MCPToolHost(
+            enabled: enabled,
+            client: { self.client(for: $0) },
+            approver: approver,
+            permissions: permissions
+        )
     }
 
     // MARK: Helpers
