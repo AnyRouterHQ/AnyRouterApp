@@ -8,8 +8,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: e2e-prod
-  cancel-in-progress: true
+  # One extra macOS workflow at a time, shared with screenshots, verify-ui, perf, model-smoke and ipad-ui.
+  group: extra-macos-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
