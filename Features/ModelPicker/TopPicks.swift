@@ -1,7 +1,7 @@
 import Foundation
 
 /// The short "Top picks" list on the AnyRouter tab. The curated part is data (`top-picks.json`);
-/// the live usage order and the user's availability are merged in.
+/// the live weekly usage order and the user's availability are merged in.
 struct TopPicksConfig: Codable, Equatable, Sendable {
     /// Wire ids that always lead, in order (the routers).
     var curated: [String]
@@ -43,31 +43,4 @@ enum TopPicks {
         }
         return picks
     }
-}
-
-/// The server's usage order (7-day request volume), cached so the picker works offline.
-struct UsageOrderCache {
-    static let maxAge: TimeInterval = 6 * 3600
-    private static let idsKey = "models.usageOrder.ids"
-    private static let dateKey = "models.usageOrder.fetchedAt"
-
-    let defaults: UserDefaults
-
-    func load() -> [String] { defaults.stringArray(forKey: Self.idsKey) ?? [] }
-
-    func isFresh(now: Date) -> Bool {
-        guard let date = defaults.object(forKey: Self.dateKey) as? Date, !load().isEmpty else { return false }
-        return now.timeIntervalSince(date) < Self.maxAge
-    }
-
-    func save(_ ids: [String], at date: Date) {
-        defaults.set(ids, forKey: Self.idsKey)
-        defaults.set(date, forKey: Self.dateKey)
-    }
-}
-
-/// Where the usage order comes from. AnyRouter's adapter calls `GET /models?sort=usage`.
-protocol UsageOrderSource: Sendable {
-    /// Wire ids, most used first.
-    func fetchUsageOrder() async throws -> [String]
 }

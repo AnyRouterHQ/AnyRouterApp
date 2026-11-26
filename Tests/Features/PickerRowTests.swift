@@ -2,16 +2,32 @@ import Foundation
 import Testing
 @testable import AnyRouter
 
-/// The text of every kind of picker row: name and id on line one, price or state on line two.
+/// The text of every kind of picker row: name on line one, price or state on line two.
 struct PickerRowTests {
-    @Test func cloudRowShowsNameIdPriceContextAndUpstreams() {
+    @Test func cloudRowShowsNamePriceContextAndCapabilitySymbols() {
         let row = PickerRow.make(cloudModel(
             "anthropic/claude-sonnet-4-6", name: "Claude Sonnet 4.6", upstreams: 35, context: 1_000_000,
-            vision: true, reasoning: true))
+            vision: true, reasoning: true, tools: true))
         #expect(row.title == "Claude Sonnet 4.6")
-        #expect(row.idLabel == "anthropic/claude-sonnet-4-6")
-        #expect(row.details == ["$3 / $15 per 1M", "1M ctx", "35 upstreams", "vision", "reasoning"])
+        #expect(row.idLabel.isEmpty, "the id is on the detail screen")
+        #expect(row.details == ["$3 / $15 per 1M", "1M ctx"], "no upstream count and no capability words on the row")
+        #expect(row.capabilities == [.vision, .reasoning, .tools])
+        #expect(row.supportsVision)
+        #expect(!row.isFree)
         #expect(!row.isDimmed)
+    }
+
+    @Test func eachCapabilityHasASymbolAndAnAccessibilityLabel() {
+        #expect(RowCapability.allCases.map(\.symbol) == ["eye", "brain", "wrench"])
+        #expect(RowCapability.allCases.map(\.title) == ["Sees images", "Reasons step by step", "Uses tools"])
+        #expect(RowCapability.allCases.map(\.id) == ["vision", "reasoning", "tools"])
+        #expect(PickerRow.make(cloudModel("a/b")).capabilities.isEmpty)
+    }
+
+    @Test func aReasoningTagFromTheCatalogShowsTheBrainEvenWithoutAParameter() {
+        var model = cloudModel("a/b")
+        model.capabilities.insert("reasoning")
+        #expect(PickerRow.make(model).capabilities == [.reasoning])
     }
 
     @Test func freeModelsSaySoAndRoutersCountTheirMembers() {
@@ -19,8 +35,21 @@ struct PickerRowTests {
             "anyrouter/auto", name: "AnyRouter Auto", input: 0, output: 0, billing: .free,
             upstreams: 1, members: 7, context: 4_194_304))
         #expect(auto.title == "AnyRouter")
-        #expect(auto.idLabel == "anyrouter/auto")
         #expect(auto.details == ["Free", "4M ctx", "routes 7 models"])
+        #expect(auto.isFree)
+        #expect(auto.detailsAfterBadge == "4M ctx · routes 7 models")
+    }
+
+    @Test func aPaidRowHasNoBadgeSoTheWholeLineIsText() {
+        let row = PickerRow.make(cloudModel("a/b", context: 8192))
+        #expect(!row.isFree)
+        #expect(row.detailsAfterBadge == "$3 / $15 per 1M · 8K ctx")
+    }
+
+    @Test func aModelThatNeedsAKeyIsNeverBadgedFree() {
+        let row = PickerRow.make(cloudModel("a/b", input: 0, output: 0, billing: .free, availability: .needsKey))
+        #expect(!row.isFree)
+        #expect(row.details.first == "Needs your provider key")
     }
 
     @Test func anUnusableModelShowsTheReasonInsteadOfThePriceAndIsDimmed() {
@@ -35,8 +64,24 @@ struct PickerRowTests {
         #expect(!gone.needsKey)
     }
 
-    @Test func oneUpstreamIsSingular() {
-        #expect(PickerRow.make(cloudModel("a/b", upstreams: 1)).details.contains("1 upstream"))
+    @Test func weeklyUsageGivesTheTopModelsARankAndEveryModelItsCount() {
+        let usage = ModelUsage(id: "a/b", rank: 1, tokens: 1_200_000_000, requests: 53_975)
+        let row = PickerRow.make(cloudModel("a/b"), usage: usage)
+        #expect(row.rankText == "#1")
+        #expect(row.usage?.weeklySummary == "1.2B tokens this week")
+        #expect(row.usage?.summary == "1.2B tokens")
+        let deep = PickerRow.make(cloudModel("a/b"), usage: ModelUsage(id: "a/b", rank: PickerRow.rankedCount, tokens: 5, requests: 1))
+        #expect(deep.rankText == "#\(PickerRow.rankedCount)")
+        let far = PickerRow.make(cloudModel("a/b"), usage: ModelUsage(id: "a/b", rank: PickerRow.rankedCount + 1, tokens: 5, requests: 1))
+        #expect(far.rankText == nil, "no number past the top list")
+        #expect(far.usage?.summary == "5 tokens")
+        #expect(PickerRow.make(cloudModel("a/b")).rankText == nil)
+    }
+
+    @Test func aWeekWithoutTokensCountsRequestsInstead() {
+        #expect(ModelUsage(id: "a", rank: 9, tokens: 0, requests: 34_000).summary == "34K requests")
+        #expect(ModelUsage(id: "a", rank: 9, tokens: 0, requests: 1).summary == "1 request")
+        #expect(ModelUsage(id: "a", rank: 9, tokens: 1, requests: 1).summary == "1 token")
     }
 
     @Test func localRowShowsOnDeviceSizeFormatAndFit() {

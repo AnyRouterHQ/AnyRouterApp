@@ -31,4 +31,11 @@ struct CloudInfo: Hashable, Codable, Sendable {
     var created: Date?
     /// Logo from the API when it has one. The bundled set is the fallback.
     var logoURL: URL?
+    /// Who makes the model, as the catalog names it ("OpenAI").
+    var providerName: String? = nil
+    /// As the catalog states it. Most models do not have one yet.
+    var knowledgeCutoff: String? = nil
+    /// Upstream providers that can serve it, by catalog name. Optional so a saved list from an older build still decodes.
+    var upstreamNames: [String]? = nil
+    var maxOutputTokens: Int? = nil
 }

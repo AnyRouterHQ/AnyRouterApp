@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// One picker row: logo, name and id, then price, context and upstreams. Two lines, fixed height.
+/// One picker row. Line 1: logo, name and rank. Line 2: price, context, capability symbols and weekly use.
+/// Two lines of fixed size, so the list keeps one row height.
 struct ModelRowView: View {
     let row: ModelRowModel
     let isCurrent: Bool
@@ -13,15 +14,22 @@ struct ModelRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(row.title).font(.body).lineLimit(1).layoutPriority(1)
-                    Text(row.idLabel).font(.footnote).foregroundStyle(.secondary)
-                        .lineLimit(1).truncationMode(.middle)
+                    if !row.idLabel.isEmpty {
+                        Text(row.idLabel).font(.footnote).foregroundStyle(.secondary)
+                            .lineLimit(1).truncationMode(.middle)
+                    }
+                    Spacer(minLength: 0)
+                    if let usage = row.usage, let rank = row.rankText {
+                        Text(rank).font(.footnote.monospacedDigit()).foregroundStyle(.secondary)
+                            .accessibilityLabel("Rank \(usage.rank) this week")
+                    }
                 }
-                Text(row.detailLine).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            if row.supportsVision {
-                Image(systemName: "eye").font(.footnote).foregroundStyle(.secondary)
-                    .accessibilityLabel("Sees images")
+                // The most informative line that fits, so a narrow row or a large text size loses the usage first.
+                ViewThatFits(in: .horizontal) {
+                    detailLine(usage: row.usage?.weeklySummary)
+                    detailLine(usage: row.usage?.summary)
+                    detailLine(usage: nil)
+                }
             }
             if isCurrent { Image(systemName: "checkmark").fontWeight(.semibold) }
         }
@@ -29,6 +37,25 @@ struct ModelRowView: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("model-row.\(row.id)")
+    }
+
+    private func detailLine(usage: String?) -> some View {
+        HStack(spacing: 6) {
+            if row.isFree, let badge = row.details.first {
+                Label(badge, systemImage: "gift").labelStyle(.titleAndIcon)
+            }
+            let rest = row.detailsAfterBadge
+            if row.isFree && !rest.isEmpty { Text("·") }
+            if !rest.isEmpty { Text(rest).lineLimit(1) }
+            ForEach(row.capabilities) { capability in
+                Image(systemName: capability.symbol).accessibilityLabel(capability.title)
+            }
+            Spacer(minLength: 0)
+            if let usage { Text(usage).lineLimit(1) }
+        }
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
     }
 }
 
@@ -53,6 +80,7 @@ struct ModelPickerSheet: View {
     @State private var signInError: String?
     @State private var keyExplainer: ModelDescriptor?
     @State private var routerDetail: ModelDescriptor?
+    @State private var detailModel: ModelDescriptor?
     @State private var detent = PresentationDetent.large
     @State private var cloudFilter: ModelFilter
     @State private var localFilter: LocalFilter
@@ -94,6 +122,11 @@ struct ModelPickerSheet: View {
                 case .local: localRows(shown.local)
                 case .anyrouter: cloudRows(shown.cloud)
                 }
+            }
+            .navigationDestination(item: $detailModel) { model in
+                CloudModelDetailView(
+                    model: model, usage: models.weeklyUsage[model.wireID],
+                    onShowRouting: showRouting(for: model))
             }
             .overlay { stateOverlay(shown) }
             .task(id: query) {
@@ -283,17 +316,27 @@ struct ModelPickerSheet: View {
             Button {
                 choose(model)
             } label: {
-                ModelRowView(row: PickerRow.make(model, fitBadge: fitBadge), isCurrent: currentID == model.id)
+                ModelRowView(
+                    row: PickerRow.make(
+                        model, fitBadge: fitBadge,
+                        usage: CloudListLogic.rowUsage(of: model, sort: sort, in: models.weeklyUsage)),
+                    isCurrent: currentID == model.id)
             }
             .buttonStyle(.plain)
             .hoverEffect(.highlight)
-            if model.isRouter, (model.cloud?.memberCount ?? 0) > 0 {
-                Button { routerDetail = model } label: { Image(systemName: "info.circle") }
+            if model.source == .anyrouter {
+                Button { detailModel = model } label: { Image(systemName: "info.circle") }
                     .buttonStyle(.borderless)
-                    .accessibilityLabel("Models \(model.shortName) routes to")
-                    .accessibilityIdentifier("router-info.\(model.id)")
+                    .accessibilityLabel("Details for \(model.shortName)")
+                    .accessibilityIdentifier("model-info.\(model.id)")
             }
         }
+    }
+
+    /// A router's detail screen can open the list of models it picks from.
+    private func showRouting(for model: ModelDescriptor) -> (() -> Void)? {
+        guard model.isRouter, (model.cloud?.memberCount ?? 0) > 0 else { return nil }
+        return { routerDetail = model }
     }
 
     private func choose(_ model: ModelDescriptor) {

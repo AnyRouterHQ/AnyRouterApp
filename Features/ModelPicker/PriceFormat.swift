@@ -40,6 +40,26 @@ enum PriceFormat {
         return "\(tokens) ctx"
     }
 
+    /// "950", "34K", "12.4B": a count with one decimal at most, for token and request totals.
+    static func compactCount(_ value: Int) -> String {
+        guard value >= 1000 else { return String(value) }
+        // The cut-offs sit where rounding to one decimal reaches the next unit ("999,950" is "1M", not "1000K").
+        let (unit, suffix) = value >= 999_950_000 ? (1e9, "B") : value >= 999_950 ? (1e6, "M") : (1e3, "K")
+        let scaled = (Double(value) / unit * 10).rounded() / 10
+        return (scaled == scaled.rounded() ? String(Int(scaled)) : String(scaled)) + suffix
+    }
+
+    /// "1,050,000": digits grouped by thousands.
+    static func grouped(_ value: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = true
+        formatter.groupingSeparator = ","
+        formatter.groupingSize = 3
+        return formatter.string(from: NSNumber(value: value)) ?? String(value)
+    }
+
     /// "$0.0004" for a request cost, "Free" for zero.
     static func cost(_ value: Decimal) -> String {
         if value == 0 { return "Free" }

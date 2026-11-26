@@ -12,7 +12,7 @@ enum PickerTab: String, CaseIterable, Identifiable {
     }
 }
 
-/// How the AnyRouter tab is ordered. Top usage uses the server's 7-day request volume.
+/// How the AnyRouter tab is ordered. Top this week uses the server's 7-day usage ranking (by tokens).
 enum PickerSort: String, CaseIterable, Identifiable {
     case topUsage, newest, cheapest, free, name
 
@@ -20,7 +20,7 @@ enum PickerSort: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .topUsage: "Top usage"
+        case .topUsage: "Top this week"
         case .newest: "Newest"
         case .cheapest: "Cheapest"
         case .free: "Free"
@@ -38,7 +38,7 @@ struct CloudList: Equatable {
 }
 
 enum CloudListLogic {
-    /// `usageRank` maps a wire id to its place in the server's usage order (0 is most used).
+    /// `usageRank` maps a wire id to its place in the weekly usage order (0 is most used).
     /// `showUnusable` keeps models the user cannot route to (dimmed, after the usable ones).
     static func arrange(
         models: [ModelDescriptor], query: String, sort: PickerSort,
@@ -65,6 +65,11 @@ enum CloudListLogic {
         let topPicks = searching ? [] : picks.filter { pick in candidates.contains { $0.id == pick.id } }
         let pickIDs = Set(topPicks.map(\.id))
         return CloudList(topPicks: topPicks, rest: candidates.filter { !pickIDs.contains($0.id) })
+    }
+
+    /// The weekly usage a row shows. Only "Top this week" shows it, because only there the rows follow that ranking.
+    static func rowUsage(of model: ModelDescriptor, sort: PickerSort, in usage: [String: ModelUsage]) -> ModelUsage? {
+        sort == .topUsage ? usage[model.wireID] : nil
     }
 
     private static func precedes(_ a: ModelDescriptor, _ b: ModelDescriptor, sort: PickerSort, usageRank: [String: Int]) -> Bool {

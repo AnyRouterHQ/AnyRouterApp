@@ -28,6 +28,19 @@ final class ModelPickerTests: XCTestCase {
         XCTAssertEqual(app.buttons["Model"].value as? String, "GPT-5")
     }
 
+    func testInfoButtonPushesTheModelDetail() {
+        let app = launch()
+        XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
+        app.buttons["Model"].tap()
+        let tabs = app.segmentedControls.firstMatch
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+        tabs.buttons["AnyRouter"].tap()
+        let info = app.buttons["model-info.anyrouter/openai/gpt-5"]
+        XCTAssertTrue(info.waitForExistence(timeout: 5))
+        info.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["model-detail"].waitForExistence(timeout: 5))
+    }
+
     func testLocalTabListsDownloadedModelsAndBrowse() {
         let app = launch()
         XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))

@@ -65,7 +65,7 @@ final class AppState {
         let telemetry = dependencies.makeTelemetry()
         self.telemetry = telemetry
         settings = AppSettings()
-        models = ModelStore(registry: registry, telemetry: telemetry, usage: AnyRouterUsageOrder())
+        models = ModelStore(registry: registry, telemetry: telemetry, usage: AnyRouterWeeklyUsage())
         let enginesSignpost = Perf.signposter.beginInterval("launch.engines")
         let gguf = GGUFEngine(telemetry: telemetry)
         let mlx = MLXEngine(telemetry: telemetry)

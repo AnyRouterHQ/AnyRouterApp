@@ -15,27 +15,25 @@ final class ModelStore {
     private(set) var isLoading = false
     /// True after the first refresh, so a missing model can be told apart from "not loaded yet".
     private(set) var hasLoaded = false
-    /// Wire ids, most used first. From the cache until a fresh fetch lands; empty offline on first launch.
-    private(set) var usageOrder: [String] = []
-    /// Wire id to place in the usage order (0 is most used). Kept in step with `usageOrder`.
+    /// Each model's last 7 days by wire id. From the cache until a fresh fetch lands; empty offline on first launch.
+    private(set) var weeklyUsage: [String: ModelUsage] = [:]
+    /// Wire id to place in the weekly usage order (0 is most used). Kept in step with `weeklyUsage`.
     private(set) var usageRank: [String: Int] = [:]
     private var selectedID: String?
-    @ObservationIgnored private let usageSource: (any UsageOrderSource)?
-    @ObservationIgnored private let usageCache: UsageOrderCache
+    @ObservationIgnored private let usageSource: (any WeeklyUsageSource)?
+    @ObservationIgnored private let usageCache: WeeklyUsageCache
 
     init(
         registry: EngineRegistry, defaults: UserDefaults = .standard, telemetry: any Telemetry = NoopTelemetry(),
-        usage: (any UsageOrderSource)? = nil
+        usage: (any WeeklyUsageSource)? = nil
     ) {
         self.registry = registry
         self.defaults = defaults
         self.telemetry = telemetry
         self.usageSource = usage
-        self.usageCache = UsageOrderCache(defaults: defaults)
-        let cached = usageCache.load()
-        self.usageOrder = cached
-        self.usageRank = Self.rank(of: cached)
+        self.usageCache = WeeklyUsageCache(defaults: defaults)
         self.selectedID = defaults.string(forKey: Self.selectedKey)
+        apply(usageCache.load())
         Perf.beginModels()
     }
 
@@ -69,20 +67,21 @@ final class ModelStore {
         }
         isLoading = false
         hasLoaded = true
-        await refreshUsageOrder()
+        await refreshWeeklyUsage()
     }
 
-    private static func rank(of ids: [String]) -> [String: Int] {
-        Dictionary(ids.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+    /// A model listed twice keeps its best place.
+    private func apply(_ usage: [ModelUsage]) {
+        weeklyUsage = Dictionary(usage.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        usageRank = Dictionary(usage.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
-    /// Fetches the usage order at most every 6 hours. A failure keeps the cached order.
-    func refreshUsageOrder(now: Date = Date()) async {
+    /// Fetches the weekly usage at most every 6 hours. A failure keeps the cached usage.
+    func refreshWeeklyUsage(now: Date = Date()) async {
         guard let usageSource, !usageCache.isFresh(now: now) else { return }
-        guard let ids = try? await usageSource.fetchUsageOrder(), !ids.isEmpty else { return }
-        usageCache.save(ids, at: now)
-        usageOrder = ids
-        usageRank = Self.rank(of: ids)
+        guard let usage = try? await usageSource.fetchWeeklyUsage(), !usage.isEmpty else { return }
+        usageCache.save(usage, at: now)
+        apply(usage)
     }
 
     /// Remembers the pick as the default for new chats.

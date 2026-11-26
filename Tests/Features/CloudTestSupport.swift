@@ -6,11 +6,12 @@ func cloudModel(
     _ wire: String, name: String? = nil, input: Decimal? = 3, output: Decimal? = 15,
     billing: CloudBilling = .credits, availability: CloudAvailability = .usable, usable: Bool = true,
     upstreams: Int? = 5, members: Int? = nil, context: Int? = 128_000, created: TimeInterval? = nil,
-    vision: Bool = false, reasoning: Bool = false, summary: String? = nil
+    vision: Bool = false, reasoning: Bool = false, summary: String? = nil, tools: Bool = false
 ) -> ModelDescriptor {
     ModelDescriptor(
         id: "anyrouter/\(wire)", source: .anyrouter, displayName: name ?? wire, contextLength: context,
-        capabilities: ["chat"], sizeBytes: nil, isInstalled: usable && availability == .usable, summary: summary,
+        capabilities: tools ? ["chat", "tools"] : ["chat"], sizeBytes: nil, isInstalled: usable && availability == .usable,
+        summary: summary,
         cloud: CloudInfo(
             pricing: CloudPricing(input: input, output: output, cacheRead: nil, billing: billing),
             availability: availability, upstreamCount: upstreams, memberCount: members,

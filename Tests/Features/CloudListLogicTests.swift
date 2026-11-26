@@ -107,4 +107,31 @@ struct CloudListLogicTests {
         #expect(PickerTab.tab(for: localModel("gguf/o/r/f.gguf")) == .local)
         #expect(PickerTab.tab(for: nil) == .local)
     }
+
+    @Test func topThisWeekRowsShowTheirRankInRankingOrder() {
+        let ranking = ["openai/gpt-mini", "anthropic/claude-sonnet", "google/gemini-flash"].enumerated().map {
+            ModelUsage(id: $1, rank: $0 + 1, tokens: 1000 * (3 - $0), requests: 10)
+        }
+        let usage = Dictionary(uniqueKeysWithValues: ranking.map { ($0.id, $0) })
+        let places = Dictionary(uniqueKeysWithValues: ranking.enumerated().map { ($1.id, $0) })
+        let list = CloudListLogic.arrange(
+            models: models, query: "", sort: .topUsage, usageRank: places, showUnusable: false)
+        let rows = list.rest.map { model in
+            PickerRow.make(model, usage: CloudListLogic.rowUsage(of: model, sort: .topUsage, in: usage))
+        }
+        let ranked = rows.filter { $0.rankText != nil }
+        #expect(ranked.map(\.title) == ["GPT Mini", "Claude Sonnet", "Gemini Flash"])
+        #expect(ranked.compactMap(\.rankText) == ["#1", "#2", "#3"])
+        #expect(rows.first { $0.title == "Freebie" }?.rankText == nil, "a model without traffic has no rank")
+    }
+
+    @Test func onlyTheTopThisWeekSortShowsUsageOnTheRows() {
+        let mini = models[4]
+        let usage = [mini.wireID: ModelUsage(id: mini.wireID, rank: 1, tokens: 5000, requests: 40)]
+        #expect(CloudListLogic.rowUsage(of: mini, sort: .topUsage, in: usage)?.rank == 1)
+        for sort in [PickerSort.newest, .cheapest, .free, .name] {
+            #expect(CloudListLogic.rowUsage(of: mini, sort: sort, in: usage) == nil)
+        }
+        #expect(CloudListLogic.rowUsage(of: models[3], sort: .topUsage, in: usage) == nil)
+    }
 }

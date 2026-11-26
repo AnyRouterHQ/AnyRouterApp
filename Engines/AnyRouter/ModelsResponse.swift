@@ -18,6 +18,15 @@ struct ModelsResponse: Decodable {
         var canRoute: Bool?
         var canRouteReason: String?
         var logo: String?
+        var provider: LenientString?
+        var knowledgeCutoff: LenientString?
+        var topProvider: TopProvider?
+
+        struct TopProvider: Decodable {
+            var maxCompletionTokens: Amount?
+
+            enum CodingKeys: String, CodingKey { case maxCompletionTokens = "max_completion_tokens" }
+        }
 
         struct Architecture: Decodable {
             var inputModalities: [String]?
@@ -50,8 +59,10 @@ struct ModelsResponse: Decodable {
         }
 
         enum CodingKeys: String, CodingKey {
-            case id, name, category, description, capabilities, architecture, created, providers, members, pricing, logo
+            case id, name, category, description, capabilities, architecture, created, providers, members, pricing, logo, provider
             case contextLength = "context_length"
+            case knowledgeCutoff = "knowledge_cutoff"
+            case topProvider = "top_provider"
             case supportedParameters = "supported_parameters"
             case canRoute = "can_route"
             case canRouteReason = "can_route_reason"
@@ -78,9 +89,14 @@ struct ModelsResponse: Decodable {
                 upstreamCount: providers?.count,
                 memberCount: members?.count,
                 supportsVision: tags.contains("vision") || (architecture?.inputModalities ?? []).contains("image"),
-                supportsReasoning: !parameters.isDisjoint(with: ["reasoning", "reasoning_effort", "include_reasoning"]),
+                supportsReasoning: tags.contains("reasoning")
+                    || !parameters.isDisjoint(with: ["reasoning", "reasoning_effort", "include_reasoning"]),
                 created: created.map { Date(timeIntervalSince1970: $0) },
-                logoURL: logo.flatMap(URL.init(string:)))
+                logoURL: logo.flatMap(URL.init(string:)),
+                providerName: provider?.value,
+                knowledgeCutoff: knowledgeCutoff?.value,
+                upstreamNames: providers,
+                maxOutputTokens: topProvider?.maxCompletionTokens?.value.map { NSDecimalNumber(decimal: $0).intValue })
         }
 
         var kind: ModelKind {
@@ -119,6 +135,15 @@ struct ModelsResponse: Decodable {
     /// Decision models, for the Decisions screen. Ids are the wire ids (`anyrouter/decision`).
     func decisionModels() -> [DecisionModel] {
         data.filter { $0.kind == .decision }.map { DecisionModel(id: $0.id, name: $0.name ?? $0.id) }
+    }
+
+    /// A string, or nil for any other shape, so a field that is only shown never breaks the whole list.
+    struct LenientString: Decodable {
+        let value: String?
+
+        init(from decoder: Decoder) throws {
+            value = try? decoder.singleValueContainer().decode(String.self)
+        }
     }
 
     /// A number or a numeric string, as a Decimal.

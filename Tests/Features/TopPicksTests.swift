@@ -74,18 +74,21 @@ struct TopPicksTests {
 }
 
 @MainActor
-struct UsageOrderTests {
-    private final class FakeSource: UsageOrderSource, @unchecked Sendable {
+struct WeeklyUsageTests {
+    private final class FakeSource: WeeklyUsageSource, @unchecked Sendable {
         private let lock = NSLock()
         private var calls = 0
-        var ids: [String]
+        var usage: [ModelUsage]
         var fails = false
-        init(ids: [String]) { self.ids = ids }
+        init(ids: [String]) { usage = Self.rows(ids) }
         var callCount: Int { lock.withLock { calls } }
-        func fetchUsageOrder() async throws -> [String] {
+        static func rows(_ ids: [String]) -> [ModelUsage] {
+            ids.enumerated().map { ModelUsage(id: $1, rank: $0 + 1, tokens: 1000 * (ids.count - $0), requests: 10) }
+        }
+        func fetchWeeklyUsage() async throws -> [ModelUsage] {
             lock.withLock { calls += 1 }
             if fails { throw TestFailure(message: "offline") }
-            return ids
+            return usage
         }
     }
 
@@ -93,11 +96,13 @@ struct UsageOrderTests {
         ModelStore(registry: EngineRegistry(), defaults: defaults, usage: source)
     }
 
-    @Test func theOrderIsFetchedAndRanked() async {
+    @Test func theUsageIsFetchedAndRanked() async {
         let source = FakeSource(ids: ["b", "a", "c"])
         let s = store(source, defaults: testDefaults())
-        await s.refreshUsageOrder()
+        await s.refreshWeeklyUsage()
         #expect(s.usageRank == ["b": 0, "a": 1, "c": 2])
+        #expect(s.weeklyUsage["a"]?.rank == 2)
+        #expect(s.weeklyUsage["b"]?.tokens == 3000)
     }
 
     @Test func itIsFetchedAtMostEverySixHours() async {
@@ -105,41 +110,60 @@ struct UsageOrderTests {
         let defaults = testDefaults()
         let s = store(source, defaults: defaults)
         let start = Date(timeIntervalSince1970: 1_000_000)
-        await s.refreshUsageOrder(now: start)
-        await s.refreshUsageOrder(now: start.addingTimeInterval(5 * 3600))
+        await s.refreshWeeklyUsage(now: start)
+        await s.refreshWeeklyUsage(now: start.addingTimeInterval(5 * 3600))
         #expect(source.callCount == 1)
-        source.ids = ["b"]
-        await s.refreshUsageOrder(now: start.addingTimeInterval(6 * 3600 + 1))
+        source.usage = FakeSource.rows(["b"])
+        await s.refreshWeeklyUsage(now: start.addingTimeInterval(6 * 3600 + 1))
         #expect(source.callCount == 2)
-        #expect(s.usageOrder == ["b"])
+        #expect(s.usageRank == ["b": 0])
+        #expect(s.weeklyUsage["a"] == nil)
     }
 
     @Test func aNewStoreStartsFromTheCache() async {
         let defaults = testDefaults()
-        await store(FakeSource(ids: ["x", "y"]), defaults: defaults).refreshUsageOrder()
+        await store(FakeSource(ids: ["x", "y"]), defaults: defaults).refreshWeeklyUsage()
         let second = store(nil, defaults: defaults)
-        #expect(second.usageOrder == ["x", "y"])
+        #expect(second.usageRank == ["x": 0, "y": 1])
+        #expect(second.weeklyUsage["y"]?.rank == 2)
     }
 
-    @Test func offlineKeepsTheCachedOrderAndFirstLaunchHasNone() async {
+    @Test func offlineKeepsTheCachedUsageAndFirstLaunchHasNone() async {
         let defaults = testDefaults()
         let first = FakeSource(ids: ["x"])
-        await store(first, defaults: defaults).refreshUsageOrder(now: Date(timeIntervalSince1970: 0))
+        await store(first, defaults: defaults).refreshWeeklyUsage(now: Date(timeIntervalSince1970: 0))
         let offline = FakeSource(ids: [])
         offline.fails = true
         let s = store(offline, defaults: defaults)
-        await s.refreshUsageOrder(now: Date(timeIntervalSince1970: 7 * 3600)) // stale, fetch fails
-        #expect(s.usageOrder == ["x"])
+        await s.refreshWeeklyUsage(now: Date(timeIntervalSince1970: 7 * 3600)) // stale, fetch fails
+        #expect(s.usageRank == ["x": 0])
         let fresh = store(offline, defaults: testDefaults())
-        await fresh.refreshUsageOrder()
-        #expect(fresh.usageOrder.isEmpty)
+        await fresh.refreshWeeklyUsage()
+        #expect(fresh.weeklyUsage.isEmpty)
         #expect(fresh.usageRank.isEmpty)
     }
 
-    @Test func refreshingModelsAlsoRefreshesTheOrder() async {
+    @Test func anEmptyAnswerKeepsTheCachedUsage() async {
+        let defaults = testDefaults()
+        await store(FakeSource(ids: ["x"]), defaults: defaults).refreshWeeklyUsage(now: Date(timeIntervalSince1970: 0))
+        let empty = FakeSource(ids: [])
+        let s = store(empty, defaults: defaults)
+        await s.refreshWeeklyUsage(now: Date(timeIntervalSince1970: 7 * 3600))
+        #expect(empty.callCount == 1)
+        #expect(s.usageRank == ["x": 0])
+    }
+
+    @Test func savedDataThatDoesNotReadBackIsIgnored() {
+        let defaults = testDefaults()
+        defaults.set(Data("not json".utf8), forKey: "models.weeklyUsage.v1")
+        #expect(WeeklyUsageCache(defaults: defaults).load().isEmpty)
+        #expect(!WeeklyUsageCache(defaults: defaults).isFresh(now: Date()))
+    }
+
+    @Test func refreshingModelsAlsoRefreshesTheUsage() async {
         let source = FakeSource(ids: ["a"])
         let s = store(source, defaults: testDefaults())
         await s.refresh()
-        #expect(s.usageOrder == ["a"])
+        #expect(s.usageRank == ["a": 0])
     }
 }

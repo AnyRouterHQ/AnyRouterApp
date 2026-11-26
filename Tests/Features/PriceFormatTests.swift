@@ -40,4 +40,29 @@ struct PriceFormatTests {
         #expect(PriceFormat.cost(Decimal(string: "0.0004")!) == "$0.0004")
         #expect(PriceFormat.cost(Decimal(string: "0.25")!) == "$0.25")
     }
+
+    @Test func countsAreCompactWithOneDecimalAtMost() {
+        #expect(PriceFormat.compactCount(0) == "0")
+        #expect(PriceFormat.compactCount(999) == "999")
+        #expect(PriceFormat.compactCount(1000) == "1K")
+        #expect(PriceFormat.compactCount(12_307) == "12.3K")
+        #expect(PriceFormat.compactCount(53_975) == "54K")
+        #expect(PriceFormat.compactCount(2_113_584) == "2.1M")
+        #expect(PriceFormat.compactCount(1_200_000_000) == "1.2B")
+        #expect(PriceFormat.compactCount(12_345_678_901) == "12.3B")
+    }
+
+    @Test func countsRoundUpIntoTheNextUnitInsteadOfShowingFourDigits() {
+        #expect(PriceFormat.compactCount(999_949) == "999.9K")
+        #expect(PriceFormat.compactCount(999_950) == "1M")
+        #expect(PriceFormat.compactCount(999_949_999) == "999.9M")
+        #expect(PriceFormat.compactCount(999_950_000) == "1B")
+    }
+
+    @Test func groupedNumbersUseCommas() {
+        #expect(PriceFormat.grouped(0) == "0")
+        #expect(PriceFormat.grouped(999) == "999")
+        #expect(PriceFormat.grouped(128_000) == "128,000")
+        #expect(PriceFormat.grouped(1_050_000) == "1,050,000")
+    }
 }

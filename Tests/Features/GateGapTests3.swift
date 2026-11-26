@@ -30,17 +30,27 @@ struct ResponseMetadataGapTests {
 }
 
 struct PublicEndpointTests {
-    @Test func usageOrderListsModelIDsInServerOrder() async throws {
-        let api = StubbedAPI { _ in reply(#"{"data":[{"id":"a/x"},{"id":"b/y"}]}"#) }
-        let source = AnyRouterUsageOrder(config: api.config, session: api.session)
-        #expect(try await source.fetchUsageOrder() == ["a/x", "b/y"])
+    @Test func weeklyUsageListsModelsByRankWithTheirCounts() async throws {
+        let seen = Flag()
+        let body = ##"{"period":{"key":"this_week"},"models":[{"model_id":"b/y","rank":2,"tokens":900,"requests":7},{"model_id":"a/x","rank":1,"tokens":10893316278,"requests":53975,"cost":4.2}]}"##
+        let api = StubbedAPI { request in
+            let query = request.url?.query ?? ""
+            seen.value = request.url?.path == "/api/v1/analytics/top-models" && query.contains("period=this_week") && query.contains("limit=500")
+            return reply(body)
+        }
+        let usage = try await AnyRouterWeeklyUsage(config: api.config, session: api.session).fetchWeeklyUsage()
+        #expect(seen.value)
+        #expect(usage == [
+            ModelUsage(id: "a/x", rank: 1, tokens: 10_893_316_278, requests: 53_975),
+            ModelUsage(id: "b/y", rank: 2, tokens: 900, requests: 7),
+        ])
     }
 
-    @Test func usageOrderReportsServerErrors() async {
+    @Test func weeklyUsageReportsServerErrors() async {
         let api = StubbedAPI { _ in reply("", status: 503) }
-        let source = AnyRouterUsageOrder(config: api.config, session: api.session)
-        await #expect(throws: AnyRouterError.http(status: 503, message: "Request failed (HTTP 503).")) { try await source.fetchUsageOrder() }
-        _ = AnyRouterUsageOrder()
+        let source = AnyRouterWeeklyUsage(config: api.config, session: api.session)
+        await #expect(throws: AnyRouterError.http(status: 503, message: "Request failed (HTTP 503).")) { try await source.fetchWeeklyUsage() }
+        _ = AnyRouterWeeklyUsage()
     }
 
     @Test func routingPreviewListsTheFailoverChainWithPrices() async throws {
@@ -107,21 +117,28 @@ struct ModelsResponseGapTests {
 
 @MainActor
 struct PickerOrderGapTests {
-    private struct DuplicateOrder: UsageOrderSource {
-        func fetchUsageOrder() async throws -> [String] { ["a", "b", "a"] }
+    private struct DuplicateOrder: WeeklyUsageSource {
+        func fetchWeeklyUsage() async throws -> [ModelUsage] {
+            [
+                ModelUsage(id: "a", rank: 1, tokens: 3, requests: 1),
+                ModelUsage(id: "b", rank: 2, tokens: 2, requests: 1),
+                ModelUsage(id: "a", rank: 3, tokens: 1, requests: 1),
+            ]
+        }
     }
 
     @Test func aModelListedTwiceKeepsItsBestPlaceInTheUsageOrder() async {
         let store = ModelStore(registry: EngineRegistry(), defaults: testDefaults(), usage: DuplicateOrder())
-        await store.refreshUsageOrder()
+        await store.refreshWeeklyUsage()
         #expect(store.usageRank == ["a": 0, "b": 1])
+        #expect(store.weeklyUsage["a"]?.rank == 1)
     }
 
     @Test func tabsAndSortsHaveIDsAndTitles() {
         #expect(PickerTab.allCases.map(\.id) == ["local", "anyrouter"])
         #expect(PickerTab.allCases.map(\.title) == ["Local", "AnyRouter"])
         #expect(PickerSort.allCases.map(\.id) == ["topUsage", "newest", "cheapest", "free", "name"])
-        #expect(PickerSort.allCases.map(\.title) == ["Top usage", "Newest", "Cheapest", "Free", "Name"])
+        #expect(PickerSort.allCases.map(\.title) == ["Top this week", "Newest", "Cheapest", "Free", "Name"])
     }
 
     @Test func routersOfTheSameRankAreOrderedByName() {
