@@ -58,7 +58,7 @@ enum FamilyLogic {
     /// GGUF one (the engine tested the most), then the larger file. Nil when nothing runs well.
     static func recommendedVariantID(in family: LocalModelFamily) -> String? {
         let candidates = family.variants.filter { $0.fit == .fits && $0.unavailableReason == nil }
-        return candidates.max { quality($0) < quality($1) }?.id
+        return candidates.max { quality($0).lexicographicallyPrecedes(quality($1)) }?.id
     }
 
     /// Compared in order: parameter count, GGUF over MLX, then file size. Tuples of Comparable compare lexicographically.
