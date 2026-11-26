@@ -62,6 +62,12 @@ struct AccountSummary: Equatable, Sendable {
         return nil
     }
 
+    /// The line under the name: email (when the name is not the email), then credits or usage, then the plan.
+    var subtitle: String? {
+        let parts = [email == title ? nil : email, usageLine, plan.map { "\($0) plan" }].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
     static func money(_ value: Double) -> String {
         value.formatted(.currency(code: "USD").precision(.fractionLength(2)))
     }

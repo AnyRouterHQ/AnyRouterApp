@@ -54,13 +54,27 @@ struct AccountCard: View {
             Avatar(url: summary?.avatarURL, initials: summary?.initials ?? "A")
             VStack(alignment: .leading, spacing: 2) {
                 Text(summary?.title ?? "AnyRouter account").font(.headline).lineLimit(1)
-                if let email = summary?.email, email != summary?.title {
-                    Text(email).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                }
-                if let plan = summary?.plan {
-                    Text("\(plan) plan").font(.subheadline).foregroundStyle(.secondary)
+                if let subtitle = summary?.subtitle {
+                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 0)
+            Menu {
+                Link(destination: Self.manageURL) {
+                    Label("AnyRouter Dashboard", systemImage: "arrow.up.forward.app")
+                }
+                Button("Sign out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+                    Task { await app.account.signOut(); await models.refresh() }
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .imageScale(.large)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(.rect)
+            }
+            .accessibilityLabel("Account options")
+            .accessibilityIdentifier("account-menu")
         }
         if summary?.needsEmailVerification == true {
             VStack(alignment: .leading, spacing: 4) {
@@ -70,11 +84,6 @@ struct AccountCard: View {
             }
             .accessibilityElement(children: .combine)
             ExternalLinkRow(title: "Verify on anyrouter.dev", systemImage: "envelope", destination: Self.emailSettingsURL)
-        }
-        if let line = summary?.usageLine { Text(line) }
-        ExternalLinkRow(title: "Manage on anyrouter.dev", systemImage: "person.crop.circle", destination: Self.manageURL)
-        Button("Sign out", role: .destructive) {
-            Task { await app.account.signOut(); await models.refresh() }
         }
     }
 

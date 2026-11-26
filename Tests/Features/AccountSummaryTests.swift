@@ -17,6 +17,15 @@ struct AccountSummaryTests {
         #expect(summary.freeRequests == AccountSummary.FreeRequests(remaining: 4, limit: 5))
         #expect(summary.initials == "AL")
         #expect(summary.usageLine == "Credits: \(AccountSummary.money(12.5))")
+        #expect(summary.subtitle == "ada@example.com · Credits: \(AccountSummary.money(12.5)) · Pro plan")
+    }
+
+    @Test func theSubtitleSkipsTheEmailWhenItIsAlreadyTheTitle() {
+        let onlyEmail = AccountSummary(email: "ada@example.com")
+        #expect(onlyEmail.title == "ada@example.com")
+        #expect(onlyEmail.subtitle == nil)
+        let withCredits = AccountSummary(email: "ada@example.com", credits: .init(balance: 2, used: nil))
+        #expect(withCredits.subtitle == "Credits: \(AccountSummary.money(2))")
     }
 
     @Test func absurdFreeRequestCountsAreClampedNotTrapped() {
