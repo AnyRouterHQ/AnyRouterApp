@@ -145,13 +145,20 @@ final class GGUFModelSmokeTests: XCTestCase {
         if let report = await ctx.engine.promptReport(
             model: ctx.model, stopTexts: ["</s>", "<s>", "<eos>", "<bos>", "<|im_start|>", "<|im_end|>", "<|endoftext|>", "<turn|>"]) {
             SmokeReport.record("GGUF prompt format", report.path)
-            SmokeReport.record("GGUF prompt for \"hi\"", report.prompt.replacingOccurrences(of: "\n", with: "\\n"))
-            SmokeReport.record("GGUF special tokens", report.stops)
+            // A model given at run time may be private: its rendered prompt and special-token names would fingerprint it.
+            if !SmokeEnv.external {
+                SmokeReport.record("GGUF prompt for \"hi\"", report.prompt.replacingOccurrences(of: "\n", with: "\\n"))
+                SmokeReport.record("GGUF special tokens", report.stops)
+            }
         }
         SmokeReport.record("App memory after the answer", FitFormat.gigabytes(MemoryReading.footprintBytes()))
         SmokeReport.record("GGUF prompt", "What is 2+2? Answer with one number.")
-        SmokeReport.record("GGUF answer", answer)
-        SmokeReport.record("GGUF raw output", String(text.prefix(300)))
+        if SmokeEnv.external {
+            SmokeReport.record("GGUF answer", answer.contains("4") ? "contains 4 (text not printed for a model given at run time)" : "does not contain 4")
+        } else {
+            SmokeReport.record("GGUF answer", answer)
+            SmokeReport.record("GGUF raw output", String(text.prefix(300)))
+        }
         SmokeReport.record("GGUF tokens", "prompt \(reported.prompt), completion \(reported.completion), finish \(finishReason ?? "nil")")
         SmokeReport.record("GGUF load + first token", firstText.map { String(format: "%.2f s", seconds($0 - start)) } ?? "n/a")
         if reported.completion >= 8 { SmokeReport.record("GGUF tokens/sec (decode)", String(format: "%.1f", perSecond)) }
