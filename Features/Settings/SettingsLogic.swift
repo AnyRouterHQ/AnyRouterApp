@@ -1,6 +1,19 @@
 import Foundation
 
 enum SettingsLogic {
+    /// Taps on the version row that copy diagnostics.
+    static let diagnosticsTapCount = 7
+
+    static var appVersion: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0" }
+    static var appBuild: String { Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1" }
+
+    static func versionText(version: String, build: String) -> String { "\(version) (\(build))" }
+
+    /// Plain facts for a bug report. No account, device name or paths.
+    static func diagnostics(version: String, build: String, system: String) -> String {
+        "AnyRouter \(versionText(version: version, build: build))\niOS \(system)"
+    }
+
     /// Accepts `org/name` or a huggingface.co URL and returns `org/name`, or nil when it is not a repo id.
     static func parseRepo(_ input: String) -> String? {
         var text = input.trimmingCharacters(in: .whitespacesAndNewlines)

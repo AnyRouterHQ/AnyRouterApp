@@ -3,7 +3,6 @@ import SwiftUI
 /// Edits where Browse Models gets its list: user-added Hugging Face repos and an optional remote catalog URL.
 struct CatalogSourcesSheet: View {
     @Environment(AppState.self) private var app
-    @Environment(\.dismiss) private var dismiss
 
     @State private var repoText = ""
     @State private var format: ModelSource = .gguf
@@ -17,12 +16,6 @@ struct CatalogSourcesSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("Catalog sources").font(.arXL).foregroundStyle(ARColor.foreground)
-                Spacer()
-                Button("Done") { dismiss() }
-            }
-            .padding(ARTheme.pagePadding)
             ScrollView {
                 VStack(spacing: 20) {
                     if let message {
@@ -77,7 +70,6 @@ struct CatalogSourcesSheet: View {
             }
         }
         .background(ARColor.background.ignoresSafeArea())
-        .presentationDetents([.large])
         .onAppear { remoteText = hub.remoteCatalogURL }
     }
 

@@ -25,6 +25,7 @@ final class AppSettings {
         static let systemPrompt = "settings.systemPrompt"
         static let appearance = "settings.appearance"
         static let onboarded = "settings.onboarded"
+        static let showKeyboard = "settings.showKeyboardOnLaunch"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -65,6 +66,11 @@ final class AppSettings {
     var hasOnboarded: Bool {
         get { access(keyPath: \.hasOnboarded); return defaults.bool(forKey: Key.onboarded) }
         set { withMutation(keyPath: \.hasOnboarded) { defaults.set(newValue, forKey: Key.onboarded) } }
+    }
+
+    var showKeyboardOnLaunch: Bool {
+        get { access(keyPath: \.showKeyboardOnLaunch); return defaults.bool(forKey: Key.showKeyboard) }
+        set { withMutation(keyPath: \.showKeyboardOnLaunch) { defaults.set(newValue, forKey: Key.showKeyboard) } }
     }
 
     var generationParams: GenerationParams {

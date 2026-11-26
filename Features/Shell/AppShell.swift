@@ -46,6 +46,7 @@ struct AppShell: View {
             }
         }
         .background(ARColor.background.ignoresSafeArea())
+        .sheet(isPresented: Bindable(shell).isSettingsPresented) { SettingsScreen() }
         .animation(.easeInOut(duration: 0.22), value: shell.isSidebarOpen)
         .onChange(of: isRegular, initial: true) { _, regular in
             shell.isSidebarOpen = regular
@@ -61,7 +62,6 @@ private struct Detail: View {
             switch shell.route {
             case .chat: ChatScreen()
             case .hub: HubScreen()
-            case .settings: SettingsScreen()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

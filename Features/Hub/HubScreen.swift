@@ -6,6 +6,9 @@ struct HubScreen: View {
     @Environment(ModelStore.self) private var models
     @Environment(ShellModel.self) private var shell
 
+    /// True inside Settings, where the navigation bar provides the title and back button.
+    var embedded = false
+
     @State private var query = ""
     @State private var showsRepoSearch = false
 
@@ -21,7 +24,7 @@ struct HubScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ARPageHeader(title: "Browse Models") { shell.open(.chat, closeSidebar: false) }
+            if !embedded { ARPageHeader(title: "Browse Models") { shell.open(.chat, closeSidebar: false) } }
             ARSearchField(text: $query, prompt: "Search models")
                 .padding(.horizontal, ARTheme.pagePadding)
                 .padding(.bottom, 12)

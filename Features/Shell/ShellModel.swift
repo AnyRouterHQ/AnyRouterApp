@@ -4,12 +4,21 @@ import Observation
 /// Navigation state shared by the shell, sidebar and screens.
 @MainActor @Observable
 final class ShellModel {
-    enum Route: Hashable, Sendable { case chat, hub, settings }
+    enum Route: Hashable, Sendable { case chat, hub }
 
     var route: Route = .chat
     /// `nil` means a new, empty chat. The thread record is created on the first send.
     var selectedThreadID: UUID?
     var isSidebarOpen = false
+    /// Settings is a sheet over the shell, not a route.
+    var isSettingsPresented = false
+    /// The composer takes focus once per launch when the user asked for the keyboard.
+    var didFocusComposerOnLaunch = false
+
+    func presentSettings(closeSidebar: Bool) {
+        isSettingsPresented = true
+        if closeSidebar { isSidebarOpen = false }
+    }
 
     func toggleSidebar() { isSidebarOpen.toggle() }
 

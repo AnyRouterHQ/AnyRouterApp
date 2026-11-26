@@ -152,12 +152,6 @@ struct PresetsSettingsSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("Presets").font(.arXL).foregroundStyle(ARColor.foreground)
-                Spacer()
-                Button("Done") { dismiss() }
-            }
-            .padding(ARTheme.pagePadding)
             ScrollView {
                 VStack(spacing: 20) {
                     if let error = store.saveError { ErrorBanner(text: error) {} }

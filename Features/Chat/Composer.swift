@@ -8,6 +8,8 @@ struct Composer: View {
     @State private var showsPresets = false
     /// Owned by the chat screen so a tap outside the card can dismiss the keyboard.
     var focused: FocusState<Bool>.Binding
+    @Environment(AppSettings.self) private var settings
+    @Environment(ShellModel.self) private var shell
 
     var body: some View {
         VStack(spacing: 8) {
@@ -60,6 +62,11 @@ struct Composer: View {
             if let presets {
                 PresetSheet(store: presets, onPick: { model.usePreset($0) }, onSend: { model.sendNow($0) })
             }
+        }
+        .task {
+            guard settings.showKeyboardOnLaunch, !shell.didFocusComposerOnLaunch else { return }
+            shell.didFocusComposerOnLaunch = true
+            focused.wrappedValue = true
         }
     }
 
