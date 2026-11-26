@@ -154,7 +154,8 @@ struct InboundChatTests {
 
         _ = try await VoiceControlIntent().perform()
         let voice = try #require(mailbox.take())
-        #expect(voice.text == nil && voice.presetID == nil && !voice.asksForText)
+        #expect(voice.text == nil && voice.presetID == nil && !voice.asksForText && voice.startsVoice)
+        #expect(!fresh.startsVoice)
 
         _ = try await PasteAndFixControlIntent().perform()
         let fix = try #require(mailbox.take())
@@ -176,6 +177,15 @@ struct InboundChatTests {
         #expect(vm.input == "me and him goes", "the text is the sheet's message")
     }
 
+    @Test func aVoiceRequestStartsDictationOnce() async throws {
+        let vm = try await chat()
+        #expect(vm.voiceTick == 0)
+        _ = vm.start(InboundChat(), preset: nil)
+        #expect(vm.voiceTick == 0, "a plain new chat does not dictate")
+        _ = vm.start(InboundChat(startsVoice: true), preset: nil)
+        #expect(vm.voiceTick == 1)
+    }
+
     @Test func aRequestThatAsksForTextWithoutItsPresetJustFillsTheComposer() async throws {
         let vm = try await chat()
         _ = vm.start(InboundChat(text: "hello", presetID: "gone", asksForText: true), preset: nil)
@@ -193,7 +203,7 @@ struct InboundChatTests {
         #expect(String(localized: PresetEntity(id: "x", title: "Title").displayRepresentation.title) == "Title")
     }
 
-    @Test func twoAppShortcutsAreRegistered() {
-        #expect(AnyRouterShortcuts.appShortcuts.count == 2)
+    @Test func fourAppShortcutsAreRegisteredForSiriSpotlightAndTheActionButton() {
+        #expect(AnyRouterShortcuts.appShortcuts.count == 4)
     }
 }

@@ -23,6 +23,9 @@ extension LaunchDependencies {
 /// App-wide state and dependency root. Lanes register their engines and services here.
 @MainActor @Observable
 final class AppState {
+    /// The one app state of the process. The scene uses it, and so do App Intents that run without a window.
+    static let shared = AppState()
+
     let registry = EngineRegistry()
     let settings: AppSettings
     let presets = PresetStore()

@@ -4,7 +4,7 @@ import SwiftUI
 @main
 struct AnyRouterApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var appState = AppState()
+    @State private var appState = AppState.shared
     private let container: ModelContainer
 
     init() {

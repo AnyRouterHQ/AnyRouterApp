@@ -7,6 +7,8 @@ import Observation
 /// Preset ids the entry points (Shortcuts, Siri, Control Center, the Share sheet) rely on.
 enum InboundPreset {
     static let fixEnglish = "fix-english"
+    static let summarize = "summarize"
+    static let translate = "translate"
 }
 
 /// A request from outside the chat to open a fresh one: text for the composer, a preset to apply, whether to send, and
@@ -17,6 +19,8 @@ struct InboundChat: Identifiable, Equatable, Sendable {
     var presetID: String?
     var sendNow = false
     var asksForText = false
+    /// Start dictating into the composer once the chat is open.
+    var startsVoice = false
     /// Files (PDFs) to attach to the new chat.
     var files: [URL] = []
     /// Photos whose text is read on the device; the scan sheet then offers Translate, Split this bill and Summarize.

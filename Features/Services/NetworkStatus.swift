@@ -14,6 +14,8 @@ protocol PathMonitoring {
 @MainActor @Observable
 final class NetworkStatus {
     private(set) var isOnline = true
+    /// The monitor has reported at least once, so `isOnline` is a real answer and not the assumption.
+    private(set) var hasReported = false
     @ObservationIgnored private let monitor: any PathMonitoring
     @ObservationIgnored private var isRunning = false
 
@@ -26,7 +28,21 @@ final class NetworkStatus {
     func start() {
         guard !isRunning else { return }
         isRunning = true
-        monitor.start { [weak self] online in self?.isOnline = online }
+        monitor.start { [weak self] online in
+            self?.isOnline = online
+            self?.hasReported = true
+        }
+    }
+
+    /// Starts the monitor if needed and waits briefly for its first report. For work that runs without a window
+    /// (an intent), where nothing has started the monitor yet. Assumes online when nothing reports in time.
+    func currentlyOnline(timeout: Duration = .seconds(1)) async -> Bool {
+        start()
+        let deadline = ContinuousClock.now + timeout
+        while !hasReported, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        return isOnline
     }
 
     func stop() {

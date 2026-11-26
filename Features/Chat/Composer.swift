@@ -127,6 +127,7 @@ struct Composer: View {
         // Send, stop and the buttons beside the field keep the keyboard up.
         .keepsKeyboardOnTap()
         .onChange(of: model.focusTick) { focused.wrappedValue = true }
+        .onChange(of: model.voiceTick) { app.dictation.begin(text: $model.input, hub: app.voice) }
         .onChange(of: model.input) { old, new in
             model.inputChanged(from: old, to: new)
             if !new.isEmpty { app.clipboard.dismiss() }

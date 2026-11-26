@@ -91,5 +91,15 @@ struct AnyRouterShortcuts: AppShortcutsProvider {
             phrases: ["Fix my English with \(.applicationName)"],
             shortTitle: "Fix my English",
             systemImageName: "text.badge.checkmark")
+        AppShortcut(
+            intent: NewChatControlIntent(),
+            phrases: ["New chat in \(.applicationName)"],
+            shortTitle: "New chat",
+            systemImageName: "square.and.pencil")
+        AppShortcut(
+            intent: VoiceControlIntent(),
+            phrases: ["Start voice with \(.applicationName)"],
+            shortTitle: "Start voice",
+            systemImageName: "waveform")
     }
 }

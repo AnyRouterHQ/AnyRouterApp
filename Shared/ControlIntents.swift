@@ -2,13 +2,13 @@ import AppIntents
 
 // The intents behind the Control Center and Lock Screen controls. Each opens the app, where `perform()` runs in the
 // app's own process and leaves the request in `InboundChatMailbox`. They are compiled into the app and the controls
-// extension, so the system finds them in both. Not listed in Shortcuts: "Ask AnyRouter" is the one to use there.
+// extension, so the system finds them in both. "New chat" and "Start voice" also show in Shortcuts and as App Shortcuts, so
+// they can go on the Action Button.
 
 struct NewChatControlIntent: AppIntent {
     static let title: LocalizedStringResource = "New chat"
     static let description = IntentDescription("Open AnyRouter on a new chat.")
     static let openAppWhenRun = true
-    static let isDiscoverable = false
 
     init() {}
 
@@ -19,18 +19,17 @@ struct NewChatControlIntent: AppIntent {
     }
 }
 
-/// A new chat with the keyboard up. The keyboard's microphone key dictates until in-app dictation lands (PLAN M4).
+/// A new chat that starts dictating into the composer.
 struct VoiceControlIntent: AppIntent {
-    static let title: LocalizedStringResource = "Voice"
-    static let description = IntentDescription("Open AnyRouter on a new chat, ready to dictate.")
+    static let title: LocalizedStringResource = "Start voice"
+    static let description = IntentDescription("Open AnyRouter on a new chat and start dictating.")
     static let openAppWhenRun = true
-    static let isDiscoverable = false
 
     init() {}
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        InboundChatMailbox.shared.post(InboundChat())
+        InboundChatMailbox.shared.post(InboundChat(startsVoice: true))
         return .result()
     }
 }

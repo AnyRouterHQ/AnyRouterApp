@@ -18,6 +18,8 @@ final class ChatViewModel {
     private(set) var thread: ThreadRecord?
     /// Bumps when the composer should take focus (after a preset fills it).
     private(set) var focusTick = 0
+    /// Bumps when the composer should start dictating (a "Start voice" request).
+    private(set) var voiceTick = 0
     /// Per-thread "Enable thinking"; a new chat keeps it here until the first send creates the thread.
     private(set) var thinkingEnabled = false
     private(set) var toolsDisabled = false
@@ -394,6 +396,7 @@ final class ChatViewModel {
             return nil
         }
         fill(InboundChatLogic.composerText(preset: preset, text: request.text))
+        if request.startsVoice { voiceTick += 1 }
         return request.sendNow ? send() : nil
     }
 
