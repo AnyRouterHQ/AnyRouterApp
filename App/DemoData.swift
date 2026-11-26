@@ -3,11 +3,15 @@ import Observation
 import SwiftData
 
 /// Offline sample data for screenshots and UI tests. Active only with the launch argument `-ARDemoData YES`.
-/// Optional flags: `-ARDemoSignedOut YES`, `-ARDemoOnboarding YES`, `-ARAppearance light|dark`.
+/// Optional flags: `-ARDemoSignedOut YES`, `-ARDemoOnboarding YES`, `-ARDemoTools YES` (a thread with a web search step), `-ARAppearance light|dark`.
 enum DemoData {
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: "ARDemoData") }
     private static var signedOut: Bool { UserDefaults.standard.bool(forKey: "ARDemoSignedOut") }
     private static var onboarding: Bool { UserDefaults.standard.bool(forKey: "ARDemoOnboarding") }
+    private static var tools: Bool { UserDefaults.standard.bool(forKey: "ARDemoTools") }
+
+    /// Text of the demo search result, read by the UI tests.
+    static let demoSearchResult = "Swift 7 adds typed throws everywhere and faster builds."
 
     /// In-memory store with five sample threads.
     @MainActor
@@ -48,8 +52,28 @@ enum DemoData {
                 record.thread = thread
             }
         }
+        if tools { insertToolThread(in: context, at: now) }
         try context.save()
         return container
+    }
+
+    /// The newest thread: one reply that searched the web before answering.
+    @MainActor
+    private static func insertToolThread(in context: ModelContext, at now: Date) {
+        let thread = ThreadRecord(title: "Latest Swift news", createdAt: now.addingTimeInterval(60),
+                                  modelID: "anyrouter/anthropic/claude-sonnet-4-6")
+        context.insert(thread)
+        let question = MessageRecord(role: .user, content: "What is new in Swift 7?", createdAt: thread.createdAt)
+        let answer = MessageRecord(role: .assistant, content: "Swift 7 brings typed throws and quicker builds.",
+                                   createdAt: thread.createdAt.addingTimeInterval(20))
+        context.insert(question)
+        context.insert(answer)
+        question.thread = thread
+        answer.thread = thread
+        let call = ToolCall(id: "demo-search", name: "web_search", argumentsJSON: #"{"query":"what is new in Swift 7"}"#)
+        answer.toolSteps = [ToolStep(
+            call: call,
+            result: ToolResult(callID: call.id, name: call.name, text: demoSearchResult, isError: false))]
     }
 
     /// Replaces the real engines, hub, account and settings with fakes. Nothing here touches the network.
