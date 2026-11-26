@@ -26,12 +26,9 @@ struct SettingsScreen: View {
 
 private struct SettingsList: View {
     @Environment(AppSettings.self) private var settings
-    @Environment(ShellModel.self) private var shell
-    @Environment(\.modelContext) private var context
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models
 
-    @State private var confirmsDelete = false
     @State private var versionTaps = 0
     @State private var copiedDiagnostics = false
 
@@ -54,11 +51,7 @@ private struct SettingsList: View {
                         Toggle(isOn: $settings.showKeyboardOnLaunch) {
                             Label("Show keyboard on launch", systemImage: "keyboard")
                         }
-                        .accessibilityIdentifier("settings-show-keyboard")
-                        Button(role: .destructive) { confirmsDelete = true } label: {
-                            Label("Delete conversation history", systemImage: "trash")
-                        }
-                    }
+                        .accessibilityIdentifier("settings-show-keyboard")                    }
                     if group == .about { versionRow }
                 } header: {
                     Text(group.title)
@@ -66,15 +59,6 @@ private struct SettingsList: View {
                     if group == .models, let note = models.defaultNote { Text(note) }
                 }
             }
-        }
-        .confirmationDialog("Delete all conversations?", isPresented: $confirmsDelete, titleVisibility: .visible) {
-            Button("Delete everything", role: .destructive) {
-                ThreadActions.deleteAll(in: context)
-                shell.selectedThreadID = nil
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This removes every chat and its messages from this device.")
         }
     }
 

@@ -14,8 +14,14 @@ final class ThemeTests: XCTestCase {
         }
         app.revealSidebar(whenVisible: button("Settings"))
         button("Settings").tap()
+        // The list is lazy and Theme sits below the first screen of rows: scroll until it can be tapped.
         let theme = app.buttons["Theme"]
-        XCTAssertTrue(theme.waitForExistence(timeout: 5))
+        var tries = 0
+        while !(theme.exists && theme.isHittable) && tries < 8 {
+            app.swipeUp()
+            tries += 1
+        }
+        XCTAssertTrue(theme.isHittable, "Theme row")
         theme.tap()
 
         for name in ["Dark", "Light", "System", "Light"] {

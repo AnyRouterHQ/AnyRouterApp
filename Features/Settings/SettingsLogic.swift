@@ -33,6 +33,21 @@ enum SettingsLogic {
         return starredCount > 0 ? "\(starredCount) starred" : nil
     }
 
+    /// Footer under Delete All Conversations.
+    static func conversationCountText(_ count: Int) -> String {
+        switch count {
+        case 0: "There are no conversations on this device."
+        case 1: "1 conversation is stored on this device."
+        default: "\(count) conversations are stored on this device."
+        }
+    }
+
+    /// The confirmation: how many go, and that there is no way back.
+    static func deleteConversationsMessage(_ count: Int) -> String {
+        let what = count == 1 ? "1 conversation and its messages" : "\(count) conversations and their messages"
+        return "This deletes \(what) from this device. This can't be undone."
+    }
+
     /// Accepts `org/name` or a huggingface.co URL and returns `org/name`, or nil when it is not a repo id.
     static func parseRepo(_ input: String) -> String? {
         var text = input.trimmingCharacters(in: .whitespacesAndNewlines)

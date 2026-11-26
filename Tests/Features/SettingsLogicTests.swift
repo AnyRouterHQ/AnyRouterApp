@@ -30,6 +30,14 @@ struct SettingsLogicTests {
         #expect(SettingsLogic.anyRouterModelsSubtitle(defaultName: nil, starredCount: 0) == nil)
     }
 
+    @Test func deleteAllConversationsSaysHowManyAndThatItCannotBeUndone() {
+        #expect(SettingsLogic.deleteConversationsMessage(1) == "This deletes 1 conversation and its messages from this device. This can't be undone.")
+        #expect(SettingsLogic.deleteConversationsMessage(12) == "This deletes 12 conversations and their messages from this device. This can't be undone.")
+        #expect(SettingsLogic.conversationCountText(0) == "There are no conversations on this device.")
+        #expect(SettingsLogic.conversationCountText(1) == "1 conversation is stored on this device.")
+        #expect(SettingsLogic.conversationCountText(3) == "3 conversations are stored on this device.")
+    }
+
     @Test func licenseListCoversLinkedLibraries() {
         let names = LicenseNotice.all.map(\.name)
         #expect(names.contains("llama.cpp"))
