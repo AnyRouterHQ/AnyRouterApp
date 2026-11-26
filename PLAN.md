@@ -140,6 +140,9 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] C3 `Engines/Local/GGUF`: llama.cpp via official `llama.xcframework` (pinned release, SPM binaryTarget with checksum), chat template from GGUF metadata, Metal offload, streaming tokens, cancel (#10)
 - [x] C4 `Engines/Local/MLX`: `mlx-swift-lm` (MLXLLM/MLXLMCommon), load from downloaded snapshot, streaming, cancel; disabled on Simulator (no Metal GPU family) with a clear message (#11)
 - [x] C5 Tests: catalog decode/merge, HF search URL building, fit check, download state machine (#7, GGUF and MLX engine tests land with C3/C4)
+- [x] C6 (a17003a) Two-level model browser, data and logic: catalog schema v2 with families and sizes, `status` current/deprecated with `replacedBy`, `FamilyLogic` (grouping, fit summary, recommended size per device, sorts, filters). The views are lane D (6bf4b88).
+- [x] C7 (51f1f39) Fit check that matches llama.cpp: embedding tables that mmap keeps out of RAM are not counted (Gemma 4 E2B needs ~2.5 GB, not 4.4 GB), the standard-limit note, Settings > Diagnostics memory and stall rows, main-thread watchdog and hang-guard test, batched text updates, "Loading <model>" in chat, warm-load after the first frame.
+- [ ] C8 Jinja chat templates for GGUF models whose template llama.cpp cannot apply (needed by the 26B looped-core model): pushed, not yet proven by a smoke run because main's test target does not compile (Swift Testing `Attachment` clash in the attachment tests).
 
 ### Lane D — UI clone of the reference mobile design (model: sonnet-medium; starts after A merges)
 - [x] D1 (#8) `Design/`: color tokens (light/dark → `Color`), radius 10pt, fonts, spacing; AnyRouter brand accent
@@ -561,10 +564,6 @@ Reviewer passes over main up to 66ef975 (2026-11-26). Fixed items are in `fix(..
 
 - Features/Chat/ChatViewModel.swift:122 — deleting a thread while it streams: `finish` and the delta loop still touch the deleted `ThreadRecord` and `MessageRecord` (SwiftData invalid-model crash risk). Stop the stream and skip the save when the thread is gone, and add a test. Owner: lane D.
 - App/AnyRouterApp.swift:14 and Core/Records.swift:63 — `fatalError` when the store fails to open and no `VersionedSchema` or migration plan exists, so the first schema change bricks launch for installed copies. Add a versioned schema before the next `@Model` change. Owner: lane A.
-- Engines/Local/GGUF/LlamaModel.swift:98 — `llama_tokenize` runs with `add_special: true` on text the chat template already starts with BOS, so Llama and Gemma style prompts get two BOS tokens. Skip the added BOS when the prompt starts with the vocab BOS text. Owner: lane C.
-- Engines/Local/GGUF/GGUFEngine.swift:7 and Engines/Local/MLX/MLXEngine.swift:9 — model caches key on the path only: a re-download to the same path, or a delete while loaded, keeps serving the old weights. Key on the manifest `completedAt` and unload on delete. Owner: lane C.
-- Engines/Local/Catalog/HuggingFaceAPI.swift:109 — the tree API is paginated (Link header); a repo with many files is cut off, so an MLX snapshot can install without all its files. Follow the next page. Owner: lane C.
-- Engines/Local/Downloads/ModelDownloadManager.swift:121 — `cancel` then an immediate `start`: the async `discard` can delete the new attempt's partial files. Have `start` wait for the discard of the same id. Owner: lane C.
 - Features/ModelPicker/ModelPickerSheet.swift:17 — the picker never refreshes on open, so a download that finishes while the Hub is not on screen is missing from the list until the next refresh. Add `.task { await models.refresh() }`. Owner: lane D (picker).
 - Features/Chat/MessageViews.swift:38 — `Markdown(message.content)` re-parses the whole reply on every token; throttle updates or cache the parsed prefix. Owner: perf lane.
 - Engines/AnyRouter/AnyRouterEngine.swift:76 — the stream loop reads one byte at a time from `AsyncBytes` and splits lines again before `SSEParser`; read bigger chunks. Owner: lane B.
@@ -572,7 +571,6 @@ Reviewer passes over main up to 66ef975 (2026-11-26). Fixed items are in `fix(..
 - Engines/AnyRouter/Auth/OAuthClient.swift:133 — the continuation in `present` ignores task cancellation, so a cancelled sign-in waits for the web session to end. Owner: lane B.
 - Features/Presets/PresetStore.swift:23 — a presets file that fails to decode is treated as empty and the next save overwrites it. Move the bad file aside first. Owner: presets lane.
 - .github/workflows/device-ipa.yml:5 — a second full macOS device build still runs on every push to main next to `ci.yml` (macOS minutes cost 10x); build the IPA on `workflow_dispatch` or nightly. Owner: lane A (CI).
-- Engines/Local/Catalog/HuggingFaceAPI.swift:27 — `fetchPrefix` reads `AsyncBytes` one byte at a time, up to 192 MB for a big vocabulary; read in chunks. Owner: lane C.
 - Not reviewed in depth: Design/, Features/Presets views, Onboarding, MarkdownTheme, HubLogic and the screenshot and smoke workflows (read for secrets and injection only; none found).
 
 ## Status log
