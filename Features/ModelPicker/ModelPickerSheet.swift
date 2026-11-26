@@ -52,13 +52,22 @@ struct ModelPickerSheet: View {
     @State private var keyExplainer: ModelDescriptor?
     @State private var routerDetail: ModelDescriptor?
     @State private var detent = PresentationDetent.large
+    @State private var cloudFilter: ModelFilter
+    @State private var localFilter: LocalFilter
+    @State private var showsFilters = false
+
+    private let filterStore: PickerFilterStore
 
     private let picksConfig = TopPicksConfig.bundled()
     private static let providerKeysURL = URL(string: "https://anyrouter.dev/dashboard/byok")!
 
-    init(currentID: String?, onSelect: @escaping (ModelDescriptor) -> Void) {
+    init(currentID: String?, defaults: UserDefaults = .standard, onSelect: @escaping (ModelDescriptor) -> Void) {
         self.currentID = currentID
         self.onSelect = onSelect
+        let store = PickerFilterStore(defaults: defaults)
+        filterStore = store
+        _cloudFilter = State(initialValue: store.cloud())
+        _localFilter = State(initialValue: store.local())
         _tab = State(initialValue: currentID?.hasPrefix("anyrouter/") == true ? .anyrouter : .local)
     }
 
@@ -97,6 +106,16 @@ struct ModelPickerSheet: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+                if tab == .local || app.account.state.isSignedIn {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button { showsFilters = true } label: {
+                            Label("Filter", systemImage: filterActive
+                                ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                        }
+                        .accessibilityValue(filterActive ? "\(activeFilterCount) active" : "none")
+                        .accessibilityIdentifier("model-filter")
+                    }
+                }
                 if tab == .anyrouter, app.account.state.isSignedIn {
                     ToolbarItem(placement: .primaryAction) {
                         Menu {
@@ -113,6 +132,13 @@ struct ModelPickerSheet: View {
         .presentationDetents([.medium, .large], selection: $detent)
         .presentationDragIndicator(.visible)
         .sheet(item: $routerDetail) { RouterDetailSheet(router: $0) }
+        .sheet(isPresented: $showsFilters) {
+            ModelFilterSheet(
+                tab: tab, cloud: $cloudFilter, local: $localFilter,
+                providers: ModelFilter.providers(in: models.models))
+        }
+        .onChange(of: cloudFilter) { filterStore.save(cloud: cloudFilter) }
+        .onChange(of: localFilter) { filterStore.save(local: localFilter) }
         .alert("Needs your provider key", isPresented: Binding(
             get: { keyExplainer != nil }, set: { if !$0 { keyExplainer = nil } }
         )) {
@@ -134,7 +160,8 @@ struct ModelPickerSheet: View {
             case .anyrouter: return false
             }
         }
-        let matched = needle.isEmpty ? local : local.filter { ModelPickerLogic.matches($0, needle) }
+        let searched = needle.isEmpty ? local : local.filter { ModelPickerLogic.matches($0, needle) }
+        let matched = searched.filter { localFilter.matches($0, fit: fitVerdict(for: $0)) }
         return matched.sorted { lhs, rhs in
             if (lhs.source == .apple) != (rhs.source == .apple) { return lhs.source == .apple }
             return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
@@ -150,6 +177,14 @@ struct ModelPickerSheet: View {
         }
     }
 
+    private func fitVerdict(for model: ModelDescriptor) -> ModelFit? {
+        guard model.source == .gguf || model.source == .mlx else { return nil }
+        return app.hub.catalog.first(where: { $0.id == model.id })?.fitDetail?.verdict
+    }
+
+    private var filterActive: Bool { tab == .local ? localFilter.isActive : cloudFilter.isActive }
+    private var activeFilterCount: Int { tab == .local ? localFilter.activeCount : cloudFilter.activeCount }
+
     private func fitBadge(for model: ModelDescriptor) -> String? {
         guard model.source == .gguf || model.source == .mlx,
               let detail = app.hub.catalog.first(where: { $0.id == model.id })?.fitDetail else { return nil }
@@ -162,7 +197,8 @@ struct ModelPickerSheet: View {
         CloudListLogic.arrange(
             models: models.models, query: query, sort: sort, usageRank: models.usageRank,
             showUnusable: app.account.state.isSignedIn,
-            picks: TopPicks.compose(config: picksConfig, models: models.models, usageRank: models.usageRank))
+            picks: TopPicks.compose(config: picksConfig, models: models.models, usageRank: models.usageRank),
+            filter: cloudFilter)
     }
 
     @ViewBuilder
@@ -199,15 +235,26 @@ struct ModelPickerSheet: View {
                 ProgressView("Signing in…")
             case .signedIn:
                 if cloudList.isEmpty {
-                    if query.isEmpty {
+                    if query.isEmpty && !cloudFilter.isActive {
                         ContentUnavailableView("No cloud models", systemImage: "cloud")
                     } else {
-                        ContentUnavailableView.search(text: query)
+                        noMatches(clear: { cloudFilter = ModelFilter() }, isFiltered: cloudFilter.isActive)
                     }
                 }
             }
-        } else if localModels.isEmpty, !query.isEmpty {
-            ContentUnavailableView.search(text: query)
+        } else if localModels.isEmpty, !query.isEmpty || localFilter.isActive {
+            noMatches(clear: { localFilter = LocalFilter() }, isFiltered: localFilter.isActive)
+        }
+    }
+
+    /// Nothing matches the search or the filters. Filters can be cleared right here.
+    private func noMatches(clear: @escaping () -> Void, isFiltered: Bool) -> some View {
+        ContentUnavailableView {
+            Label(query.isEmpty ? "No matching models" : "No results for “\(query)”", systemImage: "magnifyingglass")
+        } description: {
+            Text(isFiltered ? "Try a different search or clear the filters." : "Check the spelling or try a new search.")
+        } actions: {
+            if isFiltered { Button("Clear filters", action: clear).buttonStyle(.bordered) }
         }
     }
 

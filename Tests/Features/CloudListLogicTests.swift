@@ -21,9 +21,12 @@ struct CloudListLogicTests {
         "openai/gpt-mini": 0, "anthropic/claude-sonnet": 1, "vendor/locked": 2, "google/gemini-flash": 3,
     ]
 
-    private func names(_ sort: PickerSort, query: String = "", rank: [String: Int]? = nil, unusable: Bool = true) -> [String] {
+    private func names(
+        _ sort: PickerSort, query: String = "", rank: [String: Int]? = nil, unusable: Bool = true,
+        filter: ModelFilter = ModelFilter(hideNeedsKey: false)
+    ) -> [String] {
         CloudListLogic.arrange(
-            models: models, query: query, sort: sort, usageRank: rank ?? self.rank, showUnusable: unusable
+            models: models, query: query, sort: sort, usageRank: rank ?? self.rank, showUnusable: unusable, filter: filter
         ).rest.map(\.displayName)
     }
 

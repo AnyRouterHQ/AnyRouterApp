@@ -37,4 +37,26 @@ final class ModelPickerTests: XCTestCase {
         XCTAssertTrue(app.buttons["Browse models"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["model-row.apple/foundation"].exists)
     }
+
+    func testFreeOnlyFilterLeavesOnlyFreeRows() {
+        let app = launch()
+        XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
+        app.buttons["Model"].tap()
+        let tabs = app.segmentedControls.firstMatch
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+        tabs.buttons["AnyRouter"].tap()
+        XCTAssertTrue(app.buttons["model-filter"].waitForExistence(timeout: 5))
+        app.buttons["model-filter"].tap()
+        let free = app.switches["Free only"]
+        XCTAssertTrue(free.waitForExistence(timeout: 5))
+        free.tap()
+        app.buttons["Done"].tap()
+
+        let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'model-row.'"))
+        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(rows.count, 0)
+        for index in 0..<rows.count {
+            XCTAssertTrue(rows.element(boundBy: index).label.contains("Free"), "row \(index) is not free")
+        }
+    }
 }

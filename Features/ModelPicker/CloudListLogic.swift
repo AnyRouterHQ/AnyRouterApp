@@ -42,13 +42,17 @@ enum CloudListLogic {
     /// `showUnusable` keeps models the user cannot route to (dimmed, after the usable ones).
     static func arrange(
         models: [ModelDescriptor], query: String, sort: PickerSort,
-        usageRank: [String: Int], showUnusable: Bool, picks: [ModelDescriptor] = []
+        usageRank: [String: Int], showUnusable: Bool, picks: [ModelDescriptor] = [],
+        filter: ModelFilter = ModelFilter()
     ) -> CloudList {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let searching = !needle.isEmpty
         var candidates = models.filter { model in
             guard model.source == .anyrouter else { return false }
-            if !showUnusable && !model.isInstalled { return false }
+            // "Hide needs-key models" does not apply to a search, so a search still finds them.
+            let showLocked = showUnusable && (!filter.hideNeedsKey || searching)
+            if !showLocked && !model.isInstalled { return false }
+            if !filter.matches(model) { return false }
             if sort == .free && model.cloud?.pricing.isFree != true { return false }
             if searching { return ModelPickerLogic.matches(model, needle) }
             return model.id != ModelDescriptor.byokRouterID
