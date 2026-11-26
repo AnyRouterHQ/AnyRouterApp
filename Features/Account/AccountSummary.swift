@@ -123,7 +123,3 @@ struct AccountSummary: Equatable, Sendable {
         return nil
     }
 }
-
-extension AccountSummary.KeyUsage {
-    init() { self.init(label: nil, limit: nil, limitRemaining: nil, usage: nil) }
-}
