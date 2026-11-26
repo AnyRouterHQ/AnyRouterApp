@@ -22,6 +22,9 @@
       "iconKey": "qwen",
       "supportsThinking": true,
       "isOnboarding": true,
+      "memory": {
+        "fullKVBytesPerToken": 114688
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 0
@@ -43,6 +46,9 @@
       ],
       "iconKey": "qwen",
       "supportsThinking": true,
+      "memory": {
+        "fullKVBytesPerToken": 114688
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 1
@@ -66,6 +72,9 @@
       ],
       "iconKey": "qwen",
       "supportsThinking": true,
+      "memory": {
+        "fullKVBytesPerToken": 114688
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 2
@@ -87,6 +96,9 @@
       ],
       "iconKey": "qwen",
       "supportsThinking": true,
+      "memory": {
+        "fullKVBytesPerToken": 114688
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 3
@@ -110,6 +122,9 @@
       ],
       "iconKey": "qwen",
       "supportsThinking": true,
+      "memory": {
+        "fullKVBytesPerToken": 147456
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 4
@@ -131,6 +146,9 @@
       ],
       "iconKey": "qwen",
       "supportsThinking": true,
+      "memory": {
+        "fullKVBytesPerToken": 147456
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 5
@@ -153,6 +171,11 @@
       ],
       "iconKey": "gemma",
       "isOnboarding": true,
+      "memory": {
+        "fullKVBytesPerToken": 4096,
+        "windowKVBytesPerToken": 22528,
+        "windowTokens": 512
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 6
@@ -172,6 +195,11 @@
         "chat"
       ],
       "iconKey": "gemma",
+      "memory": {
+        "fullKVBytesPerToken": 4096,
+        "windowKVBytesPerToken": 22528,
+        "windowTokens": 512
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 7
@@ -193,6 +221,11 @@
         "chat"
       ],
       "iconKey": "gemma",
+      "memory": {
+        "fullKVBytesPerToken": 20480,
+        "windowKVBytesPerToken": 118784,
+        "windowTokens": 1024
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 8
@@ -214,6 +247,9 @@
         "chat"
       ],
       "iconKey": "llama",
+      "memory": {
+        "fullKVBytesPerToken": 32768
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 9
@@ -233,6 +269,9 @@
         "chat"
       ],
       "iconKey": "llama",
+      "memory": {
+        "fullKVBytesPerToken": 32768
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 10
@@ -254,6 +293,9 @@
         "chat"
       ],
       "iconKey": "llama",
+      "memory": {
+        "fullKVBytesPerToken": 114688
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 11
@@ -273,6 +315,9 @@
         "chat"
       ],
       "iconKey": "llama",
+      "memory": {
+        "fullKVBytesPerToken": 114688
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 12
@@ -301,6 +346,11 @@
         }
       ],
       "recommended": true,
+      "memory": {
+        "fullKVBytesPerToken": 6144,
+        "windowKVBytesPerToken": 12288,
+        "windowTokens": 512
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 13
@@ -326,6 +376,11 @@
           "tone": "success"
         }
       ],
+      "memory": {
+        "fullKVBytesPerToken": 6144,
+        "windowKVBytesPerToken": 12288,
+        "windowTokens": 512
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 14
@@ -357,6 +412,11 @@
           "tone": "warning"
         }
       ],
+      "memory": {
+        "fullKVBytesPerToken": 16384,
+        "windowKVBytesPerToken": 40960,
+        "windowTokens": 512
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 15
@@ -386,6 +446,11 @@
           "tone": "warning"
         }
       ],
+      "memory": {
+        "fullKVBytesPerToken": 16384,
+        "windowKVBytesPerToken": 40960,
+        "windowTokens": 512
+      },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 16

@@ -49,6 +49,18 @@ struct ModelPickerSheet: View {
         .presentationDragIndicator(.visible)
     }
 
+    private func fitDetail(for model: ModelDescriptor) -> FitDetail? {
+        guard model.source == .gguf || model.source == .mlx else { return nil }
+        return app.hub.catalog.first { $0.id == model.id }?.fitDetail
+    }
+
+    /// "GGUF · 2.5 GB", plus what the model needs in memory when the fit check has numbers for it.
+    private func subtitle(for model: ModelDescriptor) -> String {
+        let base = ModelPickerLogic.subtitle(for: model)
+        guard let detail = fitDetail(for: model) else { return base }
+        return "\(base) · \(FitText.needs(detail))"
+    }
+
     private func row(_ model: ModelDescriptor) -> some View {
         let isSelected = models.selected?.id == model.id
         return Button {
@@ -58,9 +70,12 @@ struct ModelPickerSheet: View {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(model.displayName).font(.arBase).foregroundStyle(ARColor.foreground).lineLimit(1)
-                    Text(ModelPickerLogic.subtitle(for: model)).font(.arXS).foregroundStyle(ARColor.mutedForeground)
+                    Text(subtitle(for: model)).font(.arXS).foregroundStyle(ARColor.mutedForeground)
                 }
                 Spacer()
+                if let detail = fitDetail(for: model), let badge = FitText.badge(detail, device: DeviceName.current) {
+                    ARChip(text: badge, tint: detail.verdict == .fits ? .green : detail.verdict == .tight ? .orange : ARColor.destructive)
+                }
                 if isSelected { Image(systemName: "checkmark").foregroundStyle(ARColor.accent) }
             }
             .padding(12)

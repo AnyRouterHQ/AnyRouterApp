@@ -17,7 +17,9 @@ final class LocalModelHub: ModelHubService {
     let downloads: ModelDownloadManager
     @ObservationIgnored private let service: CatalogService
     @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private let fit: DeviceFit
+    @ObservationIgnored private let memory: @Sendable () -> DeviceMemory
+    /// Read at each reload, so every card of one list is judged against the same numbers.
+    @ObservationIgnored private var deviceMemory: DeviceMemory
     @ObservationIgnored private var raw: [String: CatalogEntry] = [:]
     @ObservationIgnored private var browsed: [String: CatalogEntry] = [:]
     @ObservationIgnored private var restored = false
@@ -25,17 +27,19 @@ final class LocalModelHub: ModelHubService {
     init(downloads: ModelDownloadManager = ModelDownloadManager(),
          service: CatalogService = CatalogService(),
          defaults: UserDefaults = .standard,
-         fit: DeviceFit = DeviceFit()) {
+         memory: @escaping @Sendable () -> DeviceMemory = { DeviceMemory.current() }) {
         self.downloads = downloads
         self.service = service
         self.defaults = defaults
-        self.fit = fit
+        self.memory = memory
+        self.deviceMemory = memory()
         downloads.backgroundCompletionHandler = {
             Task { @MainActor in AppDelegate.finishBackgroundEvents() }
         }
     }
 
     func reload() async {
+        deviceMemory = memory()
         if !restored {
             restored = true
             await downloads.restore()
@@ -107,6 +111,7 @@ final class LocalModelHub: ModelHubService {
     }
 
     func entries(for hit: RepoHit) async throws -> [LocalModelEntry] {
+        deviceMemory = memory()
         let items = try await service.entries(forRepo: hit.repo, format: format(hit.source))
         for item in items where raw[item.id] == nil { browsed[item.id] = item }
         return items.map { map($0, isUser: false) }
@@ -173,15 +178,21 @@ final class LocalModelHub: ModelHubService {
         if let parameters = entry.parameters { tags.append(parameters) }
         if let quantization = entry.quantization { tags.append(quantization) }
         tags += entry.capabilities.subtracting(["chat"]).sorted()
-        let verdict: ModelFit
-        if let size = entry.sizeBytes {
-            switch fit.verdict(modelBytes: size) {
-            case .fits: verdict = .fits
+        var verdict = ModelFit.unknown
+        var detail: FitDetail?
+        if let profile = entry.memoryProfile {
+            let estimate = FitPlanner.estimate(profile, memory: deviceMemory)
+            switch estimate.verdict {
+            case .runsWell: verdict = .fits
             case .tight: verdict = .tight
-            case .tooLarge: verdict = .wontFit
+            case .wontFit: verdict = .wontFit
             }
-        } else {
-            verdict = .unknown
+            var maxReply = FitPlanner.maxReply(forContext: estimate.context)
+            if case .tight(_, let reply) = estimate.verdict { maxReply = reply }
+            detail = FitDetail(
+                verdict: verdict, neededBytes: estimate.totalBytes, budgetBytes: estimate.deviceBudgetBytes,
+                context: estimate.context, maxReply: maxReply, streamsFromStorage: estimate.streamsFromStorage,
+                isEstimate: estimate.isEstimated)
         }
         let installed = downloads.state(for: entry) == .installed
         var unavailable: String?
@@ -202,6 +213,7 @@ final class LocalModelHub: ModelHubService {
             isUserAdded: isUser,
             unavailableReason: unavailable,
             badges: entry.badges.map { ModelBadge(label: $0.label, tone: ModelBadge.Tone(rawValue: $0.tone ?? "") ?? .neutral) },
+            fitDetail: detail,
             isOnboarding: entry.isOnboarding,
             isRecommended: entry.recommended
         )

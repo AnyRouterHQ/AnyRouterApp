@@ -2,13 +2,16 @@ import Foundation
 
 /// Keeps one model loaded. Loading is slow (seconds), so a second chat with the same model reuses it.
 actor LlamaModelCache {
-    private var current: (path: String, model: LlamaModel)?
+    private var current: (id: String, path: String, model: LlamaModel)?
 
-    func model(at path: String) async throws -> LlamaModel {
+    /// Id of the loaded model, nil when none is.
+    var loadedID: String? { current?.id }
+
+    func model(at path: String, id: String) async throws -> LlamaModel {
         if let current, current.path == path { return current.model }
         current = nil // free the old weights before the new ones load
         let loaded = try await Task.detached(priority: .userInitiated) { try LlamaModel(path: path) }.value
-        current = (path, loaded)
+        current = (id, path, loaded)
         return loaded
     }
 
@@ -63,6 +66,11 @@ final class GGUFEngine: ChatEngine {
         await cache.unload()
     }
 
+    /// Id of the model whose weights are in memory now.
+    func loadedModelID() async -> String? {
+        await cache.loadedID
+    }
+
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
         -> AsyncThrowingStream<ChatDelta, Error> {
         AsyncThrowingStream { continuation in
@@ -73,7 +81,7 @@ final class GGUFEngine: ChatEngine {
                         throw GGUFError.modelNotInstalled(model.id)
                     }
                     let path = storage.fileURL(forEntryID: model.id, path: file.path).path
-                    let llama = try await cache.model(at: path)
+                    let llama = try await cache.model(at: path, id: model.id)
                     let result = try Self.run(llama, messages: messages, params: params) { continuation.yield(.text($0)) }
                     continuation.yield(.usage(prompt: result.promptTokens, completion: result.completionTokens))
                     continuation.yield(.done(finishReason: result.finishReason))

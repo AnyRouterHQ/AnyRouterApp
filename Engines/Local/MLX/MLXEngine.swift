@@ -4,13 +4,16 @@ import MLXLMCommon
 
 /// Keeps one model loaded. Loading reads the whole snapshot into memory, so a second chat reuses it.
 actor MLXModelCache {
-    private var current: (directory: URL, container: ModelContainer)?
+    private var current: (id: String, directory: URL, container: ModelContainer)?
 
-    func container(at directory: URL) async throws -> ModelContainer {
+    /// Id of the loaded model, nil when none is.
+    var loadedID: String? { current?.id }
+
+    func container(at directory: URL, id: String) async throws -> ModelContainer {
         if let current, current.directory == directory { return current.container }
         current = nil // release the old weights before the new ones load
         let loaded = try await loadModelContainer(from: directory, using: TransformersTokenizerLoader())
-        current = (directory, loaded)
+        current = (id, directory, loaded)
         return loaded
     }
 
@@ -54,6 +57,11 @@ final class MLXEngine: ChatEngine {
         await cache.unload()
     }
 
+    /// Id of the model whose weights are in memory now.
+    func loadedModelID() async -> String? {
+        await cache.loadedID
+    }
+
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
         -> AsyncThrowingStream<ChatDelta, Error> {
         AsyncThrowingStream { continuation in
@@ -63,7 +71,7 @@ final class MLXEngine: ChatEngine {
                     if case .unavailable(let reason) = Self.availability { throw MLXError.unavailable(reason) }
                     guard storage.isInstalled(entryID: model.id) else { throw MLXError.modelNotInstalled(model.id) }
                     let conversation = try MLXConversation.split(messages: messages, systemPrompt: params.systemPrompt)
-                    let container = try await cache.container(at: storage.directory(forEntryID: model.id))
+                    let container = try await cache.container(at: storage.directory(forEntryID: model.id), id: model.id)
                     try await Self.generate(container, conversation: conversation, params: params, into: continuation)
                     continuation.finish()
                 } catch is CancellationError {

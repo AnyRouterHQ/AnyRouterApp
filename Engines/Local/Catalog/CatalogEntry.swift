@@ -26,6 +26,17 @@ struct CatalogVision: Codable, Hashable, Sendable {
     var mmprojSize: Int64?
 }
 
+/// Memory facts read from the model's metadata, so the fit check does not guess. Written by `scripts/catalog-add.sh`.
+struct CatalogMemory: Codable, Hashable, Sendable {
+    /// KV-cache bytes per token over layers that attend to the whole context (f16 cache).
+    var fullKVBytesPerToken: Int64
+    /// KV-cache bytes per token over sliding-window layers, and their window.
+    var windowKVBytesPerToken: Int64?
+    var windowTokens: Int?
+    /// Mixture of experts: share of the weights one token touches.
+    var activeFraction: Double?
+}
+
 /// One downloadable local model: a single GGUF file, or a whole MLX repo snapshot.
 struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
     /// Hugging Face repo id, `org/name`.
@@ -67,6 +78,7 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
     /// ISO dates (`yyyy-MM-dd`).
     var createdAt: String?
     var updatedAt: String?
+    var memory: CatalogMemory?
 
     /// Matches `ModelDescriptor.id`: `gguf/<repo>/<file>` or `mlx/<repo>`.
     var id: String {
@@ -84,7 +96,8 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         origin: CatalogOrigin = .bundled, sha256: String? = nil, iconKey: String? = nil,
         badges: [CatalogBadge] = [], supportsThinking: Bool = false, vision: CatalogVision? = nil,
         isOnboarding: Bool = false, platforms: [String]? = nil, recommended: Bool = false,
-        minRAMBytes: Int64? = nil, createdAt: String? = nil, updatedAt: String? = nil
+        minRAMBytes: Int64? = nil, createdAt: String? = nil, updatedAt: String? = nil,
+        memory: CatalogMemory? = nil
     ) {
         self.repo = repo
         self.format = format
@@ -111,13 +124,14 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         self.minRAMBytes = minRAMBytes
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.memory = memory
     }
 
     private enum CodingKeys: String, CodingKey {
         case repo, format, file, title, summary, parameters, quantization, sizeBytes
         case contextLength, license, revision, capabilities, order
         case sha256, iconKey, badges, supportsThinking, vision, isOnboarding, platforms, recommended
-        case minRAMBytes, createdAt, updatedAt
+        case minRAMBytes, createdAt, updatedAt, memory
     }
 
     init(from decoder: Decoder) throws {
@@ -153,7 +167,8 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
             recommended: try c.decodeIfPresent(Bool.self, forKey: .recommended) ?? false,
             minRAMBytes: try c.decodeIfPresent(Int64.self, forKey: .minRAMBytes),
             createdAt: try c.decodeIfPresent(String.self, forKey: .createdAt),
-            updatedAt: try c.decodeIfPresent(String.self, forKey: .updatedAt)
+            updatedAt: try c.decodeIfPresent(String.self, forKey: .updatedAt),
+            memory: try c.decodeIfPresent(CatalogMemory.self, forKey: .memory)
         )
     }
 
@@ -183,6 +198,19 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         try c.encodeIfPresent(minRAMBytes, forKey: .minRAMBytes)
         try c.encodeIfPresent(createdAt, forKey: .createdAt)
         try c.encodeIfPresent(updatedAt, forKey: .updatedAt)
+        try c.encodeIfPresent(memory, forKey: .memory)
+    }
+
+    /// What the fit check needs. Uses the catalog's memory facts when present, else a guess from the file size.
+    /// Nil when the size is unknown.
+    var memoryProfile: ModelMemoryProfile? {
+        guard let sizeBytes else { return nil }
+        let trained = contextLength ?? 0
+        guard let memory else { return .estimated(fileBytes: sizeBytes, trainedContext: trained) }
+        return ModelMemoryProfile(
+            fileBytes: sizeBytes, fullKVBytesPerToken: memory.fullKVBytesPerToken,
+            windowKVBytesPerToken: memory.windowKVBytesPerToken ?? 0, windowTokens: memory.windowTokens ?? 0,
+            trainedContext: trained, activeFraction: memory.activeFraction)
     }
 
     /// False when the entry lists platforms and iOS is not one of them (iPad counts as iOS).

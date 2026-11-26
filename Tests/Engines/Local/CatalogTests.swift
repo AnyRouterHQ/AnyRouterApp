@@ -409,6 +409,33 @@ struct SharedCatalogTests {
         #expect(!oldJSON.contains("badges") && !oldJSON.contains("isOnboarding"))
     }
 
+    @Test func memoryFactsBecomeAProfileAndAMissingOneIsAnEstimate() throws {
+        let json = #"""
+        {"schemaVersion":1,"models":[
+         {"repo":"org/e-GGUF","format":"gguf","file":"e.gguf","title":"E","sizeBytes":3000000000,"contextLength":131072,
+          "memory":{"fullKVBytesPerToken":6144,"windowKVBytesPerToken":12288,"windowTokens":512,"activeFraction":0.119}},
+         {"repo":"org/plain","format":"mlx","title":"Plain","sizeBytes":1000000000,"contextLength":4096}]}
+        """#
+        let models = try CatalogDocument.decode(Data(json.utf8)).models
+        let known = try #require(models[0].memoryProfile)
+        #expect(known.fileBytes == 3_000_000_000 && known.fullKVBytesPerToken == 6144)
+        #expect(known.windowKVBytesPerToken == 12288 && known.windowTokens == 512)
+        #expect(known.activeFraction == 0.119 && known.trainedContext == 131_072 && !known.isEstimated)
+        let guess = try #require(models[1].memoryProfile)
+        #expect(guess.isEstimated && guess.fileBytes == 1_000_000_000)
+        #expect(sampleGGUF().memoryProfile != nil)
+        #expect(CatalogEntry(repo: "org/nosize", format: .mlx, title: "x").memoryProfile == nil)
+        let again = try JSONDecoder().decode(CatalogEntry.self, from: JSONEncoder().encode(models[0]))
+        #expect(again.memory == models[0].memory)
+    }
+
+    @Test func everyBundledModelHasRealMemoryFacts() throws {
+        for model in try BundledCatalog.load().models {
+            let memory = try #require(model.memory, "\(model.id) needs memory facts: run scripts/catalog-memory.sh")
+            #expect(memory.fullKVBytesPerToken > 0)
+        }
+    }
+
     @Test func everyBundledGGUFPinsItsFileWithASha256() throws {
         let doc = try BundledCatalog.load()
         for model in doc.models where model.format == .gguf {

@@ -12,6 +12,8 @@ final class AppState {
     var account: any AccountService
     /// Local model catalog and downloads.
     var hub: any ModelHubService
+    /// App memory and the loaded local model, with unload.
+    let memory: MemoryMonitor
 
     init() {
         if DemoData.isEnabled {
@@ -20,6 +22,7 @@ final class AppState {
             models = demo.models
             account = demo.account
             hub = demo.hub
+            memory = MemoryMonitor.inert()
             return
         }
         settings = AppSettings()
@@ -39,6 +42,19 @@ final class AppState {
                 await mlx.unload()
             }
         }
+        memory = MemoryMonitor(
+            read: {
+                let snapshot = MemorySnapshot.read()
+                return MemoryReadout(footprintBytes: snapshot.footprintBytes, availableBytes: snapshot.availableBytes)
+            },
+            loaded: {
+                if let id = await gguf.loadedModelID() { return id }
+                return await mlx.loadedModelID()
+            },
+            unload: {
+                await gguf.unload()
+                await mlx.unload()
+            })
         let auth = AnyRouterAuth()
         registry.register(auth.makeEngine())
         account = AnyRouterAccountAdapter(auth: auth)

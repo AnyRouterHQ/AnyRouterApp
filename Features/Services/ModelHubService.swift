@@ -30,6 +30,23 @@ struct ModelBadge: Hashable, Sendable {
     var tone: Tone = .neutral
 }
 
+/// Whether and how a model runs on this device, with the numbers behind it.
+struct FitDetail: Hashable, Sendable {
+    /// `.fits` runs well, `.tight` loads with a shorter context, `.wontFit` does not load.
+    var verdict: ModelFit
+    /// Memory to run the model entirely in RAM: weights, KV cache and runtime overhead.
+    var neededBytes: Int64
+    /// What this device can give a model.
+    var budgetBytes: Int64
+    /// Largest context that fits, in tokens.
+    var context: Int
+    var maxReply: Int
+    /// Only the experts in use stay in RAM; the file is read from storage as needed.
+    var streamsFromStorage: Bool
+    /// The numbers come from a guess at the model's shape, not its metadata.
+    var isEstimate: Bool
+}
+
 /// A local (GGUF or MLX) model shown in the hub and the onboarding picker.
 struct LocalModelEntry: Identifiable, Hashable, Sendable {
     var descriptor: ModelDescriptor
@@ -41,6 +58,7 @@ struct LocalModelEntry: Identifiable, Hashable, Sendable {
     /// Why this model cannot run on this device (for example MLX in the Simulator). Nil when it can.
     var unavailableReason: String? = nil
     var badges: [ModelBadge] = []
+    var fitDetail: FitDetail? = nil
     /// The catalog offers it first in onboarding.
     var isOnboarding = false
     /// The catalog marks it as a top pick.

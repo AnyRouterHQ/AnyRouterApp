@@ -33,7 +33,8 @@ struct ChatScreen: View {
             ToolbarItem(placement: .principal) {
                 ModelPill { shell.isModelPickerPresented = true }
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                MemoryMenu()
                 Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "plus") }
                     .accessibilityLabel("New chat")
             }

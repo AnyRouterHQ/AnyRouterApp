@@ -6,6 +6,7 @@ All HTTP goes through curl so the system certificate store is used.
 import json
 import os
 import re
+import struct
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -22,8 +23,9 @@ QUANT_RE = re.compile(r"(?i)(?<![A-Za-z0-9])((?:IQ|Q)\d(?:_[A-Z0-9]+)*|BF16|F16|
 KNOWN_KEYS = {
     "repo", "format", "file", "title", "summary", "parameters", "quantization", "sizeBytes", "contextLength",
     "license", "revision", "capabilities", "order", "sha256", "iconKey", "badges", "supportsThinking", "vision",
-    "isOnboarding", "platforms", "recommended", "minRAMBytes", "createdAt", "updatedAt",
+    "isOnboarding", "platforms", "recommended", "minRAMBytes", "createdAt", "updatedAt", "memory",
 }
+MEMORY_KEYS = {"fullKVBytesPerToken", "windowKVBytesPerToken", "windowTokens", "activeFraction"}
 
 _cache = {}
 
@@ -52,6 +54,170 @@ def tree(repo, revision):
 
 def model_info(repo):
     return fetch_json(f"{HF}/api/models/{repo}")
+
+
+# ---- memory profile (KV cache bytes per token) ----------------------------------------------------------------
+
+GGUF_SCALARS = {0: "<B", 1: "<b", 2: "<H", 3: "<h", 4: "<I", 5: "<i", 6: "<f", 7: "<?", 10: "<Q", 11: "<q", 12: "<d"}
+
+
+class _Short(Exception):
+    pass
+
+
+def _parse_gguf_metadata(data):
+    """Metadata key/values of a GGUF header. Raises _Short when the bytes end before the metadata does."""
+    pos = 0
+
+    def take(n):
+        nonlocal pos
+        if pos + n > len(data):
+            raise _Short()
+        chunk = data[pos:pos + n]
+        pos += n
+        return chunk
+
+    def string():
+        return take(struct.unpack("<Q", take(8))[0]).decode("utf8", "replace")
+
+    def value(kind):
+        if kind in GGUF_SCALARS:
+            fmt = GGUF_SCALARS[kind]
+            return struct.unpack(fmt, take(struct.calcsize(fmt)))[0]
+        if kind == 8:
+            return string()
+        if kind == 9:
+            inner, count = struct.unpack("<IQ", take(12))
+            return [value(inner) for _ in range(count)]
+        raise ValueError(f"unknown GGUF value type {kind}")
+
+    if take(4) != b"GGUF":
+        raise ValueError("not a GGUF file")
+    take(4)
+    _tensors, count = struct.unpack("<QQ", take(16))
+    meta = {}
+    for _ in range(count):
+        key = string()
+        kind = struct.unpack("<I", take(4))[0]
+        item = value(kind)
+        # Token tables are huge and not needed here.
+        meta[key] = item if not (isinstance(item, list) and len(item) > 4096) else None
+    return meta
+
+
+def gguf_header(repo, revision, file):
+    """Metadata of a remote GGUF, reading only as much of the file as the header needs."""
+    for megabytes in (4, 16, 64, 192):
+        out = subprocess.run(
+            ["curl", "-fsSL", "--retry", "3", "-r", f"0-{megabytes * 1024 * 1024 - 1}",
+             f"{HF}/{repo}/resolve/{revision}/{file}"],
+            capture_output=True,
+        )
+        if out.returncode != 0:
+            raise RuntimeError(f"cannot read the header of {repo}/{file}: curl exit {out.returncode}")
+        try:
+            return _parse_gguf_metadata(out.stdout)
+        except _Short:
+            continue
+    raise RuntimeError(f"{repo}/{file}: the GGUF header is larger than 192 MB")
+
+
+def memory_from_gguf(meta):
+    """KV bytes per token (f16 cache) split into full-attention and sliding-window layers, plus the expert share."""
+    arch = meta.get("general.architecture")
+    p = f"{arch}."
+    try:
+        layers = meta[p + "block_count"]
+        heads = meta[p + "attention.head_count"]
+        embedding = meta[p + "embedding_length"]
+    except KeyError:
+        return None
+    kv_heads = meta.get(p + "attention.head_count_kv") or heads
+    key_len, value_len = meta.get(p + "attention.key_length"), meta.get(p + "attention.value_length")
+    key_swa = meta.get(p + "attention.key_length_swa") or key_len
+    value_swa = meta.get(p + "attention.value_length_swa") or value_len
+    window = meta.get(p + "attention.sliding_window") or 0
+    pattern = meta.get(p + "attention.sliding_window_pattern")
+    if pattern is None and window and arch in ("gemma3", "gemma3n"):
+        pattern = 6  # llama.cpp's built-in default: five window layers, then one full layer
+    shared = meta.get(p + "attention.shared_kv_layers") or 0
+
+    def at(value, i):
+        return value[i] if isinstance(value, list) else value
+
+    def is_window(i):
+        if not window or pattern is None:
+            return False
+        if isinstance(pattern, list):
+            return bool(pattern[i])
+        return i % pattern < pattern - 1
+
+    full = windowed = 0
+    for i in range(layers - shared):
+        h, hk = at(heads, i), at(kv_heads, i)
+        if not hk:
+            continue  # a layer without attention keeps no KV cache
+        swa = is_window(i)
+        k = (key_swa if swa else key_len) or embedding // h
+        v = (value_swa if swa else value_len) or embedding // h
+        size = hk * (k + v) * 2
+        if swa:
+            windowed += size
+        else:
+            full += size
+    result = {"fullKVBytesPerToken": full}
+    if windowed:
+        result["windowKVBytesPerToken"] = windowed
+        result["windowTokens"] = window
+    experts, used = meta.get(p + "expert_count") or 0, meta.get(p + "expert_used_count") or 0
+    if experts > 1 and 0 < used <= experts:
+        result["activeFraction"] = round(0.06 + 0.94 * used / experts, 3)
+    return result
+
+
+def memory_from_mlx_config(config):
+    text = config.get("text_config") or config
+    try:
+        layers = text["num_hidden_layers"]
+        heads = text["num_attention_heads"]
+        hidden = text["hidden_size"]
+    except KeyError:
+        return None
+    kv_heads = text.get("num_key_value_heads") or heads
+    head_dim = text.get("head_dim") or hidden // heads
+    global_dim = text.get("global_head_dim") or head_dim
+    global_heads = text.get("num_global_key_value_heads") or kv_heads
+    types = text.get("layer_types")
+    window = text.get("sliding_window") or 0
+    period = text.get("sliding_window_pattern")
+    if not types and window and isinstance(period, int) and period > 1:
+        types = ["sliding_attention" if i % period < period - 1 else "full_attention" for i in range(layers)]
+    shared = text.get("num_kv_shared_layers") or 0
+    full = windowed = 0
+    for i in range(layers - shared):
+        swa = bool(types and types[i] == "sliding_attention" and window)
+        size = kv_heads * head_dim * 2 * 2 if swa or not types else global_heads * global_dim * 2 * 2
+        if swa:
+            windowed += size
+        else:
+            full += size
+    result = {"fullKVBytesPerToken": full}
+    if windowed:
+        result["windowKVBytesPerToken"] = windowed
+        result["windowTokens"] = window
+    experts = text.get("num_experts") or text.get("num_local_experts") or 0
+    used = text.get("num_experts_per_tok") or 0
+    if experts > 1 and 0 < used <= experts:
+        result["activeFraction"] = round(0.06 + 0.94 * used / experts, 3)
+    return result
+
+
+def memory_for_entry(entry):
+    """The memory profile of an entry, read from the model's own metadata. None when the metadata lacks the keys."""
+    if entry["format"] == "gguf":
+        return memory_from_gguf(gguf_header(entry["repo"], entry["revision"], entry["file"]))
+    config = fetch_json(f"{HF}/{entry['repo']}/resolve/{entry['revision']}/config.json")
+    return memory_from_mlx_config(config)
 
 
 def entry_id(entry):
@@ -152,6 +318,12 @@ def cmd_add(args):
         entry["recommended"] = True
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     entry["updatedAt"] = today
+    entry["revision"] = revision
+    memory = memory_for_entry(entry)
+    if memory:
+        entry["memory"] = memory
+    else:
+        print("note: the model's metadata has no KV-cache keys; the app will estimate memory from the file size")
 
     path = os.path.join(ROOT, options["--catalog"])
     document = load(path)
@@ -186,7 +358,7 @@ def options_set(options, given):
 
 ORDER = ["repo", "format", "file", "title", "summary", "parameters", "quantization", "sizeBytes", "contextLength",
          "license", "revision", "sha256", "capabilities", "iconKey", "badges", "supportsThinking", "vision",
-         "isOnboarding", "platforms", "recommended", "minRAMBytes", "createdAt", "updatedAt", "order"]
+         "isOnboarding", "platforms", "recommended", "minRAMBytes", "memory", "createdAt", "updatedAt", "order"]
 
 
 def ordered(entry):
@@ -253,6 +425,16 @@ def check_file(path, offline):
         for key in ("createdAt", "updatedAt"):
             if key in m and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", m[key]):
                 bad(i, f"{ident}: {key} must be yyyy-MM-dd")
+        memory = m.get("memory")
+        if memory is not None:
+            extra = set(memory) - MEMORY_KEYS
+            if extra or not isinstance(memory.get("fullKVBytesPerToken"), int) or memory["fullKVBytesPerToken"] < 0:
+                bad(i, f"{ident}: memory needs an integer fullKVBytesPerToken and only {sorted(MEMORY_KEYS)}")
+            if memory.get("windowKVBytesPerToken") and not memory.get("windowTokens"):
+                bad(i, f"{ident}: windowKVBytesPerToken needs windowTokens")
+            fraction = memory.get("activeFraction")
+            if fraction is not None and not (0 < fraction < 1):
+                bad(i, f"{ident}: activeFraction must be between 0 and 1")
         vision = m.get("vision")
         if vision is not None and (fmt != "gguf" or not str(vision.get("mmprojFile", "")).endswith(".gguf")):
             bad(i, f"{ident}: vision needs a gguf entry and an mmprojFile ending in .gguf")
@@ -288,6 +470,25 @@ def check_file(path, offline):
     return problems
 
 
+def cmd_memory(args):
+    """Fill or refresh the memory profile of every entry in the given catalog files."""
+    paths = [a for a in args if not a.startswith("--")] or DEFAULT_FILES
+    for path in paths:
+        full = os.path.join(ROOT, path)
+        document = load(full)
+        for entry in document["models"]:
+            memory = memory_for_entry(entry)
+            label = entry_id(entry)
+            if memory is None:
+                entry.pop("memory", None)
+                print(f"{label}: no KV-cache keys in the metadata, the app will estimate")
+            else:
+                entry["memory"] = memory
+                print(f"{label}: {memory}")
+        document["models"] = [ordered(m) for m in document["models"]]
+        save(full, document)
+
+
 def cmd_check(args):
     offline = "--offline" in args
     paths = [a for a in args if not a.startswith("--")] or DEFAULT_FILES
@@ -302,7 +503,7 @@ def cmd_check(args):
 
 
 if __name__ == "__main__":
-    commands = {"add": cmd_add, "check": cmd_check}
+    commands = {"add": cmd_add, "check": cmd_check, "memory": cmd_memory}
     if len(sys.argv) < 2 or sys.argv[1] not in commands:
-        sys.exit("usage: catalog.py add|check ...")
+        sys.exit("usage: catalog.py add|check|memory ...")
     commands[sys.argv[1]](sys.argv[2:])

@@ -1,5 +1,6 @@
 import Foundation
 import llama
+import Metal
 
 struct LlamaResult: Sendable {
     var promptTokens: Int
@@ -11,9 +12,6 @@ struct LlamaResult: Sendable {
 /// One loaded GGUF model (the weights). Contexts are made per request, so the model can stay loaded between chats.
 /// The llama.cpp calls here block, so call them off the main actor.
 final class LlamaModel: @unchecked Sendable {
-    /// Largest context the app asks for, to bound KV-cache memory on a phone.
-    static let maxContext = 4096
-
     private static let backend: Void = {
         // No llama.cpp logging: it can echo prompt text.
         llama_log_set({ _, _, _ in }, nil)
@@ -23,15 +21,37 @@ final class LlamaModel: @unchecked Sendable {
     private let model: OpaquePointer
     private let vocab: OpaquePointer
     let trainedContext: Int
+    /// Context size chosen from the memory this device can give: the largest that fits. A generation lowers it when the
+    /// system cannot allocate that much, so the next one starts from what worked.
+    private(set) var contextSize: Int
     private let template: String?
     private let thoughtChannel: (open: llama_token, close: llama_token)?
 
     init(path: String) throws {
         _ = Self.backend
+        let name = (path as NSString).lastPathComponent
+        // The header tells how much memory the model needs. A file whose header cannot be read still loads, on an estimate.
+        let fileBytes = ((try? FileManager.default.attributesOfItem(atPath: path)[.size]) as? NSNumber)?.int64Value ?? 0
+        let info = try? GGUFHeader.read(fileAt: URL(fileURLWithPath: path))
+        let profile = info?.profile(fileBytes: fileBytes) ?? .estimated(fileBytes: fileBytes, trainedContext: 0)
+        let memory = DeviceMemory.current()
+        let estimate = FitPlanner.estimate(profile, memory: memory)
+        var planned = estimate.context
+        #if targetEnvironment(simulator)
+        // The Simulator is not limited like a phone, and has no Metal GPU family llama.cpp can use.
+        if estimate.verdict == .wontFit { planned = min(max(profile.trainedContext, FitPlanner.minContext), 4096) }
+        #else
+        if estimate.verdict == .wontFit {
+            throw GGUFError.wontFit(name: name, neededBytes: estimate.totalBytes, availableBytes: estimate.deviceBudgetBytes)
+        }
+        #endif
         var params = llama_model_default_params()
         #if targetEnvironment(simulator)
-        // The simulator has no Metal GPU family llama.cpp can use.
         params.n_gpu_layers = 0
+        #else
+        params.n_gpu_layers = GPUOffload.layers(
+            blockCount: info?.blockCount ?? 0, fileBytes: fileBytes,
+            gpuBudgetBytes: MTLCreateSystemDefaultDevice().map { Int64($0.recommendedMaxWorkingSetSize) })
         #endif
         guard let model = llama_model_load_from_file(path, params) else {
             throw GGUFError.loadFailed((path as NSString).lastPathComponent)
@@ -43,6 +63,7 @@ final class LlamaModel: @unchecked Sendable {
         self.model = model
         self.vocab = vocab
         self.trainedContext = Int(llama_model_n_ctx_train(model))
+        self.contextSize = planned
         let template = llama_model_chat_template(model, nil).map { String(cString: $0) }
         self.template = template
         if let template, Gemma4Formatter.matches(template: template),
@@ -62,11 +83,6 @@ final class LlamaModel: @unchecked Sendable {
 
     deinit {
         llama_model_free(model)
-    }
-
-    /// Context size to use: the model's own limit, capped by `maxContext`.
-    var contextSize: Int {
-        max(256, min(trainedContext > 0 ? trainedContext : Self.maxContext, Self.maxContext))
     }
 
     // MARK: Prompt
@@ -136,19 +152,30 @@ final class LlamaModel: @unchecked Sendable {
     func generate(
         promptTokens: [llama_token], params: GenerationParams, isCancelled: () -> Bool, emit: (String) -> Void
     ) throws -> LlamaResult {
-        let contextSize = self.contextSize
         guard promptTokens.count < contextSize else {
             throw GGUFError.promptTooLong(tokens: promptTokens.count, limit: contextSize)
         }
         var contextParams = llama_context_default_params()
-        contextParams.n_ctx = UInt32(contextSize)
-        contextParams.n_batch = UInt32(min(512, contextSize))
-        contextParams.n_ubatch = UInt32(min(512, contextSize))
         let threads = Int32(max(1, min(6, ProcessInfo.processInfo.activeProcessorCount - 2)))
         contextParams.n_threads = threads
         contextParams.n_threads_batch = threads
-        guard let context = llama_init_from_model(model, contextParams) else { throw GGUFError.contextFailed }
+        // Ask for the planned context. When the system cannot allocate that much, halve it until it can.
+        var attempt = contextSize
+        var created: OpaquePointer?
+        while true {
+            contextParams.n_ctx = UInt32(attempt)
+            contextParams.n_batch = UInt32(min(512, attempt))
+            contextParams.n_ubatch = UInt32(min(512, attempt))
+            created = llama_init_from_model(model, contextParams)
+            if created != nil || attempt <= FitPlanner.minContext { break }
+            attempt = max(FitPlanner.minContext, attempt / 2 / FitPlanner.contextStep * FitPlanner.contextStep)
+        }
+        guard let context = created else { throw GGUFError.contextFailed }
         defer { llama_free(context) }
+        contextSize = attempt
+        guard promptTokens.count < attempt else {
+            throw GGUFError.promptTooLong(tokens: promptTokens.count, limit: attempt)
+        }
         let sampler = Self.makeSampler(params)
         defer { llama_sampler_free(sampler) }
 

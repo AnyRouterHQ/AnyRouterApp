@@ -58,6 +58,7 @@ struct HubScreen: View {
         .onChange(of: installedIDs) {
             Task { await models.refresh() }
         }
+        .task { await app.memory.refresh() }
     }
 
     @ViewBuilder
@@ -93,13 +94,18 @@ struct HubScreen: View {
             tags: entry.tags,
             badges: entry.badges,
             fit: entry.fit,
+            fitDetail: entry.fitDetail,
             state: hub.downloadState(for: id),
             unavailableReason: entry.unavailableReason,
             onDownload: { hub.download(entry) },
             onPause: { hub.pause(modelID: id) },
             onResume: { hub.resume(modelID: id) },
             onCancel: { hub.cancel(modelID: id) },
-            onDelete: { Task { await hub.delete(modelID: id) } }
+            onDelete: { Task { await hub.delete(modelID: id) } },
+            memoryNote: app.memory.loadedModelID == id
+                ? FitText.memoryLine(footprintBytes: app.memory.readout.footprintBytes, availableBytes: app.memory.readout.availableBytes)
+                : nil,
+            onUnload: app.memory.loadedModelID == id ? { Task { await app.memory.unload() } } : nil
         )
     }
 
@@ -199,7 +205,7 @@ struct RepoSearchSheet: View {
             ModelCard(
                 title: entry.descriptor.displayName,
                 sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes),
-                summary: entry.summary, tags: entry.tags, fit: entry.fit,
+                summary: entry.summary, tags: entry.tags, fit: entry.fit, fitDetail: entry.fitDetail,
                 state: hub.downloadState(for: id),
             unavailableReason: entry.unavailableReason,
                 onDownload: { hub.download(entry) },
