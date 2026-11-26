@@ -122,5 +122,8 @@ schemes:
         AnyRouter: all
         AnyRouterTests: [test]
     test:
+      gatherCoverageData: true
+      coverageTargets:
+        - AnyRouter
       targets:
         - AnyRouterTests

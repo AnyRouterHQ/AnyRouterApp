@@ -76,6 +76,7 @@ jobs:
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
             -derivedDataPath DerivedData \
             -clonedSourcePackagesDirPath SourcePackages \
+            -enableCodeCoverage YES \
             CODE_SIGNING_ALLOWED=NO | tail -n 200
 
       - name: Test
@@ -86,7 +87,11 @@ jobs:
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
             -derivedDataPath DerivedData \
             -resultBundlePath TestResults.xcresult \
+            -enableCodeCoverage YES \
             CODE_SIGNING_ALLOWED=NO | tail -n 200
+
+      - name: Coverage gate
+        run: scripts/coverage-gate.sh TestResults.xcresult
 
       - name: Upload test results on failure
         if: failure()

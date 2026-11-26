@@ -1,0 +1,8 @@
+# Files the 100% line gate skips because their code cannot run on the iOS Simulator
+# (or needs a live system service). One path per line, then "# reason". Keep this list short
+# and reviewed: untested logic belongs in a test, not here.
+
+Engines/AnyRouter/Auth/OAuthClient.swift # ASWebAuthenticationSession presentation needs a real UI session
+Engines/AnyRouter/Auth/LoopbackCallback.swift # binds a real loopback network listener used only by the web sign-in session
+Engines/Local/Downloads/DownloadDelegate.swift # background URLSession delegate; callbacks come from the system daemon
+Engines/Local/Downloads/ModelDownloadManager.swift # owns the background URLSession; covered by the model-smoke workflow
