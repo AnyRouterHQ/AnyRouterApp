@@ -162,6 +162,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] F8a (#23) Screenshot capture: demo data mode (`-ARDemoData YES`), `AnyRouterUITests`, `screenshots.yml` uploads PNGs for iPhone and iPad, light and dark.
 - [ ] F8b Compare the screenshots against the reference mobile screenshots.
 - [x] F9 Real-model smoke in CI: `model-smoke.yml` runs the smallest catalog GGUF through `GGUFEngine` on the Simulator, plus installer, download manager and Apple Foundation Models availability. MLX is device only. (#18)
+- [x] F10 Gemma 4 E2B and E4B (Apache-2.0) in the bundled catalog: GGUF (official QAT Q4_0, llama.cpp b10456 already has the `gemma4` arch) and MLX 4-bit (mlx-swift-lm 3.33 already has `gemma4`). Own Gemma 4 prompt formatter (llama.cpp's template list cannot apply its jinja template), hidden thinking channel, `model_id` input on `model-smoke.yml`, MLX template render check. (#PR)
 
 ## Local inference roadmap
 

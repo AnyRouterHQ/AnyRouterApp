@@ -17,6 +17,24 @@ struct CatalogTests {
         }
     }
 
+    @Test func gemma4OffersBothSizesInBothFormatsAtAPinnedRevision() throws {
+        let doc = try BundledCatalog.load()
+        let gemma4 = doc.models.filter { $0.title.hasPrefix("Gemma 4") }
+        #expect(Set(gemma4.map { "\($0.parameters ?? "")/\($0.format.rawValue)" }) == ["E2B/gguf", "E2B/mlx", "E4B/gguf", "E4B/mlx"])
+        for model in gemma4 {
+            #expect(model.revision?.range(of: "^[0-9a-f]{40}$", options: .regularExpression) != nil, "\(model.id) needs a commit sha, not a branch")
+            #expect(model.contextLength == 131_072)
+            #expect(model.license == "apache-2.0")
+            #expect(model.summary?.contains("RAM") == true, "\(model.id) needs a device-fit hint")
+        }
+        // The bigger model must never look smaller than the E2B one in the same format.
+        for format in LocalModelFormat.allCases {
+            let e2b = try #require(gemma4.first { $0.parameters == "E2B" && $0.format == format }?.sizeBytes)
+            let e4b = try #require(gemma4.first { $0.parameters == "E4B" && $0.format == format }?.sizeBytes)
+            #expect(e4b > e2b)
+        }
+    }
+
     @Test func entryIDsFollowTheDescriptorContract() {
         #expect(sampleGGUF(repo: "org/m", file: "m-Q4_K_M.gguf").id == "gguf/org/m/m-Q4_K_M.gguf")
         #expect(sampleMLX(repo: "org/m-4bit").id == "mlx/org/m-4bit")
