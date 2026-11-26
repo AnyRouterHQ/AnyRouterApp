@@ -68,7 +68,11 @@ struct ModelsResponse: Decodable {
             case canRouteReason = "can_route_reason"
         }
 
-        var cloudInfo: CloudInfo {
+        var cloudInfo: CloudInfo { cloudInfo(signedIn: true) }
+
+        /// `can_route` is worked out for the caller's key. Without a key it only says what an anonymous caller may use,
+        /// so a signed-out list reads every routable model as usable: the sign-in sheet explains the rest.
+        func cloudInfo(signedIn: Bool) -> CloudInfo {
             let input = pricing?.inputPer1M?.value ?? pricing?.prompt?.value
             let output = pricing?.outputPer1M?.value ?? pricing?.completion?.value
             let billing = CloudBilling(rawValue: pricing?.billing ?? "") ?? .unknown
@@ -76,7 +80,7 @@ struct ModelsResponse: Decodable {
             switch (canRoute, canRouteReason) {
             case (false, "no_route"): availability = .noRoute
             case (false, "disabled"): availability = .disabled
-            case (false, _): availability = .needsKey
+            case (false, _): availability = signedIn ? .needsKey : .usable
             default: availability = .usable
             }
             let tags = Set(capabilities ?? [])
@@ -118,7 +122,8 @@ struct ModelsResponse: Decodable {
         data
             .filter { $0.kind == .chat }
             .map { item in
-                ModelDescriptor(
+                let info = item.cloudInfo(signedIn: usable)
+                return ModelDescriptor(
                     id: "anyrouter/\(item.id)",
                     source: .anyrouter,
                     displayName: item.name ?? item.id,
@@ -127,9 +132,9 @@ struct ModelsResponse: Decodable {
                         item.capabilities ?? ["chat"], supportedParameters: item.supportedParameters ?? [],
                         inputModalities: item.architecture?.inputModalities ?? []),
                     sizeBytes: nil,
-                    isInstalled: usable && item.cloudInfo.availability == .usable,
+                    isInstalled: usable && info.availability == .usable,
                     summary: item.description,
-                    cloud: item.cloudInfo
+                    cloud: info
                 )
             }
     }

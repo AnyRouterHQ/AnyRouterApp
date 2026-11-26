@@ -144,6 +144,8 @@ struct ModelPickerSheet: View {
     @State private var debouncedQuery = ""
     @State private var sort: PickerSort = .topUsage
     @State private var signInError: String?
+    /// The cloud model a signed-out person tapped; the sign-in sheet is about it.
+    @State private var signInModel: ModelDescriptor?
     @State private var keyExplainer: ModelDescriptor?
     @State private var routerDetail: ModelDescriptor?
     @State private var detailModel: ModelDescriptor?
@@ -178,7 +180,7 @@ struct ModelPickerSheet: View {
     private var shown: Shown {
         switch tab {
         case .local: Shown(local: localModels)
-        case .anyrouter: app.account.state.isSignedIn ? Shown(cloud: cloudList) : Shown()
+        case .anyrouter: Shown(cloud: cloudList)
         }
     }
 
@@ -229,17 +231,15 @@ struct ModelPickerSheet: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
-                if tab == .local || app.account.state.isSignedIn {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button { showsFilters = true } label: {
-                            Label("Filter", systemImage: filterActive
-                                ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                        }
-                        .accessibilityValue(filterActive ? "\(activeFilterCount) active" : "none")
-                        .accessibilityIdentifier("model-filter")
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showsFilters = true } label: {
+                        Label("Filter", systemImage: filterActive
+                            ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                     }
+                    .accessibilityValue(filterActive ? "\(activeFilterCount) active" : "none")
+                    .accessibilityIdentifier("model-filter")
                 }
-                if tab == .anyrouter, app.account.state.isSignedIn {
+                if tab == .anyrouter {
                     ToolbarItem(placement: .primaryAction) {
                         Menu {
                             Picker("Sort", selection: $sort) {
@@ -255,6 +255,11 @@ struct ModelPickerSheet: View {
         .presentationDetents([.medium, .large], selection: $detent)
         .presentationDragIndicator(.visible)
         .sheet(item: $routerDetail) { RouterDetailSheet(router: $0) }
+        .sheet(item: $signInModel) { model in
+            CloudSignInSheet(
+                model: model, error: signInError, isWorking: isSigningIn,
+                signIn: { signIn($0, for: model) }, notNow: { signInModel = nil })
+        }
         .sheet(isPresented: $showsFilters) {
             ModelFilterSheet(
                 tab: tab, cloud: $cloudFilter, local: $localFilter,
@@ -337,7 +342,7 @@ struct ModelPickerSheet: View {
             showUnusable: app.account.state.isSignedIn,
             picks: TopPicks.compose(config: picksConfig, models: models.models, usageRank: models.usageRank),
             filter: cloudFilter, prefs: models.cloudPrefs, currentID: currentID,
-            short: !showsAll && sort == .topUsage && !cloudFilter.isActive)
+            short: !showsAll && sort == .topUsage && !cloudFilter.isActive, signedIn: app.account.state.isSignedIn)
     }
 
     @ViewBuilder
@@ -381,28 +386,15 @@ struct ModelPickerSheet: View {
     @ViewBuilder
     private func stateOverlay(_ shown: Shown) -> some View {
         if tab == .anyrouter {
-            switch app.account.state {
-            case .signedOut:
-                ContentUnavailableView {
-                    Label("Sign in to use cloud models", systemImage: "cloud")
-                } description: {
-                    Text("AnyRouter picks the best model for each message.")
-                    if let signInError { Text(signInError).foregroundStyle(.red) }
-                } actions: {
-                    Button("Sign in with AnyRouter") { signIn() }.buttonStyle(.borderedProminent)
-                }
-            case .signingIn:
-                ProgressView("Signing in…")
-            case .signedIn:
-                if shown.cloud.isEmpty {
-                    if debouncedQuery.isEmpty && !cloudFilter.isActive {
-                        CloudListEmptyState(
-                            reason: CloudEmptyReason.reason(
-                                models: models.models, failure: models.loadFailures[.anyrouter], isLoading: models.isLoading),
-                            retry: { Task { await models.refresh() } })
-                    } else {
-                        noMatches(clear: { cloudFilter = ModelFilter() }, isFiltered: cloudFilter.isActive)
-                    }
+            // The list is public, so it shows signed out too. Only an empty list needs saying why.
+            if shown.cloud.isEmpty {
+                if debouncedQuery.isEmpty && !cloudFilter.isActive {
+                    CloudListEmptyState(
+                        reason: CloudEmptyReason.reason(
+                            models: models.models, failure: models.loadFailures[.anyrouter], isLoading: models.isLoading),
+                        retry: { Task { await models.refresh() } })
+                } else {
+                    noMatches(clear: { cloudFilter = ModelFilter() }, isFiltered: cloudFilter.isActive)
                 }
             }
         } else if shown.local.isEmpty, !debouncedQuery.isEmpty || localFilter.isActive {
@@ -455,20 +447,38 @@ struct ModelPickerSheet: View {
     }
 
     private func choose(_ model: ModelDescriptor) {
-        guard model.isInstalled else {
-            if model.cloud?.availability == .needsKey { keyExplainer = model }
-            return
+        switch CloudSignInLogic.tap(model, signedIn: app.account.state.isSignedIn) {
+        case .select:
+            onSelect(model)
+            dismiss()
+        case .signIn:
+            signInError = nil
+            signInModel = model
+        case .explainKey:
+            keyExplainer = model
+        case .ignore:
+            break
         }
-        onSelect(model)
-        dismiss()
     }
 
-    private func signIn() {
+    private var isSigningIn: Bool {
+        if case .signingIn = app.account.state { return true }
+        return false
+    }
+
+    /// Signs in or up from the sheet. After a good sign-in the tapped model becomes the pick.
+    private func signIn(_ mode: AuthMode, for model: ModelDescriptor) {
         signInError = nil
         Task {
             do {
-                try await app.account.signIn()
-                await models.refresh()
+                let outcome = try await CloudSignInLogic.signIn(mode: mode, then: model, account: app.account, models: models)
+                switch outcome {
+                case .selected(let picked):
+                    signInModel = nil
+                    choose(picked)
+                case .signedInOnly: signInModel = nil
+                case .stillSignedOut: break
+                }
             } catch {
                 signInError = error.localizedDescription
             }

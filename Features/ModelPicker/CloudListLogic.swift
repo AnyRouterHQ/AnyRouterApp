@@ -51,20 +51,26 @@ enum CloudListLogic {
     static let topCount = 10
 
     /// `usageRank` maps a wire id to its place in the weekly usage order (0 is most used).
+    /// `signedIn` false lists the public catalog for a person who has not signed in yet; tapping a row asks them to.
     /// `showUnusable` keeps models the user cannot route to (dimmed, after the usable ones).
     static func arrange(
         models: [ModelDescriptor], query: String, sort: PickerSort,
         usageRank: [String: Int], showUnusable: Bool, picks: [ModelDescriptor] = [],
         filter: ModelFilter = ModelFilter(), prefs: CloudModelPrefs = CloudModelPrefs(),
-        currentID: String? = nil, short: Bool = false
+        currentID: String? = nil, short: Bool = false, signedIn: Bool = true
     ) -> CloudList {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let searching = !needle.isEmpty
         var candidates = models.filter { model in
             guard model.source == .anyrouter else { return false }
-            // "Hide needs-key models" does not apply to a search, so a search still finds them.
-            let showLocked = showUnusable && (!filter.hideNeedsKey || searching)
-            if !showLocked && !model.isInstalled { return false }
+            if signedIn {
+                // "Hide needs-key models" does not apply to a search, so a search still finds them.
+                let showLocked = showUnusable && (!filter.hideNeedsKey || searching)
+                if !showLocked && !model.isInstalled { return false }
+            } else if let availability = model.cloud?.availability, availability != .usable {
+                // Signed out nothing is installed. The catalog is public, so every model that can be routed at all is listed.
+                return false
+            }
             if !filter.matches(model) { return false }
             // A hidden model stays out of the lists. A search still finds it, so it can be brought back.
             if !searching && prefs.isHidden(model) { return false }
