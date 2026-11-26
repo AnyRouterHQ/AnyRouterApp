@@ -2,7 +2,8 @@ name: Device IPA
 
 on:
   workflow_dispatch:
-  # Only after the main CI build is green: one failing push never costs a second macOS build.
+  # After every finished main CI run except cancelled ones: a failing unit test must not block the phone build.
+  # Revisit "success only" once main has been green for a day.
   workflow_run:
     workflows: [CI]
     types: [completed]
@@ -18,7 +19,7 @@ permissions:
 jobs:
   changes:
     # Linux: decide cheaply whether the app changed at all.
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion != 'cancelled'
     runs-on: ubuntu-latest
     outputs:
       app: ${{ steps.diff.outputs.app }}
