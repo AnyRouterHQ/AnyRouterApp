@@ -63,7 +63,9 @@ private struct SettingsList: View {
                     Text(group.title)
                 } footer: {
                     if group == .models, let note = models.defaultNote { Text(note) }
-                    if group == .chat { Text("Leave the app for this long and it opens on a new chat. A shorter break keeps your conversation.") }
+                    if group == .chat {
+                        Text("The keyboard opens when you start the app. Leave the app for the time above and it opens on a new chat; a shorter break keeps your conversation.")
+                    }
                 }
             }
         }

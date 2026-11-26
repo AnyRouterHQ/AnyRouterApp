@@ -27,6 +27,7 @@ struct ResponseCustomizationSettings: View {
             Section {
                 Toggle("Show response details", isOn: $settings.showResponseDetails)
                     .accessibilityIdentifier("settings-show-response-details")
+                ResponseDetailsPreview(showsDetails: settings.showResponseDetails)
             } header: {
                 Text("Replies")
             } footer: {

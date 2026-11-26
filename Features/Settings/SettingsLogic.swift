@@ -33,6 +33,11 @@ enum SettingsLogic {
         return starredCount > 0 ? "\(starredCount) starred" : nil
     }
 
+    /// What VoiceOver reads for the live preview under "Show response details".
+    static func responseDetailsPreviewLabel(_ shown: Bool) -> String {
+        shown ? "Preview: a reply with the model, cost and speed under it" : "Preview: a reply with nothing under it but its actions"
+    }
+
     /// Footer under Delete All Conversations.
     static func conversationCountText(_ count: Int) -> String {
         switch count {

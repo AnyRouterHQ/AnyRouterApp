@@ -81,6 +81,35 @@ final class SettingsModelsTests: XCTestCase {
         XCTAssertTrue(app.buttons["anyrouter.hidden"].waitForExistence(timeout: 5), "a hidden model leaves a way back")
     }
 
+    func testResponseDetailsPreviewFollowsTheSwitch() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ARDemoData", "YES"]
+        app.launch()
+        app.revealSidebar(whenVisible: button(app, "Settings"))
+        button(app, "Settings").tap()
+        let row = button(app, "Response Customization")
+        var tries = 0
+        while !(row.exists && row.isHittable) && tries < 8 {
+            app.swipeUp()
+            tries += 1
+        }
+        row.tap()
+        let toggle = app.switches["settings-show-response-details"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        let preview = app.descendants(matching: .any)["preview.response-details"]
+        tries = 0
+        while !preview.exists && tries < 6 {
+            app.swipeUp()
+            tries += 1
+        }
+        XCTAssertTrue(preview.exists)
+        XCTAssertTrue(preview.label.contains("model, cost and speed"), "details are on by default")
+        toggle.tap()
+        let off = NSPredicate(format: "label CONTAINS 'nothing under it'")
+        expectation(for: off, evaluatedWith: preview)
+        waitForExpectations(timeout: 5)
+    }
+
     func testDeleteAllModelsAsksFirst() {
         let app = openLocalModels()
         let deleteAll = app.buttons["local.deleteAll"]

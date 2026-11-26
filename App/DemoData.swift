@@ -122,6 +122,19 @@ enum DemoData {
                 upstreamLatencyMs: 880, ttftMs: 700, totalMs: 1300))
     }
 
+    /// A finished reply with its response details, never stored. Settings previews draw the real reply row from it.
+    @MainActor
+    static func sampleReply() -> MessageRecord {
+        let record = MessageRecord(
+            role: .assistant, content: "A router sends each message to the model that suits it best.",
+            modelName: "GPT-5", modelID: "anyrouter/openai/gpt-5")
+        record.metadata = ResponseMetadata(
+            requestID: "req_preview", servedModelID: "openai/gpt-5", servedModelName: "GPT-5", provider: "OpenAI",
+            costUSD: Decimal(string: "0.0004"), promptTokens: 74, completionTokens: 12, cachedTokens: 40,
+            upstreamLatencyMs: 880, ttftMs: 700, totalMs: 1300)
+        return record
+    }
+
     /// The newest thread: one reply that searched the web before answering.
     @MainActor
     private static func insertToolThread(in context: ModelContext, at now: Date) {

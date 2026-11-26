@@ -38,6 +38,11 @@ struct SettingsLogicTests {
         #expect(SettingsLogic.conversationCountText(3) == "3 conversations are stored on this device.")
     }
 
+    @Test func thePreviewLabelSaysWhatTheSwitchChanges() {
+        #expect(SettingsLogic.responseDetailsPreviewLabel(true) == "Preview: a reply with the model, cost and speed under it")
+        #expect(SettingsLogic.responseDetailsPreviewLabel(false) == "Preview: a reply with nothing under it but its actions")
+    }
+
     @Test func licenseListCoversLinkedLibraries() {
         let names = LicenseNotice.all.map(\.name)
         #expect(names.contains("llama.cpp"))
