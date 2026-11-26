@@ -11,6 +11,8 @@ struct Composer: View {
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var showsCamera = false
     @State private var showsFiles = false
+    /// The photo or camera picker that is open reads text into the composer instead of attaching the image.
+    @State private var readsText = false
     /// Owned by the chat screen so a tap outside the card can dismiss the keyboard.
     var focused: FocusState<Bool>.Binding
     @Environment(AppSettings.self) private var settings
@@ -88,7 +90,11 @@ struct Composer: View {
                       maxSelectionCount: AttachmentLogic.maxPerMessage, matching: .images)
         .onChange(of: photoItems) { _, items in loadPhotos(items) }
         .fullScreenCover(isPresented: $showsCamera) {
-            CameraPicker { model.attachImages([(data: $0, filename: "Photo.jpg")]) }.ignoresSafeArea()
+            CameraPicker {
+                if readsText { model.readText(from: [$0]) } else { model.attachImages([(data: $0, filename: "Photo.jpg")]) }
+                readsText = false
+            }
+            .ignoresSafeArea()
         }
         .fileImporter(isPresented: $showsFiles, allowedContentTypes: AttachmentLogic.importableTypes,
                       allowsMultipleSelection: true) { result in
@@ -116,7 +122,8 @@ struct Composer: View {
                     images.append((data: data, filename: "Photo \(index + 1).jpg"))
                 }
             }
-            model.attachImages(images)
+            if readsText { model.readText(from: images.map(\.data)) } else { model.attachImages(images) }
+            readsText = false
         }
     }
 
@@ -124,13 +131,22 @@ struct Composer: View {
     private var plusMenu: some View {
         Menu {
             Section {
-                Button("Photos", systemImage: "photo") { showsPhotos = true }
+                Button("Photos", systemImage: "photo") { readsText = false; showsPhotos = true }
                     .accessibilityIdentifier("composer.add-photos")
-                Button("Camera", systemImage: "camera") { showsCamera = true }
+                Button("Camera", systemImage: "camera") { readsText = false; showsCamera = true }
                     .disabled(!CameraPicker.isAvailable)
                     .accessibilityIdentifier("composer.add-camera")
                 Button("Files", systemImage: "folder") { showsFiles = true }
                     .accessibilityIdentifier("composer.add-files")
+                // Reads the text on the device, then offers Translate, Split this bill or Summarize.
+                Menu("Read text", systemImage: "text.viewfinder") {
+                    Button("Photos", systemImage: "photo") { readsText = true; showsPhotos = true }
+                        .accessibilityIdentifier("composer.read-photos")
+                    Button("Camera", systemImage: "camera") { readsText = true; showsCamera = true }
+                        .disabled(!CameraPicker.isAvailable)
+                        .accessibilityIdentifier("composer.read-camera")
+                }
+                .accessibilityIdentifier("composer.read-text")
             }
             if presets != nil {
                 Button("Presets", systemImage: "sparkles") { showsPresets = true }

@@ -56,6 +56,60 @@
     ]
   },
   {
+    "id": "translate",
+    "title": "Translate",
+    "prompt": "Translate the text below into {language}. Keep the meaning, names and numbers. Give the translation only.\n\nText:\n",
+    "category": "write",
+    "symbol": "globe",
+    "options": [
+      {
+        "id": "language",
+        "title": "Language",
+        "choices": [
+          { "id": "english", "title": "English", "wording": "English" },
+          { "id": "vietnamese", "title": "Vietnamese", "wording": "Vietnamese" },
+          { "id": "japanese", "title": "Japanese", "wording": "Japanese" },
+          { "id": "korean", "title": "Korean", "wording": "Korean" },
+          { "id": "chinese", "title": "Chinese", "wording": "Simplified Chinese" },
+          { "id": "french", "title": "French", "wording": "French" },
+          { "id": "spanish", "title": "Spanish", "wording": "Spanish" },
+          { "id": "german", "title": "German", "wording": "German" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "split-bill",
+    "title": "Split this bill",
+    "prompt": "Split the bill below equally between {people}, with {tip}. List each line item with its price, then the subtotal, the tip, the total, and what each person pays. Show the arithmetic. If a price is hard to read, say so instead of guessing.\n\nBill:\n",
+    "category": "plan",
+    "symbol": "dollarsign.circle",
+    "options": [
+      {
+        "id": "people",
+        "title": "People",
+        "choices": [
+          { "id": "2", "title": "2", "wording": "2 people" },
+          { "id": "3", "title": "3", "wording": "3 people" },
+          { "id": "4", "title": "4", "wording": "4 people" },
+          { "id": "5", "title": "5", "wording": "5 people" },
+          { "id": "6", "title": "6", "wording": "6 people" },
+          { "id": "8", "title": "8", "wording": "8 people" }
+        ]
+      },
+      {
+        "id": "tip",
+        "title": "Tip",
+        "choices": [
+          { "id": "none", "title": "None", "wording": "no tip" },
+          { "id": "10", "title": "10%", "wording": "a 10% tip" },
+          { "id": "15", "title": "15%", "wording": "a 15% tip" },
+          { "id": "20", "title": "20%", "wording": "a 20% tip" }
+        ]
+      }
+    ]
+  },
+  {
     "id": "fix-english",
     "title": "Fix my English",
     "prompt": "Fix the grammar, spelling and wording of the text below. Keep my meaning and tone. Give the corrected text first, then a short list of what you changed.\n\nText:\n",

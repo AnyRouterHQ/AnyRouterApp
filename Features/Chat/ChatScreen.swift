@@ -119,6 +119,12 @@ private struct ChatContent: View {
             Composer(model: chat, hasModel: chat.model != nil, presets: presets, focused: $composerFocused)
         }
         .refreshesMemory(app.memory)
+        // Text read from a photo waits here until the user picks what to do with it.
+        .sheet(item: $chat.scannedText) { scan in
+            ReadTextSheet(text: scan.text, presets: OCRLogic.scanPresetIDs.compactMap { app.presets.preset(id: $0) }) { preset, selection, text in
+                chat.useScan(preset, selection: selection, text: text)
+            }
+        }
         // A preset with pickers (Reply to this) asks for its choices before it sends.
         .sheet(item: $chat.presetNeedingChoices) { preset in
             PresetOptionsSheet(preset: preset, message: chat.input) { selection, message in

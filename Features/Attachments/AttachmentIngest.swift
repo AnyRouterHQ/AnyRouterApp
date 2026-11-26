@@ -145,11 +145,20 @@ enum TextExtraction {
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// The text of each photo that has some, in order. Runs off the main actor.
+    @concurrent static func texts(inImages images: [Data]) async -> [String] {
+        images.compactMap { data in
+            ImageProcessing.jpeg(from: data, maxSide: 3000).flatMap { Self.ocr($0) }
+        }
+    }
+
     /// Text Vision finds in an image, one line per row. `nil` when there is none or OCR is unavailable.
     static func ocr(_ imageData: Data) -> String? {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
+        let languages = OCRLogic.languages(supported: (try? request.supportedRecognitionLanguages()) ?? [])
+        if !languages.isEmpty { request.recognitionLanguages = languages }
         let handler = VNImageRequestHandler(data: imageData)
         guard (try? handler.perform([request])) != nil else { return nil }
         let lines = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }

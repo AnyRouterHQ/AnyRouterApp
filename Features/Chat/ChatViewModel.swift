@@ -148,6 +148,39 @@ final class ChatViewModel {
         add(urls.count) { store, index in try await AttachmentIngest.file(at: urls[index], store: store) }
     }
 
+    /// Text read from a photo (Read text in the + menu), waiting for the user to choose what to do with it.
+    var scannedText: ScannedText?
+
+    /// Reads the text in photos on the device. Nothing is attached: the text goes to a sheet, then the composer.
+    func readText(from images: [Data]) {
+        guard !images.isEmpty else { return }
+        ingesting += 1
+        Task { [weak self] in
+            let texts = await TextExtraction.texts(inImages: images)
+            self?.finishReading(texts)
+        }
+    }
+
+    private func finishReading(_ texts: [String]) {
+        ingesting -= 1
+        if texts.isEmpty {
+            errorMessage = OCRLogic.noTextMessage
+        } else {
+            scannedText = ScannedText(text: OCRLogic.join(texts))
+        }
+    }
+
+    /// The scan goes into the composer, with a preset's prompt (and the user's picks) in front when one was chosen.
+    func useScan(_ preset: PromptPreset?, selection: PresetSelection, text: String) {
+        scannedText = nil
+        if let preset {
+            input = PresetOptionsLogic.composerText(preset, selection: selection, message: text)
+        } else {
+            input = OCRLogic.appended(text, to: input)
+        }
+        focusTick += 1
+    }
+
     func removePending(_ attachment: ChatAttachment) {
         guard pending.contains(where: { $0.id == attachment.id }) else { return }
         pending.removeAll { $0.id == attachment.id }
