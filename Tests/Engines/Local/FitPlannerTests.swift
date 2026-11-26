@@ -92,14 +92,14 @@ struct FitPlannerTests {
     }
 
     @Test func theMixtureOfExpertsFileOnAnEightGigabyteBudgetFitsOnlyWithAShortContext() {
-        let estimate = FitPlanner.estimate(moe, memory(8))
+        let estimate = FitPlanner.estimate(moe, memory: memory(8))
         #expect(estimate.verdict == .tight(maxContext: 2048, maxReply: 256))
         #expect(!estimate.streamsFromStorage, "the whole file still fits")
     }
 
     @Test func aMixtureOfExpertsFileLargerThanMemoryRunsFromMmapOnItsActiveExperts() {
         for gigabytes in [3.0, 4.5, 6] {
-            let estimate = FitPlanner.estimate(moe, memory(gigabytes))
+            let estimate = FitPlanner.estimate(moe, memory: memory(gigabytes))
             #expect(estimate.verdict == .tight(maxContext: 8192, maxReply: 512), "\(gigabytes) GB")
             #expect(estimate.streamsFromStorage)
             #expect(estimate.totalBytes > estimate.deviceBudgetBytes, "the file alone does not fit; only the active experts are resident")
