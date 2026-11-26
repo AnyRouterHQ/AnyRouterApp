@@ -1,14 +1,13 @@
 import SwiftData
 import SwiftUI
 
-/// Sidebar: the app name over a plain list (search, pinned and recent chats, more places) and a bottom bar with the
-/// account avatar and New chat. On iPhone it fills the drawer, on iPad the split-view column.
+/// Sidebar: the app name over a plain list (search, pinned and recent chats, more places) and a bottom bar with
+/// Settings and New chat. On iPhone it fills the drawer, on iPad the split-view column.
 struct ThreadSidebar: View {
     /// True when shown as a drawer over the chat (iPhone). Picking something then closes it.
     let isDrawer: Bool
 
     @Environment(ShellModel.self) private var shell
-    @Environment(AppState.self) private var app
     @Environment(\.dynamicTypeSize) private var typeSize
     @Query(sort: \ThreadRecord.updatedAt, order: .reverse) private var threads: [ThreadRecord]
 
@@ -37,10 +36,18 @@ struct ThreadSidebar: View {
 
     private var content: some View {
         List(selection: selection) {
+            // A quiet 36 pt capsule inside a 44 pt hit area: it points at the search, it is not the field.
             Button { shell.presentSearch() } label: {
-                Label("Search chats", systemImage: "magnifyingglass").frame(minHeight: 44)
+                Label("Search chats", systemImage: "magnifyingglass")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
+                    .background(.quaternary, in: .capsule)
+                    .frame(minHeight: 44)
+                    .contentShape(.rect)
             }
-            .foregroundStyle(.primary)
+            .buttonStyle(.plain)
             .rowInsets()
             .accessibilityIdentifier("sidebar.search")
             if sections.isEmpty {
@@ -87,9 +94,10 @@ struct ThreadSidebar: View {
     private var bottomBar: some View {
         HStack {
             Button { shell.presentSettings(closeSidebar: isDrawer) } label: {
-                Avatar(url: app.account.summary?.avatarURL, initials: app.account.summary?.initials ?? "A", size: 44)
+                Image(systemName: "gearshape").imageScale(.large).frame(minWidth: 44, minHeight: 44)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
             .accessibilityLabel("Settings")
             .accessibilityIdentifier("sidebar.settings")
             Spacer()
@@ -162,6 +170,5 @@ private extension View {
     }
     return ThreadSidebar(isDrawer: true)
         .environment(ShellModel())
-        .environment(AppState())
         .modelContainer(container)
 }

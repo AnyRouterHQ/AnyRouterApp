@@ -40,11 +40,11 @@ final class SidebarTests: XCTestCase {
         XCTAssertEqual(app.searchFields.count, 0, "the sidebar has no inline search field")
     }
 
-    func testAvatarOpensSettings() {
+    func testSettingsButtonOpensSettings() {
         let app = launch()
-        let avatar = app.buttons["sidebar.settings"]
-        app.revealSidebar(whenVisible: avatar)
-        avatar.tap()
+        let gear = app.buttons["sidebar.settings"]
+        app.revealSidebar(whenVisible: gear)
+        gear.tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
     }
 

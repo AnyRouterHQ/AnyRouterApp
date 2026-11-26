@@ -1,6 +1,6 @@
 # Sidebar
 
-The thread list: the app name and logo, a Search chats row, pinned and recent chats with View all, a More section (Decisions), and a bottom bar with the account avatar (opens Settings) and New chat.
+The thread list: the app name and logo, a Search chats row, pinned and recent chats with View all, a More section (Decisions), and a bottom bar with a round Settings (gear) button and New chat.
 
 ## Sub-features
 
