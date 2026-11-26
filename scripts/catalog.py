@@ -1,4 +1,4 @@
-"""Catalog tooling: add a model to catalog/models.json, or check every entry against Hugging Face.
+"""Catalog tooling: add a model size to a family in catalog/models.json, or check every variant against Hugging Face.
 
 Run through scripts/catalog-add.sh and scripts/catalog-check.sh (python3 -I, standard library only).
 All HTTP goes through curl so the system certificate store is used.
@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 HF = "https://huggingface.co"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_FILES = ["catalog/models.json", "catalog/dev-models.json"]
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MLX_EXTENSIONS = {"safetensors", "json", "model", "txt", "jinja", "tiktoken"}
 TONES = {"info", "success", "warning", "neutral"}
 PLATFORMS = {"ios", "ipados"}
@@ -231,7 +231,7 @@ def memory_from_mlx_config(config):
 
 def memory_for_entry(entry):
     """The memory profile of an entry, read from the model's own metadata. None when the metadata lacks the keys."""
-    if entry["format"] == "gguf":
+    if entry["engine"] == "gguf":
         meta, tensors = gguf_header(entry["repo"], entry["revision"], entry["file"])
         memory = memory_from_gguf(meta)
         lazy = lazy_weight_bytes(tensors)
@@ -242,8 +242,11 @@ def memory_for_entry(entry):
     return memory_from_mlx_config(config)
 
 
-def entry_id(entry):
-    return f"gguf/{entry['repo']}/{entry.get('file', '')}" if entry.get("format") == "gguf" else f"mlx/{entry['repo']}"
+def entry_id(variant):
+    """The id the app uses for a variant: gguf/<repo>/<file> or mlx/<repo>. Installed models are found by it."""
+    if variant.get("engine") == "gguf":
+        return f"gguf/{variant['repo']}/{variant.get('file', '')}"
+    return f"mlx/{variant['repo']}"
 
 
 def mlx_snapshot_size(files):
@@ -265,12 +268,45 @@ def save(path, document):
         handle.write("\n")
 
 
+# ---- shapes --------------------------------------------------------------------------------------------------------
+#
+# catalog/models.json is {"schemaVersion": 2, "updatedAt", "families": [family]}.
+# A family is a model line at one generation: id, name, publisher, line, logo, summary, website, tags, badges, status,
+# replacedBy, order, variants. A variant is one downloadable size: repo, engine (gguf|mlx), file (gguf), params, quant,
+# sizeBytes, contextLength, license, revision, sha256 (gguf), memory, and optional vision, isOnboarding, platforms,
+# minRAMBytes, createdAt, updatedAt.
+
+FAMILY_KEYS = ["id", "name", "publisher", "line", "logo", "summary", "website", "tags", "badges", "status",
+               "replacedBy", "order", "variants"]
+VARIANT_KEYS = ["repo", "engine", "file", "params", "quant", "sizeBytes", "contextLength", "license", "revision",
+                "sha256", "vision", "isOnboarding", "platforms", "minRAMBytes", "memory", "createdAt", "updatedAt"]
+TAGS = {"thinking", "vision", "audio", "tools", "code", "multilingual"}
+BADGES = {"best", "recommended", "new"}
+STATUSES = {"current", "deprecated"}
+ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+
+
+def ordered_family(family):
+    out = {k: family[k] for k in FAMILY_KEYS if k in family and k != "variants"}
+    out["variants"] = [ordered_variant(v) for v in family.get("variants", [])]
+    return out | {k: v for k, v in family.items() if k not in FAMILY_KEYS}
+
+
+def ordered_variant(variant):
+    return {k: variant[k] for k in VARIANT_KEYS if k in variant} | {k: v for k, v in variant.items() if k not in VARIANT_KEYS}
+
+
+def all_variants(document):
+    return [(family, variant) for family in document["families"] for variant in family["variants"]]
+
+
 # ---- add -------------------------------------------------------------------------------------------------------
 
 def cmd_add(args):
-    options = {"--catalog": "catalog/models.json", "--title": None, "--summary": None, "--params": None,
-               "--icon": None, "--revision": None}
-    flags = {"--mlx", "--onboarding", "--recommended", "--thinking", "--update"}
+    options = {"--catalog": "catalog/models.json", "--family": None, "--params": None, "--revision": None,
+               "--name": None, "--publisher": None, "--line": None, "--logo": None, "--summary": None,
+               "--website": None, "--tags": None, "--status": "current"}
+    flags = {"--mlx", "--onboarding", "--update"}
     positional, given = [], set()
     it = iter(args)
     for arg in it:
@@ -281,10 +317,11 @@ def cmd_add(args):
         else:
             positional.append(arg)
     mlx = "--mlx" in given
-    if len(positional) != (1 if mlx else 2):
-        sys.exit("usage: catalog-add.sh <hf-repo> <file.gguf> [options]\n       catalog-add.sh <hf-repo> --mlx [options]\n"
-                 "options: --catalog PATH --title T --summary S --params 4B --icon KEY --revision SHA\n"
-                 "         --onboarding --recommended --thinking --update")
+    if len(positional) != (1 if mlx else 2) or not options["--family"] or not options["--params"]:
+        sys.exit("usage: catalog-add.sh <hf-repo> <file.gguf> --family ID --params 4B [options]\n"
+                 "       catalog-add.sh <hf-repo> --mlx --family ID --params 4B [options]\n"
+                 "options: --catalog PATH --revision SHA --onboarding --update\n"
+                 "new family: --name N --publisher P --line L --logo KEY --summary S --website URL [--tags a,b]")
     repo = positional[0]
     file = None if mlx else positional[1]
     if not REPO_RE.match(repo) or ".." in repo:
@@ -293,13 +330,14 @@ def cmd_add(args):
     info = model_info(repo)
     revision = options["--revision"] or info["sha"]
     files = tree(repo, revision)
-    entry = {"repo": repo, "format": "mlx" if mlx else "gguf"}
+    variant = {"repo": repo, "engine": "mlx" if mlx else "gguf"}
     if mlx:
         if not any(p.endswith(".safetensors") for p in files):
             sys.exit(f"{repo} has no .safetensors files at {revision}")
         size = mlx_snapshot_size(files)
         quant = None
         context = ((info.get("config") or {}).get("text_config") or info.get("config") or {}).get("max_position_embeddings")
+        quant = "4-bit" if "4bit" in repo.lower() else ("8-bit" if "8bit" in repo.lower() else None)
     else:
         if file not in files:
             sys.exit(f"{file} is not in {repo} at {revision}. Files: " + ", ".join(sorted(p for p in files if p.endswith(".gguf"))))
@@ -307,84 +345,64 @@ def cmd_add(args):
         size = meta["size"]
         match = QUANT_RE.search(os.path.basename(file))
         quant = match.group(1).upper() if match else None
-        gguf = info.get("gguf") or {}
-        context = gguf.get("context_length")
-        entry["file"] = file
+        context = (info.get("gguf") or {}).get("context_length")
+        variant["file"] = file
         if not meta["sha256"]:
             sys.exit(f"{file} has no LFS sha256 at {revision}; refusing to add an unverifiable file")
 
     license_tag = next((t.split(":", 1)[1] for t in info.get("tags", []) if t.startswith("license:")), None)
-    name = repo.split("/")[1]
-    entry["title"] = options["--title"] or re.sub(r"[-_]?(GGUF|MLX)$", "", name, flags=re.I).replace("-", " ").replace("_", " ")
-    entry["summary"] = options["--summary"] or "TODO: one sentence for the card."
-    if options["--params"]:
-        entry["parameters"] = options["--params"]
+    variant["params"] = options["--params"]
     if quant:
-        entry["quantization"] = quant
-    entry["sizeBytes"] = size
+        variant["quant"] = quant
+    variant["sizeBytes"] = size
     if context:
-        entry["contextLength"] = context
+        variant["contextLength"] = context
     if license_tag:
-        entry["license"] = license_tag
-    entry["revision"] = revision
+        variant["license"] = license_tag
+    variant["revision"] = revision
     if not mlx:
-        entry["sha256"] = files[file]["sha256"]
-    entry["capabilities"] = ["chat"]
-    if options["--icon"]:
-        entry["iconKey"] = options["--icon"]
-    if "--thinking" in given:
-        entry["supportsThinking"] = True
+        variant["sha256"] = files[file]["sha256"]
     if "--onboarding" in given:
-        entry["isOnboarding"] = True
-    if "--recommended" in given:
-        entry["recommended"] = True
+        variant["isOnboarding"] = True
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    entry["updatedAt"] = today
-    entry["revision"] = revision
-    memory = memory_for_entry(entry)
+    variant["updatedAt"] = today
+    memory = memory_for_entry(variant)
     if memory:
-        entry["memory"] = memory
+        variant["memory"] = memory
     else:
         print("note: the model's metadata has no KV-cache keys; the app will estimate memory from the file size")
 
     path = os.path.join(ROOT, options["--catalog"])
     document = load(path)
-    models = document["models"]
-    existing = next((i for i, m in enumerate(models) if entry_id(m) == entry_id(entry)), None)
+    family = next((f for f in document["families"] if f["id"] == options["--family"]), None)
+    if family is None:
+        needed = ["--name", "--publisher", "--line", "--logo", "--summary", "--website"]
+        if any(not options[k] for k in needed):
+            sys.exit(f"family {options['--family']} does not exist; to create it also pass {' '.join(needed)}")
+        family = {"id": options["--family"], "name": options["--name"], "publisher": options["--publisher"],
+                  "line": options["--line"], "logo": options["--logo"], "summary": options["--summary"],
+                  "website": options["--website"], "tags": [t for t in (options["--tags"] or "").split(",") if t],
+                  "badges": [], "status": options["--status"],
+                  "order": max([f.get("order", -1) for f in document["families"]] + [-1]) + 1, "variants": []}
+        document["families"].append(family)
+    existing = next((i for i, v in enumerate(family["variants"]) if entry_id(v) == entry_id(variant)), None)
     if existing is not None and "--update" not in given:
-        sys.exit(f"{entry_id(entry)} is already in {options['--catalog']}; pass --update to refresh it")
+        sys.exit(f"{entry_id(variant)} is already in family {family['id']}; pass --update to refresh it")
     if existing is not None:
-        old = models[existing]
-        entry["order"] = old.get("order")
-        entry["createdAt"] = old.get("createdAt", today)
-        for key in ("summary", "title", "parameters", "iconKey", "badges", "supportsThinking", "vision",
-                    "isOnboarding", "platforms", "recommended", "minRAMBytes"):
-            if key in old and key not in options_set(options, given):
-                entry[key] = old[key]
-        models[existing] = ordered(entry)
+        old = family["variants"][existing]
+        variant["createdAt"] = old.get("createdAt", today)
+        for key in ("isOnboarding", "platforms", "minRAMBytes", "vision"):
+            if key in old and key not in variant:
+                variant[key] = old[key]
+        family["variants"][existing] = ordered_variant(variant)
     else:
-        entry["order"] = max([m.get("order", -1) for m in models] + [-1]) + 1
-        entry["createdAt"] = today
-        models.append(ordered(entry))
+        variant["createdAt"] = today
+        family["variants"].append(ordered_variant(variant))
+    document["families"] = [ordered_family(f) for f in document["families"]]
     document["updatedAt"] = today
     save(path, document)
-    print(f"{'updated' if existing is not None else 'added'} {entry_id(entry)}: {size} bytes, rev {revision[:8]}"
-          + ("" if mlx else f", sha256 {entry['sha256'][:12]}"))
-    if entry["summary"].startswith("TODO"):
-        print("edit the summary (and badges, iconKey, vision) by hand, then run scripts/catalog-check.sh")
-
-
-def options_set(options, given):
-    return {k.lstrip("-") for k, v in options.items() if v is not None} | {k.lstrip("-") for k in given}
-
-
-ORDER = ["repo", "format", "file", "title", "summary", "parameters", "quantization", "sizeBytes", "contextLength",
-         "license", "revision", "sha256", "capabilities", "iconKey", "badges", "supportsThinking", "vision",
-         "isOnboarding", "platforms", "recommended", "minRAMBytes", "memory", "createdAt", "updatedAt", "order"]
-
-
-def ordered(entry):
-    return {k: entry[k] for k in ORDER if k in entry} | {k: v for k, v in entry.items() if k not in ORDER}
+    print(f"{'updated' if existing is not None else 'added'} {entry_id(variant)} in {family['id']}: {size} bytes, rev {revision[:8]}"
+          + ("" if mlx else f", sha256 {variant['sha256'][:12]}"))
 
 
 # ---- check -----------------------------------------------------------------------------------------------------
@@ -392,124 +410,169 @@ def ordered(entry):
 def check_file(path, offline):
     problems = []
 
-    def bad(index, message):
-        label = f"{path}[{index}]" if index is not None else path
-        problems.append(f"{label}: {message}")
+    def bad(where, message):
+        problems.append(f"{path}{where}: {message}")
 
     try:
         document = load(os.path.join(ROOT, path))
     except (OSError, ValueError) as error:
         return [f"{path}: cannot read: {error}"]
     if document.get("schemaVersion") != SCHEMA_VERSION:
-        bad(None, f"schemaVersion must be {SCHEMA_VERSION}, got {document.get('schemaVersion')!r}")
-    models = document.get("models")
-    if not isinstance(models, list) or not models:
-        bad(None, "models must be a non-empty list")
+        bad("", f"schemaVersion must be {SCHEMA_VERSION}, got {document.get('schemaVersion')!r}")
+    families = document.get("families")
+    if not isinstance(families, list) or not families:
+        bad("", "families must be a non-empty list")
         return problems
 
+    family_ids = {}
+    lines = {}
     seen = {}
-    for i, m in enumerate(models):
-        unknown = set(m) - KNOWN_KEYS
+    for f_index, family in enumerate(families):
+        where = f"[{family.get('id', f_index)}]"
+        unknown = set(family) - set(FAMILY_KEYS)
         if unknown:
-            bad(i, f"unknown keys {sorted(unknown)}")
-        fmt = m.get("format")
-        repo = m.get("repo", "")
-        if fmt not in ("gguf", "mlx"):
-            bad(i, f"format must be gguf or mlx, got {fmt!r}")
+            bad(where, f"unknown family keys {sorted(unknown)}")
+        fid = str(family.get("id", ""))
+        if not ID_RE.match(fid):
+            bad(where, f"family id {fid!r} must be lowercase letters, digits and dashes")
+        if fid in family_ids:
+            bad(where, f"duplicate family id {fid}")
+        family_ids[fid] = family
+        for key in ("name", "publisher", "line", "logo", "summary"):
+            if not str(family.get(key, "")).strip():
+                bad(where, f"{key} is missing")
+        if re.search(r"\b(RAM|GB|memory)\b", str(family.get("summary", "")), re.I):
+            bad(where, "the summary must not make memory claims; the app derives them from the variants' memory facts")
+        if not str(family.get("website", "")).startswith("https://"):
+            bad(where, "website must be an https URL")
+        status = family.get("status")
+        if status not in STATUSES:
+            bad(where, f"status must be one of {sorted(STATUSES)}, got {status!r}")
+        bad_tags = [t for t in family.get("tags", []) if t not in TAGS]
+        if bad_tags:
+            bad(where, f"unknown tags {bad_tags}; allowed {sorted(TAGS)}")
+        bad_badges = [b for b in family.get("badges", []) if b not in BADGES]
+        if bad_badges:
+            bad(where, f"unknown badges {bad_badges}; allowed {sorted(BADGES)}")
+        if status == "current":
+            line = family.get("line")
+            if line in lines:
+                bad(where, f"line {line!r} already has a current family ({lines[line]}); deprecate the older generation")
+            lines[line] = fid
+            if family.get("replacedBy"):
+                bad(where, "a current family has no replacedBy")
+        variants = family.get("variants")
+        if not isinstance(variants, list) or not variants:
+            bad(where, "variants must be a non-empty list")
             continue
-        if not REPO_RE.match(repo) or ".." in repo:
-            bad(i, f"invalid repo {repo!r}")
-            continue
-        if fmt == "gguf" and not str(m.get("file", "")).endswith(".gguf"):
-            bad(i, "a gguf entry needs a file ending in .gguf")
-            continue
-        ident = entry_id(m)
-        if ident in seen:
-            bad(i, f"duplicate id {ident} (also entry {seen[ident]})")
-        seen[ident] = i
-        for key in ("title", "summary"):
-            if not str(m.get(key, "")).strip() or str(m.get(key, "")).startswith("TODO"):
-                bad(i, f"{ident}: {key} is missing or still a TODO")
-        if re.search(r"\b(RAM|GB|memory)\b", str(m.get("summary", "")), re.I):
-            bad(i, f"{ident}: the summary must not make memory claims; the app derives them from the model's memory facts")
-        if not isinstance(m.get("sizeBytes"), int) or m["sizeBytes"] <= 0:
-            bad(i, f"{ident}: sizeBytes must be a positive integer")
-        if not re.fullmatch(r"[0-9a-f]{40}", str(m.get("revision", ""))):
-            bad(i, f"{ident}: revision must be a 40-character commit sha, not a branch")
-        if fmt == "gguf" and not re.fullmatch(r"[0-9a-f]{64}", str(m.get("sha256", ""))):
-            bad(i, f"{ident}: sha256 must be 64 lowercase hex characters")
-        if "sha256" in m and fmt == "mlx":
-            bad(i, f"{ident}: sha256 applies to a single file; leave it out for MLX")
-        for badge in m.get("badges", []):
-            if not str(badge.get("label", "")).strip() or badge.get("tone", "neutral") not in TONES:
-                bad(i, f"{ident}: badge {badge!r} needs a label and a tone from {sorted(TONES)}")
-        bad_platforms = [p for p in m.get("platforms", []) if p not in PLATFORMS]
-        if bad_platforms:
-            bad(i, f"{ident}: unknown platforms {bad_platforms}")
-        for key in ("createdAt", "updatedAt"):
-            if key in m and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", m[key]):
-                bad(i, f"{ident}: {key} must be yyyy-MM-dd")
-        memory = m.get("memory")
-        if memory is not None:
-            extra = set(memory) - MEMORY_KEYS
-            if extra or not isinstance(memory.get("fullKVBytesPerToken"), int) or memory["fullKVBytesPerToken"] < 0:
-                bad(i, f"{ident}: memory needs an integer fullKVBytesPerToken and only {sorted(MEMORY_KEYS)}")
-            if memory.get("windowKVBytesPerToken") and not memory.get("windowTokens"):
-                bad(i, f"{ident}: windowKVBytesPerToken needs windowTokens")
-            fraction = memory.get("activeFraction")
-            if fraction is not None and not (0 < fraction < 1):
-                bad(i, f"{ident}: activeFraction must be between 0 and 1")
-        vision = m.get("vision")
-        if vision is not None and (fmt != "gguf" or not str(vision.get("mmprojFile", "")).endswith(".gguf")):
-            bad(i, f"{ident}: vision needs a gguf entry and an mmprojFile ending in .gguf")
+        for v_index, m in enumerate(variants):
+            vw = f"{where}.variants[{v_index}]"
+            unknown = set(m) - set(VARIANT_KEYS)
+            if unknown:
+                bad(vw, f"unknown keys {sorted(unknown)}")
+            engine = m.get("engine")
+            repo = m.get("repo", "")
+            if engine not in ("gguf", "mlx"):
+                bad(vw, f"engine must be gguf or mlx, got {engine!r}")
+                continue
+            if not REPO_RE.match(repo) or ".." in repo:
+                bad(vw, f"invalid repo {repo!r}")
+                continue
+            if engine == "gguf" and not str(m.get("file", "")).endswith(".gguf"):
+                bad(vw, "a gguf variant needs a file ending in .gguf")
+                continue
+            ident = entry_id(m)
+            if ident in seen:
+                bad(vw, f"duplicate id {ident} (also {seen[ident]})")
+            seen[ident] = f"{fid}"
+            if not str(m.get("params", "")).strip():
+                bad(vw, f"{ident}: params is missing (for example 4B)")
+            if not isinstance(m.get("sizeBytes"), int) or m["sizeBytes"] <= 0:
+                bad(vw, f"{ident}: sizeBytes must be a positive integer")
+            if not re.fullmatch(r"[0-9a-f]{40}", str(m.get("revision", ""))):
+                bad(vw, f"{ident}: revision must be a 40-character commit sha, not a branch")
+            if engine == "gguf" and not re.fullmatch(r"[0-9a-f]{64}", str(m.get("sha256", ""))):
+                bad(vw, f"{ident}: sha256 must be 64 lowercase hex characters")
+            if "sha256" in m and engine == "mlx":
+                bad(vw, f"{ident}: sha256 applies to a single file; leave it out for MLX")
+            if status == "current" and not m.get("memory"):
+                bad(vw, f"{ident}: a current variant needs memory facts (run scripts/catalog-memory.sh)")
+            bad_platforms = [p for p in m.get("platforms", []) if p not in PLATFORMS]
+            if bad_platforms:
+                bad(vw, f"{ident}: unknown platforms {bad_platforms}")
+            for key in ("createdAt", "updatedAt"):
+                if key in m and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", m[key]):
+                    bad(vw, f"{ident}: {key} must be yyyy-MM-dd")
+            memory = m.get("memory")
+            if memory is not None:
+                extra = set(memory) - MEMORY_KEYS
+                if extra or not isinstance(memory.get("fullKVBytesPerToken"), int) or memory["fullKVBytesPerToken"] < 0:
+                    bad(vw, f"{ident}: memory needs an integer fullKVBytesPerToken and only {sorted(MEMORY_KEYS)}")
+                if memory.get("windowKVBytesPerToken") and not memory.get("windowTokens"):
+                    bad(vw, f"{ident}: windowKVBytesPerToken needs windowTokens")
+                fraction = memory.get("activeFraction")
+                if fraction is not None and not (0 < fraction < 1):
+                    bad(vw, f"{ident}: activeFraction must be between 0 and 1")
+            vision = m.get("vision")
+            if vision is not None and (engine != "gguf" or not str(vision.get("mmprojFile", "")).endswith(".gguf")):
+                bad(vw, f"{ident}: vision needs a gguf variant and an mmprojFile ending in .gguf")
 
-        if offline or not re.fullmatch(r"[0-9a-f]{40}", str(m.get("revision", ""))):
-            continue
-        try:
-            files = tree(repo, m["revision"])
-        except RuntimeError as error:
-            bad(i, f"{ident}: {error}")
-            continue
-        if fmt == "gguf":
-            remote = files.get(m["file"])
-            if remote is None:
-                bad(i, f"{ident}: {m['file']} is not in {repo} at {m['revision'][:8]}")
+            if offline or not re.fullmatch(r"[0-9a-f]{40}", str(m.get("revision", ""))):
+                continue
+            try:
+                files = tree(repo, m["revision"])
+            except RuntimeError as error:
+                bad(vw, f"{ident}: {error}")
+                continue
+            if engine == "gguf":
+                remote = files.get(m["file"])
+                if remote is None:
+                    bad(vw, f"{ident}: {m['file']} is not in {repo} at {m['revision'][:8]}")
+                else:
+                    if remote["size"] != m.get("sizeBytes"):
+                        bad(vw, f"{ident}: sizeBytes {m.get('sizeBytes')} but the file is {remote['size']}")
+                    if remote["sha256"] != m.get("sha256"):
+                        bad(vw, f"{ident}: sha256 {str(m.get('sha256'))[:12]} but the file is {str(remote['sha256'])[:12]}")
+                if vision:
+                    projector = files.get(vision["mmprojFile"])
+                    if projector is None:
+                        bad(vw, f"{ident}: mmprojFile {vision['mmprojFile']} is not in the repo")
+                    elif vision.get("mmprojSize") not in (None, projector["size"]):
+                        bad(vw, f"{ident}: mmprojSize {vision.get('mmprojSize')} but the file is {projector['size']}")
             else:
-                if remote["size"] != m.get("sizeBytes"):
-                    bad(i, f"{ident}: sizeBytes {m.get('sizeBytes')} but the file is {remote['size']}")
-                if remote["sha256"] != m.get("sha256"):
-                    bad(i, f"{ident}: sha256 {str(m.get('sha256'))[:12]} but the file is {str(remote['sha256'])[:12]}")
-            if vision:
-                projector = files.get(vision["mmprojFile"])
-                if projector is None:
-                    bad(i, f"{ident}: mmprojFile {vision['mmprojFile']} is not in the repo")
-                elif vision.get("mmprojSize") not in (None, projector["size"]):
-                    bad(i, f"{ident}: mmprojSize {vision.get('mmprojSize')} but the file is {projector['size']}")
-        else:
-            if not any(p.endswith(".safetensors") for p in files):
-                bad(i, f"{ident}: no .safetensors files at {m['revision'][:8]}")
-            actual = mlx_snapshot_size(files)
-            if actual != m.get("sizeBytes"):
-                bad(i, f"{ident}: sizeBytes {m.get('sizeBytes')} but the snapshot is {actual}")
+                if not any(p.endswith(".safetensors") for p in files):
+                    bad(vw, f"{ident}: no .safetensors files at {m['revision'][:8]}")
+                actual = mlx_snapshot_size(files)
+                if actual != m.get("sizeBytes"):
+                    bad(vw, f"{ident}: sizeBytes {m.get('sizeBytes')} but the snapshot is {actual}")
+
+    # A deprecated family must say what replaces it, and that must be a current family.
+    for fid, family in family_ids.items():
+        if family.get("status") == "deprecated":
+            target = family.get("replacedBy")
+            if not target:
+                bad(f"[{fid}]", "a deprecated family needs replacedBy")
+            elif target not in family_ids or family_ids[target].get("status") != "current":
+                bad(f"[{fid}]", f"replacedBy {target!r} must be a current family in this file")
     return problems
 
 
 def cmd_memory(args):
-    """Fill or refresh the memory profile of every entry in the given catalog files."""
+    """Fill or refresh the memory facts of every variant in the given catalog files."""
     paths = [a for a in args if not a.startswith("--")] or DEFAULT_FILES
     for path in paths:
         full = os.path.join(ROOT, path)
         document = load(full)
-        for entry in document["models"]:
-            memory = memory_for_entry(entry)
-            label = entry_id(entry)
+        for family, variant in all_variants(document):
+            memory = memory_for_entry(variant)
+            label = entry_id(variant)
             if memory is None:
-                entry.pop("memory", None)
+                variant.pop("memory", None)
                 print(f"{label}: no KV-cache keys in the metadata, the app will estimate")
             else:
-                entry["memory"] = memory
+                variant["memory"] = memory
                 print(f"{label}: {memory}")
-        document["models"] = [ordered(m) for m in document["models"]]
+        document["families"] = [ordered_family(f) for f in document["families"]]
         save(full, document)
 
 

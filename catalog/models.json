@@ -1,548 +1,453 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "updatedAt": "2026-11-26",
-  "models": [
+  "families": [
     {
-      "repo": "unsloth/Qwen3-0.6B-GGUF",
-      "format": "gguf",
-      "file": "Qwen3-0.6B-Q4_K_M.gguf",
-      "title": "Qwen3 0.6B",
-      "summary": "Tiny and fast. Good for short answers on any iPhone.",
-      "parameters": "0.6B",
-      "quantization": "Q4_K_M",
-      "sizeBytes": 396705472,
-      "contextLength": 40960,
-      "license": "apache-2.0",
-      "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
-      "sha256": "ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a",
-      "capabilities": [
-        "chat",
-        "reasoning"
+      "id": "gemma-4",
+      "name": "Gemma 4",
+      "publisher": "Google",
+      "line": "gemma",
+      "logo": "gemma",
+      "summary": "Google on-device models for text chat. Strong for their size.",
+      "website": "https://ai.google.dev/gemma",
+      "tags": [
+        "multilingual"
       ],
-      "iconKey": "qwen",
-      "supportsThinking": true,
-      "isOnboarding": true,
-      "memory": {
-        "fullKVBytesPerToken": 114688
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 0
-    },
-    {
-      "repo": "mlx-community/Qwen3-0.6B-4bit",
-      "format": "mlx",
-      "title": "Qwen3 0.6B (MLX)",
-      "summary": "Tiny and fast. Good for short answers on any iPhone.",
-      "parameters": "0.6B",
-      "quantization": "4-bit",
-      "sizeBytes": 351383618,
-      "contextLength": 40960,
-      "license": "apache-2.0",
-      "revision": "73e3e38d981303bc594367cd910ea6eb48349da8",
-      "capabilities": [
-        "chat",
-        "reasoning"
-      ],
-      "iconKey": "qwen",
-      "supportsThinking": true,
-      "memory": {
-        "fullKVBytesPerToken": 114688
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 1
-    },
-    {
-      "repo": "unsloth/Qwen3-1.7B-GGUF",
-      "format": "gguf",
-      "file": "Qwen3-1.7B-Q4_K_M.gguf",
-      "title": "Qwen3 1.7B",
-      "summary": "Small all-rounder with a thinking mode.",
-      "parameters": "1.7B",
-      "quantization": "Q4_K_M",
-      "sizeBytes": 1107409472,
-      "contextLength": 40960,
-      "license": "apache-2.0",
-      "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
-      "sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
-      "capabilities": [
-        "chat",
-        "reasoning"
-      ],
-      "iconKey": "qwen",
-      "supportsThinking": true,
-      "memory": {
-        "fullKVBytesPerToken": 114688
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 2
-    },
-    {
-      "repo": "mlx-community/Qwen3-1.7B-4bit",
-      "format": "mlx",
-      "title": "Qwen3 1.7B (MLX)",
-      "summary": "Small all-rounder with a thinking mode.",
-      "parameters": "1.7B",
-      "quantization": "4-bit",
-      "sizeBytes": 984013244,
-      "contextLength": 40960,
-      "license": "apache-2.0",
-      "revision": "3b1b1768f8f8cf8351c712464f906e86c2b8269e",
-      "capabilities": [
-        "chat",
-        "reasoning"
-      ],
-      "iconKey": "qwen",
-      "supportsThinking": true,
-      "memory": {
-        "fullKVBytesPerToken": 114688
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 3
-    },
-    {
-      "repo": "unsloth/Qwen3-4B-GGUF",
-      "format": "gguf",
-      "file": "Qwen3-4B-Q4_K_M.gguf",
-      "title": "Qwen3 4B",
-      "summary": "Strongest of the small Qwen3 models.",
-      "parameters": "4B",
-      "quantization": "Q4_K_M",
-      "sizeBytes": 2497281312,
-      "contextLength": 40960,
-      "license": "apache-2.0",
-      "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
-      "sha256": "f6f851777709861056efcdad3af01da38b31223a3ba26e61a4f8bf3a2195813a",
-      "capabilities": [
-        "chat",
-        "reasoning"
-      ],
-      "iconKey": "qwen",
-      "supportsThinking": true,
-      "memory": {
-        "fullKVBytesPerToken": 147456
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 4
-    },
-    {
-      "repo": "mlx-community/Qwen3-4B-4bit",
-      "format": "mlx",
-      "title": "Qwen3 4B (MLX)",
-      "summary": "Strongest of the small Qwen3 models.",
-      "parameters": "4B",
-      "quantization": "4-bit",
-      "sizeBytes": 2278969756,
-      "contextLength": 40960,
-      "license": "apache-2.0",
-      "revision": "4dcb3d101c2a062e5c1d4bb173588c54ea6c4d25",
-      "capabilities": [
-        "chat",
-        "reasoning"
-      ],
-      "iconKey": "qwen",
-      "supportsThinking": true,
-      "memory": {
-        "fullKVBytesPerToken": 147456
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 5
-    },
-    {
-      "repo": "unsloth/gemma-3-1b-it-GGUF",
-      "format": "gguf",
-      "file": "gemma-3-1b-it-Q4_K_M.gguf",
-      "title": "Gemma 3 1B",
-      "summary": "Google small chat model. Quick and light.",
-      "parameters": "1B",
-      "quantization": "Q4_K_M",
-      "sizeBytes": 806058272,
-      "contextLength": 32768,
-      "license": "gemma",
-      "revision": "f0b45be0aac41bd6a100a4b5734cad5f67255bfb",
-      "sha256": "8270790f3ab69fdfe860b7b64008d9a19986d8df7e407bb018184caa08798ebd",
-      "capabilities": [
-        "chat"
-      ],
-      "iconKey": "gemma",
-      "isOnboarding": true,
-      "memory": {
-        "fullKVBytesPerToken": 4096,
-        "windowKVBytesPerToken": 22528,
-        "windowTokens": 512
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 6
-    },
-    {
-      "repo": "mlx-community/gemma-3-1b-it-4bit",
-      "format": "mlx",
-      "title": "Gemma 3 1B (MLX)",
-      "summary": "Google small chat model. Quick and light.",
-      "parameters": "1B",
-      "quantization": "4-bit",
-      "sizeBytes": 771860852,
-      "contextLength": 32768,
-      "license": "gemma",
-      "revision": "2d44e83dc9e80843d22fb941d3d699a0b1351aa6",
-      "capabilities": [
-        "chat"
-      ],
-      "iconKey": "gemma",
-      "memory": {
-        "fullKVBytesPerToken": 4096,
-        "windowKVBytesPerToken": 22528,
-        "windowTokens": 512
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 7
-    },
-    {
-      "repo": "unsloth/gemma-3-4b-it-GGUF",
-      "format": "gguf",
-      "file": "gemma-3-4b-it-Q4_K_M.gguf",
-      "title": "Gemma 3 4B",
-      "summary": "Google mid-size chat model.",
-      "parameters": "4B",
-      "quantization": "Q4_K_M",
-      "sizeBytes": 2489894016,
-      "contextLength": 131072,
-      "license": "gemma",
-      "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
-      "sha256": "04a43a22e8d2003deda5acc262f68ec1005fa76c735a9962a8c77042a74a7d19",
-      "capabilities": [
-        "chat"
-      ],
-      "iconKey": "gemma",
-      "memory": {
-        "fullKVBytesPerToken": 20480,
-        "windowKVBytesPerToken": 118784,
-        "windowTokens": 1024
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 8
-    },
-    {
-      "repo": "bartowski/Llama-3.2-1B-Instruct-GGUF",
-      "format": "gguf",
-      "file": "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
-      "title": "Llama 3.2 1B",
-      "summary": "Meta small instruct model.",
-      "parameters": "1B",
-      "quantization": "Q4_K_M",
-      "sizeBytes": 807694464,
-      "contextLength": 131072,
-      "license": "llama3.2",
-      "revision": "067b946cf014b7c697f3654f621d577a3e3afd1c",
-      "sha256": "6f85a640a97cf2bf5b8e764087b1e83da0fdb51d7c9fab7d0fece9385611df83",
-      "capabilities": [
-        "chat"
-      ],
-      "iconKey": "llama",
-      "memory": {
-        "fullKVBytesPerToken": 32768
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 9
-    },
-    {
-      "repo": "mlx-community/Llama-3.2-1B-Instruct-4bit",
-      "format": "mlx",
-      "title": "Llama 3.2 1B (MLX)",
-      "summary": "Meta small instruct model.",
-      "parameters": "1B",
-      "quantization": "4-bit",
-      "sizeBytes": 712575975,
-      "contextLength": 131072,
-      "license": "llama3.2",
-      "revision": "08231374eeacb049a0eade7922910865b8fce912",
-      "capabilities": [
-        "chat"
-      ],
-      "iconKey": "llama",
-      "memory": {
-        "fullKVBytesPerToken": 32768
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 10
-    },
-    {
-      "repo": "bartowski/Llama-3.2-3B-Instruct-GGUF",
-      "format": "gguf",
-      "file": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-      "title": "Llama 3.2 3B",
-      "summary": "Meta compact instruct model.",
-      "parameters": "3B",
-      "quantization": "Q4_K_M",
-      "sizeBytes": 2019377696,
-      "contextLength": 131072,
-      "license": "llama3.2",
-      "revision": "5ab33fa94d1d04e903623ae72c95d1696f09f9e8",
-      "sha256": "6c1a2b41161032677be168d354123594c0e6e67d2b9227c84f296ad037c728ff",
-      "capabilities": [
-        "chat"
-      ],
-      "iconKey": "llama",
-      "memory": {
-        "fullKVBytesPerToken": 114688
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 11
-    },
-    {
-      "repo": "mlx-community/Llama-3.2-3B-Instruct-4bit",
-      "format": "mlx",
-      "title": "Llama 3.2 3B (MLX)",
-      "summary": "Meta compact instruct model.",
-      "parameters": "3B",
-      "quantization": "4-bit",
-      "sizeBytes": 1824807894,
-      "contextLength": 131072,
-      "license": "llama3.2",
-      "revision": "7f0dc925e0d0afb0322d96f9255cfddf2ba5636e",
-      "capabilities": [
-        "chat"
-      ],
-      "iconKey": "llama",
-      "memory": {
-        "fullKVBytesPerToken": 114688
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 12
-    },
-    {
-      "repo": "google/gemma-4-E2B-it-qat-q4_0-gguf",
-      "format": "gguf",
-      "file": "gemma-4-E2B_q4_0-it.gguf",
-      "title": "Gemma 4 E2B",
-      "summary": "Google on-device model, text chat. Strong for its size.",
-      "parameters": "E2B",
-      "quantization": "Q4_0 (QAT)",
-      "sizeBytes": 3349516256,
-      "contextLength": 131072,
-      "license": "apache-2.0",
-      "revision": "675cff42a74c774d6cb76f76d8eacb49b48c9b93",
-      "sha256": "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
-      "capabilities": [
-        "chat"
-      ],
-      "iconKey": "gemma",
       "badges": [
+        "recommended"
+      ],
+      "status": "current",
+      "order": 0,
+      "variants": [
         {
-          "label": "New",
-          "tone": "success"
-        }
-      ],
-      "recommended": true,
-      "memory": {
-        "fullKVBytesPerToken": 6144,
-        "windowKVBytesPerToken": 12288,
-        "windowTokens": 512,
-        "lazyWeightBytes": 1926758400
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 13
-    },
-    {
-      "repo": "mlx-community/gemma-4-e2b-it-4bit",
-      "format": "mlx",
-      "title": "Gemma 4 E2B (MLX)",
-      "summary": "Google on-device model, text chat. Strong for its size.",
-      "parameters": "E2B",
-      "quantization": "4-bit",
-      "sizeBytes": 3583086498,
-      "contextLength": 131072,
-      "license": "apache-2.0",
-      "revision": "238767527555cb75a05732a84dff5d6ba0dd6809",
-      "capabilities": [
-        "chat"
-      ],
-      "iconKey": "gemma",
-      "badges": [
-        {
-          "label": "New",
-          "tone": "success"
-        }
-      ],
-      "memory": {
-        "fullKVBytesPerToken": 6144,
-        "windowKVBytesPerToken": 12288,
-        "windowTokens": 512
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 14
-    },
-    {
-      "repo": "google/gemma-4-E4B-it-qat-q4_0-gguf",
-      "format": "gguf",
-      "file": "gemma-4-E4B_q4_0-it.gguf",
-      "title": "Gemma 4 E4B",
-      "summary": "Bigger Gemma 4 for text chat. Large download.",
-      "parameters": "E4B",
-      "quantization": "Q4_0 (QAT)",
-      "sizeBytes": 5154941280,
-      "contextLength": 131072,
-      "license": "apache-2.0",
-      "revision": "4b4a2c1d584be7264f87aac328a1bc739ce81b6c",
-      "sha256": "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
-      "capabilities": [
-        "chat"
-      ],
-      "iconKey": "gemma",
-      "badges": [
-        {
-          "label": "New",
-          "tone": "success"
+          "repo": "google/gemma-4-E2B-it-qat-q4_0-gguf",
+          "engine": "gguf",
+          "file": "gemma-4-E2B_q4_0-it.gguf",
+          "params": "E2B",
+          "quant": "Q4_0 (QAT)",
+          "sizeBytes": 3349516256,
+          "contextLength": 131072,
+          "license": "apache-2.0",
+          "revision": "675cff42a74c774d6cb76f76d8eacb49b48c9b93",
+          "sha256": "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
+          "memory": {
+            "fullKVBytesPerToken": 6144,
+            "windowKVBytesPerToken": 12288,
+            "windowTokens": 512,
+            "lazyWeightBytes": 1926758400
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
         },
         {
-          "label": "Large download",
-          "tone": "warning"
-        }
-      ],
-      "memory": {
-        "fullKVBytesPerToken": 16384,
-        "windowKVBytesPerToken": 40960,
-        "windowTokens": 512,
-        "lazyWeightBytes": 2312110080
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 15
-    },
-    {
-      "repo": "mlx-community/gemma-4-e4b-it-4bit",
-      "format": "mlx",
-      "title": "Gemma 4 E4B (MLX)",
-      "summary": "Bigger Gemma 4 for text chat. Large download.",
-      "parameters": "E4B",
-      "quantization": "4-bit",
-      "sizeBytes": 5179239349,
-      "contextLength": 131072,
-      "license": "apache-2.0",
-      "revision": "475b9088d29754a3379866cf5aeb6b41acd313c2",
-      "capabilities": [
-        "chat"
-      ],
-      "iconKey": "gemma",
-      "badges": [
-        {
-          "label": "New",
-          "tone": "success"
+          "repo": "mlx-community/gemma-4-e2b-it-4bit",
+          "engine": "mlx",
+          "params": "E2B",
+          "quant": "4-bit",
+          "sizeBytes": 3583086498,
+          "contextLength": 131072,
+          "license": "apache-2.0",
+          "revision": "238767527555cb75a05732a84dff5d6ba0dd6809",
+          "memory": {
+            "fullKVBytesPerToken": 6144,
+            "windowKVBytesPerToken": 12288,
+            "windowTokens": 512
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
         },
         {
-          "label": "Large download",
-          "tone": "warning"
+          "repo": "google/gemma-4-E4B-it-qat-q4_0-gguf",
+          "engine": "gguf",
+          "file": "gemma-4-E4B_q4_0-it.gguf",
+          "params": "E4B",
+          "quant": "Q4_0 (QAT)",
+          "sizeBytes": 5154941280,
+          "contextLength": 131072,
+          "license": "apache-2.0",
+          "revision": "4b4a2c1d584be7264f87aac328a1bc739ce81b6c",
+          "sha256": "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
+          "memory": {
+            "fullKVBytesPerToken": 16384,
+            "windowKVBytesPerToken": 40960,
+            "windowTokens": 512,
+            "lazyWeightBytes": 2312110080
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "mlx-community/gemma-4-e4b-it-4bit",
+          "engine": "mlx",
+          "params": "E4B",
+          "quant": "4-bit",
+          "sizeBytes": 5179239349,
+          "contextLength": 131072,
+          "license": "apache-2.0",
+          "revision": "475b9088d29754a3379866cf5aeb6b41acd313c2",
+          "memory": {
+            "fullKVBytesPerToken": 16384,
+            "windowKVBytesPerToken": 40960,
+            "windowTokens": 512
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
         }
-      ],
-      "memory": {
-        "fullKVBytesPerToken": 16384,
-        "windowKVBytesPerToken": 40960,
-        "windowTokens": 512
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 16
+      ]
     },
     {
-      "repo": "unsloth/Qwen3.5-0.8B-GGUF",
-      "format": "gguf",
-      "file": "Qwen3.5-0.8B-Q4_K_M.gguf",
-      "title": "Qwen3.5 0.8B",
-      "summary": "Tiny Qwen 3.5 with a thinking mode. Quick on any iPhone.",
-      "parameters": "0.8B",
-      "quantization": "Q4_K_M",
-      "sizeBytes": 532517120,
-      "contextLength": 262144,
-      "license": "apache-2.0",
-      "revision": "6ab461498e2023f6e3c1baea90a8f0fe38ab64d0",
-      "sha256": "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517",
-      "capabilities": [
-        "chat"
+      "id": "qwen-3-5",
+      "name": "Qwen 3.5",
+      "publisher": "Alibaba",
+      "line": "qwen",
+      "logo": "qwen",
+      "summary": "Small Qwen models with a thinking mode. Quick, and good at many languages.",
+      "website": "https://qwenlm.github.io",
+      "tags": [
+        "thinking",
+        "multilingual"
       ],
-      "iconKey": "qwen",
-      "supportsThinking": true,
-      "vision": {
-        "mmprojFile": "mmproj-F16.gguf",
-        "mmprojSize": 204987232
-      },
-      "memory": {
-        "fullKVBytesPerToken": 49152
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 17
+      "badges": [
+        "new"
+      ],
+      "status": "current",
+      "order": 1,
+      "variants": [
+        {
+          "repo": "unsloth/Qwen3.5-0.8B-GGUF",
+          "engine": "gguf",
+          "file": "Qwen3.5-0.8B-Q4_K_M.gguf",
+          "params": "0.8B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 532517120,
+          "contextLength": 262144,
+          "license": "apache-2.0",
+          "revision": "6ab461498e2023f6e3c1baea90a8f0fe38ab64d0",
+          "sha256": "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517",
+          "vision": {
+            "mmprojFile": "mmproj-F16.gguf",
+            "mmprojSize": 204987232
+          },
+          "isOnboarding": true,
+          "memory": {
+            "fullKVBytesPerToken": 49152
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "unsloth/Qwen3.5-2B-GGUF",
+          "engine": "gguf",
+          "file": "Qwen3.5-2B-Q4_K_M.gguf",
+          "params": "2B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 1280835840,
+          "contextLength": 262144,
+          "license": "apache-2.0",
+          "revision": "f6d5376be1edb4d416d56da11e5397a961aca8ae",
+          "sha256": "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
+          "vision": {
+            "mmprojFile": "mmproj-F16.gguf",
+            "mmprojSize": 668227264
+          },
+          "memory": {
+            "fullKVBytesPerToken": 49152
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "unsloth/Qwen3.5-4B-GGUF",
+          "engine": "gguf",
+          "file": "Qwen3.5-4B-Q4_K_M.gguf",
+          "params": "4B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 2740937888,
+          "contextLength": 262144,
+          "license": "apache-2.0",
+          "revision": "e87f176479d0855a907a41277aca2f8ee7a09523",
+          "sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+          "vision": {
+            "mmprojFile": "mmproj-F16.gguf",
+            "mmprojSize": 672423616
+          },
+          "memory": {
+            "fullKVBytesPerToken": 131072
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        }
+      ]
     },
     {
-      "repo": "unsloth/Qwen3.5-2B-GGUF",
-      "format": "gguf",
-      "file": "Qwen3.5-2B-Q4_K_M.gguf",
-      "title": "Qwen3.5 2B",
-      "summary": "Small Qwen 3.5 with a thinking mode. A good default for most iPhones.",
-      "parameters": "2B",
-      "quantization": "Q4_K_M",
-      "sizeBytes": 1280835840,
-      "contextLength": 262144,
-      "license": "apache-2.0",
-      "revision": "f6d5376be1edb4d416d56da11e5397a961aca8ae",
-      "sha256": "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
-      "capabilities": [
-        "chat"
+      "id": "qwen-3",
+      "name": "Qwen3",
+      "publisher": "Alibaba",
+      "line": "qwen",
+      "logo": "qwen",
+      "summary": "The previous Qwen generation.",
+      "website": "https://qwenlm.github.io",
+      "tags": [
+        "thinking",
+        "multilingual"
       ],
-      "iconKey": "qwen",
-      "supportsThinking": true,
-      "vision": {
-        "mmprojFile": "mmproj-F16.gguf",
-        "mmprojSize": 668227264
-      },
-      "memory": {
-        "fullKVBytesPerToken": 49152
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 18
+      "badges": [],
+      "status": "deprecated",
+      "replacedBy": "qwen-3-5",
+      "order": 2,
+      "variants": [
+        {
+          "repo": "unsloth/Qwen3-0.6B-GGUF",
+          "engine": "gguf",
+          "file": "Qwen3-0.6B-Q4_K_M.gguf",
+          "params": "0.6B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 396705472,
+          "contextLength": 40960,
+          "license": "apache-2.0",
+          "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+          "sha256": "ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a",
+          "isOnboarding": true,
+          "memory": {
+            "fullKVBytesPerToken": 114688
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "mlx-community/Qwen3-0.6B-4bit",
+          "engine": "mlx",
+          "params": "0.6B",
+          "quant": "4-bit",
+          "sizeBytes": 351383618,
+          "contextLength": 40960,
+          "license": "apache-2.0",
+          "revision": "73e3e38d981303bc594367cd910ea6eb48349da8",
+          "memory": {
+            "fullKVBytesPerToken": 114688
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "unsloth/Qwen3-1.7B-GGUF",
+          "engine": "gguf",
+          "file": "Qwen3-1.7B-Q4_K_M.gguf",
+          "params": "1.7B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 1107409472,
+          "contextLength": 40960,
+          "license": "apache-2.0",
+          "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+          "sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
+          "memory": {
+            "fullKVBytesPerToken": 114688
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "mlx-community/Qwen3-1.7B-4bit",
+          "engine": "mlx",
+          "params": "1.7B",
+          "quant": "4-bit",
+          "sizeBytes": 984013244,
+          "contextLength": 40960,
+          "license": "apache-2.0",
+          "revision": "3b1b1768f8f8cf8351c712464f906e86c2b8269e",
+          "memory": {
+            "fullKVBytesPerToken": 114688
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "unsloth/Qwen3-4B-GGUF",
+          "engine": "gguf",
+          "file": "Qwen3-4B-Q4_K_M.gguf",
+          "params": "4B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 2497281312,
+          "contextLength": 40960,
+          "license": "apache-2.0",
+          "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+          "sha256": "f6f851777709861056efcdad3af01da38b31223a3ba26e61a4f8bf3a2195813a",
+          "memory": {
+            "fullKVBytesPerToken": 147456
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "mlx-community/Qwen3-4B-4bit",
+          "engine": "mlx",
+          "params": "4B",
+          "quant": "4-bit",
+          "sizeBytes": 2278969756,
+          "contextLength": 40960,
+          "license": "apache-2.0",
+          "revision": "4dcb3d101c2a062e5c1d4bb173588c54ea6c4d25",
+          "memory": {
+            "fullKVBytesPerToken": 147456
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        }
+      ]
     },
     {
-      "repo": "unsloth/Qwen3.5-4B-GGUF",
-      "format": "gguf",
-      "file": "Qwen3.5-4B-Q4_K_M.gguf",
-      "title": "Qwen3.5 4B",
-      "summary": "Stronger Qwen 3.5 with a thinking mode.",
-      "parameters": "4B",
-      "quantization": "Q4_K_M",
-      "sizeBytes": 2740937888,
-      "contextLength": 262144,
-      "license": "apache-2.0",
-      "revision": "e87f176479d0855a907a41277aca2f8ee7a09523",
-      "sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
-      "capabilities": [
-        "chat"
+      "id": "gemma-3",
+      "name": "Gemma 3",
+      "publisher": "Google",
+      "line": "gemma-3",
+      "logo": "gemma",
+      "summary": "The previous Gemma generation.",
+      "website": "https://ai.google.dev/gemma",
+      "tags": [
+        "multilingual"
       ],
-      "iconKey": "qwen",
-      "supportsThinking": true,
-      "vision": {
-        "mmprojFile": "mmproj-F16.gguf",
-        "mmprojSize": 672423616
-      },
-      "memory": {
-        "fullKVBytesPerToken": 131072
-      },
-      "createdAt": "2026-11-26",
-      "updatedAt": "2026-11-26",
-      "order": 19
+      "badges": [],
+      "status": "deprecated",
+      "replacedBy": "gemma-4",
+      "order": 3,
+      "variants": [
+        {
+          "repo": "unsloth/gemma-3-1b-it-GGUF",
+          "engine": "gguf",
+          "file": "gemma-3-1b-it-Q4_K_M.gguf",
+          "params": "1B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 806058272,
+          "contextLength": 32768,
+          "license": "gemma",
+          "revision": "f0b45be0aac41bd6a100a4b5734cad5f67255bfb",
+          "sha256": "8270790f3ab69fdfe860b7b64008d9a19986d8df7e407bb018184caa08798ebd",
+          "isOnboarding": true,
+          "memory": {
+            "fullKVBytesPerToken": 4096,
+            "windowKVBytesPerToken": 22528,
+            "windowTokens": 512
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "mlx-community/gemma-3-1b-it-4bit",
+          "engine": "mlx",
+          "params": "1B",
+          "quant": "4-bit",
+          "sizeBytes": 771860852,
+          "contextLength": 32768,
+          "license": "gemma",
+          "revision": "2d44e83dc9e80843d22fb941d3d699a0b1351aa6",
+          "memory": {
+            "fullKVBytesPerToken": 4096,
+            "windowKVBytesPerToken": 22528,
+            "windowTokens": 512
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "unsloth/gemma-3-4b-it-GGUF",
+          "engine": "gguf",
+          "file": "gemma-3-4b-it-Q4_K_M.gguf",
+          "params": "4B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 2489894016,
+          "contextLength": 131072,
+          "license": "gemma",
+          "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+          "sha256": "04a43a22e8d2003deda5acc262f68ec1005fa76c735a9962a8c77042a74a7d19",
+          "memory": {
+            "fullKVBytesPerToken": 20480,
+            "windowKVBytesPerToken": 118784,
+            "windowTokens": 1024
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        }
+      ]
+    },
+    {
+      "id": "llama-3-2",
+      "name": "Llama 3.2",
+      "publisher": "Meta",
+      "line": "llama",
+      "logo": "llama",
+      "summary": "Meta small instruct models, now superseded.",
+      "website": "https://www.llama.com",
+      "tags": [],
+      "badges": [],
+      "status": "deprecated",
+      "replacedBy": "gemma-4",
+      "order": 4,
+      "variants": [
+        {
+          "repo": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+          "engine": "gguf",
+          "file": "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+          "params": "1B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 807694464,
+          "contextLength": 131072,
+          "license": "llama3.2",
+          "revision": "067b946cf014b7c697f3654f621d577a3e3afd1c",
+          "sha256": "6f85a640a97cf2bf5b8e764087b1e83da0fdb51d7c9fab7d0fece9385611df83",
+          "memory": {
+            "fullKVBytesPerToken": 32768
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "mlx-community/Llama-3.2-1B-Instruct-4bit",
+          "engine": "mlx",
+          "params": "1B",
+          "quant": "4-bit",
+          "sizeBytes": 712575975,
+          "contextLength": 131072,
+          "license": "llama3.2",
+          "revision": "08231374eeacb049a0eade7922910865b8fce912",
+          "memory": {
+            "fullKVBytesPerToken": 32768
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "bartowski/Llama-3.2-3B-Instruct-GGUF",
+          "engine": "gguf",
+          "file": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+          "params": "3B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 2019377696,
+          "contextLength": 131072,
+          "license": "llama3.2",
+          "revision": "5ab33fa94d1d04e903623ae72c95d1696f09f9e8",
+          "sha256": "6c1a2b41161032677be168d354123594c0e6e67d2b9227c84f296ad037c728ff",
+          "memory": {
+            "fullKVBytesPerToken": 114688
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        },
+        {
+          "repo": "mlx-community/Llama-3.2-3B-Instruct-4bit",
+          "engine": "mlx",
+          "params": "3B",
+          "quant": "4-bit",
+          "sizeBytes": 1824807894,
+          "contextLength": 131072,
+          "license": "llama3.2",
+          "revision": "7f0dc925e0d0afb0322d96f9255cfddf2ba5636e",
+          "memory": {
+            "fullKVBytesPerToken": 114688
+          },
+          "createdAt": "2026-11-26",
+          "updatedAt": "2026-11-26"
+        }
+      ]
     }
   ]
 }
