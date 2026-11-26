@@ -94,10 +94,11 @@ final class MessageRecord {
 
 extension ModelContainer {
     /// Schema shared by the app and tests.
-    static func anyRouter(inMemory: Bool = false) throws -> ModelContainer {
-        try ModelContainer(
+    static func anyRouter(inMemory: Bool = false, storeURL: URL? = nil) throws -> ModelContainer {
+        let configuration = storeURL.map { ModelConfiguration(url: $0) } ?? ModelConfiguration(isStoredInMemoryOnly: inMemory)
+        return try ModelContainer(
             for: ThreadRecord.self, MessageRecord.self, DecisionRunRecord.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: inMemory)
+            configurations: configuration
         )
     }
 }

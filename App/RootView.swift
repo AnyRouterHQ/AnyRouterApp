@@ -5,6 +5,8 @@ struct RootView: View {
     @Environment(AppState.self) private var appState
     @State private var shell = ShellModel(selectedThreadID: DemoData.initialThreadID)
     @State private var showsOnboarding = false
+    /// Set when the chat store could not be opened and was replaced. Shown once.
+    @State private var storeNote = StoreOpening.takeNote()
     @Environment(\.scenePhase) private var scenePhase
     /// This window's id for the memory monitor, which unloads only when every window is in the background.
     @State private var sceneID = UUID()
@@ -53,6 +55,11 @@ struct RootView: View {
             // Siri, Shortcuts and the controls leave a request here; a cold launch has it waiting before the first frame.
             .onChange(of: InboundChatMailbox.shared.pending?.id, initial: true) {
                 if let request = InboundChatMailbox.shared.take() { shell.start(request) }
+            }
+            .alert("Chat history", isPresented: Binding(get: { storeNote != nil }, set: { if !$0 { storeNote = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(storeNote ?? "")
             }
             .alert("Help improve AnyRouter?", isPresented: Bindable(appState.settings).isAskingDiagnostics) {
                 Button("Share") { appState.settings.answerDiagnostics(share: true) }

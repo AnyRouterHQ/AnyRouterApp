@@ -11,8 +11,15 @@ struct AnyRouterApp: App {
         let signpost = Perf.signposter.beginInterval("launch.container")
         defer { Perf.signposter.endInterval("launch.container", signpost) }
         do {
-            container = DemoData.isEnabled ? try DemoData.makeContainer() : try ModelContainer.anyRouter()
+            if DemoData.isEnabled {
+                container = try DemoData.makeContainer()
+            } else {
+                let outcome = try StoreOpening.open()
+                container = outcome.container
+                StoreOpening.post(note: outcome.note)
+            }
         } catch {
+            // Only an in-memory container failing lands here, which no data on disk can cause.
             fatalError("Could not create the data store: \(error)")
         }
     }
