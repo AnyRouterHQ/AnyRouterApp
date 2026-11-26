@@ -657,6 +657,20 @@ CI run [45806661476](https://github.com/AnyRouterHQ/AnyRouterApp/actions/runs/45
 | M4 picker with 500 models, tap to first row | 12.0 s clock, 9.1 s CPU | clock 13.5, 12.3, 10 | 26% | 6-model control: 4.1 s clock, 0.79 s CPU. The list itself adds about 8 s of app CPU |
 | M2 scroll, app CPU for 8 fast swipes | 4.1 s | 3.3, 6.0, 2.8 | 78% | Too noisy to rank anything under about 2x. Needs more iterations or a quieter runner before it can judge U3 to U6 |
 
+Run 2 (CI run [45866770646](https://github.com/AnyRouterHQ/AnyRouterApp/actions/runs/45866770646), main at a435eff, same method). Main had moved a lot between the runs, so these are not single-change comparisons.
+
+| Metric | Run 1 mean | Run 2 mean | Run 2 averages | Reading |
+|---|---|---|---|---|
+| M5 models.firstUsable, cloud list delayed 5 s | 8.0 s | 2.37 s | 2.27, 2.51, 2.32 | U7 works: Apple and local models no longer wait for the slow list. Spread 10% |
+| launch.auth (Keychain) | 0.059 s | 0.0003 s | | U8 by the diagnostics lane |
+| launch.engines | 0.012 s | 0.0005 s | | same |
+| launch.container, launch.hub | 0.10 s, 0.11 s | 0.11 s, 0.06 s | | unchanged within noise |
+| M1 cold launch to responsive | 4.37 s | 8.36 s | 12.9, 6.5, 5.6 | Slower; run 1 is again the outlier. Not from our four signposts (all small); other launch work was added meanwhile (watchdog, diagnostics store). Needs its own look |
+| M2 scroll, app CPU | 4.1 s | 10.09 s | 9.97, 10.12, 10.17 | More than doubled, spread 2%, so it is real. Suspect: the `ScrollPosition` binding I added in 8ee3458 is written every scroll frame and re-evaluates the list. Replaced by `ScrollViewReader` in 42cdb1f; unverified until the next run |
+| Idle control, app CPU over 20 s | 0.004 s | 0.052 s | | Small, but 13 times higher: something polls (the memory menu refreshes every 3 s) |
+| Idle memory | 57 MB | 73 MB | | More code and services at launch |
+| M3 stream, M4 picker | | not measured | | The perf tests no longer matched the UI (tabbed picker, two "New chat" buttons); fixed in 42cdb1f |
+
 What this changes:
 
 - Streaming is the biggest problem: one core for the whole reply on the Simulator. U3, U4 and U5 stay first. U4 is demoted to a follow-up because row bodies are cheap.
