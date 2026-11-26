@@ -147,14 +147,27 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [ ] E1 `release-adhoc.yml`: import cert + profile from secrets, `xcodebuild archive` + `-exportArchive` (method `release-testing`/ad-hoc), upload IPA artifact
 - [ ] E2 Install doc: Apple Configurator 2 or OTA manifest page; size report of the IPA
 
+## Backlog (after milestone 1; pick one, tick it, add a PR number)
+
+- [ ] F1 Device smoke test on iPhone + iPad: AnyRouter sign-in, Apple FM chat, GGUF download + chat, MLX download + chat. Record results in the status log.
+- [ ] F2 Reasoning stream: add `ChatDelta.reasoning(String)` to Core, emit it from GGUF/MLX (Qwen3 `<think>`) and AnyRouter (`reasoning` deltas), show Atomic's collapsible thinking block.
+- [ ] F3 GGUF KV-cache reuse between turns (only feed the new suffix).
+- [ ] F4 Newer llama.cpp: build our own xcframework (device + simulator slices) in CI from a pinned tag, replacing the b10456 pin (D12).
+- [ ] F5 Bundle Inter (Atomic's font, OFL) for closer UI parity; syntax highlighting in code blocks.
+- [ ] F6 Vision: image attachments for AnyRouter vision models and Gemma 3 4B (VLM) via MLXVLM.
+- [ ] F7 Mac: "Designed for iPad" on Apple silicon, then a native macOS destination.
+- [ ] F8 Screenshot tests (simulator) of each main screen, compared against Atomic mobile reference screenshots.
+
 ## Open questions (operator)
 
 - Q1 Apple Developer **Team ID**, and is the account paid (ad-hoc needs a paid team)?
 - Q2 Device **UDIDs** of the iPhone and iPad (for the ad-hoc profile), or permission to register them in the Apple Developer portal.
 - Q3 GitHub secrets for signing: `IOS_CERT_P12_BASE64`, `IOS_CERT_PASSWORD`, `IOS_ADHOC_PROFILE_BASE64`, `APPLE_TEAM_ID`.
-- Q4 AnyRouter brand assets (app icon, accent color) — default: anyrouter.dev favicon/logo and accent.
+- Q4 Resolved: icon from the public AnyRouter logo, anyrouter.dev orange accent (#8).
 
 ## Status log
+
+- 2026-11-26 manager: lanes A-D done (#1-#14), backlog F1-F8 added, lane E started (workflow gated on signing secrets).
 
 - 2026-11-26 manager: interviewed operator, wrote AGENTS.md + PLAN.md + base config, created public repo AnyRouterHQ/AnyRouterApp, started lanes A, B, C.
 - 2026-11-26 lane-A: scaffold, Core contract, app shell, CI workflow (#1); local checks skipped
