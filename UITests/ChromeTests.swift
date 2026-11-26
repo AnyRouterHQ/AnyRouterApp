@@ -26,7 +26,8 @@ final class ChromeTests: XCTestCase {
         try XCTSkipIf(!app.buttons["Menu"].waitForExistence(timeout: 15), "iPad layout: the system adds its own sidebar toggle")
         let bar = app.navigationBars.firstMatch
         XCTAssertTrue(bar.buttons["Model"].exists)
-        let labels = bar.buttons.allElementsBoundByIndex.map(\.label).sorted()
+        // The glass group around "More" and "New chat" shows up as one unlabeled button; it is not a control of its own.
+        let labels = bar.buttons.allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty }.sorted()
         XCTAssertEqual(labels, ["Menu", "Model", "More", "New chat"], "the sidebar, the title, the more menu and new chat; nothing else")
     }
 

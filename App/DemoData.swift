@@ -187,6 +187,8 @@ enum DemoData {
         members: Int? = nil, vision: Bool = false, reasoning: Bool = false
     ) -> ModelDescriptor {
         var model = descriptor("anyrouter/\(id)", .anyrouter, name)
+        // Real AnyRouter models take tool calls, so the @ list offers plugins like Exa in demo data too.
+        model.capabilities.insert("tools")
         model.contextLength = context
         model.cloud = CloudInfo(
             pricing: CloudPricing(
