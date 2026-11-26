@@ -5,6 +5,8 @@ struct MentionItem: Identifiable, Hashable, Sendable {
     enum Kind: Hashable, Sendable {
         case plugin(sourceID: String)
         case file(attachmentID: UUID, filename: String)
+        /// A preset with pickers (Reply to this). It opens its choices instead of becoming a chip.
+        case preset(presetID: String)
     }
 
     var kind: Kind
@@ -17,14 +19,16 @@ struct MentionItem: Identifiable, Hashable, Sendable {
         switch kind {
         case .plugin(let sourceID): "plugin/\(sourceID)"
         case .file(let attachmentID, _): "file/\(attachmentID.uuidString)"
+        case .preset(let presetID): "preset/\(presetID)"
         }
     }
 
-    /// The source this mention turns on for the next message. A file is read by an on-device tool.
-    var forcedSourceID: String {
+    /// The source this mention turns on for the next message. A file is read by an on-device tool. A preset turns none on.
+    var forcedSourceID: String? {
         switch kind {
         case .plugin(let sourceID): sourceID
         case .file: ToolSourceCatalog.device.id
+        case .preset: nil
         }
     }
 }
@@ -32,8 +36,9 @@ struct MentionItem: Identifiable, Hashable, Sendable {
 /// The @ list above the composer: what the words after an @ ask for, which rows match, and what a choice does.
 /// Pure, so it is tested without a view.
 enum ComposerMention {
-    static let prompt = "Type to search plugins and files"
+    static let prompt = "Type to search plugins, presets and files"
     static let pluginLabel = "Plugin"
+    static let presetLabel = "Preset"
     static let fileLabel = "File"
     /// The files the list offers at most.
     static let maxFiles = 8
@@ -48,17 +53,20 @@ enum ComposerMention {
         return String(rest)
     }
 
-    /// Plugins first, then the newest files.
-    static func items(sources: [ToolSource], files: [ChatAttachment]) -> [MentionItem] {
+    /// Plugins first, then presets with pickers, then the newest files.
+    static func items(sources: [ToolSource], files: [ChatAttachment], presets: [PromptPreset] = []) -> [MentionItem] {
         let plugins = sources.map {
             MentionItem(kind: .plugin(sourceID: $0.id), title: $0.title, trailing: pluginLabel, icon: $0.icon)
+        }
+        let helpers = presets.filter(\.hasOptions).map {
+            MentionItem(kind: .preset(presetID: $0.id), title: $0.title, trailing: presetLabel, icon: .symbol($0.symbol))
         }
         let recent = files.suffix(maxFiles).reversed().map {
             MentionItem(
                 kind: .file(attachmentID: $0.id, filename: $0.filename), title: $0.filename, trailing: fileLabel,
                 icon: .symbol(symbol(for: $0.kind)))
         }
-        return plugins + recent
+        return plugins + helpers + recent
     }
 
     private static func symbol(for kind: ChatAttachment.Kind) -> String {
@@ -98,7 +106,7 @@ enum ComposerMention {
     }
 
     static func forcedSourceIDs(of mentions: [MentionItem]) -> Set<String> {
-        Set(mentions.map(\.forcedSourceID))
+        Set(mentions.compactMap(\.forcedSourceID))
     }
 
     /// One sentence that tells the model what the user asked for.

@@ -213,6 +213,17 @@ final class ChatViewModel {
 
     func removeMention(_ item: MentionItem) { mentions.removeAll { $0.id == item.id } }
 
+    /// A preset chosen in the @ list: the "@words" leave the field, and the preset opens its choices with the rest of
+    /// the field as the message.
+    func choosePreset(_ preset: PromptPreset) {
+        let cleaned = ComposerMention.removingQuery(from: input)
+        if cleaned != input {
+            input = cleaned
+            ownText = cleaned
+        }
+        usePreset(preset)
+    }
+
     func removePending(_ attachment: ChatAttachment) {
         guard pending.contains(where: { $0.id == attachment.id }) else { return }
         pending.removeAll { $0.id == attachment.id }

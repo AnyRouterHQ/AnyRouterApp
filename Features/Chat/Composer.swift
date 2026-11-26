@@ -27,7 +27,11 @@ struct Composer: View {
             if let query = mentionQuery ?? (showsPluginList ? "" : nil) {
                 let close: (() -> Void)? = mentionQuery == nil ? { showsPluginList = false } : nil
                 MentionSuggestions(items: ComposerMention.filter(mentionRows, query: query), onClose: close) { item in
-                    model.addMention(item)
+                    if case .preset(let id) = item.kind {
+                        if let preset = presets?.preset(id: id) { model.choosePreset(preset) }
+                    } else {
+                        model.addMention(item)
+                    }
                     showsPluginList = false
                 }
             }
@@ -131,17 +135,20 @@ struct Composer: View {
         }
     }
 
-    /// The words after an @ the user is typing, when this model can use tools.
+    /// The words after an @ the user is typing, when the list has something to offer this model.
     private var mentionQuery: String? {
-        model.supportsTools ? ComposerMention.query(in: model.input) : nil
+        mentionRows.isEmpty ? nil : ComposerMention.query(in: model.input)
     }
 
-    /// Plugins that are on for this model and the files of this chat, minus what is already chosen.
+    /// Plugins that are on and the files of this chat (when this model can use tools), and the presets with pickers,
+    /// minus what is already chosen.
     private var mentionRows: [MentionItem] {
+        let tools = model.supportsTools
         let modelSource = model.model?.source
-        let sources = app.tools.menuSources.filter { app.tools.isOn($0, modelSource: modelSource) }
+        let sources = tools ? app.tools.menuSources.filter { app.tools.isOn($0, modelSource: modelSource) } : []
         let chosen = Set(model.mentions.map(\.id))
-        return ComposerMention.items(sources: sources, files: model.mentionableFiles).filter { !chosen.contains($0.id) }
+        return ComposerMention.items(sources: sources, files: tools ? model.mentionableFiles : [], presets: presets?.all ?? [])
+            .filter { !chosen.contains($0.id) }
     }
 
     private func loadPhotos(_ items: [PhotosPickerItem]) {
