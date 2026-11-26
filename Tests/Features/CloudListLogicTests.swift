@@ -1,0 +1,107 @@
+import Foundation
+import Testing
+@testable import AnyRouter
+
+/// Tab, sort and filter combinations of the AnyRouter tab, with a fixture of the server's usage order.
+struct CloudListLogicTests {
+    private let models: [ModelDescriptor] = [
+        cloudModel("anyrouter/auto", name: "AnyRouter Auto", input: 0, output: 0, billing: .free, created: 100),
+        cloudModel("anyrouter/free", name: "AnyRouter Free", input: 0, output: 0, billing: .free, created: 100),
+        cloudModel("anyrouter/byok", name: "AnyRouter BYOK", created: 100),
+        cloudModel("anthropic/claude-sonnet", name: "Claude Sonnet", input: 3, output: 15, created: 300),
+        cloudModel("openai/gpt-mini", name: "GPT Mini", input: Decimal(string: "0.15"), output: Decimal(string: "0.6"), created: 500),
+        cloudModel("google/gemini-flash", name: "Gemini Flash", input: Decimal(string: "0.1"), output: Decimal(string: "0.4"), created: 400),
+        cloudModel("vendor/freebie", name: "Freebie", input: 0, output: 0, billing: .free, created: 200),
+        cloudModel("vendor/locked", name: "Locked", availability: .needsKey, created: 600),
+        cloudModel("vendor/nopricing", name: "No Pricing", input: nil, output: nil, created: nil),
+    ]
+
+    // Server order: most used first. Models missing here sort after the ranked ones.
+    private let rank: [String: Int] = [
+        "openai/gpt-mini": 0, "anthropic/claude-sonnet": 1, "vendor/locked": 2, "google/gemini-flash": 3,
+    ]
+
+    private func names(_ sort: PickerSort, query: String = "", rank: [String: Int]? = nil, unusable: Bool = true) -> [String] {
+        CloudListLogic.arrange(
+            models: models, query: query, sort: sort, usageRank: rank ?? self.rank, showUnusable: unusable
+        ).rest.map(\.displayName)
+    }
+
+    @Test func topUsageFollowsTheServerOrderWithRoutersFirstAndUnusableLast() {
+        #expect(names(.topUsage) == [
+            "AnyRouter Auto", "AnyRouter Free",
+            "GPT Mini", "Claude Sonnet", "Gemini Flash", "Freebie", "No Pricing", // usable, ranked then A-Z
+            "Locked", // needs a key: after every usable model, still listed
+        ])
+    }
+
+    @Test func offlineWithoutAUsageOrderFallsBackToNameOrder() {
+        let offline = names(.topUsage, rank: [:])
+        #expect(offline == [
+            "AnyRouter Auto", "AnyRouter Free",
+            "Claude Sonnet", "Freebie", "Gemini Flash", "GPT Mini", "No Pricing", "Locked",
+        ])
+    }
+
+    @Test func newestSortsByCreationDateNewestFirst() {
+        #expect(names(.newest) == [
+            "GPT Mini", "Gemini Flash", "Claude Sonnet", "Freebie", "AnyRouter Auto", "AnyRouter Free", "No Pricing", "Locked",
+        ])
+    }
+
+    @Test func cheapestSortsByOutputThenInputPriceWithUnknownPricesLast() {
+        #expect(names(.cheapest) == [
+            "AnyRouter Auto", "AnyRouter Free", "Freebie", "Gemini Flash", "GPT Mini", "Claude Sonnet", "No Pricing", "Locked",
+        ])
+    }
+
+    @Test func freeKeepsOnlyFreeModelsInUsageOrder() {
+        #expect(names(.free) == ["AnyRouter Auto", "AnyRouter Free", "Freebie"])
+    }
+
+    @Test func nameSortIsAlphabeticalWithRoutersFirst() {
+        #expect(names(.name) == [
+            "AnyRouter Auto", "AnyRouter Free", "Claude Sonnet", "Freebie", "Gemini Flash", "GPT Mini", "No Pricing", "Locked",
+        ])
+    }
+
+    @Test func byokRouterIsHiddenButSearchable() {
+        #expect(!names(.topUsage).contains("AnyRouter BYOK"))
+        #expect(names(.topUsage, query: "byok") == ["AnyRouter BYOK"])
+    }
+
+    @Test func searchStillFindsUnusableModelsAndMatchesProviderAndId() {
+        #expect(names(.topUsage, query: "locked") == ["Locked"])
+        #expect(names(.topUsage, query: "anthropic") == ["Claude Sonnet"])
+        #expect(names(.topUsage, query: "gemini-flash") == ["Gemini Flash"])
+    }
+
+    @Test func signedOutShowsNothingToPickFrom() {
+        let signedOut = models.map { model -> ModelDescriptor in var copy = model; copy.isInstalled = false; return copy }
+        let list = CloudListLogic.arrange(models: signedOut, query: "", sort: .topUsage, usageRank: rank, showUnusable: false)
+        #expect(list.isEmpty)
+    }
+
+    @Test func topPicksLeadAndAreNotRepeatedBelow() {
+        let picks = [models[0], models[3]]
+        let list = CloudListLogic.arrange(
+            models: models, query: "", sort: .topUsage, usageRank: rank, showUnusable: true, picks: picks)
+        #expect(list.topPicks.map(\.displayName) == ["AnyRouter Auto", "Claude Sonnet"])
+        #expect(!list.rest.contains { $0.displayName == "Claude Sonnet" })
+        #expect(list.rest.first?.displayName == "AnyRouter Free")
+    }
+
+    @Test func searchingHidesTopPicks() {
+        let list = CloudListLogic.arrange(
+            models: models, query: "gpt", sort: .topUsage, usageRank: rank, showUnusable: true, picks: [models[0]])
+        #expect(list.topPicks.isEmpty)
+        #expect(list.rest.map(\.displayName) == ["GPT Mini"])
+    }
+
+    @Test func theSheetOpensOnTheTabOfTheCurrentModel() {
+        #expect(PickerTab.tab(for: models[0]) == .anyrouter)
+        #expect(PickerTab.tab(for: testModel(id: "apple/foundation", source: .apple)) == .local)
+        #expect(PickerTab.tab(for: localModel("gguf/o/r/f.gguf")) == .local)
+        #expect(PickerTab.tab(for: nil) == .local)
+    }
+}
