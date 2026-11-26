@@ -7,6 +7,22 @@ final class PresetStore {
     private struct Saved: Codable {
         var custom: [PromptPreset] = []
         var hiddenBuiltIns: Set<String> = []
+        /// The person's choice per built-in preset, over its `offerOnPaste` default.
+        var pasteChoices: [String: Bool] = [:]
+
+        init(custom: [PromptPreset], hiddenBuiltIns: Set<String>, pasteChoices: [String: Bool]) {
+            self.custom = custom
+            self.hiddenBuiltIns = hiddenBuiltIns
+            self.pasteChoices = pasteChoices
+        }
+
+        /// A file saved before a key existed still loads; a decode error would set the whole file aside.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            custom = try container.decode([PromptPreset].self, forKey: .custom)
+            hiddenBuiltIns = try container.decode(Set<String>.self, forKey: .hiddenBuiltIns)
+            pasteChoices = try container.decodeIfPresent([String: Bool].self, forKey: .pasteChoices) ?? [:]
+        }
     }
 
     private final class Anchor {}
@@ -14,6 +30,7 @@ final class PresetStore {
     let builtIns: [PromptPreset]
     private(set) var custom: [PromptPreset] = []
     private(set) var hiddenBuiltIns: Set<String> = []
+    private(set) var pasteChoices: [String: Bool] = [:]
     private(set) var saveError: String?
     @ObservationIgnored private let fileURL: URL
 
@@ -24,6 +41,7 @@ final class PresetStore {
         if let saved = try? JSONDecoder().decode(Saved.self, from: data) {
             custom = saved.custom
             hiddenBuiltIns = saved.hiddenBuiltIns
+            pasteChoices = saved.pasteChoices
         } else {
             keepUnreadableFile()
         }
@@ -91,6 +109,25 @@ final class PresetStore {
         save()
     }
 
+    /// Whether this preset is offered when text is pasted. A custom preset carries its own flag; a built-in follows
+    /// the person's choice, else its default.
+    func offersOnPaste(_ preset: PromptPreset) -> Bool {
+        if customIDs.contains(preset.id) { return preset.offerOnPaste }
+        return pasteChoices[preset.id] ?? preset.offerOnPaste
+    }
+
+    func setOffersOnPaste(_ id: String, _ on: Bool) {
+        if let index = custom.firstIndex(where: { $0.id == id }) {
+            custom[index].offerOnPaste = on
+        } else {
+            pasteChoices[id] = on
+        }
+        save()
+    }
+
+    /// The presets to show above the keyboard after a paste: visible ones that are switched on.
+    var pasteOffered: [PromptPreset] { all.filter { offersOnPaste($0) } }
+
     func resetBuiltIns() {
         hiddenBuiltIns = []
         save()
@@ -99,7 +136,7 @@ final class PresetStore {
     private func save() {
         do {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            let data = try JSONEncoder().encode(Saved(custom: custom, hiddenBuiltIns: hiddenBuiltIns))
+            let data = try JSONEncoder().encode(Saved(custom: custom, hiddenBuiltIns: hiddenBuiltIns, pasteChoices: pasteChoices))
             try data.write(to: fileURL, options: .atomic)
             saveError = nil
         } catch {

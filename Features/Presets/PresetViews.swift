@@ -129,6 +129,20 @@ struct PresetsSettingsSheet: View {
             } footer: {
                 if store.custom.isEmpty { Text("Presets you add appear first in the chat.") }
             }
+            Section {
+                ForEach(store.all.filter { PasteOfferLogic.takesText($0) || store.offersOnPaste($0) }) { preset in
+                    Toggle(isOn: Binding(
+                        get: { store.offersOnPaste(preset) },
+                        set: { store.setOffersOnPaste(preset.id, $0) }
+                    )) {
+                        Label(preset.title, systemImage: preset.symbol)
+                    }
+                }
+            } header: {
+                Text("Offer when pasting")
+            } footer: {
+                Text("When you paste text into a message, these presets appear above the keyboard. Tap one to apply it to the text.")
+            }
             Section("Built-in presets") {
                 ForEach(store.builtIns) { preset in
                     Toggle(isOn: Binding(
@@ -157,6 +171,7 @@ private struct PresetEditor: View {
     @State private var title = ""
     @State private var prompt = ""
     @State private var category: PromptPreset.Category = .explore
+    @State private var offersOnPaste = false
 
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -175,6 +190,11 @@ private struct PresetEditor: View {
                 Section("Prompt") {
                     TextField("Prompt", text: $prompt, axis: .vertical).lineLimit(4...12)
                 }
+                Section {
+                    Toggle("Offer when pasting", isOn: $offersOnPaste)
+                } footer: {
+                    Text("Shown above the keyboard when you paste text into a message. The pasted text goes after the prompt.")
+                }
             }
             .navigationTitle(preset == nil ? "New preset" : "Edit preset")
             .navigationBarTitleDisplayMode(.inline)
@@ -188,6 +208,7 @@ private struct PresetEditor: View {
             title = preset.title
             prompt = preset.prompt
             category = preset.category
+            offersOnPaste = preset.offerOnPaste
         }
     }
 
@@ -198,9 +219,11 @@ private struct PresetEditor: View {
             preset.title = title
             preset.prompt = prompt
             preset.category = category
+            preset.offerOnPaste = offersOnPaste
             store.update(preset)
         } else {
-            store.add(title: title, prompt: prompt, category: category)
+            let added = store.add(title: title, prompt: prompt, category: category)
+            if offersOnPaste { store.setOffersOnPaste(added.id, true) }
         }
         dismiss()
     }

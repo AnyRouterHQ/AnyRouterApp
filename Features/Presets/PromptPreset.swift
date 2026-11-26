@@ -16,6 +16,11 @@ struct PromptPreset: Identifiable, Codable, Hashable, Sendable {
     var symbol: String
     /// Pickers the user fills in before the preset runs ("Tone", "Language"). The prompt names each one as `{id}`.
     var options: [PresetOption]? = nil
+    /// Offered as a button above the keyboard when text is pasted into the message. Built-ins can be switched in Settings
+    /// (see `PresetStore.offersOnPaste`); this is their default.
+    var offerOnPaste = false
+
+    private enum CodingKeys: String, CodingKey { case id, title, prompt, category, symbol, options, offerOnPaste }
 }
 
 /// One picker of a preset and the words each choice puts into the prompt. The first choice is the default.
@@ -29,6 +34,21 @@ struct PresetOption: Codable, Hashable, Identifiable, Sendable {
     var id: String
     var title: String
     var choices: [Choice]
+}
+
+extension PromptPreset {
+    /// A preset saved before `offerOnPaste` existed still loads: the missing key means off. A decode error here would
+    /// make the store set the user's whole presets file aside.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        prompt = try container.decode(String.self, forKey: .prompt)
+        category = try container.decode(Category.self, forKey: .category)
+        symbol = try container.decode(String.self, forKey: .symbol)
+        options = try container.decodeIfPresent([PresetOption].self, forKey: .options)
+        offerOnPaste = try container.decodeIfPresent(Bool.self, forKey: .offerOnPaste) ?? false
+    }
 }
 
 /// Pure list logic for the presets UI, kept apart from views so it is testable.

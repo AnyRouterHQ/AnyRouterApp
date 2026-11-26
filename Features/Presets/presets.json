@@ -114,7 +114,8 @@
     "title": "Fix my English",
     "prompt": "Fix the grammar, spelling and wording of the text below. Keep my meaning and tone. Give the corrected text first, then a short list of what you changed.\n\nText:\n",
     "category": "write",
-    "symbol": "text.badge.checkmark"
+    "symbol": "text.badge.checkmark",
+    "offerOnPaste": true
   },
   {
     "id": "polish-email",

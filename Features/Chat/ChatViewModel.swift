@@ -247,6 +247,33 @@ final class ChatViewModel {
     /// A preset with pickers (tone, language) waits here for the user's choices. The chat screen shows its sheet.
     var presetNeedingChoices: PromptPreset?
 
+    /// True while presets are offered for a paste: set by a paste into the composer, cleared by the next edit that is
+    /// not a paste, by a send, and by a choice.
+    private(set) var pasteOffered = false
+    /// Text the app put in the composer itself (a preset, a Shortcut). The change that brings exactly this text is not a paste.
+    @ObservationIgnored private var ownText: String?
+
+    private func fill(_ text: String) {
+        input = text
+        ownText = text
+        pasteOffered = false
+        focusTick += 1
+    }
+
+    /// The composer calls this for every change of `input`. A big block that appears at once is a paste.
+    func inputChanged(from old: String, to new: String) {
+        let own = ownText
+        ownText = nil
+        pasteOffered = new != own && PasteOfferLogic.pastedText(from: old, to: new) != nil
+    }
+
+    /// Applies a preset to what was pasted: the composer gets the prompt, then the text, ready to edit or send.
+    func applyToPaste(_ preset: PromptPreset) {
+        fill(PasteOfferLogic.apply(preset, to: input))
+    }
+
+    func dismissPasteOffer() { pasteOffered = false }
+
     /// Fills the composer with the preset prompt so the user can edit before sending. A preset with pickers opens
     /// its choices first.
     func usePreset(_ preset: PromptPreset) {
@@ -254,8 +281,7 @@ final class ChatViewModel {
             presetNeedingChoices = preset
             return
         }
-        input = preset.prompt
-        focusTick += 1
+        fill(preset.prompt)
     }
 
     /// The choices are made: the prompt for them plus the message goes out as one send.
@@ -271,8 +297,7 @@ final class ChatViewModel {
     /// when the request says so.
     @discardableResult
     func start(_ request: InboundChat, preset: PromptPreset?) -> Task<Void, Never>? {
-        input = InboundChatLogic.composerText(preset: preset, text: request.text)
-        focusTick += 1
+        fill(InboundChatLogic.composerText(preset: preset, text: request.text))
         return request.sendNow ? send() : nil
     }
 

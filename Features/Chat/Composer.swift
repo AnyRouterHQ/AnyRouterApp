@@ -49,6 +49,9 @@ struct Composer: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 4)
             }
+            if model.pasteOffered, let presets, !presets.pasteOffered.isEmpty {
+                PasteOfferRow(presets: presets.pasteOffered, onPick: { model.applyToPaste($0) }, onDismiss: { model.dismissPasteOffer() })
+            }
             HStack(alignment: .bottom, spacing: 8) {
                 plusMenu
                 HStack(alignment: .bottom, spacing: 6) {
@@ -84,6 +87,7 @@ struct Composer: View {
         // Send, stop and the buttons beside the field keep the keyboard up.
         .keepsKeyboardOnTap()
         .onChange(of: model.focusTick) { focused.wrappedValue = true }
+        .onChange(of: model.input) { old, new in model.inputChanged(from: old, to: new) }
         // A light tap when a send starts a reply (not on every reply end).
         .sensoryFeedback(.impact(weight: .light), trigger: model.isStreaming) { _, streaming in streaming }
         .photosPicker(isPresented: $showsPhotos, selection: $photoItems,
