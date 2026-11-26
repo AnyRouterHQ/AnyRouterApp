@@ -27,6 +27,8 @@ struct ModelRow: View {
     let entry: LocalModelEntry
     let state: DownloadState
     var isDefault = false
+    /// An extra status line, such as "Recommended for this iPhone".
+    var note: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -42,6 +44,9 @@ struct ModelRow: View {
             if case .downloading(let progress) = state { progressView(progress, label: "Downloading") }
             if case .paused(let progress) = state { progressView(progress, label: "Paused") }
             if case .verifying = state { Text("Verifying").font(.caption).foregroundStyle(.secondary) }
+            if entry.isDeprecated {
+                Text("Older model, try \(entry.replacementName ?? "a newer one")").font(.caption).foregroundStyle(.secondary)
+            }
             if case .failed(let message) = state { Text(message).font(.caption).foregroundStyle(.red) }
         }
     }
@@ -49,8 +54,9 @@ struct ModelRow: View {
     @ViewBuilder
     private var statusLine: some View {
         let status = HubListOptions.fitStatus(entry, device: DeviceName.current)
-        if status != nil || !entry.badges.isEmpty {
+        if status != nil || !entry.badges.isEmpty || note != nil {
             HStack(spacing: 6) {
+                if let note { Text(note).foregroundStyle(.tint) }
                 if let status {
                     Text(status).foregroundStyle(ModelStatusColor.fit(entry))
                 }

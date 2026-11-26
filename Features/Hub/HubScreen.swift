@@ -21,8 +21,8 @@ struct HubScreen: View {
     @Environment(ModelStore.self) private var models
 
     @State private var query = ""
-    @State private var sort = HubSort.recommended
-    @State private var filter = HubFilter()
+    @State private var sort = FamilySort.recommended
+    @State private var filter = FamilyFilter()
     @State private var showsRepoSearch = false
     @State private var showsAddByLink = false
     @State private var freeBytes: Int64?
@@ -36,16 +36,25 @@ struct HubScreen: View {
         HubLogic.sections(catalog: hub.catalog, state: { hub.downloadState(for: $0) }, query: query)
     }
 
-    private var installed: [LocalModelEntry] {
-        HubListOptions.apply(sections.installed, sort: sort, filter: filter)
-    }
+    /// Installed and downloading models always show: they are the person's own, whatever the filter says.
+    private var installed: [LocalModelEntry] { sections.installed }
 
     private var downloading: [LocalModelEntry] {
-        HubListOptions.apply(sections.available.filter { hub.downloadState(for: $0.id).isActive }, sort: sort, filter: filter)
+        sections.available.filter { hub.downloadState(for: $0.id).isActive }
     }
 
-    private var available: [LocalModelEntry] {
-        HubListOptions.apply(sections.available.filter { !hub.downloadState(for: $0.id).isActive }, sort: sort, filter: filter)
+    private var families: [LocalModelFamily] {
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let matched = needle.isEmpty ? hub.families : hub.families.filter { HubListOptions.matches($0, needle) }
+        return FamilyLogic.apply(matched, sort: sort, filter: filter)
+    }
+
+    /// Models that are in no family (added by the user or found on Hugging Face) and not on the device yet.
+    private var ungrouped: [LocalModelEntry] {
+        hub.ungroupedModels.filter { entry in
+            !hub.downloadState(for: entry.id).isActive && hub.downloadState(for: entry.id) != .installed
+                && filter.keeps(entry) && (query.isEmpty || HubLogic.matches(entry, query))
+        }
     }
 
     private var appleModel: ModelDescriptor? {
@@ -54,7 +63,7 @@ struct HubScreen: View {
 
     private var showsApple: Bool {
         appleModel != nil && (query.isEmpty || "Apple Intelligence".localizedCaseInsensitiveContains(query))
-            && (filter.engines.isEmpty || filter.engines.contains(.apple)) && filter.capabilities.isEmpty
+            && (filter.engines.isEmpty || filter.engines.contains(.apple)) && filter.tags.isEmpty
     }
 
     private var installedIDs: [String] {
@@ -65,7 +74,9 @@ struct HubScreen: View {
         hub.catalog.filter { hub.downloadState(for: $0.id) == .installed }.reduce(0) { $0 + ($1.descriptor.sizeBytes ?? 0) }
     }
 
-    private var isEmpty: Bool { installed.isEmpty && downloading.isEmpty && available.isEmpty && !showsApple }
+    private var isEmpty: Bool {
+        installed.isEmpty && downloading.isEmpty && families.isEmpty && ungrouped.isEmpty && !showsApple
+    }
 
     var body: some View {
         List {
@@ -75,6 +86,8 @@ struct HubScreen: View {
             Section {
                 LabeledContent("Storage", value: HubListOptions.storageSummary(usedBytes: usedBytes, freeBytes: freeBytes))
                     .accessibilityIdentifier("hub.storage")
+            } footer: {
+                if let note = hub.memoryLimitNote { Text(note) }
             }
             if !installed.isEmpty || showsApple {
                 Section("On this \(device)") {
@@ -85,8 +98,17 @@ struct HubScreen: View {
             if !downloading.isEmpty {
                 Section("Downloading") { ForEach(downloading) { entry in row(entry) } }
             }
-            if !available.isEmpty {
-                Section("Available") { ForEach(available) { entry in row(entry) } }
+            if !families.isEmpty || !ungrouped.isEmpty {
+                Section("Available") {
+                    ForEach(families) { family in
+                        NavigationLink {
+                            FamilyDetailView(family: family, filter: filter)
+                        } label: {
+                            FamilyRow(family: family)
+                        }
+                    }
+                    ForEach(ungrouped) { entry in row(entry) }
+                }
             }
             if !query.trimmingCharacters(in: .whitespaces).isEmpty {
                 Section {
@@ -141,7 +163,7 @@ struct HubScreen: View {
         ToolbarItemGroup(placement: .primaryAction) {
             Menu {
                 Picker("Sort", selection: $sort) {
-                    ForEach(HubSort.allCases) { Text($0.title).tag($0) }
+                    ForEach(FamilySort.allCases) { Text($0.title).tag($0) }
                 }
             } label: {
                 Label("Sort", systemImage: "arrow.up.arrow.down")
@@ -154,17 +176,22 @@ struct HubScreen: View {
                         Toggle(HubListOptions.engineName(source), isOn: engineBinding(source))
                     }
                 }
-                let capabilities = HubListOptions.capabilities(in: hub.catalog)
-                if !capabilities.isEmpty {
+                let tags = FamilyLogic.tags(in: hub.families)
+                if !tags.isEmpty {
                     Section("Capabilities") {
-                        ForEach(capabilities, id: \.self) { name in
-                            Toggle(name.capitalized, isOn: capabilityBinding(name))
+                        ForEach(tags, id: \.self) { name in
+                            Toggle(name.capitalized, isOn: tagBinding(name))
                         }
                     }
                 }
-                if filter.isActive { Button("Clear filters", role: .destructive) { filter = HubFilter() } }
+                Section("Size") {
+                    ForEach(SizeBucket.allCases) { bucket in
+                        Toggle(bucket.title, isOn: sizeBinding(bucket))
+                    }
+                }
+                if filter.isChanged { Button("Reset filters", role: .destructive) { filter = FamilyFilter() } }
             } label: {
-                Label("Filter", systemImage: filter.isActive
+                Label("Filter", systemImage: filter.isChanged
                       ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
             }
             .accessibilityIdentifier("hub.filter")
@@ -180,10 +207,17 @@ struct HubScreen: View {
         )
     }
 
-    private func capabilityBinding(_ name: String) -> Binding<Bool> {
+    private func tagBinding(_ name: String) -> Binding<Bool> {
         Binding(
-            get: { filter.capabilities.contains(name) },
-            set: { on in if on { filter.capabilities.insert(name) } else { filter.capabilities.remove(name) } }
+            get: { filter.tags.contains(name) },
+            set: { on in if on { filter.tags.insert(name) } else { filter.tags.remove(name) } }
+        )
+    }
+
+    private func sizeBinding(_ bucket: SizeBucket) -> Binding<Bool> {
+        Binding(
+            get: { filter.sizes.contains(bucket) },
+            set: { on in if on { filter.sizes.insert(bucket) } else { filter.sizes.remove(bucket) } }
         )
     }
 
