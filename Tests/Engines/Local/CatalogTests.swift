@@ -423,9 +423,7 @@ struct SharedCatalogTests {
     }
 
     @Test func aDeprecatedFamilyMarksItsSizesAndSaysWhatReplacesIt() throws {
-        let json = catalogJSON(
-            #"{"repo":"org/m","engine":"mlx","params":"1B","sizeBytes":1}"#,
-            family: #","status":"deprecated","replacedBy":"newer""#)
+        let json = #"{"schemaVersion":2,"families":[{"id":"f","name":"F","publisher":"P","status":"deprecated","replacedBy":"newer","variants":[{"repo":"org/m","engine":"mlx","params":"1B","sizeBytes":1}]}]}"#
         let entry = try #require(try CatalogDocument.decode(Data(json.utf8)).models.first)
         #expect(entry.status == .deprecated && entry.replacedBy == "newer")
         let again = try JSONDecoder().decode(CatalogEntry.self, from: JSONEncoder().encode(entry))
