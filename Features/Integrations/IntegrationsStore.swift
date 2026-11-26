@@ -82,17 +82,20 @@ final class IntegrationsStore {
         states[server.id] = ServerState(status: .connecting, tools: state(for: server).tools)
         let client = makeClient(for: server)
         clients[server.id] = client
+        let outcome: ServerState
         do {
             try await client.connect()
-            let tools = try await client.listTools()
-            states[server.id] = ServerState(status: .connected, tools: tools)
+            outcome = ServerState(status: .connected, tools: try await client.listTools())
         } catch is CancellationError {
-            states[server.id] = ServerState(status: .idle, tools: state(for: server).tools)
+            outcome = ServerState(status: .idle, tools: state(for: server).tools)
         } catch MCPError.unauthorized where server.auth == .anyRouterSignIn {
-            states[server.id] = ServerState(status: .needsSignIn)
+            outcome = ServerState(status: .needsSignIn)
         } catch {
-            states[server.id] = ServerState(status: .failed(error.localizedDescription))
+            outcome = ServerState(status: .failed(error.localizedDescription))
         }
+        // Sign-out, removing the server or a newer refresh replaced this client while it connected: its answer is stale.
+        guard clients[server.id] === client else { return }
+        states[server.id] = outcome
     }
 
     /// Sign-in connects the built-in AnyRouter server with the same token; sign-out disconnects it at once and

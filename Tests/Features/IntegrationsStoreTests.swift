@@ -198,6 +198,32 @@ final class AnyRouterSignInConnectTests: XCTestCase {
         XCTAssertNil(store.makeToolHost(approver: NeverAsked()))
     }
 
+    private nonisolated static func block(_ semaphore: DispatchSemaphore) { semaphore.wait() }
+
+    func testASignOutWhileConnectingWinsOverTheLateAnswer() async {
+        let entered = DispatchSemaphore(value: 0)
+        let release = DispatchSemaphore(value: 0)
+        let answer = standardMCPHandler()
+        MCPStubProtocol.register(host: MCPServer.anyRouter.url.host()!) { request in
+            if request.rpcMethod == "initialize" {
+                entered.signal()
+                release.wait()
+            }
+            return answer(request)
+        }
+        let box = TokenBox()
+        box.token = "sk-ar-live"
+        let store = makeStore(box)
+        let refreshing = Task { await store.refresh(.anyRouter) }
+        await Task.detached { Self.block(entered) }.value
+        box.token = nil
+        store.accountChanged(signedIn: false)
+        release.signal()
+        await refreshing.value
+        XCTAssertEqual(store.state(for: .anyRouter).status, .needsSignIn)
+        XCTAssertTrue(store.state(for: .anyRouter).tools.isEmpty)
+    }
+
     func testARevokedTokenEndsAsSignedOut() async {
         MCPStubProtocol.register(host: MCPServer.anyRouter.url.host()!) { _ in StubResponse(status: 401, body: "{}") }
         let box = TokenBox()
