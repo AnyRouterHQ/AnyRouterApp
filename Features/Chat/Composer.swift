@@ -1,7 +1,7 @@
 import PhotosUI
 import SwiftUI
 
-/// Chat input: a round "+" menu and a rounded field with a send, stop or presets button inside.
+/// Chat input: a round "+" menu and a capsule field with one round button inside (voice, send or stop).
 struct Composer: View {
     @Bindable var model: ChatViewModel
     var hasModel: Bool
@@ -16,6 +16,7 @@ struct Composer: View {
     @Environment(AppSettings.self) private var settings
     @Environment(AppState.self) private var app
     @Environment(ShellModel.self) private var shell
+    @ScaledMetric(relativeTo: .body) private var fieldRadius: CGFloat = 26
 
     var body: some View {
         VStack(spacing: 8) {
@@ -68,9 +69,10 @@ struct Composer: View {
                 .padding(.leading, 14)
                 .padding(.trailing, 4)
                 .padding(.vertical, 4)
-                // A floating control over the list, so it takes glass directly (with the model pill, the only such place).
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: ARTheme.radiusXL))
-                .contentShape(.rect(cornerRadius: ARTheme.radiusXL))
+                // A floating control over the list, so it takes glass directly (the only such place).
+                // One line is a capsule; more lines keep the same corner radius.
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: fieldRadius))
+                .contentShape(.rect(cornerRadius: fieldRadius))
                 // A tap anywhere on the field focuses it; the field is not a Button, so there is no stock control for this.
                 .onTapGesture { focused.wrappedValue = true }
             }
@@ -118,7 +120,7 @@ struct Composer: View {
         }
     }
 
-    /// Round button outside the field: photos, camera and files, then the Tools and thinking switches.
+    /// Round button outside the field: photos, camera and files, presets, the Tools and thinking switches, and the memory readout.
     private var plusMenu: some View {
         Menu {
             Section {
@@ -129,6 +131,10 @@ struct Composer: View {
                     .accessibilityIdentifier("composer.add-camera")
                 Button("Files", systemImage: "folder") { showsFiles = true }
                     .accessibilityIdentifier("composer.add-files")
+            }
+            if presets != nil {
+                Button("Presets", systemImage: "sparkles") { showsPresets = true }
+                    .accessibilityIdentifier("composer.presets")
             }
             if model.supportsTools {
                 Section {
@@ -159,6 +165,7 @@ struct Composer: View {
                     ))
                 }
             }
+            MemoryMenu()
         } label: {
             Label("Add", systemImage: "plus").labelStyle(.iconOnly)
         }
@@ -168,42 +175,33 @@ struct Composer: View {
         .accessibilityLabel("Add")
     }
 
-    @ViewBuilder
+    /// The round button at the end of the field. 44 pt, the system's prominent glass: voice while empty, send with
+    /// text or an attachment, stop while a reply streams.
     private var trailingButton: some View {
-        if model.isStreaming || !model.input.isEmpty || !model.pending.isEmpty {
-            actionButton
-        } else if presets != nil {
-            Button { showsPresets = true } label: {
-                Label("Presets", systemImage: "sparkles").labelStyle(.iconOnly).imageScale(.large)
+        let action = ComposerAction.current(isStreaming: model.isStreaming, hasInput: !model.input.isEmpty,
+                                            hasAttachments: !model.pending.isEmpty)
+        return Button { perform(action) } label: {
+            Label { Text(action.title) } icon: {
+                Image(systemName: action.symbol).contentTransition(.symbolEffect(.replace))
             }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.secondary)
-            // The HIG minimum hit area; a borderless button is only as big as its symbol.
-            .frame(minWidth: 44, minHeight: 44)
-            .hoverEffect(.highlight)
-            .accessibilityLabel("Presets")
+            .labelStyle(.iconOnly)
         }
+        .buttonStyle(.glassProminent)
+        .buttonBorderShape(.circle)
+        .controlSize(.large)
+        .frame(minWidth: 44, minHeight: 44)
+        .disabled(action == .send && !model.canSend)
+        .accessibilityLabel(action.title)
+        .accessibilityIdentifier("composer.action")
     }
 
-    @ViewBuilder
-    private var actionButton: some View {
-        if model.isStreaming {
-            Button { model.stop() } label: {
-                Label("Stop", systemImage: "stop.fill").labelStyle(.iconOnly)
-            }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-            .accessibilityLabel("Stop")
-        } else {
-            Button { model.send() } label: {
-                Label("Send", systemImage: "arrow.up").labelStyle(.iconOnly)
-            }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-            .disabled(!model.canSend)
-            .accessibilityLabel("Send")
+    private func perform(_ action: ComposerAction) {
+        switch action {
+        case .stop: model.stop()
+        case .send: _ = model.send()
+        // Dictation (PLAN M4, `SpeechTranscriber`) is not built yet. Until it lands the button raises the keyboard,
+        // whose own microphone key dictates into the field.
+        case .voice: focused.wrappedValue = true
         }
     }
 }

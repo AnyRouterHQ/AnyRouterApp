@@ -29,14 +29,13 @@ struct ModelLogo: View {
 
 /// The one way to show a model name: logo and name together.
 struct ModelLabel: View {
-    enum Style { case row, pill, inline }
+    enum Style { case row, inline }
 
     let name: String
     let brand: ModelBrand
     var style: Style = .row
 
     @ScaledMetric(relativeTo: .body) private var rowSize: CGFloat = 22
-    @ScaledMetric(relativeTo: .subheadline) private var pillSize: CGFloat = 16
     @ScaledMetric(relativeTo: .footnote) private var inlineSize: CGFloat = 13
 
     init(name: String, brand: ModelBrand, style: Style = .row) {
@@ -59,7 +58,6 @@ struct ModelLabel: View {
     private var size: CGFloat {
         switch style {
         case .row: rowSize
-        case .pill: pillSize
         case .inline: inlineSize
         }
     }
@@ -67,7 +65,6 @@ struct ModelLabel: View {
     private var font: Font {
         switch style {
         case .row: .body
-        case .pill: .subheadline.weight(.medium)
         case .inline: .footnote
         }
     }

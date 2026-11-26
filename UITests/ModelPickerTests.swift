@@ -1,6 +1,6 @@
 import XCTest
 
-/// The model pill opens the picker; picking a model changes the pill. Uses demo data.
+/// The model title in the top bar opens the picker; picking a model changes the title. Uses demo data.
 @MainActor
 final class ModelPickerTests: XCTestCase {
     private func launch() -> XCUIApplication {
@@ -10,12 +10,11 @@ final class ModelPickerTests: XCTestCase {
         return app
     }
 
-    func testAnyRouterTabPickChangesThePill() {
+    func testAnyRouterTabPickChangesTheTitle() {
         let app = launch()
-        let pill = app.buttons["Model"]
-        XCTAssertTrue(pill.waitForExistence(timeout: 15))
-        XCTAssertTrue(pill.images["model-logo"].exists, "the pill shows a logo next to the name")
-        pill.tap()
+        let title = app.buttons["Model"]
+        XCTAssertTrue(title.waitForExistence(timeout: 15))
+        title.tap()
 
         let tabs = app.segmentedControls.firstMatch
         XCTAssertTrue(tabs.waitForExistence(timeout: 5))

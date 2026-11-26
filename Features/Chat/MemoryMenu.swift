@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Small indicator in the chat header while a local model is in memory: what it is, what the app uses, and unload.
+/// While a local model is in memory, a submenu of the composer's plus menu: what it is, what the app uses, and unload.
 struct MemoryMenu: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models
@@ -13,23 +13,25 @@ struct MemoryMenu: View {
     private var isLow: Bool { monitor.readout.availableBytes > 0 && monitor.readout.availableBytes < 1_000_000_000 }
 
     var body: some View {
-        Group {
-            if let loadedName {
-                Menu {
-                    Text(loadedName)
-                    Text(FitText.memoryLine(
-                        footprintBytes: monitor.readout.footprintBytes, availableBytes: monitor.readout.availableBytes))
-                    Divider()
-                    Button("Unload model", role: .destructive) { Task { await monitor.unload() } }
-                } label: {
-                    Image(systemName: "memorychip")
-                        .foregroundStyle(isLow ? Color.red : Color.primary)
-                }
-                .accessibilityLabel("Model memory")
-                .accessibilityIdentifier("memory-menu")
+        if let loadedName {
+            Menu {
+                Text(loadedName)
+                Text(FitText.memoryLine(
+                    footprintBytes: monitor.readout.footprintBytes, availableBytes: monitor.readout.availableBytes))
+                Divider()
+                Button("Unload model", role: .destructive) { Task { await monitor.unload() } }
+            } label: {
+                Label(isLow ? "Model memory, low" : "Model memory", systemImage: "memorychip")
             }
+            .accessibilityIdentifier("memory-menu")
         }
-        .task {
+    }
+}
+
+extension View {
+    /// Keeps the memory readout fresh while this view is on screen. The menu above only reads it.
+    func refreshesMemory(_ monitor: MemoryMonitor) -> some View {
+        task {
             while !Task.isCancelled {
                 await monitor.refresh()
                 try? await Task.sleep(for: .seconds(3))

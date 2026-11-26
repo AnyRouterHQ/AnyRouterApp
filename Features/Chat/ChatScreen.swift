@@ -1,7 +1,8 @@
 import SwiftData
 import SwiftUI
 
-/// Chat page: toolbar (menu, model pill, new chat), message list and a glass composer. Rebuilds its view model when the thread changes.
+/// Chat page: two system toolbar buttons around the model title, a message list that runs under both bars, and a glass
+/// composer. Rebuilds its view model when the thread changes.
 struct ChatScreen: View {
     @Environment(ShellModel.self) private var shell
     @Environment(\.modelContext) private var context
@@ -33,16 +34,17 @@ struct ChatScreen: View {
                 }
             }
             ToolbarItem(placement: .principal) {
-                ModelPill(model: chat?.model, isLoading: models.isLoading) { shell.isModelPickerPresented = true }
-                    // A popover under the pill on iPad. On iPhone and in a compact iPad window the system turns it into the sheet.
+                ModelTitle(name: chat?.model?.shortName, isLoading: models.isLoading) { shell.isModelPickerPresented = true }
+                    // A popover under the title on iPad. On iPhone and in a compact iPad window the system turns it into the sheet.
                     .popover(isPresented: Bindable(shell).isModelPickerPresented, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
                         ModelPickerSheet(currentID: chat?.model?.id) { chat?.choose($0) }
                             .frame(minWidth: sizeClass == .regular ? 400 : nil, idealWidth: sizeClass == .regular ? 440 : nil,
                                    minHeight: sizeClass == .regular ? 520 : nil, idealHeight: sizeClass == .regular ? 640 : nil)
                     }
             }
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                MemoryMenu()
+            // The title floats on the content; the system must not wrap it in a glass capsule like the two buttons.
+            .sharedBackgroundVisibility(.hidden)
+            ToolbarItem(placement: .topBarTrailing) {
                 Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "square.and.pencil") }
                     .accessibilityLabel("New chat")
             }
@@ -77,6 +79,7 @@ struct ChatScreen: View {
 }
 
 private struct ChatContent: View {
+    @Environment(AppState.self) private var app
     @Bindable var chat: ChatViewModel
     let presets: PresetStore
     let subtitle: String
@@ -98,10 +101,12 @@ private struct ChatContent: View {
                 messageList
             }
         }
-        // The composer floats on glass over the list, so messages scroll beneath it.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        // The composer floats on glass over the list. As a bar (not a plain inset) it also gets the system's scroll
+        // edge effect, so messages blur and fade beneath it like they do under the top bar.
+        .safeAreaBar(edge: .bottom, spacing: 0) {
             Composer(model: chat, hasModel: chat.model != nil, presets: presets, focused: $composerFocused)
         }
+        .refreshesMemory(app.memory)
     }
 
     private var emptyState: some View {
