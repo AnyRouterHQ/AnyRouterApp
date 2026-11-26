@@ -177,6 +177,7 @@ Decision: a small focused client (`Engines/MCP/`) instead of the official MCP Sw
 - [x] T5 Chat UI (c6b1b4b): tool-call rows (expandable), approval sheet for tools not marked read-only, "Tools" toggle in the composer and menu
 - [x] T6 Apple Foundation Models (019dd28): wrap enabled tools as `Tool` conformances with a dynamic `GenerationSchema` (`Tool.Arguments = GeneratedContent` works, verified in Apple docs; first 8 tools, results capped at 6000 chars for the 4k context)
 - [x] T8 MCP on sign-in: signing in connects the AnyRouter server with the same Keychain token, signing out disconnects it and clears its tools at once; a custom server's read-only hint no longer waives approval; MCP answers capped at 4 MB; a Keychain write failure no longer lists a custom server without its token
+- [x] T9 Agent mode UI (9f3cc2c, 027ce22, 235ff42, fc8627a, 5dc89b2): tools on per thread by default (`ThreadRecord.toolsDisabled`, composer "+" Tools switch), stock Form for Settings › Integrations (AnyRouter, built-in tool switches, custom servers with swipe to remove, per-server tool list), tool rows with readable titles that expand to arguments and result, approval as a confirmation dialog, UI test for the tool row
 - [ ] T7 Local GGUF and MLX tool calling (Later): needs chat-template tool rendering and parsing of the model's tool-call tokens per model family
 
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
