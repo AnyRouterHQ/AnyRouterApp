@@ -25,7 +25,7 @@ struct ShellCommands: Commands {
                 .keyboardShortcut("k")
                 .disabled(shell == nil)
         }
-        CommandGroup(after: .appSettings) {
+        CommandGroup(replacing: .appSettings) {
             Button("Settings…") { shell?.presentSettings(closeSidebar: false) }
                 .keyboardShortcut(",")
                 .disabled(shell == nil)
