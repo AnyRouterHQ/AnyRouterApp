@@ -111,10 +111,10 @@ Tests/                           each lane under Tests/<Lane folder>/
 Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel and rebase onto A).
 
 ### Lane A — scaffold, core, CI (model: sonnet-low)
-- [ ] A1 `project.yml`: app target `AnyRouter` (iOS 26, iPhone+iPad, `dev.anyrouter.app`), test target, SPM packages section, Release: `DEAD_CODE_STRIPPING=YES`, `SWIFT_COMPILATION_MODE=wholemodule`, `-Osize` only if it measurably shrinks the IPA
-- [ ] A2 `Core/` contract types + `EngineRegistry` + SwiftData `ThreadRecord`/`MessageRecord`, with unit tests
-- [ ] A3 `App/` shell: `@main`, root `NavigationSplitView` placeholder, AnyRouter app icon + accent from anyrouter brand
-- [ ] A4 CI `.github/workflows/ci.yml`: macOS runner with Xcode 26, `brew install xcodegen`, `xcodegen`, build + test on iOS Simulator, cache SPM + DerivedData, concurrency cancel. Target < 8 min warm.
+- [x] A1 `project.yml`: app target `AnyRouter` (iOS 26, iPhone+iPad, `dev.anyrouter.app`), test target, SPM packages section, Release: `DEAD_CODE_STRIPPING=YES`, `SWIFT_COMPILATION_MODE=wholemodule`, `-Osize` only if it measurably shrinks the IPA (#1)
+- [x] A2 `Core/` contract types + `EngineRegistry` + SwiftData `ThreadRecord`/`MessageRecord`, with unit tests (#1)
+- [x] A3 `App/` shell: `@main`, root `NavigationSplitView` placeholder, AnyRouter app icon + accent from anyrouter brand (#1)
+- [x] A4 CI `.github/workflows/ci.yml`: macOS runner with Xcode 26, `brew install xcodegen`, `xcodegen`, build + test on iOS Simulator, cache SPM + DerivedData, concurrency cancel. Target < 8 min warm. (#1)
 - [ ] A5 `THIRD_PARTY_NOTICES.md` (Atomic Chat Apache-2.0 notice), `README.md` (build steps, screenshots later)
 - [ ] A6 Open-source CI/CD hygiene: `gitleaks.yml` on PR + push, `dependabot.yml` (github-actions, swift), `.github/pull_request_template.md`, issue templates (bug, feature), `CONTRIBUTING.md` pointing at AGENTS.md, `SECURITY.md`; wire `Config/*.xcconfig` into `project.yml`
 
@@ -154,3 +154,4 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 ## Status log
 
 - 2026-11-26 manager: interviewed operator, wrote AGENTS.md + PLAN.md + base config, created public repo AnyRouterHQ/AnyRouterApp, started lanes A, B, C.
+- 2026-11-26 lane-A: scaffold, Core contract, app shell, CI workflow (#1); local checks skipped
