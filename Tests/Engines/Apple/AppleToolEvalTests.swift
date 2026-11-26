@@ -65,7 +65,8 @@ final class AppleToolEvalTests: XCTestCase {
             throw XCTSkip("Apple Foundation Models is unavailable on this host (\(note)). Run the evals on a device with Apple Intelligence.")
         }
         let engine = AppleFoundationEngine()
-        let model = try XCTUnwrap(try await engine.availableModels().first)
+        let available = try await engine.availableModels()
+        let model = try XCTUnwrap(available.first)
         let host = AgentToolHost(builtIns: [CurrentDateTimeTool(), CalculatorTool()], search: nil, mcp: nil)
         var failures: [String] = []
         for item in try loadCases() {
