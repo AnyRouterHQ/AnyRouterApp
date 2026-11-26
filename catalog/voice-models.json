@@ -15,7 +15,7 @@
       "license": "MIT",
       "sourceURL": "https://huggingface.co/argmaxinc/whisperkit-coreml/tree/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-tiny",
       "order": 1,
-      "sizeBytes": 76635397,
+      "sizeBytes": 79400740,
       "files": [
         {
           "path": "AudioEncoder.mlmodelc/analytics/coremldata.bin",
@@ -122,6 +122,24 @@
           "path": "generation_config.json",
           "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-tiny/generation_config.json",
           "sizeBytes": 2746
+        },
+        {
+          "path": "special_tokens_map.json",
+          "url": "https://huggingface.co/openai/whisper-tiny/resolve/169d4a4341b33bc18d8881c4b69c2e104e1cc0af/special_tokens_map.json",
+          "sizeBytes": 2194,
+          "sha256": "e67ae3a0aaa99abcd9f187138e12db1f65c16a14761c50ef10eef2c174a7a691"
+        },
+        {
+          "path": "tokenizer.json",
+          "url": "https://huggingface.co/openai/whisper-tiny/resolve/169d4a4341b33bc18d8881c4b69c2e104e1cc0af/tokenizer.json",
+          "sizeBytes": 2480466,
+          "sha256": "27fc476bfe7f17299480be2273fc0608e4d5a99aba2ab5dec5374b4482d1a566"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "url": "https://huggingface.co/openai/whisper-tiny/resolve/169d4a4341b33bc18d8881c4b69c2e104e1cc0af/tokenizer_config.json",
+          "sizeBytes": 282683,
+          "sha256": "2a4c4281cf9f51ac6ccc406fdc711a087afe6530f671fa7b80953edc498275ce"
         }
       ],
       "weakLanguages": [
@@ -142,7 +160,7 @@
       "license": "MIT",
       "sourceURL": "https://huggingface.co/argmaxinc/whisperkit-coreml/tree/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-base",
       "order": 2,
-      "sizeBytes": 146719453,
+      "sizeBytes": 149484796,
       "files": [
         {
           "path": "AudioEncoder.mlmodelc/analytics/coremldata.bin",
@@ -249,6 +267,24 @@
           "path": "generation_config.json",
           "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-base/generation_config.json",
           "sizeBytes": 2762
+        },
+        {
+          "path": "special_tokens_map.json",
+          "url": "https://huggingface.co/openai/whisper-base/resolve/e37978b90ca9030d5170a5c07aadb050351a65bb/special_tokens_map.json",
+          "sizeBytes": 2194,
+          "sha256": "e67ae3a0aaa99abcd9f187138e12db1f65c16a14761c50ef10eef2c174a7a691"
+        },
+        {
+          "path": "tokenizer.json",
+          "url": "https://huggingface.co/openai/whisper-base/resolve/e37978b90ca9030d5170a5c07aadb050351a65bb/tokenizer.json",
+          "sizeBytes": 2480466,
+          "sha256": "27fc476bfe7f17299480be2273fc0608e4d5a99aba2ab5dec5374b4482d1a566"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "url": "https://huggingface.co/openai/whisper-base/resolve/e37978b90ca9030d5170a5c07aadb050351a65bb/tokenizer_config.json",
+          "sizeBytes": 282683,
+          "sha256": "2a4c4281cf9f51ac6ccc406fdc711a087afe6530f671fa7b80953edc498275ce"
         }
       ]
     },
@@ -266,7 +302,7 @@
       "license": "MIT",
       "sourceURL": "https://huggingface.co/argmaxinc/whisperkit-coreml/tree/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-small_216MB",
       "order": 3,
-      "sizeBytes": 217350763,
+      "sizeBytes": 220116106,
       "files": [
         {
           "path": "AudioEncoder.mlmodelc/analytics/coremldata.bin",
@@ -373,6 +409,24 @@
           "path": "generation_config.json",
           "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-small_216MB/generation_config.json",
           "sizeBytes": 2779
+        },
+        {
+          "path": "special_tokens_map.json",
+          "url": "https://huggingface.co/openai/whisper-small/resolve/973afd24965f72e36ca33b3055d56a652f456b4d/special_tokens_map.json",
+          "sizeBytes": 2194,
+          "sha256": "e67ae3a0aaa99abcd9f187138e12db1f65c16a14761c50ef10eef2c174a7a691"
+        },
+        {
+          "path": "tokenizer.json",
+          "url": "https://huggingface.co/openai/whisper-small/resolve/973afd24965f72e36ca33b3055d56a652f456b4d/tokenizer.json",
+          "sizeBytes": 2480466,
+          "sha256": "27fc476bfe7f17299480be2273fc0608e4d5a99aba2ab5dec5374b4482d1a566"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "url": "https://huggingface.co/openai/whisper-small/resolve/973afd24965f72e36ca33b3055d56a652f456b4d/tokenizer_config.json",
+          "sizeBytes": 282683,
+          "sha256": "2a4c4281cf9f51ac6ccc406fdc711a087afe6530f671fa7b80953edc498275ce"
         }
       ]
     },
@@ -390,7 +444,7 @@
       "license": "MIT",
       "sourceURL": "https://huggingface.co/argmaxinc/whisperkit-coreml/tree/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB",
       "order": 4,
-      "sizeBytes": 626718238,
+      "sizeBytes": 629483770,
       "files": [
         {
           "path": "AudioEncoder.mlmodelc/analytics/coremldata.bin",
@@ -485,6 +539,24 @@
           "path": "generation_config.json",
           "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/generation_config.json",
           "sizeBytes": 2767
+        },
+        {
+          "path": "special_tokens_map.json",
+          "url": "https://huggingface.co/openai/whisper-large-v3/resolve/06f233fe06e710322aca913c1bc4249a0d71fce1/special_tokens_map.json",
+          "sizeBytes": 2072,
+          "sha256": "1c70773c078cb2ca96e0fcff113102f1d3e2b1504272c3bb63b035d4a6700d87"
+        },
+        {
+          "path": "tokenizer.json",
+          "url": "https://huggingface.co/openai/whisper-large-v3/resolve/06f233fe06e710322aca913c1bc4249a0d71fce1/tokenizer.json",
+          "sizeBytes": 2480617,
+          "sha256": "6d8cbd7cd0d8d5815e478dac67b85a26bbe77c1f5e0c6d76d1ce2abc0e5f21ca"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "url": "https://huggingface.co/openai/whisper-large-v3/resolve/06f233fe06e710322aca913c1bc4249a0d71fce1/tokenizer_config.json",
+          "sizeBytes": 282843,
+          "sha256": "844b642c73a91359722f47b35705f7174686df33d252695d8572cf9ac03a6389"
         }
       ]
     }

@@ -5,6 +5,7 @@ Each downloadable voice model is a folder of files. This script pins the repo re
 its absolute URL, size and sha256 (the LFS oid), so the app downloads exactly these bytes and verifies them.
 Run: python3 -I scripts/voice-catalog-add.py   (needs network; rewrites the Whisper entries, keeps the rest)
 """
+import hashlib
 import json
 import pathlib
 import subprocess
@@ -14,6 +15,15 @@ OUT = ROOT / "catalog" / "voice-models.json"
 API = "https://huggingface.co/api/models/"
 
 WHISPER_REPO = "argmaxinc/whisperkit-coreml"
+# WhisperKit loads its tokenizer from the model folder when tokenizer.json is there, and otherwise downloads it from
+# Hugging Face at load time. The model folders on whisperkit-coreml do not carry it, so each entry adds these files.
+TOKENIZER_FILES = ["tokenizer.json", "tokenizer_config.json", "special_tokens_map.json"]
+TOKENIZER_REPO = {
+    "whisper-tiny": "openai/whisper-tiny",
+    "whisper-base": "openai/whisper-base",
+    "whisper-small": "openai/whisper-small",
+    "whisper-large-v3-turbo": "openai/whisper-large-v3",
+}
 WHISPER = [
     # id, folder, title, summary, order, weak languages (listed by the model, handled badly)
     ("whisper-tiny", "openai_whisper-tiny", "Whisper Tiny",
@@ -30,6 +40,21 @@ WHISPER = [
 def get(url):
     # curl uses the system certificate store; python.org builds of Python do not ship one.
     return json.loads(subprocess.run(["curl", "-fsSL", "--max-time", "60", url], check=True, capture_output=True).stdout)
+
+
+def fetch_bytes(url):
+    return subprocess.run(["curl", "-fsSL", "--max-time", "120", url], check=True, capture_output=True).stdout
+
+
+def tokenizer_files(entry_id):
+    repo = TOKENIZER_REPO[entry_id]
+    revision = get(API + repo)["sha"]
+    files = []
+    for name in TOKENIZER_FILES:
+        url = f"https://huggingface.co/{repo}/resolve/{revision}/{name}"
+        data = fetch_bytes(url)
+        files.append({"path": name, "url": url, "sizeBytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
+    return files
 
 
 def whisper_entries():
@@ -50,6 +75,7 @@ def whisper_entries():
             if "lfs" in item:
                 file["sha256"] = item["lfs"]["oid"]
             files.append(file)
+        files += tokenizer_files(entry_id)
         files.sort(key=lambda f: f["path"])
         entry = {
             "id": entry_id,

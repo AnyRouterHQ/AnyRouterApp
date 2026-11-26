@@ -529,10 +529,10 @@ Sources: [Moonshine TTS](https://github.com/moonshine-ai/moonshine/blob/main/doc
 
 ### Sequence
 
-- [ ] V1 Voice seam: `SpeechToText`, `TextToSpeech`, System engines, sentence chunker, language arbiter, `VoiceModel` catalog and fit, fallback resolver, tests.
-- [ ] V2 Dictation in the composer: mic button, live partial text, level meter, language badge, permissions sheet, Info.plist strings.
-- [ ] V3 Spoken replies: speaker button, "Read replies aloud", sentence streaming, stop on new input.
-- [ ] V4 Settings › Local Models › Voice: Speech to text and Text to speech sections, Get and Delete, default, Test voice.
+- [x] V1 (2e501de) Voice seam: `SpeechToText`, `TextToSpeech`, System engines, sentence chunker, language arbiter, `VoiceModel` catalog and fit, fallback resolver, tests.
+- [x] V2 (fe56bf3) Dictation in the composer: mic button, live partial text, level meter, language badge, permissions sheet, Info.plist strings.
+- [x] V3 (6c0f843) Spoken replies: speaker button, "Read replies aloud", sentence streaming, stop on new input.
+- [x] V4 (2123b36) Settings › Local Models › Voice: Speech to text and Text to speech sections, Get and Delete, default, Test voice.
 - [ ] V5 `WhisperKit` STT engine and catalog entries (tiny, base, small, large-v3 turbo compressed).
 - [ ] V6 `Moonshine` TTS engine and catalog entries after each voice's licence is checked.
 - [ ] V7 (Later) Moonshine streaming STT for Vietnamese and English after the language is known; VieNeu-TTS through llama.cpp.
