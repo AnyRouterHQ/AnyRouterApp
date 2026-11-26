@@ -19,6 +19,15 @@ struct AccountSummaryTests {
         #expect(summary.usageLine == "Credits: \(AccountSummary.money(12.5))")
     }
 
+    /// Shape of the live `GET /api/v1/me` for a sign-in key, whose `/credits` call is rejected.
+    @Test func readsAvatarAndBalanceFromLiveMeShape() {
+        let me = data(#"{"id":"user_1","email":"ada@example.com","name":"ada","image_url":"https://img.example.com/abc","username":"ada","plan":"go","balance":22.2416}"#)
+        let summary = AccountSummary.parse(me: me, credits: nil, key: nil)
+        #expect(summary.avatarURL?.absoluteString == "https://img.example.com/abc")
+        #expect(summary.credits == AccountSummary.Credits(balance: 22.2416, used: nil))
+        #expect(summary.usageLine == "Credits: \(AccountSummary.money(22.2416))")
+    }
+
     @Test func fallsBackToKeyUsageWhenCreditsAreMissing() {
         let key = data(#"{"data":{"label":"sign-in","limit":10,"limit_remaining":7.5,"usage":2.5}}"#)
         let summary = AccountSummary.parse(me: nil, credits: nil, key: key)

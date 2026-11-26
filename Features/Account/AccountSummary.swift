@@ -69,10 +69,12 @@ struct AccountSummary: Equatable, Sendable {
         if let profile = object(me) {
             summary.displayName = string(profile, ["name", "display_name", "displayName", "username"])
             summary.email = string(profile, ["email"])
-            summary.avatarURL = string(profile, ["avatar_url", "avatarUrl", "image", "picture", "avatar"])
+            summary.avatarURL = string(profile, ["image_url", "avatar_url", "avatarUrl", "image", "picture", "avatar"])
                 .flatMap(URL.init(string:))
                 .flatMap { $0.scheme == "https" ? $0 : nil }
             summary.plan = planName(profile)
+            // Sign-in keys get 403 on /credits, so /me's balance is the usual source.
+            if let balance = number(profile, ["balance"]) { summary.credits = Credits(balance: balance, used: nil) }
         }
         if let credits = object(credits) {
             if let balance = number(credits, ["balance"]) {
@@ -88,7 +90,7 @@ struct AccountSummary: Equatable, Sendable {
                 label: string(key, ["label"]),
                 limit: number(key, ["limit"]),
                 limitRemaining: number(key, ["limit_remaining"]),
-                usage: number(key, ["usage"])
+                usage: number(key, ["usage", "real_usage"])
             )
             if usage != KeyUsage() { summary.keyUsage = usage }
         }
