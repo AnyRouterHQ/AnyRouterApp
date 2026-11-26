@@ -8,7 +8,7 @@ struct AccentForegroundTests {
         let traits = UITraitCollection(userInterfaceStyle: dark ? .dark : .light)
         let color = try #require(UIColor(named: name, in: Bundle(for: AppState.self), compatibleWith: traits))
         var (r, g, b, a): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
-        color.resolvedColor(with: traits).getRed(&r, &g, &b, &a)
+        color.resolvedColor(with: traits).getRed(&r, green: &g, blue: &b, alpha: &a)
         return (Double(r), Double(g), Double(b))
     }
 
