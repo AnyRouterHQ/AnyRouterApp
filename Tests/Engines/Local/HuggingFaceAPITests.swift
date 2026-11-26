@@ -132,3 +132,53 @@ final class LockedBox<Value: Sendable>: @unchecked Sendable {
         set { lock.withLock { stored = newValue } }
     }
 }
+
+
+struct PrefixFetchTests {
+    @Test func theSessionReturnsOnlyTheRequestedPrefixAndAsksForARange() async throws {
+        let seen = StubSeen()
+        let stub = StubbedAPI { request in
+            seen.set(request.value(forHTTPHeaderField: "Range"))
+            return .init(status: 206, body: Data(repeating: 7, count: 10_000))
+        }
+        let (data, response) = try await stub.session.fetchPrefix(URLRequest(url: URL(string: "https://\(stub.host)/f")!), maxBytes: 100)
+        #expect(data.count == 100 && response.statusCode == 206)
+        #expect(seen.value == "bytes=0-99")
+    }
+
+    @Test func aServerThatIgnoresTheRangeAndKeepsStreamingIsCutOffAtTheLimit() async throws {
+        let stub = StubbedAPI { _ in .init(status: 200, body: Data(repeating: 1, count: 5_000), hangs: true) }
+        let (data, _) = try await stub.session.fetchPrefix(URLRequest(url: URL(string: "https://\(stub.host)/f")!), maxBytes: 1_000)
+        #expect(data.count == 1_000, "it must not wait for the end of a body that never ends")
+        for _ in 0..<50 where !StubRegistry.shared.wasStopped(host: stub.host) { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(StubRegistry.shared.wasStopped(host: stub.host), "the transfer is cancelled, not left running")
+    }
+
+    @Test func aBodyShorterThanTheLimitIsReturnedWhole() async throws {
+        let stub = StubbedAPI { _ in .init(status: 200, body: Data(repeating: 2, count: 40)) }
+        let (data, _) = try await stub.session.fetchPrefix(URLRequest(url: URL(string: "https://\(stub.host)/f")!), maxBytes: 1_000)
+        #expect(data.count == 40)
+    }
+
+    @Test func aResponseThatIsNotHTTPIsAnError() async {
+        let stub = StubbedAPI { _ in .init(nonHTTP: true) }
+        await #expect(throws: LocalModelError.invalidResponse) {
+            _ = try await stub.session.fetchPrefix(URLRequest(url: URL(string: "https://\(stub.host)/f")!), maxBytes: 10)
+        }
+    }
+
+    @Test func headerReadsMapHTTPStatusesToTheSameErrorsAsListings() async {
+        for (status, expected) in [(403, LocalModelError.gatedOrPrivate("org/m")), (404, .notFound("org/m")), (500, .http(status: 500))] {
+            let api = HuggingFaceAPI(http: FakeHTTP(status: status))
+            await #expect(throws: expected) { _ = try await api.ggufInfo(repo: "org/m", file: "m.gguf") }
+        }
+        await #expect(throws: LocalModelError.invalidRepo("nope")) { _ = try await HuggingFaceAPI().ggufInfo(repo: "nope", file: "m.gguf") }
+    }
+}
+
+private final class StubSeen: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: String?
+    func set(_ value: String?) { lock.withLock { stored = value } }
+    var value: String? { lock.withLock { stored } }
+}
