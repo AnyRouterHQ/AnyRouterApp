@@ -63,6 +63,14 @@ struct AnyRouterAuthTests {
         #expect(auth.lastError == nil)
     }
 
+    @Test func aKeychainThatRefusesTheKeyIsReportedNotSilentlyIgnored() async {
+        let store = KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)") { _ in errSecInteractionNotAllowed }
+        let auth = AnyRouterAuth(store: store, client: ScriptedSigner(.success(issued)))
+        await auth.signIn()
+        #expect(auth.state == .signedOut)
+        #expect(auth.lastError == "Could not save the sign-in to the Keychain.")
+    }
+
     @Test func tappingSignInTwiceStartsOnlyOneFlow() async {
         let store = makeStore()
         defer { store.clear() }
@@ -147,6 +155,15 @@ struct KeychainStoreTests {
         defer { store.clear() }
         store.save(token: "", expiresAt: nil)
         #expect(store.token() == nil)
+    }
+
+    @Test func saveReportsWhetherTheKeychainAcceptedTheToken() {
+        let ok = makeStore()
+        defer { ok.clear() }
+        #expect(ok.save(token: "sk-ar-1", expiresAt: nil))
+        let refusing = KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)") { _ in errSecInteractionNotAllowed }
+        #expect(!refusing.save(token: "sk-ar-1", expiresAt: nil))
+        #expect(refusing.token() == nil)
     }
 
     @Test func tokensAreSeparatedByService() {

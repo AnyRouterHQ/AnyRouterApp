@@ -156,13 +156,13 @@ struct ShellGapTests {
         #expect(!shell.isSidebarOpen)
     }
 
-    @Test func openingAScreenClosesTheSidebarOnlyWhenAsked() {
+    @Test func openingChatDismissesTheHubAndClosesTheSidebarOnlyWhenAsked() {
         let shell = ShellModel()
         shell.isSidebarOpen = true
         shell.open(.hub, closeSidebar: false)
-        #expect(shell.route == .hub && shell.isSidebarOpen)
-        shell.open(.settings, closeSidebar: true)
-        #expect(shell.route == .settings && !shell.isSidebarOpen)
+        #expect(shell.isHubPresented && shell.isSidebarOpen)
+        shell.open(.chat, closeSidebar: true)
+        #expect(!shell.isHubPresented && !shell.isSidebarOpen)
     }
 }
 
