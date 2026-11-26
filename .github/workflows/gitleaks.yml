@@ -33,3 +33,5 @@ jobs:
           if git grep -n -i -E "${a}ic ?chat|${a}icbot|${a}ic\.chat|${m}${l}"; then
             echo "::error::banned reference name found"; exit 1
           fi
+      - name: Native-first ratchet
+        run: bash scripts/native-ratchet.sh

@@ -55,7 +55,8 @@ The app should look and behave like a stock iOS 26 app. Before you build a custo
 - Navigation: `NavigationStack` / `NavigationSplitView`, toolbar items with system buttons (`.close`, `.confirm` roles), `.searchable`, `Menu`, `ShareLink`, sheets with `presentationDetents`. No custom circle buttons, nav bars or search fields.
 - Look: system fonts (`.body`, `.headline`, …, so Dynamic Type works), semantic colors (`.primary`, `.secondary`, `Color(.systemGroupedBackground)`), and one app tint (the accent color) set once. No per-icon tinting and no custom palettes for chrome.
 - Liquid Glass comes from the system components. Add `.glassEffect` only on custom floating controls (the composer, the model pill), never on content.
-- A custom view needs a reason the system one can't meet, written in one comment. Reference: Apple HIG (developer.apple.com/design/human-interface-guidelines) and the WWDC25 Liquid Glass sessions.
+- A custom view needs a reason the system one can't meet, written in one comment.
+- CI enforces this with `scripts/native-ratchet.sh`: no file may gain custom-UI patterns (ARColor, .ar fonts, hand-drawn shapes, custom chips/buttons/search). After converting a file, run `scripts/native-ratchet.sh --update` and commit the lower baseline. Reference: Apple HIG (developer.apple.com/design/human-interface-guidelines) and the WWDC25 Liquid Glass sessions.
 
 ## Workflow (trunk-based)
 
