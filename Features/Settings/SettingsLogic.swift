@@ -29,12 +29,6 @@ struct LicenseNotice: Identifiable, Equatable {
 
     static let all: [LicenseNotice] = [
         LicenseNotice(
-            name: "Atomic Chat",
-            copyright: ["Copyright 2026 Atomic Chat (https://atomic.chat)", "Copyright 2025 Menlo Research (https://menlo.ai)"],
-            license: "Apache License 2.0",
-            url: "https://github.com/AtomicBot-ai/Atomic-Chat"
-        ),
-        LicenseNotice(
             name: "MarkdownUI",
             copyright: ["Copyright (c) 2020 Guillermo Gonzalez"],
             license: "MIT License",

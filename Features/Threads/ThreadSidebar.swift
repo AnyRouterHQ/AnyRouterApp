@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// Atomic's left sidebar: brand, new chat, search, pinned and recent threads, hub and settings links.
+/// Left sidebar: brand, new chat, search, pinned and recent threads, hub and settings links.
 struct ThreadSidebar: View {
     /// True when shown as a drawer over the chat (iPhone). Picking something then closes it.
     let isDrawer: Bool

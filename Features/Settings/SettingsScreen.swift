@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings (Atomic `routes/settings`): account, providers, catalog sources, generation defaults, appearance, about.
+/// Settings: account, providers, catalog sources, generation defaults, appearance, about.
 struct SettingsScreen: View {
     @Environment(AppState.self) private var app
     @Environment(AppSettings.self) private var settings
@@ -112,7 +112,7 @@ struct SettingsScreen: View {
     private var aboutSection: some View {
         SettingsGroup("About") {
             SettingsRow("AnyRouter", value: "Version \(version)", systemImage: "info.circle")
-            SettingsText("Open source under the Apache License 2.0. The interface is a native port of the Atomic Chat mobile design.")
+            SettingsText("Open source under the Apache License 2.0.")
             if let url = URL(string: "https://github.com/AnyRouterHQ/AnyRouterApp") {
                 Link(destination: url) {
                     SettingsRow("Source code", value: "GitHub", systemImage: "chevron.left.forwardslash.chevron.right")

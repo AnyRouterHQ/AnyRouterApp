@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Browse Models (Atomic hub): installed and available local models, Hugging Face search, downloads.
+/// Browse Models: installed and available local models, Hugging Face search, downloads.
 struct HubScreen: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models

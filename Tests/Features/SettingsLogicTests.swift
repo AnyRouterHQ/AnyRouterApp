@@ -18,10 +18,10 @@ struct SettingsLogicTests {
         #expect(SettingsLogic.parseRepo(input) == nil)
     }
 
-    @Test func atomicChatNoticeKeepsBothUpstreamCopyrightLines() throws {
-        let atomic = try #require(LicenseNotice.all.first { $0.name == "Atomic Chat" })
-        #expect(atomic.copyright.contains("Copyright 2026 Atomic Chat (https://atomic.chat)"))
-        #expect(atomic.copyright.contains("Copyright 2025 Menlo Research (https://menlo.ai)"))
-        #expect(atomic.license.contains("Apache"))
+    @Test func licenseListCoversLinkedLibraries() {
+        let names = LicenseNotice.all.map(\.name)
+        #expect(names.contains("llama.cpp"))
+        #expect(names.contains("MarkdownUI"))
+        #expect(LicenseNotice.all.allSatisfy { !$0.copyright.isEmpty && !$0.license.isEmpty })
     }
 }

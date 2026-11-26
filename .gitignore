@@ -32,3 +32,6 @@ Models/
 .DS_Store
 .idea/
 .vscode/
+
+# Maintainer-private reference notes (never committed)
+AGENTS.local.md

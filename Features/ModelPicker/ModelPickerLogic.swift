@@ -1,6 +1,6 @@
 import Foundation
 
-/// One group of models in the picker (Atomic groups its dropdown by provider).
+/// One group of models in the picker (grouped by source).
 struct PickerSection: Identifiable, Equatable {
     enum Kind: Int, Equatable { case apple, anyrouter, local }
 

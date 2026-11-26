@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Model picker (Atomic `DropdownModelProvider`): search, groups by source, install state, sign-in prompt.
+/// Model picker: search, groups by source, install state, sign-in prompt.
 struct ModelPickerSheet: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models

@@ -3,7 +3,7 @@ import SwiftUI
 import UIKit
 
 extension Theme {
-    /// Markdown look matching Atomic's `styles/markdown.css` in AnyRouter colors.
+    /// Markdown look in AnyRouter colors.
     @MainActor static var anyRouter: Theme {
         Theme()
             .text {

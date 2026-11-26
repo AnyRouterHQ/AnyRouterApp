@@ -33,7 +33,7 @@ struct ARIconButton: View {
     }
 }
 
-/// Small tag pill (Atomic model tags such as "fast", "vision").
+/// Small tag pill (model tags such as "fast", "vision").
 struct ARChip: View {
     let text: String
     var tint: Color = ARColor.mutedForeground
@@ -84,7 +84,7 @@ extension ButtonStyle where Self == ARButtonStyle {
     static var arDestructive: ARButtonStyle { ARButtonStyle(kind: .destructive) }
 }
 
-/// Rounded search field (Atomic sidebar and hub search).
+/// Rounded search field (sidebar and hub search).
 struct ARSearchField: View {
     @Binding var text: String
     var prompt: String

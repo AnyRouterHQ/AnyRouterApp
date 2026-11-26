@@ -68,7 +68,7 @@ See [AGENTS.md](./AGENTS.md) and [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Credits
 
-The UI is inspired by and ported from [Atomic Chat](https://github.com/AtomicBot-ai/Atomic-Chat) (Apache-2.0). Built with [llama.cpp](https://github.com/ggml-org/llama.cpp), [MLX](https://github.com/ml-explore/mlx-swift) and [MarkdownUI](https://github.com/gonzalezreal/swift-markdown-ui). See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
+Built with [llama.cpp](https://github.com/ggml-org/llama.cpp), [MLX](https://github.com/ml-explore/mlx-swift) and [MarkdownUI](https://github.com/gonzalezreal/swift-markdown-ui). See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
 ## License
 

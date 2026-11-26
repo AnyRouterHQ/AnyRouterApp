@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Atomic's mobile layout: a sidebar drawer over the chat on iPhone, a persistent sidebar on iPad.
+/// Mobile layout: a sidebar drawer over the chat on iPhone, a persistent sidebar on iPad.
 struct AppShell: View {
     @Environment(ShellModel.self) private var shell
     @Environment(\.horizontalSizeClass) private var sizeClass
