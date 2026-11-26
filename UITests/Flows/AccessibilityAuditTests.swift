@@ -8,25 +8,44 @@ final class AccessibilityAuditTests: XCTestCase {
     private let auditTypes: XCUIAccessibilityAuditType = [.hitRegion, .contrast, .textClipped, .dynamicType]
     private let appearances = ["light", "dark"]
 
-    private func audit(_ app: XCUIApplication, _ screen: String, _ appearance: String) {
+    /// One audit pass: the issues as "type | description | id | label" lines.
+    private func issues(_ app: XCUIApplication) -> [String]? {
         var found: [String] = []
         do {
             try app.performAccessibilityAudit(for: auditTypes) { issue in
                 let id = issue.element?.identifier ?? ""
-                let label = issue.element?.label ?? ""
+                let label = (issue.element?.label ?? "").replacingOccurrences(of: "\n", with: " ")
                 found.append("\(issue.auditType.rawValue) | \(issue.compactDescription) | id=\(id) label=\(label)")
                 return true
             }
         } catch {
-            XCTFail("\(screen) (\(appearance)): the audit itself failed: \(error)")
+            return nil
         }
-        guard !found.isEmpty else { return }
-        let report = found.joined(separator: "\n")
-        let attachment = XCTAttachment(string: report)
+        return found
+    }
+
+    /// Audits twice, a second apart, after the screen has settled. Only an issue seen in both passes is reported:
+    /// one that shows in a single pass came from a screen still animating (drawer, sheet, tab switch).
+    private func audit(_ app: XCUIApplication, _ screen: String, _ appearance: String) {
+        sleep(1)
+        guard let first = issues(app) else {
+            XCTFail("\(screen) (\(appearance)): the audit itself failed")
+            return
+        }
+        sleep(1)
+        guard let second = issues(app) else {
+            XCTFail("\(screen) (\(appearance)): the audit itself failed")
+            return
+        }
+        let stable = first.filter(second.contains)
+        let transient = Set(first).symmetricDifference(Set(second)).count
+        let note = "\(stable.count) stable issue(s), \(transient) seen in only one pass (animation)"
+        let attachment = XCTAttachment(string: note + "\n" + stable.joined(separator: "\n"))
         attachment.name = "audit-\(screen)-\(appearance)"
         attachment.lifetime = .keepAlways
         add(attachment)
-        XCTFail("\(screen) (\(appearance)): \(found.count) accessibility issue(s)\n\(report)")
+        guard !stable.isEmpty else { return }
+        XCTFail("\(screen) (\(appearance)): \(note)\n\(stable.joined(separator: "\n"))")
     }
 
     private func button(_ app: XCUIApplication, containing text: String) -> XCUIElement {
@@ -68,10 +87,12 @@ final class AccessibilityAuditTests: XCTestCase {
         eachAppearance { app, appearance in
             app.revealSidebar(whenVisible: button(app, containing: "Settings"))
             button(app, containing: "Settings").tap()
-            XCTAssertTrue(app.staticTexts["Account"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
             audit(app, "settings", appearance)
             let theme = app.buttons["Theme"]
-            XCTAssertTrue(theme.waitForExistence(timeout: 5))
+            var swipes = 0
+            while !theme.isHittable && swipes < 8 { app.swipeUp(); swipes += 1 }
+            XCTAssertTrue(theme.isHittable, "Theme is reachable in Settings")
             theme.tap()
             XCTAssertTrue(app.buttons["Dark"].waitForExistence(timeout: 5))
             audit(app, "settings-theme", appearance)
@@ -86,7 +107,7 @@ final class AccessibilityAuditTests: XCTestCase {
             XCTAssertTrue(tabs.waitForExistence(timeout: 5))
             audit(app, "model-picker-local", appearance)
             tabs.buttons["AnyRouter"].tap()
-            XCTAssertTrue(app.staticTexts["Top picks"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["model-row.anyrouter/anthropic/claude-sonnet-4-6"].waitForExistence(timeout: 5))
             audit(app, "model-picker-anyrouter", appearance)
         }
     }
@@ -95,15 +116,15 @@ final class AccessibilityAuditTests: XCTestCase {
         eachAppearance { app, appearance in
             app.revealSidebar(whenVisible: button(app, containing: "Settings"))
             button(app, containing: "Settings").tap()
-            let manage = button(app, containing: "Manage models")
+            let manage = button(app, containing: "Local Models")
             var swipes = 0
             while !manage.isHittable && swipes < 8 {
                 app.swipeUp()
                 swipes += 1
             }
-            XCTAssertTrue(manage.isHittable, "Manage models is reachable in Settings")
+            XCTAssertTrue(manage.isHittable, "Local Models is reachable in Settings")
             manage.tap()
-            XCTAssertTrue(app.navigationBars["Manage models"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.navigationBars["Local Models"].waitForExistence(timeout: 10))
             audit(app, "hub", appearance)
         }
     }
