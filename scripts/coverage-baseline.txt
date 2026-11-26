@@ -1,0 +1,13 @@
+# Gated files below 100% lines: path covered lines. From main run 45868395465 at 4084c6c.
+# The gate fails if a listed file drops below its numbers or a file not listed is under 100%.
+# When you raise a file to 100%, delete its line. Never raise a line to hide a regression.
+Core/AuthMode.swift 0 0
+Engines/AnyRouter/ModelsResponse.swift 120 121
+Engines/Local/Catalog/HuggingFaceAPI.swift 265 266
+Features/Attachments/AttachmentLogic.swift 56 57
+Features/Chat/ChatViewModel.swift 418 419
+Features/Chat/ToolRowLogic.swift 85 86
+Features/Hub/FamilyLogic.swift 222 227
+Features/ModelPicker/ModelDetailLogic.swift 67 68
+Features/Presets/PresetStore.swift 79 80
+Features/Threads/ThreadSearchLogic.swift 45 47
