@@ -85,6 +85,8 @@ struct ModelPickerSheet: View {
     @State private var cloudFilter: ModelFilter
     @State private var localFilter: LocalFilter
     @State private var showsFilters = false
+    /// "Show all models" was tapped. Searching, sorting and filtering also leave the short view.
+    @State private var showsAll = false
 
     private let filterStore: PickerFilterStore
 
@@ -268,13 +270,20 @@ struct ModelPickerSheet: View {
             models: models.models, query: debouncedQuery, sort: sort, usageRank: models.usageRank,
             showUnusable: app.account.state.isSignedIn,
             picks: TopPicks.compose(config: picksConfig, models: models.models, usageRank: models.usageRank),
-            filter: cloudFilter, prefs: models.cloudPrefs)
+            filter: cloudFilter, prefs: models.cloudPrefs, currentID: currentID,
+            short: !showsAll && sort == .topUsage && !cloudFilter.isActive)
     }
 
     @ViewBuilder
     private func cloudRows(_ list: CloudList) -> some View {
+        if let current = list.current {
+            Section("Current") { modelButton(current) }
+        }
         if !list.starred.isEmpty {
             Section("Starred") { ForEach(list.starred) { modelButton($0) } }
+        }
+        if !list.routers.isEmpty {
+            Section("AnyRouter") { ForEach(list.routers) { modelButton($0) } }
         }
         if !list.topPicks.isEmpty {
             Section("Top picks") { ForEach(list.topPicks) { modelButton($0) } }
@@ -283,7 +292,19 @@ struct ModelPickerSheet: View {
             Section {
                 ForEach(list.rest) { modelButton($0) }
             } header: {
-                if !list.topPicks.isEmpty || !list.starred.isEmpty { Text("All models") }
+                if list.isShort {
+                    Text("Top this week")
+                } else if !list.topPicks.isEmpty || !list.starred.isEmpty {
+                    Text("All models")
+                }
+            }
+        }
+        if list.moreCount > 0 {
+            Section {
+                Button("Show all models") { showsAll = true }
+                    .accessibilityIdentifier("show-all-models")
+            } footer: {
+                Text("\(list.moreCount) more. Search to find any model.")
             }
         }
     }

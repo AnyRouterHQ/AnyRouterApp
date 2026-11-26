@@ -35,17 +35,28 @@ struct CloudList: Equatable {
     var rest: [ModelDescriptor]
     /// Starred models that can be used, in the order they were starred. They lead the list.
     var starred: [ModelDescriptor] = []
+    /// The short view only: AnyRouter's own routers, then `rest` holds the top models of the week.
+    var routers: [ModelDescriptor] = []
+    /// The short view only: the model in use when it is not on the list, so it never disappears.
+    var current: ModelDescriptor? = nil
+    /// The short view only: how many more models "Show all models" adds.
+    var moreCount = 0
+    var isShort = false
 
-    var isEmpty: Bool { starred.isEmpty && topPicks.isEmpty && rest.isEmpty }
+    var isEmpty: Bool { starred.isEmpty && topPicks.isEmpty && rest.isEmpty && routers.isEmpty && current == nil }
 }
 
 enum CloudListLogic {
+    /// How many models the short view lists under "Top this week".
+    static let topCount = 10
+
     /// `usageRank` maps a wire id to its place in the weekly usage order (0 is most used).
     /// `showUnusable` keeps models the user cannot route to (dimmed, after the usable ones).
     static func arrange(
         models: [ModelDescriptor], query: String, sort: PickerSort,
         usageRank: [String: Int], showUnusable: Bool, picks: [ModelDescriptor] = [],
-        filter: ModelFilter = ModelFilter(), prefs: CloudModelPrefs = CloudModelPrefs()
+        filter: ModelFilter = ModelFilter(), prefs: CloudModelPrefs = CloudModelPrefs(),
+        currentID: String? = nil, short: Bool = false
     ) -> CloudList {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let searching = !needle.isEmpty
@@ -68,11 +79,36 @@ enum CloudListLogic {
         }
         let starred = searching ? [] : prefs.starred.compactMap { wire in candidates.first { $0.wireID == wire && $0.isInstalled } }
         let starredIDs = Set(starred.map(\.id))
+        // A search always looks through the whole catalog.
+        if short && !searching {
+            return shortList(models: models, candidates: candidates, starred: starred, usageRank: usageRank, currentID: currentID)
+        }
         let topPicks = searching ? [] : picks.filter { pick in
             !starredIDs.contains(pick.id) && candidates.contains { $0.id == pick.id }
         }
         let shownIDs = starredIDs.union(topPicks.map(\.id))
         return CloudList(topPicks: topPicks, rest: candidates.filter { !shownIDs.contains($0.id) }, starred: starred)
+    }
+
+    /// Routers, the top models of the week, the model in use, and a count of what "Show all models" adds.
+    /// `candidates` are already filtered and in the chosen order. Starred models stay in their own section.
+    private static func shortList(
+        models: [ModelDescriptor], candidates: [ModelDescriptor], starred: [ModelDescriptor],
+        usageRank: [String: Int], currentID: String?
+    ) -> CloudList {
+        let starredIDs = Set(starred.map(\.id))
+        let routers = candidates.filter { $0.isRouter && !starredIDs.contains($0.id) }
+        let others = candidates.filter { !$0.isRouter }
+        // Before the first usage fetch lands nothing is ranked, so the list falls back to the chosen order.
+        let ranked = others.filter { usageRank[$0.wireID] != nil }
+        let top = Array((ranked.isEmpty ? others : ranked).prefix(topCount))
+        let rest = top.filter { !starredIDs.contains($0.id) }
+        let listed = starredIDs.union(routers.map(\.id)).union(top.map(\.id))
+        let current = models.first { $0.id == currentID && $0.source == .anyrouter && $0.isInstalled && !listed.contains($0.id) }
+        let more = candidates.filter { !listed.contains($0.id) && $0.id != current?.id }
+        return CloudList(
+            topPicks: [], rest: rest, starred: starred, routers: routers, current: current,
+            moreCount: more.count, isShort: true)
     }
 
     /// The weekly usage a row shows. Only "Top this week" shows it, because only there the rows follow that ranking.
