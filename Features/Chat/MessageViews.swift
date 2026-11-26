@@ -40,12 +40,11 @@ struct MessageRow: View {
                 if !message.attachments.isEmpty { MessageAttachments(attachments: message.attachments) }
                 if !message.content.isEmpty {
                     Text(message.content)
-                        .font(.arBase)
-                        .foregroundStyle(ARColor.foreground)
+                        .font(.body)
                         .textSelection(.enabled)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(ARColor.secondary, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .background(Color(.secondarySystemFill), in: .rect(cornerRadius: 18))
                 }
             }
         }
@@ -87,12 +86,12 @@ struct MessageRow: View {
                     CopyButton(text: message.content)
                     if showsRegenerate {
                         Button(action: onRegenerate) {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(ARColor.mutedForeground)
-                                .frame(minWidth: 28, minHeight: 28)
+                            Label("Regenerate", systemImage: "arrow.clockwise").labelStyle(.iconOnly)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.secondary)
+                        // The HIG minimum hit area; a borderless button is only as big as its symbol.
+                        .frame(minWidth: 44, minHeight: 44)
                         .accessibilityLabel("Regenerate")
                     }
                 }
@@ -218,21 +217,13 @@ struct ToolStepRow: View {
     }
 }
 
-/// Three pulsing dots shown before the first token arrives.
+/// The SF Symbols "typing" animation, shown before the first token arrives. The system skips it for Reduce Motion.
 struct TypingDots: View {
-    @State private var phase = false
-
     var body: some View {
-        HStack(spacing: 5) {
-            ForEach(0..<3, id: \.self) { index in
-                Circle()
-                    .fill(ARColor.mutedForeground)
-                    .frame(width: 7, height: 7)
-                    .opacity(phase ? 1 : 0.3)
-                    .animation(.easeInOut(duration: 0.6).repeatForever().delay(Double(index) * 0.2), value: phase)
-            }
-        }
-        .onAppear { phase = true }
-        .accessibilityLabel("Thinking")
+        Image(systemName: "ellipsis")
+            .font(.title2)
+            .foregroundStyle(.secondary)
+            .symbolEffect(.variableColor.iterative.reversing, options: .repeating)
+            .accessibilityLabel("Thinking")
     }
 }

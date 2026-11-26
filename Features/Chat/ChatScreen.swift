@@ -105,13 +105,13 @@ private struct ChatContent: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Spacer()
-            ARLogoMark(size: 56).foregroundStyle(ARColor.foreground)
+            ARLogoMark(size: 56)
             // A hidden gem: tapping the greeting swaps the line below for a tip. Not announced as a button.
             Button { tip = HomeTips.next(after: tip ?? subtitle) } label: {
                 Text(HomeLogic.greeting)
-                    .font(.system(size: 32, weight: .bold))
+                    .font(.largeTitle.bold())
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(ARColor.foreground)
+                    .foregroundStyle(.primary)
             }
             .buttonStyle(.plain)
             .accessibilityHint("Shows a tip")
@@ -119,7 +119,7 @@ private struct ChatContent: View {
             HStack(spacing: 6) {
                 if tip == nil, let model = chat.model { ModelLogo(brand: ModelBrand.resolve(model), size: 15) }
                 Text(tip ?? subtitle)
-                    .font(.arSM)
+                    .font(.subheadline)
                     .multilineTextAlignment(.center)
             }
             .foregroundStyle(.secondary)
@@ -208,5 +208,4 @@ private struct ChatContent: View {
         .environment(state.models)
         .environment(state)
         .modelContainer(container)
-        .background(ARColor.background)
 }

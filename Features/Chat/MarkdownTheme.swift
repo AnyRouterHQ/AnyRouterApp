@@ -3,20 +3,31 @@ import SwiftUI
 import UIKit
 
 extension Theme {
-    /// Markdown look in AnyRouter colors.
-    @MainActor static let anyRouter: Theme = {
+    /// Markdown look in system colors. `size` is the body size at the current Dynamic Type setting
+    /// (MarkdownUI takes points, so the view passes a scaled value); themes are cached per size.
+    @MainActor static func anyRouter(size: CGFloat) -> Theme {
+        let key = Int(size.rounded())
+        if let cached = themes[key] { return cached }
+        let theme = make(size: CGFloat(key))
+        themes[key] = theme
+        return theme
+    }
+
+    @MainActor private static var themes: [Int: Theme] = [:]
+
+    @MainActor private static func make(size: CGFloat) -> Theme {
         Theme()
             .text {
-                ForegroundColor(ARColor.foreground)
-                FontSize(16)
+                ForegroundColor(.primary)
+                FontSize(size)
             }
             .code {
                 FontFamilyVariant(.monospaced)
                 FontSize(.em(0.88))
-                BackgroundColor(ARColor.muted)
+                BackgroundColor(Color(.secondarySystemFill))
             }
             .strong { FontWeight(.semibold) }
-            .link { ForegroundColor(ARColor.accent) }
+            .link { ForegroundColor(.accentColor) }
             .heading1 { configuration in
                 configuration.label
                     .markdownMargin(top: 20, bottom: 12)
@@ -45,9 +56,9 @@ extension Theme {
                 configuration.label
                     .padding(.leading, 12)
                     .overlay(alignment: .leading) {
-                        Rectangle().fill(ARColor.border).frame(width: 3)
+                        Color(.separator).frame(width: 3)
                     }
-                    .markdownTextStyle { ForegroundColor(ARColor.mutedForeground) }
+                    .markdownTextStyle { ForegroundColor(.secondary) }
                     .markdownMargin(top: 0, bottom: 12)
             }
             .codeBlock { configuration in
@@ -57,10 +68,10 @@ extension Theme {
             .table { configuration in
                 configuration.label
                     .fixedSize(horizontal: false, vertical: true)
-                    .markdownTableBorderStyle(.init(color: ARColor.border))
+                    .markdownTableBorderStyle(.init(color: Color(.separator)))
                     .markdownMargin(top: 0, bottom: 12)
             }
-    }()
+    }
 }
 
 /// Fenced code block with a language label and a copy button.
@@ -69,28 +80,23 @@ struct CodeBlockView: View {
     let content: String
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text((language?.isEmpty == false ? language : nil) ?? "code")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(ARColor.mutedForeground)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
                 Spacer()
                 CopyButton(text: content, showsLabel: true)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(ARColor.secondary)
+            .padding(.leading, 12)
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(content.trimmingCharacters(in: .newlines))
-                    .font(.system(size: 13, design: .monospaced))
-                    .foregroundStyle(ARColor.foreground)
+                    .font(.system(.callout, design: .monospaced))
                     .padding(12)
                     .textSelection(.enabled)
             }
         }
-        .background(ARColor.muted.opacity(0.6))
-        .clipShape(RoundedRectangle(cornerRadius: ARTheme.radius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: ARTheme.radius, style: .continuous).strokeBorder(ARColor.border, lineWidth: 1))
+        .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: ARTheme.radius))
     }
 }
 
@@ -110,15 +116,21 @@ struct CopyButton: View {
                 copied = false
             }
         } label: {
-            HStack(spacing: 4) {
-                Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                if showsLabel { Text(copied ? "Copied" : "Copy") }
+            if showsLabel {
+                Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+                    .labelStyle(.titleAndIcon)
+                    .font(.footnote)
+            } else {
+                Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+                    .labelStyle(.iconOnly)
+                    .font(.footnote)
             }
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(ARColor.mutedForeground)
-            .frame(minWidth: 28, minHeight: 28)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        // The HIG minimum hit area; a borderless button is only as big as its content.
+        .frame(minWidth: 44, minHeight: 44)
+        .sensoryFeedback(.success, trigger: copied) { _, now in now }
         .accessibilityLabel("Copy")
     }
 }

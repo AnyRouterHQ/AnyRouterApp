@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Empty-chat starters as one scrolling row of chips just above the composer, plus Shuffle.
+/// Empty-chat starters as one scrolling row of buttons just above the composer, plus Shuffle.
 /// Tap fills the composer; long-press offers "Send now". Categories live in the presets sheet.
 struct PresetSuggestions: View {
     let store: PresetStore
@@ -18,14 +18,11 @@ struct PresetSuggestions: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 Button { salt &+= 1 } label: {
-                    Image(systemName: "shuffle")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 40, height: 52)
-                        .background(ARColor.card.opacity(0.7), in: Capsule())
-                        .overlay(Capsule().strokeBorder(ARColor.border, lineWidth: 1))
+                    Label("Shuffle presets", systemImage: "shuffle").labelStyle(.iconOnly)
                 }
-                .accessibilityLabel("Shuffle presets")
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.circle)
+                .controlSize(.large)
                 ForEach(items) { chip($0) }
             }
             .padding(.horizontal, ARTheme.pagePadding)
@@ -33,63 +30,24 @@ struct PresetSuggestions: View {
     }
 
     private func chip(_ preset: PromptPreset) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(preset.title).font(.arSM.weight(.semibold)).foregroundStyle(ARColor.foreground).lineLimit(1)
-            Text(preset.prompt).font(.arXS).foregroundStyle(.secondary).lineLimit(1)
+        Button { onPick(preset) } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(preset.title).font(.subheadline.weight(.semibold)).lineLimit(1)
+                Text(preset.prompt).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .frame(width: 190, alignment: .leading)
         }
-        .frame(width: 190, alignment: .leading)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(ARColor.card.opacity(0.7), in: RoundedRectangle(cornerRadius: ARTheme.radiusLarge, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: ARTheme.radiusLarge, style: .continuous).strokeBorder(ARColor.border, lineWidth: 1))
-        .contentShape(Rectangle())
-        .onTapGesture { onPick(preset) }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.roundedRectangle(radius: ARTheme.radiusLarge))
+        .controlSize(.large)
         .contextMenu {
             Button("Send now", systemImage: "arrow.up.circle") { onSend(preset) }
             Button("Edit in composer", systemImage: "square.and.pencil") { onPick(preset) }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
     }
 }
 
-struct PresetCard: View {
-    let preset: PromptPreset
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: preset.symbol)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(ARColor.mutedForeground)
-            Text(preset.title).font(.arSM.weight(.medium)).foregroundStyle(ARColor.foreground).lineLimit(1)
-            Text(preset.prompt).font(.arXS).foregroundStyle(ARColor.mutedForeground).lineLimit(2)
-        }
-        .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)
-        .padding(12)
-        .arCard(radius: ARTheme.radiusLarge)
-        .contentShape(Rectangle())
-    }
-}
-
-private struct CategoryChip: View {
-    let title: String
-    let selected: Bool
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.arSM)
-                .foregroundStyle(selected ? ARColor.primaryForeground : ARColor.foreground)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(selected ? ARColor.primary : ARColor.input.opacity(0.5), in: Capsule())
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-/// All presets with search and categories, opened from the composer's sparkles button.
+/// All presets with search and a category filter, opened from the composer's sparkles button.
 struct PresetSheet: View {
     let store: PresetStore
     var onPick: (PromptPreset) -> Void
@@ -102,90 +60,88 @@ struct PresetSheet: View {
     private var results: [PromptPreset] { PresetLogic.filter(store.all, category: category, query: query) }
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("Presets").font(.arXL).foregroundStyle(ARColor.foreground)
-                Spacer()
-                Button("Done") { dismiss() }
-            }
-            ARSearchField(text: $query, prompt: "Search presets")
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    CategoryChip(title: "All", selected: category == nil) { category = nil }
-                    ForEach(PromptPreset.Category.allCases) { value in
-                        CategoryChip(title: value.title, selected: category == value) { category = value }
+        NavigationStack {
+            List(results) { preset in
+                Button { onPick(preset); dismiss() } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label(preset.title, systemImage: preset.symbol).font(.headline)
+                        Text(preset.prompt).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                     }
                 }
+                .foregroundStyle(.primary)
+                .contextMenu {
+                    Button("Send now", systemImage: "arrow.up.circle") { onSend(preset); dismiss() }
+                }
             }
-            ScrollView {
-                LazyVStack(spacing: 10) {
-                    ForEach(results) { preset in
-                        PresetCard(preset: preset)
-                            .onTapGesture { onPick(preset); dismiss() }
-                            .contextMenu {
-                                Button("Send now", systemImage: "arrow.up.circle") { onSend(preset); dismiss() }
+            .overlay {
+                if results.isEmpty { ContentUnavailableView("No presets match", systemImage: "magnifyingglass") }
+            }
+            .navigationTitle("Presets")
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $query, prompt: "Search presets")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Picker("Category", selection: $category) {
+                            Text("All").tag(PromptPreset.Category?.none)
+                            ForEach(PromptPreset.Category.allCases) { value in
+                                Text(value.title).tag(PromptPreset.Category?.some(value))
                             }
-                            .accessibilityAddTraits(.isButton)
-                    }
-                    if results.isEmpty {
-                        Text("No presets match.").font(.arSM).foregroundStyle(ARColor.mutedForeground).padding(.top, 24)
+                        }
+                    } label: {
+                        Label("Category", systemImage: "line.3.horizontal.decrease")
                     }
                 }
             }
         }
-        .padding(ARTheme.pagePadding)
+        .presentationDetents([.medium, .large])
     }
 }
 
-/// Settings: add, edit and delete your own presets; hide or restore built-ins.
+/// Settings page: add, edit and delete your own presets; hide or restore built-ins.
 struct PresetsSettingsSheet: View {
     let store: PresetStore
-    @Environment(\.dismiss) private var dismiss
     @State private var editing: PromptPreset?
     @State private var creating = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 20) {
-                    if let error = store.saveError { ErrorBanner(text: error) {} }
-                    SettingsGroup("Your presets") {
-                        if store.custom.isEmpty { SettingsText("Presets you add appear first in the chat.") }
-                        ForEach(store.custom) { preset in
-                            HStack {
-                                Button { editing = preset } label: {
-                                    Label(preset.title, systemImage: preset.symbol)
-                                        .font(.arBase).foregroundStyle(ARColor.foreground)
-                                }
-                                Spacer()
-                                Button(role: .destructive) { store.delete(id: preset.id) } label: {
-                                    Image(systemName: "trash")
-                                }
-                                .accessibilityLabel("Delete \(preset.title)")
+        Form {
+            if let error = store.saveError {
+                Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
+            }
+            Section {
+                ForEach(store.custom) { preset in
+                    Button { editing = preset } label: { Label(preset.title, systemImage: preset.symbol) }
+                        .foregroundStyle(.primary)
+                        .swipeActions {
+                            Button(role: .destructive) { store.delete(id: preset.id) } label: {
+                                Label("Delete", systemImage: "trash")
                             }
                         }
-                        Button("Add preset") { creating = true }.buttonStyle(.arSecondary)
-                    }
-                    SettingsGroup("Built-in presets") {
-                        ForEach(store.builtIns) { preset in
-                            Toggle(isOn: Binding(
-                                get: { !store.hiddenBuiltIns.contains(preset.id) },
-                                set: { store.setBuiltInHidden(preset.id, hidden: !$0) }
-                            )) {
-                                Label(preset.title, systemImage: preset.symbol).font(.arBase).foregroundStyle(ARColor.foreground)
-                            }
-                        }
-                        if store.hasHiddenBuiltIns {
-                            Button("Show all built-ins") { store.resetBuiltIns() }.buttonStyle(.arSecondary)
-                        }
+                }
+                Button("Add preset", systemImage: "plus") { creating = true }
+            } header: {
+                Text("Your presets")
+            } footer: {
+                if store.custom.isEmpty { Text("Presets you add appear first in the chat.") }
+            }
+            Section("Built-in presets") {
+                ForEach(store.builtIns) { preset in
+                    Toggle(isOn: Binding(
+                        get: { !store.hiddenBuiltIns.contains(preset.id) },
+                        set: { store.setBuiltInHidden(preset.id, hidden: !$0) }
+                    )) {
+                        Label(preset.title, systemImage: preset.symbol)
                     }
                 }
-                .frame(maxWidth: ARTheme.contentMaxWidth)
-                .padding(.horizontal, ARTheme.pagePadding)
-                .padding(.bottom, 32)
-                .frame(maxWidth: .infinity)
+                if store.hasHiddenBuiltIns {
+                    Button("Show all built-ins") { store.resetBuiltIns() }
+                }
             }
         }
+        .navigationTitle("Presets")
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $creating) { PresetEditor(store: store, preset: nil) }
         .sheet(item: $editing) { PresetEditor(store: store, preset: $0) }
     }
@@ -205,26 +161,25 @@ private struct PresetEditor: View {
     }
 
     var body: some View {
-        VStack(spacing: 14) {
-            HStack {
-                Button("Cancel") { dismiss() }
-                Spacer()
-                Button("Save") { save() }.disabled(!canSave)
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Title", text: $title)
+                    Picker("Category", selection: $category) {
+                        ForEach(PromptPreset.Category.allCases) { Text($0.title).tag($0) }
+                    }
+                }
+                Section("Prompt") {
+                    TextField("Prompt", text: $prompt, axis: .vertical).lineLimit(4...12)
+                }
             }
-            TextField("Title", text: $title)
-                .padding(10)
-                .background(ARColor.input.opacity(0.5), in: RoundedRectangle(cornerRadius: ARTheme.radius, style: .continuous))
-            Picker("Category", selection: $category) {
-                ForEach(PromptPreset.Category.allCases) { Text($0.title).tag($0) }
+            .navigationTitle(preset == nil ? "New preset" : "Edit preset")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Save", role: .confirm) { save() }.disabled(!canSave) }
             }
-            .pickerStyle(.segmented)
-            TextField("Prompt", text: $prompt, axis: .vertical)
-                .lineLimit(4...12)
-                .padding(10)
-                .background(ARColor.input.opacity(0.5), in: RoundedRectangle(cornerRadius: ARTheme.radius, style: .continuous))
-            Spacer()
         }
-        .padding(ARTheme.pagePadding)
         .onAppear {
             guard let preset else { return }
             title = preset.title

@@ -17,11 +17,9 @@ struct ModelPill: View {
                 Image(systemName: "chevron.down").font(.caption2.weight(.semibold))
             }
             .foregroundStyle(.primary)
-            .padding(.horizontal, 14)
-            .frame(height: ARTheme.controlSize)
-            .arGlass(in: Capsule(), interactive: true)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
+        .controlSize(.large)
         .accessibilityLabel("Model")
         .accessibilityValue(model?.shortName ?? "")
     }

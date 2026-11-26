@@ -23,7 +23,7 @@ struct MemoryMenu: View {
                     Button("Unload model", role: .destructive) { Task { await monitor.unload() } }
                 } label: {
                     Image(systemName: "memorychip")
-                        .foregroundStyle(isLow ? Color.orange : ARColor.foreground)
+                        .foregroundStyle(isLow ? Color.red : Color.primary)
                 }
                 .accessibilityLabel("Model memory")
                 .accessibilityIdentifier("memory-menu")

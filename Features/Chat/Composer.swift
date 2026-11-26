@@ -48,10 +48,9 @@ struct Composer: View {
             HStack(alignment: .bottom, spacing: 8) {
                 plusMenu
                 HStack(alignment: .bottom, spacing: 6) {
-                    TextField("", text: $model.input, prompt: Text(hasModel ? "Ask anything" : "Choose a model to start")
-                        .foregroundStyle(ARColor.mutedForeground), axis: .vertical)
-                        .font(.arBase)
-                        .foregroundStyle(ARColor.foreground)
+                    TextField("", text: $model.input, prompt: Text(hasModel ? "Ask anything" : "Choose a model to start"),
+                              axis: .vertical)
+                        .font(.body)
                         .lineLimit(1...6)
                         .focused(focused)
                         .accessibilityIdentifier("composer.input")
@@ -68,8 +67,10 @@ struct Composer: View {
                 .padding(.leading, 14)
                 .padding(.trailing, 4)
                 .padding(.vertical, 4)
-                .arGlass(in: RoundedRectangle(cornerRadius: ARTheme.radiusXL, style: .continuous))
-                .contentShape(RoundedRectangle(cornerRadius: ARTheme.radiusXL, style: .continuous))
+                // A floating control over the list, so it takes glass directly (with the model pill, the only such place).
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: ARTheme.radiusXL))
+                .contentShape(.rect(cornerRadius: ARTheme.radiusXL))
+                // A tap anywhere on the field focuses it; the field is not a Button, so there is no stock control for this.
                 .onTapGesture { focused.wrappedValue = true }
             }
         }
@@ -145,12 +146,11 @@ struct Composer: View {
                 }
             }
         } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(ARColor.foreground)
-                .frame(width: 44, height: 44)
-                .arGlass(in: Circle(), interactive: true)
+            Label("Add", systemImage: "plus").labelStyle(.iconOnly)
         }
+        .buttonStyle(.glass)
+        .buttonBorderShape(.circle)
+        .controlSize(.large)
         .accessibilityLabel("Add")
     }
 
@@ -160,11 +160,12 @@ struct Composer: View {
             actionButton
         } else if presets != nil {
             Button { showsPresets = true } label: {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(ARColor.mutedForeground)
-                    .frame(width: 36, height: 36)
+                Label("Presets", systemImage: "sparkles").labelStyle(.iconOnly).imageScale(.large)
             }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            // The HIG minimum hit area; a borderless button is only as big as its symbol.
+            .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("Presets")
         }
     }
@@ -173,40 +174,39 @@ struct Composer: View {
     private var actionButton: some View {
         if model.isStreaming {
             Button { model.stop() } label: {
-                Image(systemName: "stop.fill")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(ARColor.primaryForeground)
-                    .frame(width: 36, height: 36)
-                    .background(ARColor.primary, in: Circle())
+                Label("Stop", systemImage: "stop.fill").labelStyle(.iconOnly)
             }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
             .accessibilityLabel("Stop")
         } else {
             Button { model.send() } label: {
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(ARColor.primaryForeground)
-                    .frame(width: 36, height: 36)
-                    .background(ARColor.primary.opacity(model.canSend ? 1 : 0.3), in: Circle())
+                Label("Send", systemImage: "arrow.up").labelStyle(.iconOnly)
             }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
             .disabled(!model.canSend)
             .accessibilityLabel("Send")
         }
     }
 }
 
+/// An error above the composer: a red label and the system close button.
 struct ErrorBanner: View {
     let text: String
     var onDismiss: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-            Text(text).font(.arSM).frame(maxWidth: .infinity, alignment: .leading)
-            Button(action: onDismiss) { Image(systemName: "xmark") }
-                .accessibilityLabel("Dismiss")
+            Label(text, systemImage: "exclamationmark.triangle.fill")
+                .font(.callout)
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(role: .close, action: onDismiss)
         }
-        .foregroundStyle(ARColor.destructive)
         .padding(12)
-        .background(ARColor.destructive.opacity(0.12), in: RoundedRectangle(cornerRadius: ARTheme.radius, style: .continuous))
+        .background(.red.opacity(0.12), in: .rect(cornerRadius: ARTheme.radius))
     }
 }
