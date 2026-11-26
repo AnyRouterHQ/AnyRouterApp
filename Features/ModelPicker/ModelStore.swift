@@ -17,6 +17,8 @@ final class ModelStore {
     private(set) var hasLoaded = false
     /// Wire ids, most used first. From the cache until a fresh fetch lands; empty offline on first launch.
     private(set) var usageOrder: [String] = []
+    /// Wire id to place in the usage order (0 is most used). Kept in step with `usageOrder`.
+    private(set) var usageRank: [String: Int] = [:]
     private var selectedID: String?
     @ObservationIgnored private let usageSource: (any UsageOrderSource)?
     @ObservationIgnored private let usageCache: UsageOrderCache
@@ -30,7 +32,9 @@ final class ModelStore {
         self.telemetry = telemetry
         self.usageSource = usage
         self.usageCache = UsageOrderCache(defaults: defaults)
-        self.usageOrder = usageCache.load()
+        let cached = usageCache.load()
+        self.usageOrder = cached
+        self.usageRank = Self.rank(of: cached)
         self.selectedID = defaults.string(forKey: Self.selectedKey)
         Perf.beginModels()
     }
@@ -68,9 +72,8 @@ final class ModelStore {
         await refreshUsageOrder()
     }
 
-    /// Wire id to place in the usage order (0 is most used).
-    var usageRank: [String: Int] {
-        Dictionary(usageOrder.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+    private static func rank(of ids: [String]) -> [String: Int] {
+        Dictionary(ids.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     /// Fetches the usage order at most every 6 hours. A failure keeps the cached order.
@@ -79,6 +82,7 @@ final class ModelStore {
         guard let ids = try? await usageSource.fetchUsageOrder(), !ids.isEmpty else { return }
         usageCache.save(ids, at: now)
         usageOrder = ids
+        usageRank = Self.rank(of: ids)
     }
 
     /// Remembers the pick as the default for new chats.

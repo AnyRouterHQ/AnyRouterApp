@@ -47,6 +47,8 @@ struct ModelPickerSheet: View {
 
     @State private var tab: PickerTab
     @State private var query = ""
+    /// `query` after a short pause, so a long list is not rebuilt on every keystroke.
+    @State private var debouncedQuery = ""
     @State private var sort: PickerSort = .topUsage
     @State private var signInError: String?
     @State private var keyExplainer: ModelDescriptor?
@@ -71,15 +73,34 @@ struct ModelPickerSheet: View {
         _tab = State(initialValue: currentID?.hasPrefix("anyrouter/") == true ? .anyrouter : .local)
     }
 
+    /// What the current tab shows. Built once per body, not once per subview that needs it.
+    private struct Shown {
+        var local: [ModelDescriptor] = []
+        var cloud = CloudList(topPicks: [], rest: [])
+    }
+
+    private var shown: Shown {
+        switch tab {
+        case .local: Shown(local: localModels)
+        case .anyrouter: app.account.state.isSignedIn ? Shown(cloud: cloudList) : Shown()
+        }
+    }
+
     var body: some View {
-        NavigationStack {
+        let shown = shown
+        return NavigationStack {
             List {
                 switch tab {
-                case .local: localRows
-                case .anyrouter: cloudRows
+                case .local: localRows(shown.local)
+                case .anyrouter: cloudRows(shown.cloud)
                 }
             }
-            .overlay { stateOverlay }
+            .overlay { stateOverlay(shown) }
+            .task(id: query) {
+                if query.isEmpty { debouncedQuery = ""; return }
+                try? await Task.sleep(for: .milliseconds(150))
+                if !Task.isCancelled { debouncedQuery = query }
+            }
             .navigationTitle("Model")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $query, prompt: "Search models")
@@ -152,7 +173,7 @@ struct ModelPickerSheet: View {
     // MARK: - Local tab
 
     private var localModels: [ModelDescriptor] {
-        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let needle = debouncedQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         let local = models.models.filter { model in
             switch model.source {
             case .apple: return true
@@ -169,9 +190,9 @@ struct ModelPickerSheet: View {
     }
 
     @ViewBuilder
-    private var localRows: some View {
+    private func localRows(_ list: [ModelDescriptor]) -> some View {
         Section("Downloaded") {
-            ForEach(localModels) { model in
+            ForEach(list) { model in
                 modelButton(model, fitBadge: fitBadge(for: model))
             }
         }
@@ -195,31 +216,28 @@ struct ModelPickerSheet: View {
 
     private var cloudList: CloudList {
         CloudListLogic.arrange(
-            models: models.models, query: query, sort: sort, usageRank: models.usageRank,
+            models: models.models, query: debouncedQuery, sort: sort, usageRank: models.usageRank,
             showUnusable: app.account.state.isSignedIn,
             picks: TopPicks.compose(config: picksConfig, models: models.models, usageRank: models.usageRank),
             filter: cloudFilter)
     }
 
     @ViewBuilder
-    private var cloudRows: some View {
-        if app.account.state.isSignedIn {
-            let list = cloudList
-            if !list.topPicks.isEmpty {
-                Section("Top picks") { ForEach(list.topPicks) { modelButton($0) } }
-            }
-            if !list.rest.isEmpty {
-                Section {
-                    ForEach(list.rest) { modelButton($0) }
-                } header: {
-                    if !list.topPicks.isEmpty { Text("All models") }
-                }
+    private func cloudRows(_ list: CloudList) -> some View {
+        if !list.topPicks.isEmpty {
+            Section("Top picks") { ForEach(list.topPicks) { modelButton($0) } }
+        }
+        if !list.rest.isEmpty {
+            Section {
+                ForEach(list.rest) { modelButton($0) }
+            } header: {
+                if !list.topPicks.isEmpty { Text("All models") }
             }
         }
     }
 
     @ViewBuilder
-    private var stateOverlay: some View {
+    private func stateOverlay(_ shown: Shown) -> some View {
         if tab == .anyrouter {
             switch app.account.state {
             case .signedOut:
@@ -234,15 +252,15 @@ struct ModelPickerSheet: View {
             case .signingIn:
                 ProgressView("Signing in…")
             case .signedIn:
-                if cloudList.isEmpty {
-                    if query.isEmpty && !cloudFilter.isActive {
+                if shown.cloud.isEmpty {
+                    if debouncedQuery.isEmpty && !cloudFilter.isActive {
                         ContentUnavailableView("No cloud models", systemImage: "cloud")
                     } else {
                         noMatches(clear: { cloudFilter = ModelFilter() }, isFiltered: cloudFilter.isActive)
                     }
                 }
             }
-        } else if localModels.isEmpty, !query.isEmpty || localFilter.isActive {
+        } else if shown.local.isEmpty, !debouncedQuery.isEmpty || localFilter.isActive {
             noMatches(clear: { localFilter = LocalFilter() }, isFiltered: localFilter.isActive)
         }
     }
@@ -250,7 +268,7 @@ struct ModelPickerSheet: View {
     /// Nothing matches the search or the filters. Filters can be cleared right here.
     private func noMatches(clear: @escaping () -> Void, isFiltered: Bool) -> some View {
         ContentUnavailableView {
-            Label(query.isEmpty ? "No matching models" : "No results for “\(query)”", systemImage: "magnifyingglass")
+            Label(debouncedQuery.isEmpty ? "No matching models" : "No results for “\(debouncedQuery)”", systemImage: "magnifyingglass")
         } description: {
             Text(isFiltered ? "Try a different search or clear the filters." : "Check the spelling or try a new search.")
         } actions: {
