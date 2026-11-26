@@ -12,17 +12,3 @@ struct ARLogoMark: View {
             .frame(width: size, height: size)
     }
 }
-
-/// Muted section caption ("Installed Models", "Pinned").
-struct ARSectionTitle: View {
-    let text: String
-
-    init(_ text: String) { self.text = text }
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(ARColor.mutedForeground)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}

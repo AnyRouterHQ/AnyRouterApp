@@ -8,11 +8,3 @@ enum ARTheme {
     static let pagePadding: CGFloat = 16
     static let contentMaxWidth: CGFloat = 768
 }
-
-extension View {
-    /// Bordered rounded surface used for cards (card).
-    func arCard(fill: Color = ARColor.card, radius: CGFloat = ARTheme.radiusLarge) -> some View {
-        background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(ARColor.border, lineWidth: 1))
-    }
-}
