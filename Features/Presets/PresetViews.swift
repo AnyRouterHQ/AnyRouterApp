@@ -1,61 +1,55 @@
 import SwiftUI
 
-/// Empty-chat starters: category chips, a scrolling row (iPhone) or two-column grid (iPad), and Shuffle.
-/// Tap fills the composer; long-press offers "Send now".
+/// Empty-chat starters as one scrolling row of chips just above the composer, plus Shuffle.
+/// Tap fills the composer; long-press offers "Send now". Categories live in the presets sheet.
 struct PresetSuggestions: View {
     let store: PresetStore
     var onPick: (PromptPreset) -> Void
     var onSend: (PromptPreset) -> Void
 
-    @Environment(\.horizontalSizeClass) private var sizeClass
-    @State private var category: PromptPreset.Category?
     @State private var salt: UInt64 = 0
 
     private var items: [PromptPreset] {
-        PresetLogic.featured(store.all, customIDs: store.customIDs, category: category,
+        PresetLogic.featured(store.all, customIDs: store.customIDs, category: nil,
                              seed: PresetLogic.daySeed(for: .now) &+ salt, limit: 8)
     }
 
     var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 8) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        CategoryChip(title: "All", selected: category == nil) { category = nil }
-                        ForEach(PromptPreset.Category.allCases) { value in
-                            CategoryChip(title: value.title, selected: category == value) { category = value }
-                        }
-                    }
-                }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
                 Button { salt &+= 1 } label: {
-                    Label("Shuffle", systemImage: "shuffle").font(.arSM)
+                    Image(systemName: "shuffle")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(ARHomePalette.secondaryText)
+                        .frame(width: 40, height: 52)
+                        .background(ARColor.card.opacity(0.7), in: Capsule())
+                        .overlay(Capsule().strokeBorder(ARColor.border, lineWidth: 1))
                 }
-                .foregroundStyle(ARColor.mutedForeground)
+                .accessibilityLabel("Shuffle presets")
+                ForEach(items) { chip(\$0) }
             }
-            if sizeClass == .regular {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                    ForEach(items) { card($0) }
-                }
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(items) { card($0).frame(width: 220) }
-                    }
-                }
-            }
+            .padding(.horizontal, ARTheme.pagePadding)
         }
-        .frame(maxWidth: ARTheme.contentMaxWidth)
-        .padding(.horizontal, ARTheme.pagePadding)
     }
 
-    private func card(_ preset: PromptPreset) -> some View {
-        PresetCard(preset: preset)
-            .onTapGesture { onPick(preset) }
-            .contextMenu {
-                Button("Send now", systemImage: "arrow.up.circle") { onSend(preset) }
-                Button("Edit in composer", systemImage: "square.and.pencil") { onPick(preset) }
-            }
-            .accessibilityAddTraits(.isButton)
+    private func chip(_ preset: PromptPreset) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(preset.title).font(.arSM.weight(.semibold)).foregroundStyle(ARColor.foreground).lineLimit(1)
+            Text(preset.prompt).font(.arXS).foregroundStyle(ARHomePalette.secondaryText).lineLimit(1)
+        }
+        .frame(width: 190, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(ARColor.card.opacity(0.7), in: RoundedRectangle(cornerRadius: ARTheme.radiusLarge, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: ARTheme.radiusLarge, style: .continuous).strokeBorder(ARColor.border, lineWidth: 1))
+        .contentShape(Rectangle())
+        .onTapGesture { onPick(preset) }
+        .contextMenu {
+            Button("Send now", systemImage: "arrow.up.circle") { onSend(preset) }
+            Button("Edit in composer", systemImage: "square.and.pencil") { onPick(preset) }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
     }
 }
 
