@@ -37,7 +37,7 @@ AnyRouter is a native SwiftUI chat app. You can chat with models that run on you
 
 ## Get the app
 
-TestFlight: coming soon.
+TestFlight. Setup and install steps are in [docs/testflight.md](./docs/testflight.md).
 
 ## Build from source
 
@@ -61,10 +61,6 @@ Planned, not built yet:
 - Image attachments (vision models)
 - Syntax highlighting in code blocks
 - A native Mac version
-
-## Install via TestFlight
-
-TestFlight setup and install steps are in [docs/testflight.md](./docs/testflight.md).
 
 ## Contributing
 

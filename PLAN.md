@@ -166,7 +166,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 
 ## Status log
 
-- 2026-11-26 lane-docs: rewrite README for users; contributor detail already in AGENTS.md (#PR); local checks skipped
+- 2026-11-26 lane-docs: rewrite README for users; contributor detail already in AGENTS.md (#17); local checks skipped
 
 - 2026-11-26 manager: lanes A-D done (#1-#14), backlog F1-F8 added, lane E started (workflow gated on signing secrets).
 
