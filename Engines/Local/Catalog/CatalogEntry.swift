@@ -82,6 +82,15 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
     var createdAt: String?
     var updatedAt: String?
     var memory: CatalogMemory?
+    /// The family this size belongs to. Nil for a repo the user added.
+    var familyID: String?
+    var familyName: String?
+    var publisher: String?
+    var website: String?
+    /// A deprecated entry is hidden from browsing and recommendations. It stays here so an installed copy keeps working.
+    var status: CatalogStatus
+    /// The family that replaces this one, when it is deprecated.
+    var replacedBy: String?
 
     /// Matches `ModelDescriptor.id`: `gguf/<repo>/<file>` or `mlx/<repo>`.
     var id: String {
@@ -100,7 +109,8 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         badges: [CatalogBadge] = [], supportsThinking: Bool = false, vision: CatalogVision? = nil,
         isOnboarding: Bool = false, platforms: [String]? = nil, recommended: Bool = false,
         minRAMBytes: Int64? = nil, createdAt: String? = nil, updatedAt: String? = nil,
-        memory: CatalogMemory? = nil
+        memory: CatalogMemory? = nil, familyID: String? = nil, familyName: String? = nil, publisher: String? = nil,
+        website: String? = nil, status: CatalogStatus = .current, replacedBy: String? = nil
     ) {
         self.repo = repo
         self.format = format
@@ -128,6 +138,12 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.memory = memory
+        self.familyID = familyID
+        self.familyName = familyName
+        self.publisher = publisher
+        self.website = website
+        self.status = status
+        self.replacedBy = replacedBy
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -135,6 +151,7 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         case contextLength, license, revision, capabilities, order
         case sha256, iconKey, badges, supportsThinking, vision, isOnboarding, platforms, recommended
         case minRAMBytes, createdAt, updatedAt, memory
+        case familyID, familyName, publisher, website, status, replacedBy
     }
 
     init(from decoder: Decoder) throws {
@@ -171,7 +188,13 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
             minRAMBytes: try c.decodeIfPresent(Int64.self, forKey: .minRAMBytes),
             createdAt: try c.decodeIfPresent(String.self, forKey: .createdAt),
             updatedAt: try c.decodeIfPresent(String.self, forKey: .updatedAt),
-            memory: try c.decodeIfPresent(CatalogMemory.self, forKey: .memory)
+            memory: try c.decodeIfPresent(CatalogMemory.self, forKey: .memory),
+            familyID: try c.decodeIfPresent(String.self, forKey: .familyID),
+            familyName: try c.decodeIfPresent(String.self, forKey: .familyName),
+            publisher: try c.decodeIfPresent(String.self, forKey: .publisher),
+            website: try c.decodeIfPresent(String.self, forKey: .website),
+            status: try c.decodeIfPresent(CatalogStatus.self, forKey: .status) ?? .current,
+            replacedBy: try c.decodeIfPresent(String.self, forKey: .replacedBy)
         )
     }
 
@@ -202,6 +225,12 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         try c.encodeIfPresent(createdAt, forKey: .createdAt)
         try c.encodeIfPresent(updatedAt, forKey: .updatedAt)
         try c.encodeIfPresent(memory, forKey: .memory)
+        try c.encodeIfPresent(familyID, forKey: .familyID)
+        try c.encodeIfPresent(familyName, forKey: .familyName)
+        try c.encodeIfPresent(publisher, forKey: .publisher)
+        try c.encodeIfPresent(website, forKey: .website)
+        if status != .current { try c.encode(status, forKey: .status) }
+        try c.encodeIfPresent(replacedBy, forKey: .replacedBy)
     }
 
     /// What the fit check needs. Uses the catalog's memory facts when present, else a guess from the file size.
@@ -220,25 +249,6 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
     var isAvailableOnThisPlatform: Bool {
         guard let platforms else { return true }
         return platforms.contains { ["ios", "ipados"].contains($0.lowercased()) }
-    }
-}
-
-/// The JSON shape of `catalog.json` and of a remote catalog.
-struct CatalogDocument: Codable, Sendable {
-    static let supportedSchemaVersion = 1
-
-    var schemaVersion: Int
-    var updatedAt: String?
-    var models: [CatalogEntry]
-
-    static func decode(_ data: Data) throws -> CatalogDocument {
-        // Read the version first so a newer schema reports its version, not a decoding error.
-        struct Header: Decodable { var schemaVersion: Int }
-        let header = try JSONDecoder().decode(Header.self, from: data)
-        guard header.schemaVersion <= supportedSchemaVersion else {
-            throw LocalModelError.unsupportedCatalogVersion(header.schemaVersion)
-        }
-        return try JSONDecoder().decode(CatalogDocument.self, from: data)
     }
 }
 

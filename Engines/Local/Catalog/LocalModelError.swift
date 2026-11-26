@@ -26,7 +26,7 @@ enum LocalModelError: Error, LocalizedError, Equatable {
             "Not enough free space: needs \(needed / 1_000_000) MB, \(free / 1_000_000) MB free."
         case .checksumMismatch(let path): "Checksum mismatch for \(path). Download it again."
         case .sizeMismatch(let path): "Size mismatch for \(path). Download it again."
-        case .unsupportedCatalogVersion(let version): "Catalog schema version \(version) is newer than this app supports."
+        case .unsupportedCatalogVersion(let version): "Catalog schema version \(version) is not supported by this app."
         }
     }
 }

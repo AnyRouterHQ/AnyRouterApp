@@ -40,30 +40,38 @@ struct CatalogTests {
         #expect(sampleMLX(repo: "org/m-4bit").id == "mlx/org/m-4bit")
     }
 
-    @Test func decodeRejectsANewerSchemaWithItsVersion() {
-        let json = #"{"schemaVersion": 99, "models": [{"unknown": true}]}"#
+    private func catalogJSON(_ variants: String, family: String = "") -> String {
+        #"{"schemaVersion":2,"families":[{"id":"f","name":"F","publisher":"P"\#(family),"variants":[\#(variants)]}]}"#
+    }
+
+    @Test func decodeRejectsAnUnsupportedSchemaWithItsVersion() {
+        let json = #"{"schemaVersion": 99, "families": [{"unknown": true}]}"#
         #expect(throws: LocalModelError.unsupportedCatalogVersion(99)) {
             try CatalogDocument.decode(Data(json.utf8))
+        }
+        let flat = #"{"schemaVersion": 1, "models": []}"#
+        #expect(throws: LocalModelError.unsupportedCatalogVersion(1)) {
+            try CatalogDocument.decode(Data(flat.utf8))
         }
     }
 
     @Test func decodeRejectsUnsafeRepoAndMissingGGUFFile() {
-        let badRepo = #"{"schemaVersion":1,"models":[{"repo":"../etc/passwd","format":"mlx","title":"x"}]}"#
+        let badRepo = catalogJSON(#"{"repo":"../etc/passwd","engine":"mlx","params":"1B","sizeBytes":1}"#)
         #expect(throws: LocalModelError.invalidRepo("../etc/passwd")) {
             try CatalogDocument.decode(Data(badRepo.utf8))
         }
-        let noFile = #"{"schemaVersion":1,"models":[{"repo":"org/m","format":"gguf","title":"x"}]}"#
+        let noFile = catalogJSON(#"{"repo":"org/m","engine":"gguf","params":"1B","sizeBytes":1}"#)
         #expect(throws: LocalModelError.invalidFilePath("(missing)")) {
             try CatalogDocument.decode(Data(noFile.utf8))
         }
-        let traversal = #"{"schemaVersion":1,"models":[{"repo":"org/m","format":"gguf","file":"../x.gguf","title":"x"}]}"#
+        let traversal = catalogJSON(#"{"repo":"org/m","engine":"gguf","file":"../x.gguf","params":"1B","sizeBytes":1}"#)
         #expect(throws: LocalModelError.invalidFilePath("../x.gguf")) {
             try CatalogDocument.decode(Data(traversal.utf8))
         }
     }
 
-    @Test func minimalEntryGetsChatCapabilityAndRoundTrips() throws {
-        let json = #"{"schemaVersion":1,"models":[{"repo":"org/m","format":"mlx","title":"M"}]}"#
+    @Test func minimalVariantGetsChatCapabilityAndRoundTrips() throws {
+        let json = catalogJSON(#"{"repo":"org/m","engine":"mlx","params":"1B","sizeBytes":1}"#)
         let entry = try #require(try CatalogDocument.decode(Data(json.utf8)).models.first)
         #expect(entry.capabilities == ["chat"])
         let back = try JSONDecoder().decode(CatalogEntry.self, from: JSONEncoder().encode(entry))
@@ -148,11 +156,11 @@ struct CatalogSettingsTests {
 
 struct CatalogServiceTests {
     private func document(_ models: [CatalogEntry]) -> CatalogDocument {
-        CatalogDocument(schemaVersion: 1, updatedAt: nil, models: models)
+        CatalogDocument(schemaVersion: 2, updatedAt: nil, models: models)
     }
 
     private func remoteJSON(title: String) -> String {
-        #"{"schemaVersion":1,"models":[{"repo":"org/remote","format":"mlx","title":"\#(title)"}]}"#
+        #"{"schemaVersion":2,"families":[{"id":"remote","name":"\#(title)","publisher":"P","variants":[{"repo":"org/remote","engine":"mlx","params":"1B","sizeBytes":1}]}]}"#
     }
 
     @Test func entriesMergeBundledAndUserModels() async throws {
@@ -171,13 +179,13 @@ struct CatalogServiceTests {
         let url = URL(string: "https://example.org/catalog.json")!
         let settings = CatalogSettings(remoteCatalogURL: url)
         let service = CatalogService(
-            bundled: { CatalogDocument(schemaVersion: 1, updatedAt: nil, models: []) },
+            bundled: { CatalogDocument(schemaVersion: 2, updatedAt: nil, models: []) },
             api: HuggingFaceAPI(http: FakeHTTP(body: remoteJSON(title: "R"))),
             cacheDirectory: cache, settings: { settings })
         #expect(try await service.entries().isEmpty)
         #expect(try await service.refreshRemote())
         let entries = try await service.entries()
-        #expect(entries.map(\.title) == ["R"])
+        #expect(entries.map(\.title) == ["R 1B (MLX)"])
         #expect(entries.first?.origin == .remote)
     }
 
@@ -186,12 +194,12 @@ struct CatalogServiceTests {
         let url = URL(string: "https://example.org/catalog.json")!
         let withURL = CatalogSettings(remoteCatalogURL: url)
         let first = CatalogService(
-            bundled: { CatalogDocument(schemaVersion: 1, updatedAt: nil, models: []) },
+            bundled: { CatalogDocument(schemaVersion: 2, updatedAt: nil, models: []) },
             api: HuggingFaceAPI(http: FakeHTTP(body: remoteJSON(title: "R"))),
             cacheDirectory: cache, settings: { withURL })
         try await first.refreshRemote()
         let second = CatalogService(
-            bundled: { CatalogDocument(schemaVersion: 1, updatedAt: nil, models: []) },
+            bundled: { CatalogDocument(schemaVersion: 2, updatedAt: nil, models: []) },
             cacheDirectory: cache, settings: { CatalogSettings() })
         #expect(try await second.entries().isEmpty)
     }
@@ -200,7 +208,7 @@ struct CatalogServiceTests {
         let cache = makeTempDirectory()
         let url = URL(string: "https://example.org/catalog.json")!
         let settings = CatalogSettings(remoteCatalogURL: url)
-        let empty: @Sendable () -> CatalogDocument = { CatalogDocument(schemaVersion: 1, updatedAt: nil, models: []) }
+        let empty: @Sendable () -> CatalogDocument = { CatalogDocument(schemaVersion: 2, updatedAt: nil, models: []) }
         let good = CatalogService(
             bundled: empty, api: HuggingFaceAPI(http: FakeHTTP(body: remoteJSON(title: "good"))),
             cacheDirectory: cache, settings: { settings })
@@ -209,7 +217,7 @@ struct CatalogServiceTests {
             bundled: empty, api: HuggingFaceAPI(http: FakeHTTP(body: "not json")),
             cacheDirectory: cache, settings: { settings })
         await #expect(throws: (any Error).self) { try await bad.refreshRemote() }
-        #expect(try await bad.entries().map(\.title) == ["good"])
+        #expect(try await bad.entries().map(\.title) == ["good 1B (MLX)"])
         let newer = CatalogService(
             bundled: empty, api: HuggingFaceAPI(http: FakeHTTP(body: #"{"schemaVersion":7,"models":[]}"#)),
             cacheDirectory: cache, settings: { settings })
@@ -217,7 +225,7 @@ struct CatalogServiceTests {
     }
 
     @Test func httpErrorsAndPlainHTTPAreRefused() async {
-        let empty: @Sendable () -> CatalogDocument = { CatalogDocument(schemaVersion: 1, updatedAt: nil, models: []) }
+        let empty: @Sendable () -> CatalogDocument = { CatalogDocument(schemaVersion: 2, updatedAt: nil, models: []) }
         let https = CatalogSettings(remoteCatalogURL: URL(string: "https://example.org/c.json"))
         let failing = CatalogService(
             bundled: empty, api: HuggingFaceAPI(http: FakeHTTP(status: 500)),
@@ -254,12 +262,13 @@ private final class CatalogRecordingHTTP: HTTPFetching, @unchecked Sendable {
 }
 
 struct SharedCatalogTests {
-    private let empty: @Sendable () -> CatalogDocument = { CatalogDocument(schemaVersion: 1, updatedAt: nil, models: []) }
+    private let empty: @Sendable () -> CatalogDocument = { CatalogDocument(schemaVersion: 2, updatedAt: nil, models: []) }
 
-    private static func remoteJSON(_ models: String) -> String { #"{"schemaVersion":1,"models":[\#(models)]}"# }
+    private static func remoteJSON(_ families: String) -> String { #"{"schemaVersion":2,"families":[\#(families)]}"# }
 
+    /// A family called `title` with one MLX size of repo `repo`. Its entry is titled "<title> 1B (MLX)".
     private static func mlxJSON(repo: String, title: String, extra: String = "") -> String {
-        #"{"repo":"\#(repo)","format":"mlx","title":"\#(title)"\#(extra)}"#
+        #"{"id":"\#(repo.replacingOccurrences(of: "/", with: "-"))","name":"\#(title)","publisher":"P"\#(extra),"variants":[{"repo":"\#(repo)","engine":"mlx","params":"1B","sizeBytes":1}]}"#
     }
 
     @Test func theDefaultCatalogIsTheProductionFileOnGitHubAndTheSwitchSelectsTheDevFile() {
@@ -288,7 +297,7 @@ struct SharedCatalogTests {
             bundled: empty, api: HuggingFaceAPI(http: http), cacheDirectory: makeTempDirectory(), settings: { CatalogSettings() })
         #expect(try await service.refreshRemote())
         #expect(http.requests.map(\.url) == [CatalogSource.productionURL])
-        #expect(try await service.entries().map(\.title) == ["R"])
+        #expect(try await service.entries().map(\.title) == ["R 1B (MLX)"])
     }
 
     @Test func theDevelopmentSwitchFetchesAndCachesTheDevFileSeparately() async throws {
@@ -313,7 +322,7 @@ struct SharedCatalogTests {
         #expect(http.requests[0].value(forHTTPHeaderField: "If-None-Match") == nil)
         #expect(try await service.refreshRemote() == false, "304 means nothing changed")
         #expect(http.requests[1].value(forHTTPHeaderField: "If-None-Match") == "\"v1\"")
-        #expect(try await service.entries().map(\.title) == ["R"])
+        #expect(try await service.entries().map(\.title) == ["R 1B (MLX)"])
     }
 
     @Test func aNewETagReplacesTheCachedCopy() async throws {
@@ -328,7 +337,7 @@ struct SharedCatalogTests {
         try await service.refreshRemote()
         version.value = "v2"
         #expect(try await service.refreshRemote())
-        #expect(try await service.entries().map(\.title) == ["v2"])
+        #expect(try await service.entries().map(\.title) == ["v2 1B (MLX)"])
     }
 
     @Test func noETagIsSentWithoutACachedBody() async throws {
@@ -344,7 +353,7 @@ struct SharedCatalogTests {
     }
 
     @Test func remoteEntriesBeatBundledOnesAndUserEntriesAreAlwaysKept() async throws {
-        let bundled = CatalogDocument(schemaVersion: 1, updatedAt: nil, models: [
+        let bundled = CatalogDocument(schemaVersion: 2, updatedAt: nil, models: [
             sampleMLX(repo: "org/shared", order: 0, title: "Bundled"), sampleMLX(repo: "org/only-bundled", order: 1, title: "Old"),
         ])
         let http = CatalogRecordingHTTP { _ in (Self.remoteJSON(Self.mlxJSON(repo: "org/shared", title: "Remote", extra: #","order":0"#)), 200, [:]) }
@@ -354,14 +363,14 @@ struct SharedCatalogTests {
             settings: { CatalogSettings(userModels: [mine]) })
         try await service.refreshRemote()
         let entries = try await service.entries()
-        #expect(entries.first { $0.repo == "org/shared" }?.title == "Remote")
+        #expect(entries.first { $0.repo == "org/shared" }?.title == "Remote 1B (MLX)")
         #expect(entries.contains { $0.repo == "org/only-bundled" }, "a remote file that omits a bundled model does not remove it")
         #expect(entries.contains { $0.repo == "org/mine" && $0.origin == .user })
     }
 
     @Test func aBadRemoteFileIsIgnoredAndTheBundledCatalogStillLoads() async throws {
-        let bundled = CatalogDocument(schemaVersion: 1, updatedAt: nil, models: [sampleMLX(repo: "org/bundled", order: 0)])
-        for body in ["not json", #"{"schemaVersion":99,"models":[]}"#, #"{"schemaVersion":1,"models":[{"repo":"../x","format":"mlx","title":"x"}]}"#] {
+        let bundled = CatalogDocument(schemaVersion: 2, updatedAt: nil, models: [sampleMLX(repo: "org/bundled", order: 0)])
+        for body in ["not json", #"{"schemaVersion":99,"models":[]}"#, #"{"schemaVersion":2,"families":[{"id":"f","name":"F","publisher":"P","variants":[{"repo":"../x","engine":"mlx","params":"1B","sizeBytes":1}]}]}"#] {
             let http = CatalogRecordingHTTP { _ in (body, 200, [:]) }
             let service = CatalogService(
                 bundled: { bundled }, api: HuggingFaceAPI(http: http), cacheDirectory: makeTempDirectory(), settings: { CatalogSettings() })
@@ -371,7 +380,7 @@ struct SharedCatalogTests {
     }
 
     @Test func entriesForOtherPlatformsAreHidden() async throws {
-        let bundled = CatalogDocument(schemaVersion: 1, updatedAt: nil, models: [
+        let bundled = CatalogDocument(schemaVersion: 2, updatedAt: nil, models: [
             CatalogEntry(repo: "org/phone", format: .mlx, title: "Phone", platforms: ["ios"]),
             CatalogEntry(repo: "org/tablet", format: .mlx, title: "Tablet", platforms: ["ipados"]),
             CatalogEntry(repo: "org/mac", format: .mlx, title: "Mac", platforms: ["macos"]),
@@ -381,40 +390,61 @@ struct SharedCatalogTests {
         #expect(Set(try await service.entries().map(\.repo)) == ["org/phone", "org/tablet", "org/any"])
     }
 
-    @Test func newFieldsDecodeAndOldEntriesStillDo() throws {
+    @Test func familyFactsAreCopiedOntoEachSizeAndVariantFactsDecode() throws {
         let json = #"""
-        {"schemaVersion":1,"models":[
-         {"repo":"org/m-GGUF","format":"gguf","file":"m-Q4_K_M.gguf","title":"M","sha256":"\#(String(repeating: "A", count: 64))",
-          "iconKey":"liquid","badges":[{"label":"New","tone":"success"},{"label":"Plain"}],"supportsThinking":true,
-          "vision":{"mmprojFile":"mmproj-m.gguf","mmprojSize":350000000},"isOnboarding":true,"platforms":["ios"],
-          "recommended":true,"minRAMBytes":6000000000,"createdAt":"2026-11-26","updatedAt":"2026-11-27"},
-         {"repo":"org/old","format":"mlx","title":"Old"}]}
+        {"schemaVersion":2,"families":[
+         {"id":"fam","name":"Fam","publisher":"Pub","line":"fam","logo":"liquid","summary":"S","website":"https://example.org",
+          "tags":["thinking","vision"],"badges":["new","recommended"],"status":"current","order":3,"variants":[
+          {"repo":"org/m-GGUF","engine":"gguf","file":"m-Q4_K_M.gguf","params":"4B","quant":"Q4_K_M","sizeBytes":1000,
+           "sha256":"\#(String(repeating: "A", count: 64))","vision":{"mmprojFile":"mmproj-m.gguf","mmprojSize":350000000},
+           "isOnboarding":true,"platforms":["ios"],"minRAMBytes":6000000000,"createdAt":"2026-11-26","updatedAt":"2026-11-27"},
+          {"repo":"org/old","engine":"mlx","params":"1B","sizeBytes":2000}]}]}
         """#
-        let models = try CatalogDocument.decode(Data(json.utf8)).models
-        let m = models[0]
+        let document = try CatalogDocument.decode(Data(json.utf8))
+        #expect(document.families.map(\.id) == ["fam"])
+        let m = document.models[0]
+        #expect(m.title == "Fam 4B" && m.parameters == "4B" && m.quantization == "Q4_K_M")
+        #expect(m.familyID == "fam" && m.familyName == "Fam" && m.publisher == "Pub" && m.website == "https://example.org")
+        #expect(m.iconKey == "liquid" && m.summary == "S")
+        #expect(m.capabilities == ["chat", "reasoning", "vision"], "the thinking tag is the reasoning capability")
+        #expect(m.supportsThinking && m.recommended && m.isOnboarding)
+        #expect(m.badges == [CatalogBadge(label: "New", tone: "success"), CatalogBadge(label: "Recommended", tone: "info")])
         #expect(m.sha256 == String(repeating: "a", count: 64), "sha256 is stored lowercase")
-        #expect(m.iconKey == "liquid")
-        #expect(m.badges == [CatalogBadge(label: "New", tone: "success"), CatalogBadge(label: "Plain", tone: nil)])
-        #expect(m.supportsThinking && m.isOnboarding && m.recommended)
         #expect(m.vision == CatalogVision(mmprojFile: "mmproj-m.gguf", mmprojSize: 350_000_000))
         #expect(m.platforms == ["ios"] && m.minRAMBytes == 6_000_000_000)
         #expect(m.createdAt == "2026-11-26" && m.updatedAt == "2026-11-27")
-        let old = models[1]
-        #expect(old.badges.isEmpty && !old.supportsThinking && !old.isOnboarding && !old.recommended)
-        #expect(old.vision == nil && old.platforms == nil && old.sha256 == nil)
-        // Round trip keeps the new fields and does not invent defaults for old entries.
-        let again = try JSONDecoder().decode(CatalogEntry.self, from: JSONEncoder().encode(m))
-        #expect(again == m)
-        let oldJSON = String(decoding: try JSONEncoder().encode(old), as: UTF8.self)
-        #expect(!oldJSON.contains("badges") && !oldJSON.contains("isOnboarding"))
+        #expect(m.status == .current && m.replacedBy == nil)
+        let mlx = document.models[1]
+        #expect(mlx.title == "Fam 1B (MLX)", "an MLX size says so in its name")
+        #expect(!mlx.isOnboarding && mlx.vision == nil && mlx.platforms == nil && mlx.sha256 == nil)
+        #expect(document.models.map(\.order) == [300, 301], "family order first, then the order inside the family")
+        // A round trip through the settings format keeps the family facts.
+        #expect(try JSONDecoder().decode(CatalogEntry.self, from: JSONEncoder().encode(m)) == m)
+    }
+
+    @Test func aDeprecatedFamilyMarksItsSizesAndSaysWhatReplacesIt() throws {
+        let json = catalogJSON(
+            #"{"repo":"org/m","engine":"mlx","params":"1B","sizeBytes":1}"#,
+            family: #","status":"deprecated","replacedBy":"newer""#)
+        let entry = try #require(try CatalogDocument.decode(Data(json.utf8)).models.first)
+        #expect(entry.status == .deprecated && entry.replacedBy == "newer")
+        let again = try JSONDecoder().decode(CatalogEntry.self, from: JSONEncoder().encode(entry))
+        #expect(again.status == .deprecated && again.replacedBy == "newer")
+    }
+
+    @Test func aFamilyWithoutOptionalFieldsStillDecodes() throws {
+        let json = #"{"schemaVersion":2,"families":[{"id":"f","name":"F","publisher":"P","variants":[{"repo":"org/m","engine":"mlx","params":"1B","sizeBytes":1}]}]}"#
+        let family = try #require(try CatalogDocument.decode(Data(json.utf8)).families.first)
+        #expect(family.line == "f" && family.tags.isEmpty && family.badges.isEmpty && family.status == .current)
+        #expect(family.summary.isEmpty && family.website.isEmpty && family.logo.isEmpty)
     }
 
     @Test func memoryFactsBecomeAProfileAndAMissingOneIsAnEstimate() throws {
         let json = #"""
-        {"schemaVersion":1,"models":[
-         {"repo":"org/e-GGUF","format":"gguf","file":"e.gguf","title":"E","sizeBytes":3000000000,"contextLength":131072,
+        {"schemaVersion":2,"families":[{"id":"f","name":"F","publisher":"P","variants":[
+         {"repo":"org/e-GGUF","engine":"gguf","file":"e.gguf","params":"E","sizeBytes":3000000000,"contextLength":131072,
           "memory":{"fullKVBytesPerToken":6144,"windowKVBytesPerToken":12288,"windowTokens":512,"activeFraction":0.119}},
-         {"repo":"org/plain","format":"mlx","title":"Plain","sizeBytes":1000000000,"contextLength":4096}]}
+         {"repo":"org/plain","engine":"mlx","params":"1B","sizeBytes":1000000000,"contextLength":4096}]}]}
         """#
         let models = try CatalogDocument.decode(Data(json.utf8)).models
         let known = try #require(models[0].memoryProfile)
@@ -431,8 +461,8 @@ struct SharedCatalogTests {
 
     @Test func embeddingTablesThatMmapKeepsOutOfRAMShrinkTheProfile() throws {
         let json = #"""
-        {"schemaVersion":1,"models":[{"repo":"org/e-GGUF","format":"gguf","file":"e.gguf","title":"E","sizeBytes":3349516256,
-         "memory":{"fullKVBytesPerToken":6144,"lazyWeightBytes":1926758400}}]}
+        {"schemaVersion":2,"families":[{"id":"f","name":"F","publisher":"P","variants":[{"repo":"org/e-GGUF","engine":"gguf","file":"e.gguf","params":"E","sizeBytes":3349516256,
+         "memory":{"fullKVBytesPerToken":6144,"lazyWeightBytes":1926758400}}]}]}
         """#
         let profile = try #require(try CatalogDocument.decode(Data(json.utf8)).models[0].memoryProfile)
         #expect(profile.lazyBytes == 1_926_758_400 && profile.residentBytes == 1_422_757_856)

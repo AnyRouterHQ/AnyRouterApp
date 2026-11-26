@@ -15,7 +15,7 @@ struct LocalModelErrorTests {
             (.insufficientSpace(neededBytes: 5_000_000_000, freeBytes: 1_000_000_000), "Not enough free space: needs 5000 MB, 1000 MB free."),
             (.checksumMismatch("a.gguf"), "Checksum mismatch for a.gguf. Download it again."),
             (.sizeMismatch("a.gguf"), "Size mismatch for a.gguf. Download it again."),
-            (.unsupportedCatalogVersion(9), "Catalog schema version 9 is newer than this app supports."),
+            (.unsupportedCatalogVersion(9), "Catalog schema version 9 is not supported by this app."),
         ]
         for (error, text) in cases { #expect(error.errorDescription == text) }
     }
@@ -72,20 +72,20 @@ struct CatalogDecodingTests {
     }
 
     @Test func newerSchemaReportsItsVersion() {
-        #expect(throws: LocalModelError.unsupportedCatalogVersion(2)) {
-            try CatalogDocument.decode(Data(#"{"schemaVersion":2,"models":[{"unknown":true}]}"#.utf8))
+        #expect(throws: LocalModelError.unsupportedCatalogVersion(3)) {
+            try CatalogDocument.decode(Data(#"{"schemaVersion":3,"families":[{"unknown":true}]}"#.utf8))
         }
     }
 }
 
 struct CatalogServiceRemoteTests {
     private let remoteURL = URL(string: "https://catalog.test/models.json")!
-    private let remoteDoc = #"{"schemaVersion":1,"models":[{"repo":"org/remote","format":"mlx","title":"Remote"}]}"#
+    private let remoteDoc = #"{"schemaVersion":2,"families":[{"id":"remote","name":"Remote","publisher":"P","variants":[{"repo":"org/remote","engine":"mlx","params":"1B","sizeBytes":1}]}]}"#
 
     private func service(
         http: FakeHTTP, remote: URL?, user: [CatalogEntry] = [], dir: URL = makeTempDirectory()
     ) -> CatalogService {
-        let bundled = CatalogDocument(schemaVersion: 1, updatedAt: nil, models: [sampleMLX(repo: "org/bundled")])
+        let bundled = CatalogDocument(schemaVersion: 2, updatedAt: nil, models: [sampleMLX(repo: "org/bundled")])
         let settings = CatalogSettings(userModels: user, remoteCatalogURL: remote)
         return CatalogService(
             bundled: { bundled }, api: HuggingFaceAPI(http: http), cacheDirectory: dir, settings: { settings })
