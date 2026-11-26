@@ -212,7 +212,12 @@ jobs:
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
             -derivedDataPath DerivedData \
             -clonedSourcePackagesDirPath SourcePackages \
-            CODE_SIGNING_ALLOWED=NO | tail -n 200
+            CODE_SIGNING_ALLOWED=NO | tee build.log | tail -n 200
+
+      - name: Build errors
+        if: failure()
+        run: |
+          grep -n -E "error:" build.log | sort -u -t: -k2 | cut -c1-500 | head -60 || true
 
       - name: Run smoke tests
         env:
@@ -237,7 +242,7 @@ jobs:
             -only-testing:AnyRouterTests/ModelDownloadSmokeTests \
             -only-testing:AnyRouterTests/MLXChatTemplateSmokeTests \
             -only-testing:AnyRouterTests/AppleFoundationSmokeTests \
-            CODE_SIGNING_ALLOWED=NO | tail -n 200
+            CODE_SIGNING_ALLOWED=NO | tee test.log | tail -n 200
 
       - name: Job summary
         if: always()
@@ -251,8 +256,43 @@ jobs:
             echo "| MLX | device only, the Simulator has no Metal GPU family |"
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # The run step prints only the last 200 lines, so failures are listed here from the whole log: file:line and message.
+      # A model given at run time may be private: its failure messages can carry its output, so only file:line is kept.
+      - name: Test failures
+        if: failure()
+        run: |
+          {
+            echo "## Test failures"
+            echo
+            echo '```'
+            if [ -f test.log ]; then
+              if [ "$MODEL_EXTERNAL" = "1" ]; then
+                grep -E "error: -\[" test.log | sed -E 's/^(.*\.swift:[0-9]+): error: -\[([^ ]+ [^]]+)\].*/\1 \2 (message not printed for a model given at run time)/' | head -40 || true
+              else
+                grep -E "error: -\[|XCTAssert|failed:|recorded an issue" test.log | cut -c1-500 | head -60 || true
+              fi
+              sed -n '/^Failing tests:/,/^\*\* TEST/p' test.log | head -40
+            else
+              echo "No test.log: the build step failed first."
+            fi
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the full logs
+        # Not for a model given at run time: a log can name its file, and artifacts are not masked.
+        if: always() && env.MODEL_EXTERNAL != '1'
+        uses: actions/upload-artifact@v7
+        with:
+          name: SmokeLogs
+          path: |
+            build.log
+            test.log
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Upload test results
-        if: always()
+        # The result bundle can name the model file too: not uploaded for a model given at run time.
+        if: always() && env.MODEL_EXTERNAL != '1'
         uses: actions/upload-artifact@v7
         with:
           name: SmokeResults

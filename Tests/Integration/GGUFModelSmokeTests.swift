@@ -127,7 +127,7 @@ final class GGUFModelSmokeTests: XCTestCase {
 
         XCTAssertFalse(text.isEmpty, "stream produced no text")
         let answer = Self.answer(from: text)
-        XCTAssertTrue(answer.contains("4"), "final answer after the thinking block must contain 4, got: \(answer)")
+        XCTAssertTrue(answer.contains("4"), "final answer after the thinking block must contain 4, got: \(SmokeEnv.external ? "(not printed for a model given at run time)" : answer)")
         XCTAssertEqual(done, 1, "exactly one .done")
         XCTAssertTrue(usageBeforeDone, ".usage arrives before .done")
         let reported = try XCTUnwrap(usage, "no .usage delta")
