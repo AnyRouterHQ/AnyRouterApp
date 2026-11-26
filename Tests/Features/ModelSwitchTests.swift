@@ -14,7 +14,7 @@ struct ModelSwitchTests {
         let registry: EngineRegistry
         let models: ModelStore
 
-        func reopen() -> ChatViewModel {
+        @MainActor func reopen() -> ChatViewModel {
             ChatViewModel(thread: vm.thread, context: context, registry: registry,
                           settings: AppSettings(defaults: testDefaults()), models: models)
         }

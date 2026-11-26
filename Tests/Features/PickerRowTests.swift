@@ -6,7 +6,7 @@ import Testing
 struct PickerRowTests {
     @Test func cloudRowShowsNameIdPriceContextAndUpstreams() {
         let row = PickerRow.make(cloudModel(
-            "anthropic/claude-sonnet-4-6", name: "Claude Sonnet 4.6", context: 1_000_000, upstreams: 35,
+            "anthropic/claude-sonnet-4-6", name: "Claude Sonnet 4.6", upstreams: 35, context: 1_000_000,
             vision: true, reasoning: true))
         #expect(row.title == "Claude Sonnet 4.6")
         #expect(row.idLabel == "anthropic/claude-sonnet-4-6")
