@@ -37,7 +37,7 @@ private struct RecordingEngine: ChatEngine {
 @MainActor
 @Suite(.serialized)
 struct HeadlessIntentTests {
-    private let apple = testModel(id: "apple/foundation", source: .apple)
+    private let apple = RealisticModels.apple()
     private let local = testModel(id: "gguf/acme/small", source: .gguf)
     private let cloud = testModel(id: "anyrouter/auto", source: .anyrouter)
 
@@ -153,7 +153,7 @@ struct HeadlessIntentTests {
         do {
             _ = try await AskWithModelIntent(text: "Hi", model: try entity(cloud.id, [cloud])).perform()
         } catch let error as HeadlessError {
-            #expect(error.message.contains("You are offline") && error.message.contains("Switch to apple/foundation"))
+            #expect(error.message.contains("You are offline") && error.message.contains("Switch to Apple Intelligence"))
         }
     }
 
@@ -166,7 +166,7 @@ struct HeadlessIntentTests {
             _ = try await SummarizeIntent(text: "Text").perform()
             Issue.record("expected a failure")
         } catch let error as HeadlessError {
-            #expect(error == .failed(model: "apple/foundation", reason: "model is busy"))
+            #expect(error == .failed(model: "Apple Intelligence", reason: "model is busy"))
         }
 
         try await install([engine(.apple, [apple], calls: calls, reply: ["  "])], selected: apple.id)
@@ -174,7 +174,7 @@ struct HeadlessIntentTests {
             _ = try await SummarizeIntent(text: "Text").perform()
             Issue.record("expected a failure")
         } catch let error as HeadlessError {
-            #expect(error == .empty(model: "apple/foundation"))
+            #expect(error == .empty(model: "Apple Intelligence"))
         }
     }
 
@@ -204,6 +204,6 @@ struct HeadlessIntentTests {
         #expect(listed.map(\.kind) == ["Apple Intelligence", "On this device", "AnyRouter"])
         let picked = try await ModelEntityQuery().entities(for: [local.id, notReady.id])
         #expect(picked.map(\.id) == [local.id])
-        #expect(String(localized: listed[0].displayRepresentation.title) == "apple/foundation")
+        #expect(String(localized: listed[0].displayRepresentation.title) == "Apple Intelligence")
     }
 }

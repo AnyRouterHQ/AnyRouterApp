@@ -4,7 +4,7 @@ import Testing
 
 @MainActor
 struct HeadlessLogicTests {
-    private let apple = testModel(id: "apple/foundation", source: .apple)
+    private let apple = RealisticModels.apple()
     private let local = testModel(id: "gguf/acme/small", source: .gguf)
     private let cloud = testModel(id: "anyrouter/auto", source: .anyrouter)
 

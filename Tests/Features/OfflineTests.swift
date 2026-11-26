@@ -54,8 +54,8 @@ struct OfflineTests {
 
     // MARK: Logic
 
-    private let apple = testModel(id: "apple/foundation", source: .apple)
-    private let cloud = testModel(id: ModelDescriptor.autoRouterID, source: .anyrouter)
+    private let apple = RealisticModels.apple()
+    private let cloud = RealisticModels.router()
 
     @Test func onlyAnyRouterModelsNeedTheNetwork() {
         #expect(OfflineLogic.needsNetwork(cloud))
@@ -68,16 +68,16 @@ struct OfflineTests {
         let zed = testModel(id: "zed", source: .gguf)
         let alpha = testModel(id: "Alpha", source: .mlx)
         let missing = testModel(id: "aaa", source: .gguf, installed: false)
-        #expect(OfflineLogic.suggestedModel(in: [cloud, zed, apple, alpha])?.id == "apple/foundation")
+        #expect(OfflineLogic.suggestedModel(in: [cloud, zed, apple, alpha])?.id == AppleFoundationEngine.modelID)
         #expect(OfflineLogic.suggestedModel(in: [cloud, zed, alpha, missing])?.id == "Alpha")
-        let appleOff = testModel(id: "apple/foundation", source: .apple, installed: false)
+        let appleOff = RealisticModels.apple(installed: false)
         #expect(OfflineLogic.suggestedModel(in: [appleOff, zed])?.id == "zed")
         #expect(OfflineLogic.suggestedModel(in: [cloud, missing, appleOff]) == nil)
     }
 
     @Test func theMessageNamesTheModelToSwitchTo() {
         let withSuggestion = OfflineLogic.modelMessage(for: cloud, suggestion: apple)
-        #expect(withSuggestion == "You are offline. AnyRouter needs a connection. Switch to apple/foundation, which runs on this device.")
+        #expect(withSuggestion == "You are offline. AnyRouter needs a connection. Switch to Apple Intelligence, which runs on this device.")
         #expect(OfflineLogic.modelMessage(for: cloud, suggestion: nil).hasSuffix("Download a model to chat without internet."))
     }
 
@@ -158,7 +158,7 @@ struct OfflineTests {
         #expect(vm.messages.isEmpty)
         #expect(vm.input == "hello", "the text stays in the composer")
         #expect(vm.errorMessage?.contains("You are offline") == true)
-        #expect(vm.errorMessage?.contains("Switch to apple/foundation") == true)
+        #expect(vm.errorMessage?.contains("Switch to Apple Intelligence") == true)
     }
 
     @Test func aDeviceModelAnswersWhileOffline() async throws {
