@@ -91,9 +91,11 @@ struct ShareHandoffTests {
         #expect(ShareDeepLink.parse(try #require(URL(string: "https://example.com/ask?text=x"))) == nil)
         #expect(ShareDeepLink.parse(try #require(URL(string: "anyrouter://ask?action=reply"))) == nil)
         #expect(ShareDeepLink.parse(try #require(URL(string: "anyrouter://ask?text=")))  == nil)
-        let unknown = try #require(ShareDeepLink.parse(try #require(URL(string: "anyrouter://ask?text=hi&action=nope"))))
+        let unknownURL = try #require(URL(string: "anyrouter://ask?text=hi&action=nope"))
+        let unknown = try #require(ShareDeepLink.parse(unknownURL))
         #expect(unknown.action == .ask, "an unknown action falls back to a plain ask")
-        let none = try #require(ShareDeepLink.parse(try #require(URL(string: "anyrouter://ask?text=hi"))))
+        let noneURL = try #require(URL(string: "anyrouter://ask?text=hi"))
+        let none = try #require(ShareDeepLink.parse(noneURL))
         #expect(none.action == .ask)
     }
 
