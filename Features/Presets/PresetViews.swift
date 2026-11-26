@@ -8,6 +8,8 @@ struct PresetSuggestions: View {
     var onSend: (PromptPreset) -> Void
 
     @State private var salt: UInt64 = 0
+    /// Grows with Dynamic Type so a large text size does not truncate every chip.
+    @ScaledMetric(relativeTo: .subheadline) private var chipWidth: CGFloat = 190
 
     private var items: [PromptPreset] {
         PresetLogic.featured(store.all, customIDs: store.customIDs, category: nil,
@@ -35,7 +37,7 @@ struct PresetSuggestions: View {
                 Text(preset.title).font(.subheadline.weight(.semibold)).lineLimit(1)
                 Text(preset.prompt).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
-            .frame(width: 190, alignment: .leading)
+            .frame(width: chipWidth, alignment: .leading)
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.roundedRectangle(radius: ARTheme.radiusLarge))
