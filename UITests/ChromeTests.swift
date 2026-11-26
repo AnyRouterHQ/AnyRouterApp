@@ -21,13 +21,13 @@ final class ChromeTests: XCTestCase {
         XCTAssertTrue(app.segmentedControls.firstMatch.waitForExistence(timeout: 5), "the picker opens")
     }
 
-    func testTopBarHoldsOnlyTheSidebarTitleAndNewChat() throws {
+    func testTopBarHoldsOnlyTheSidebarTitleMoreAndNewChat() throws {
         let app = launch()
         try XCTSkipIf(!app.buttons["Menu"].waitForExistence(timeout: 15), "iPad layout: the system adds its own sidebar toggle")
         let bar = app.navigationBars.firstMatch
         XCTAssertTrue(bar.buttons["Model"].exists)
         let labels = bar.buttons.allElementsBoundByIndex.map(\.label).sorted()
-        XCTAssertEqual(labels, ["Menu", "Model", "New chat"], "no memory, presets or other extra buttons in the bar")
+        XCTAssertEqual(labels, ["Menu", "Model", "More", "New chat"], "the sidebar, the title, the more menu and new chat; nothing else")
     }
 
     func testRoundButtonGoesVoiceThenSendThenStop() {
