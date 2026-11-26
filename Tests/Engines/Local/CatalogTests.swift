@@ -317,7 +317,7 @@ struct SharedCatalogTests {
     }
 
     @Test func aNewETagReplacesTheCachedCopy() async throws {
-        let version = LockedBox("v1")
+        let version = CatalogVersionBox("v1")
         let http = RecordingHTTP { request in
             let current = version.value
             if request.value(forHTTPHeaderField: "If-None-Match") == "\"\(current)\"" { return ("", 304, [:]) }
@@ -432,7 +432,7 @@ struct SharedCatalogTests {
     }
 }
 
-private final class LockedBox: @unchecked Sendable {
+private final class CatalogVersionBox: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: String
     init(_ value: String) { stored = value }
