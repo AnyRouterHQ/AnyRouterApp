@@ -17,6 +17,8 @@ final class ModelDownloadManager {
     private let api: HuggingFaceAPI
     @ObservationIgnored private var session: URLSession?
     @ObservationIgnored private var jobs: [String: Job] = [:]
+    /// Identifies the latest `start` per entry, so a start that was cancelled while the file listing loaded does nothing.
+    @ObservationIgnored private var startTokens: [String: UUID] = [:]
     @ObservationIgnored var backgroundCompletionHandler: (@Sendable () -> Void)?
 
     private struct Job {
@@ -60,10 +62,13 @@ final class ModelDownloadManager {
         default: return
         }
         apply(.start(total: entry.sizeBytes ?? 0), to: id)
+        let token = UUID()
+        startTokens[id] = token
         do {
             try storage.prepareRoot()
             let listing = try await api.listFiles(repo: entry.repo, revision: entry.revision ?? "main")
             let files = try RepoFiles.downloadPlan(for: entry, files: listing)
+            guard startTokens[id] == token else { return }
             let total = files.reduce(Int64(0)) { $0 + $1.size }
             if let free = storage.freeSpaceBytes(), free < total + total / 10 {
                 throw LocalModelError.insufficientSpace(neededBytes: total, freeBytes: free)
@@ -79,13 +84,15 @@ final class ModelDownloadManager {
             apply(.progress(received: tracker.receivedBytes, total: tracker.totalBytes), to: id)
             if tracker.isComplete {
                 finishDownload(id)
+            } else if case .paused = states[id] ?? .notInstalled {
+                // Paused while the listing loaded: keep the job, `resume` starts the tasks.
             } else {
                 for path in tracker.remainingPaths {
                     if let file = files.first(where: { $0.path == path }) { startTask(entry: entry, file: file) }
                 }
             }
         } catch {
-            fail(id, message: error.localizedDescription)
+            if startTokens[id] == token { fail(id, message: error.localizedDescription) }
         }
     }
 
@@ -121,6 +128,7 @@ final class ModelDownloadManager {
     func cancel(_ entry: CatalogEntry) {
         let id = entry.id
         jobs[id] = nil
+        startTokens[id] = nil
         apply(.cancel, to: id)
         Task { await discard(id) }
     }

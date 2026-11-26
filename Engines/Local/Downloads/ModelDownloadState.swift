@@ -74,7 +74,7 @@ struct DownloadProgressTracker: Sendable {
     private var finished: Set<String> = []
 
     init(files: [HFFile]) {
-        expected = Dictionary(uniqueKeysWithValues: files.map { ($0.path, $0.size) })
+        expected = Dictionary(files.map { ($0.path, $0.size) }, uniquingKeysWith: { first, _ in first })
     }
 
     var totalBytes: Int64 { expected.values.reduce(0, +) }

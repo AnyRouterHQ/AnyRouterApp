@@ -89,6 +89,12 @@ struct DownloadProgressTrackerTests {
         #expect(tracker.receivedBytes == 40)
     }
 
+    @Test func duplicatePathsInAListingDoNotCrashAndCountOnce() {
+        let tracker = DownloadProgressTracker(files: files + [HFFile(path: "config.json", size: 10)])
+        #expect(tracker.totalBytes == 110)
+        #expect(tracker.remainingPaths == ["a.safetensors", "config.json"])
+    }
+
     @Test func neverCountsMoreThanAFileSizeAndNeverGoesBackwards() {
         var tracker = DownloadProgressTracker(files: files)
         tracker.update(path: "a.safetensors", receivedBytes: 500)
