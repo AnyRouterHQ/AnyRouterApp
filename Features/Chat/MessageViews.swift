@@ -92,6 +92,7 @@ struct MessageRow: View {
                         .foregroundStyle(.secondary)
                         // The HIG minimum hit area; a borderless button is only as big as its symbol.
                         .frame(minWidth: 44, minHeight: 44)
+                        .hoverEffect(.highlight)
                         .accessibilityLabel("Regenerate")
                     }
                 }
@@ -132,6 +133,7 @@ struct ResponseFooter: View {
                         .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
+                    .hoverEffect(.highlight)
                     .accessibilityIdentifier("response-details")
                     if expanded { details(metadata) }
                 } else {

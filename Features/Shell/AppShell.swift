@@ -15,12 +15,12 @@ struct AppShell: View {
             if isRegular { PadShell() } else { PhoneShell() }
         }
         .background(Color(.systemBackground).ignoresSafeArea())
-        .sheet(isPresented: Bindable(shell).isSettingsPresented) { SettingsScreen() }
-        .sheet(isPresented: Bindable(shell).isHubPresented) { HubSheet() }
-        .sheet(isPresented: Bindable(shell).isDecisionsPresented) { DecisionsSheet() }
-        .onChange(of: isRegular, initial: true) { _, regular in
-            shell.isSidebarOpen = regular
-        }
+        // Form and page sizes only apply in a regular-width window. On iPhone and in a compact iPad window these are the usual sheets.
+        .sheet(isPresented: Bindable(shell).isSettingsPresented) { SettingsScreen().presentationSizing(.form) }
+        .sheet(isPresented: Bindable(shell).isHubPresented) { HubSheet().presentationSizing(.page) }
+        .sheet(isPresented: Bindable(shell).isDecisionsPresented) { DecisionsSheet().presentationSizing(.page) }
+        // Only the iPhone drawer uses `isSidebarOpen`. It starts closed whenever the window becomes compact.
+        .onChange(of: isRegular) { shell.isSidebarOpen = false }
         .onAppear { restoreSelection() }
         .onChange(of: shell.selectedThreadID) { _, id in storedThread = id?.uuidString ?? "" }
     }
@@ -34,24 +34,28 @@ struct AppShell: View {
     }
 }
 
+/// A regular-width window: the system split view. The system toggles the sidebar from the toolbar.
 private struct PadShell: View {
     @Environment(ShellModel.self) private var shell
 
-    private var visibility: Binding<NavigationSplitViewVisibility> {
-        Binding(
-            get: { shell.isSidebarOpen ? .all : .detailOnly },
-            set: { shell.isSidebarOpen = $0 != .detailOnly }
-        )
-    }
+    /// `.automatic` is the system's choice for the window: the sidebar beside the chat in landscape, tucked away in portrait.
+    @State private var visibility = NavigationSplitViewVisibility.automatic
+    @State private var isPortrait = false
 
     var body: some View {
-        NavigationSplitView(columnVisibility: visibility) {
+        NavigationSplitView(columnVisibility: $visibility) {
             ThreadSidebar(isDrawer: false)
-                .navigationSplitViewColumnWidth(min: 320, ideal: 320, max: 320)
+                .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
         } detail: {
             Detail()
         }
-        .navigationSplitViewStyle(.balanced)
+        .onGeometryChange(for: Bool.self) { $0.size.width < $0.size.height } action: { isPortrait = $0 }
+        // A toggle made in one shape of window is not carried into the other: turning the iPad gives the system default back.
+        .onChange(of: isPortrait) { visibility = .automatic }
+        // In portrait the sidebar floats over the chat, so picking a chat closes it.
+        .onChange(of: shell.selectedThreadID) { if isPortrait { visibility = .detailOnly } }
+        // Find chats (Cmd F) needs the sidebar.
+        .onChange(of: shell.searchRequest) { visibility = .all }
     }
 }
 
@@ -165,5 +169,7 @@ private struct Detail: View {
             ChatScreen()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat.detail")
     }
 }

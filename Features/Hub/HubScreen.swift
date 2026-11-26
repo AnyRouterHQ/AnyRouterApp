@@ -133,7 +133,7 @@ struct HubScreen: View {
         }
         .toolbar { toolbarContent }
         .refreshable { await hub.refreshCatalog() }
-        .sheet(isPresented: $showsRepoSearch) { RepoSearchSheet(query: query) }
+        .sheet(isPresented: $showsRepoSearch) { RepoSearchSheet(query: query).presentationSizing(.page) }
         .sheet(isPresented: $showsAddByLink) { AddByLinkSheet() }
         .confirmationDialog("Delete model?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
                             titleVisibility: .visible, presenting: pendingDelete) { entry in
@@ -445,6 +445,7 @@ struct AddByLinkSheet: View {
             }
         }
         .presentationDetents([.medium])
+        .presentationSizing(.form)
     }
 
     private func add() {

@@ -1,0 +1,104 @@
+name: iPad UI
+
+# Runs UITests/PadLayoutTests on an iPad mini and an iPad Pro 13-inch simulator: sidebar column, readable chat width,
+# popover and form sheets, rotation, compact-width fallback. By hand, on main, one run at a time.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ipad-ui-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ipad:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then echo "No Xcode 26 on this runner"; ls /Applications | grep -i xcode; exit 1; fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Cache SwiftPM and DerivedData
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            .build
+            SourcePackages
+            DerivedData
+          key: spm-dd-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            spm-dd-${{ runner.os }}-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Pick simulators
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json, subprocess
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))["devices"]
+          def pick(prefix):
+              for runtime in sorted(data, reverse=True):
+                  if "iOS" not in runtime:
+                      continue
+                  names = [d for d in data[runtime] if d["isAvailable"] and d["name"].startswith(prefix)]
+                  names.sort(key=lambda d: d["name"], reverse=True)
+                  if names:
+                      return names[0]
+              raise SystemExit("no simulator for " + prefix)
+          mini = pick("iPad mini")
+          pro = pick("iPad Pro 13")
+          print("MINI_UDID=" + mini["udid"])
+          print("MINI_NAME=" + mini["name"].replace(" ", "-"))
+          print("PRO_UDID=" + pro["udid"])
+          print("PRO_NAME=" + pro["name"].replace(" ", "-"))
+          PY
+          grep -E 'MINI|PRO' "$GITHUB_ENV"
+
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots \
+            -destination "platform=iOS Simulator,id=$MINI_UDID" \
+            -derivedDataPath DerivedData \
+            -clonedSourcePackagesDirPath SourcePackages \
+            CODE_SIGNING_ALLOWED=NO | tail -n 100
+
+      - name: Run PadLayoutTests
+        run: |
+          for device in MINI PRO; do
+            udid_var="${device}_UDID"; name_var="${device}_NAME"
+            udid="${!udid_var}"; name="${!name_var}"
+            xcrun simctl boot "$udid" || true
+            xcodebuild test-without-building \
+              -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots \
+              -destination "platform=iOS Simulator,id=$udid" \
+              -derivedDataPath DerivedData \
+              -resultBundlePath "TestResults-$name.xcresult" \
+              -only-testing:AnyRouterUITests/PadLayoutTests \
+              CODE_SIGNING_ALLOWED=NO > "test-$name.log" 2>&1 || echo "FAILED=$name" >> failed.txt
+            grep -v CoreData "test-$name.log" | grep -E "Test Case|✘|error:|Executed" | cut -c1-300 | tail -n 40
+          done
+          test ! -e failed.txt || { cat failed.txt; exit 1; }
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ipad-ui-results
+          path: |
+            TestResults-*.xcresult
+            test-*.log
+          retention-days: 7

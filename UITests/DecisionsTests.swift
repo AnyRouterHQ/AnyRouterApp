@@ -17,13 +17,9 @@ final class DecisionsTests: XCTestCase {
         app.launchArguments = ["-ARDemoData", "YES"]
         app.launch()
 
-        // iPhone: the sidebar is a drawer behind the menu button. iPad: it is open at launch.
+        // iPhone: the sidebar is a drawer behind the menu button. iPad: a column, open in landscape only.
         let row = app.buttons["sidebar-decisions"]
-        if !row.waitForExistence(timeout: 2) {
-            XCTAssertTrue(app.buttons["Menu"].waitForExistence(timeout: 10))
-            app.buttons["Menu"].tap()
-        }
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        app.revealSidebar(whenVisible: row)
         row.tap()
 
         XCTAssertTrue(app.navigationBars["Decisions"].waitForExistence(timeout: 10))

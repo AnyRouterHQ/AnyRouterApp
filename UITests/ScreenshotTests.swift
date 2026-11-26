@@ -38,12 +38,9 @@ final class ScreenshotTests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
     }
 
-    /// iPhone: the sidebar is a drawer behind the menu button. iPad: it is open at launch.
+    /// iPhone: the sidebar is a drawer behind the menu button. iPad: a column, open in landscape only.
     private func showSidebar(_ app: XCUIApplication) {
-        if button(app, containing: "Settings").waitForExistence(timeout: 2) { return }
-        XCTAssertTrue(app.buttons["Menu"].waitForExistence(timeout: 10))
-        app.buttons["Menu"].tap()
-        XCTAssertTrue(button(app, containing: "Settings").waitForExistence(timeout: 5))
+        app.revealSidebar(whenVisible: button(app, containing: "Settings"))
     }
 
     private func open(_ app: XCUIApplication, footer title: String) {

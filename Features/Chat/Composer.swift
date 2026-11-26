@@ -74,8 +74,7 @@ struct Composer: View {
                 .onTapGesture { focused.wrappedValue = true }
             }
         }
-        .frame(maxWidth: ARTheme.contentMaxWidth)
-        .padding(.horizontal, ARTheme.pagePadding)
+        .readableWidth()
         .padding(.bottom, 8)
         // Send, stop and the buttons beside the field keep the keyboard up.
         .keepsKeyboardOnTap()
@@ -168,6 +167,7 @@ struct Composer: View {
             .foregroundStyle(.secondary)
             // The HIG minimum hit area; a borderless button is only as big as its symbol.
             .frame(minWidth: 44, minHeight: 44)
+            .hoverEffect(.highlight)
             .accessibilityLabel("Presets")
         }
     }

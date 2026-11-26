@@ -130,6 +130,7 @@ struct CopyButton: View {
         .foregroundStyle(.secondary)
         // The HIG minimum hit area; a borderless button is only as big as its content.
         .frame(minWidth: 44, minHeight: 44)
+        .hoverEffect(.highlight)
         .sensoryFeedback(.success, trigger: copied) { _, now in now }
         .accessibilityLabel("Copy")
     }

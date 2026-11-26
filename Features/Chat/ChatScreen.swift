@@ -34,6 +34,12 @@ struct ChatScreen: View {
             }
             ToolbarItem(placement: .principal) {
                 ModelPill(model: chat?.model, isLoading: models.isLoading) { shell.isModelPickerPresented = true }
+                    // A popover under the pill on iPad. On iPhone and in a compact iPad window the system turns it into the sheet.
+                    .popover(isPresented: Bindable(shell).isModelPickerPresented, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
+                        ModelPickerSheet(currentID: chat?.model?.id) { chat?.choose($0) }
+                            .frame(minWidth: sizeClass == .regular ? 400 : nil, idealWidth: sizeClass == .regular ? 440 : nil,
+                                   minHeight: sizeClass == .regular ? 520 : nil, idealHeight: sizeClass == .regular ? 640 : nil)
+                    }
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
                 MemoryMenu()
@@ -45,9 +51,6 @@ struct ChatScreen: View {
         .background { if chat?.messages.isEmpty ?? true { ARHomeBackground().transition(.opacity) } }
         .animation(.easeInOut(duration: 0.3), value: chat?.messages.isEmpty)
         .task(id: shell.selectedThreadID) { prepare() }
-        .sheet(isPresented: Bindable(shell).isModelPickerPresented) {
-            ModelPickerSheet(currentID: chat?.model?.id) { chat?.choose($0) }
-        }
         .toolApprovalDialog(app.toolApprovals)
     }
 
@@ -113,6 +116,7 @@ private struct ChatContent: View {
                     .foregroundStyle(.primary)
             }
             .buttonStyle(.plain)
+            .hoverEffect(.highlight)
             .accessibilityHint("Shows a tip")
             .accessibilityIdentifier("home.greeting")
             HStack(spacing: 6) {
@@ -129,8 +133,7 @@ private struct ChatContent: View {
             PresetSuggestions(store: presets, onPick: { chat.usePreset($0) }, onSend: { chat.sendNow($0) })
                 .padding(.bottom, 8)
         }
-        .padding(.horizontal, ARTheme.pagePadding)
-        .frame(maxWidth: .infinity)
+        .readableWidth()
         .sensoryFeedback(.selection, trigger: tip)
     }
 
@@ -152,10 +155,11 @@ private struct ChatContent: View {
                     )
                 }
             }
-            .frame(maxWidth: ARTheme.contentMaxWidth)
-            .padding(.horizontal, ARTheme.pagePadding)
+            // A container of its own, so the UI tests can measure the column.
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("chat.content")
             .padding(.vertical, 12)
-            .frame(maxWidth: .infinity)
+            .readableWidth()
         }
         .scrollPosition($position)
         .scrollDismissesKeyboard(.interactively)

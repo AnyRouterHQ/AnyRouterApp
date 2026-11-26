@@ -286,6 +286,7 @@ struct ModelPickerSheet: View {
                 ModelRowView(row: PickerRow.make(model, fitBadge: fitBadge), isCurrent: currentID == model.id)
             }
             .buttonStyle(.plain)
+            .hoverEffect(.highlight)
             if model.isRouter, (model.cloud?.memberCount ?? 0) > 0 {
                 Button { routerDetail = model } label: { Image(systemName: "info.circle") }
                     .buttonStyle(.borderless)

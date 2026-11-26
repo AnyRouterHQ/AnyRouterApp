@@ -9,13 +9,9 @@ final class ToolRowTests: XCTestCase {
         app.launchArguments = ["-ARDemoData", "YES", "-ARDemoTools", "YES"]
         app.launch()
 
-        // iPhone: the thread list is a drawer behind the menu button. iPad: it is open at launch.
+        // iPhone: the thread list is a drawer behind the menu button. iPad: a column, open in landscape only.
         let thread = app.staticTexts["Latest Swift news"]
-        if !thread.waitForExistence(timeout: 3) {
-            XCTAssertTrue(app.buttons["Menu"].waitForExistence(timeout: 10))
-            app.buttons["Menu"].tap()
-            XCTAssertTrue(thread.waitForExistence(timeout: 5))
-        }
+        app.revealSidebar(whenVisible: thread)
         thread.tap()
 
         let rows = app.descendants(matching: .any).matching(NSPredicate(

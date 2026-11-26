@@ -12,11 +12,7 @@ final class ThemeTests: XCTestCase {
         func button(_ text: String) -> XCUIElement {
             app.buttons.matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
         }
-        if !button("Settings").waitForExistence(timeout: 2) {
-            XCTAssertTrue(app.buttons["Menu"].waitForExistence(timeout: 10))
-            app.buttons["Menu"].tap()
-        }
-        XCTAssertTrue(button("Settings").waitForExistence(timeout: 5))
+        app.revealSidebar(whenVisible: button("Settings"))
         button("Settings").tap()
         let theme = app.buttons["Theme"]
         XCTAssertTrue(theme.waitForExistence(timeout: 5))

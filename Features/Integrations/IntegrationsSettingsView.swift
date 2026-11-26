@@ -200,6 +200,7 @@ struct AddMCPServerSheet: View {
             }
         }
         .presentationDetents([.large])
+        .presentationSizing(.form)
     }
 
     private func test() {

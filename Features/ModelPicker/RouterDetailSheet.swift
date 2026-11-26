@@ -39,6 +39,7 @@ struct RouterDetailSheet: View {
             .task { await load() }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .presentationDragIndicator(.visible)
     }
 

@@ -108,6 +108,7 @@ struct MessageAttachments: View {
             ForEach(attachments) { attachment in
                 Button { preview = attachment.url(in: store.root) } label: { content(attachment) }
                     .buttonStyle(.plain)
+                    .hoverEffect(.highlight)
                     .accessibilityLabel(attachment.kind == .image ? "Photo \(attachment.filename)" : attachment.filename)
                     .accessibilityHint("Opens a preview")
             }
