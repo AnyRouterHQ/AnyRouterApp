@@ -43,25 +43,30 @@ struct UTF8Accumulator {
     private var pending: [UInt8] = []
 
     /// Adds bytes. Returns the text that is complete so far, or nil when nothing is yet.
+    /// Only a trailing, still unfinished (but valid so far) character is held back; invalid bytes are replaced, not waited for.
     mutating func append(_ bytes: [UInt8]) -> String? {
         pending.append(contentsOf: bytes)
-        // A UTF-8 character is at most 4 bytes, so at most 3 trailing bytes can be an unfinished one.
-        for cut in 0...min(3, pending.count) {
-            let head = pending.dropLast(cut)
-            if let text = String(validating: head, as: UTF8.self) {
-                pending = Array(pending.suffix(cut))
-                return text.isEmpty ? nil : text
-            }
-        }
-        // Invalid bytes in the middle: pass them through lossy rather than stall the stream.
-        let text = String(decoding: pending, as: UTF8.self)
-        pending = []
-        return text
+        let held = Self.unfinishedTailLength(pending)
+        let ready = pending.dropLast(held)
+        pending = Array(pending.suffix(held))
+        return ready.isEmpty ? nil : String(decoding: ready, as: UTF8.self)
     }
 
     /// Whatever is left at the end of the stream, decoded lossily.
     mutating func flush() -> String? {
         defer { pending = [] }
         return pending.isEmpty ? nil : String(decoding: pending, as: UTF8.self)
+    }
+
+    /// Length of a trailing character that has its lead byte but not all its continuation bytes yet.
+    private static func unfinishedTailLength(_ bytes: [UInt8]) -> Int {
+        guard !bytes.isEmpty else { return 0 }
+        for offset in 1...min(3, bytes.count) {
+            let byte = bytes[bytes.count - offset]
+            if byte & 0xC0 == 0x80 { continue } // continuation byte: keep looking for its lead
+            let needed = byte >= 0xF8 ? 1 : byte >= 0xF0 ? 4 : byte >= 0xE0 ? 3 : byte >= 0xC0 ? 2 : 1
+            return needed > offset ? offset : 0
+        }
+        return 0
     }
 }
