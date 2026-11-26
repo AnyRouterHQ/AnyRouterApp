@@ -11,8 +11,12 @@ enum AccountState: Equatable, Sendable {
 @MainActor
 protocol AccountService: AnyObject {
     var state: AccountState { get }
+    /// Profile and spend for the account card. Nil until loaded, or when signed out.
+    var summary: AccountSummary? { get }
     func signIn() async throws
     func signOut() async
+    /// Reloads `summary`. Does nothing when signed out.
+    func refreshSummary() async
 }
 
 extension AccountState {
@@ -33,4 +37,6 @@ final class UnavailableAccountService: AccountService {
 
     func signIn() async throws { throw Unavailable() }
     func signOut() async {}
+    var summary: AccountSummary? { nil }
+    func refreshSummary() async {}
 }
