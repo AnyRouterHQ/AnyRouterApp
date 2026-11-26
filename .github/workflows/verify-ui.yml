@@ -113,7 +113,7 @@ jobs:
           for device in $devices; do
             udid_var="${device}_UDID"; name_var="${device}_NAME"
             udid="${!udid_var}"; name="${!name_var}"
-            xcrun simctl boot "$udid" || true
+            xcrun simctl bootstatus "$udid" -b
             TEST_RUNNER_SCREENSHOT_DIR="$PWD/evidence/$name" \
             xcodebuild test-without-building \
               -project AnyRouter.xcodeproj -scheme AnyRouterVerify \

@@ -46,6 +46,7 @@ private struct SettingsList: View {
                         Toggle(isOn: $settings.showKeyboardOnLaunch) {
                             Label("Show keyboard on launch", systemImage: "keyboard")
                         }
+                        .accessibilityIdentifier("settings-show-keyboard")
                         Button(role: .destructive) { confirmsDelete = true } label: {
                             Label("Delete conversation history", systemImage: "trash")
                         }

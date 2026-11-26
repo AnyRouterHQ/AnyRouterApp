@@ -4,6 +4,7 @@ import SwiftData
 
 /// Offline sample data for screenshots and UI tests. Active only with the launch argument `-ARDemoData YES`.
 /// Optional flags: `-ARDemoSignedOut YES`, `-ARDemoOnboarding YES`, `-ARDemoTools YES` (a thread with a web search step), `-ARAppearance light|dark`.
+/// `-ARDemoKeepSettings YES` keeps settings from the previous launch, to test persistence.
 enum DemoData {
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: "ARDemoData") }
     private static var signedOut: Bool { UserDefaults.standard.bool(forKey: "ARDemoSignedOut") }
@@ -145,7 +146,7 @@ enum DemoData {
     static func install(registry: EngineRegistry) -> (settings: AppSettings, models: ModelStore, hub: any ModelHubService, account: any AccountService) {
         let suite = "dev.anyrouter.app.demo"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
-        defaults.removePersistentDomain(forName: suite)
+        if !UserDefaults.standard.bool(forKey: "ARDemoKeepSettings") { defaults.removePersistentDomain(forName: suite) }
         let settings = AppSettings(defaults: defaults)
         settings.hasOnboarded = !onboarding
         if let raw = UserDefaults.standard.string(forKey: "ARAppearance"),

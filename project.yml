@@ -114,6 +114,8 @@ targets:
     platform: iOS
     sources:
       - path: UITests
+    excludes:
+      - "Journeys/**"
     dependencies:
       - target: AnyRouter
     settings:
@@ -121,7 +123,27 @@ targets:
         PRODUCT_NAME: AnyRouterUITests
         PRODUCT_BUNDLE_IDENTIFIER: dev.anyrouter.app.uitests
         TEST_TARGET_NAME: AnyRouter
+  AnyRouterJourneys:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests/Journeys
+    dependencies:
+      - target: AnyRouter
+    settings:
+      base:
+        PRODUCT_NAME: AnyRouterJourneys
+        PRODUCT_BUNDLE_IDENTIFIER: dev.anyrouter.app.journeys
+        TEST_TARGET_NAME: AnyRouter
 schemes:
+  AnyRouterVerify:
+    build:
+      targets:
+        AnyRouter: all
+        AnyRouterJourneys: [test]
+    test:
+      targets:
+        - AnyRouterJourneys
   AnyRouterScreenshots:
     build:
       targets:
