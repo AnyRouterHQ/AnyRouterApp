@@ -115,8 +115,8 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] A2 `Core/` contract types + `EngineRegistry` + SwiftData `ThreadRecord`/`MessageRecord`, with unit tests (#1)
 - [x] A3 `App/` shell: `@main`, root `NavigationSplitView` placeholder, AnyRouter app icon + accent from anyrouter brand (#1)
 - [x] A4 CI `.github/workflows/ci.yml`: macOS runner with Xcode 26, `brew install xcodegen`, `xcodegen`, build + test on iOS Simulator, cache SPM + DerivedData, concurrency cancel. Target < 8 min warm. (#1)
-- [ ] A5 `THIRD_PARTY_NOTICES.md` (Atomic Chat Apache-2.0 notice), `README.md` (build steps, screenshots later)
-- [ ] A6 Open-source CI/CD hygiene: `gitleaks.yml` on PR + push, `dependabot.yml` (github-actions, swift), `.github/pull_request_template.md`, issue templates (bug, feature), `CONTRIBUTING.md` pointing at AGENTS.md, `SECURITY.md`; wire `Config/*.xcconfig` into `project.yml`
+- [x] A5 `THIRD_PARTY_NOTICES.md` (Atomic Chat Apache-2.0 notice), `README.md` (build steps, screenshots later) (#3)
+- [x] A6 Open-source CI/CD hygiene: `gitleaks.yml` on PR + push, `dependabot.yml` (github-actions, swift), `.github/pull_request_template.md`, issue templates (bug, feature), `CONTRIBUTING.md` pointing at AGENTS.md, `SECURITY.md`; wire `Config/*.xcconfig` into `project.yml` (#3)
 
 ### Lane B — Apple + AnyRouter engines, auth (model: sonnet-medium; auth is a security path)
 - [ ] B1 `Engines/Apple`: `AppleFoundationEngine` (availability states, streaming snapshots → append-only deltas, instructions from system prompt)
@@ -155,3 +155,4 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 
 - 2026-11-26 manager: interviewed operator, wrote AGENTS.md + PLAN.md + base config, created public repo AnyRouterHQ/AnyRouterApp, started lanes A, B, C.
 - 2026-11-26 lane-A: scaffold, Core contract, app shell, CI workflow (#1); local checks skipped
+- 2026-11-26 lane-A: hygiene (gitleaks, dependabot, templates, README, notices) (#3); PR #1 merged, CI green
