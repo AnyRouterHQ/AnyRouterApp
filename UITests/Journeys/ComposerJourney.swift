@@ -5,8 +5,14 @@ import XCTest
 final class ComposerJourney: JourneyCase {
     func testTypeSendAndDismissKeyboard() {
         runPasses { app, _ in
-            XCTAssertTrue(app.staticTexts["What can I help with?"].waitForExistence(timeout: 15))
+            XCTAssertTrue(greeting(app).waitForExistence(timeout: 15))
             step("home")
+            let subtitle = app.descendants(matching: .any)["home.subtitle"]
+            let before = subtitle.label
+            greeting(app).tap()
+            sleep(1)
+            XCTAssertNotEqual(subtitle.label, before, "tapping the greeting swaps the subtitle for a tip")
+            step("home-tip")
             audit(app, "home")
 
             let input = composer(app)

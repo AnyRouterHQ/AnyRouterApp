@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       journeys:
-        description: "Comma list of journeys (theme, drawer, composer, model-picker, settings, hub) or all"
+        description: "Comma list of journeys (theme, drawer, composer, model-picker, settings, hub, response-details) or all"
         default: all
       ipad:
         description: "Also run on an iPad Pro 13-inch simulator"
@@ -103,6 +103,7 @@ jobs:
                 model-picker) c=ModelPickerJourney ;;
                 settings) c=SettingsJourney ;;
                 hub) c=HubJourney ;;
+                response-details) c=ResponseDetailsJourney ;;
                 *) echo "unknown journey: $id"; exit 2 ;;
               esac
               only+=("-only-testing:AnyRouterJourneys/$c")

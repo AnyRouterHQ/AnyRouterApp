@@ -178,6 +178,11 @@ class JourneyCase: XCTestCase {
         XCTAssertTrue(element.isHittable, "\(element) is not reachable")
     }
 
+    /// The home greeting ("What can I help with?"). It is a button now: tapping it swaps the subtitle for a tip.
+    func greeting(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)["home.greeting"]
+    }
+
     func composer(_ app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any)["composer.input"]
     }

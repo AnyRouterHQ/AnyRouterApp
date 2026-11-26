@@ -16,7 +16,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 - Prefer accessibility ids and labels over coordinates. Navigation bar titles are stable handles.
 - Passes: light, dark, large text (Dynamic Type AccessibilityXL). A recipe says when it runs once.
 - iPhone: the sidebar is a drawer behind the `Menu` button. iPad: it is a split-view column.
-- Journey ids for the workflow: `theme`, `drawer`, `composer`, `model-picker`, `settings`, `hub`.
+- Journey ids for the workflow: `theme`, `drawer`, `composer`, `model-picker`, `settings`, `hub`, `response-details`.
 
 ## Proof and skip reporting
 
@@ -33,9 +33,9 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 
 | Feature | Journey id | Status |
 |---|---|---|
-| [Home](./home.md) | composer (home step) | greeting and presets covered by the composer journey; the tip tap does not exist in the code |
+| [Home](./home.md) | `composer` (home and tip steps) | greeting, tip tap and presets in the composer journey, not yet re-run |
 | [Composer and keyboard](./composer.md) | `composer` | automated, passing (run 45814540560) |
-| [Sidebar](./sidebar.md) | `drawer` | passed on run 45857039234; main since redesigned the sidebar search into a button (`sidebar.search`), so the search steps need updating |
+| [Sidebar](./sidebar.md) | `drawer` | rewritten for the `sidebar.search` button, not yet run |
 | [Model picker](./model-picker.md) | `model-picker` | automated, passing (run 45814540560) |
 | [Settings](./settings.md) | `settings`, `theme` | automated, both passing (runs 45862667608, 45814540560) |
 | [Hub (Manage models)](./hub.md) | `hub` | written; last run (45865789108) stopped at closing the filter menu, fix pushed and not yet re-run |
@@ -46,5 +46,4 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 ## Differences from the operator brief
 
 - The hub is a single list with Sort and Filter menus; Hugging Face repo search opens a second sheet only after a search query and needs the network, so it is not driven.
-- There is no hidden tip tap on home. The only hidden tap is the Version row in Settings (seven taps copy diagnostics, see `SettingsLogic.diagnosticsTapCount`).
 - Theme is a Settings page (Settings, Theme, Light/Dark/System), not a toggle.

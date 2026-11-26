@@ -12,14 +12,14 @@ Read `features/README.md` first, then the feature file for what you are verifyin
 ## Launch
 
 ```bash
-gh workflow run verify-ui.yml --ref <branch> -f journeys=<ids|all> [-f ipad=true]
-RUN=$(gh run list --workflow verify-ui.yml --branch <branch> --limit 1 --json databaseId -q '.[0].databaseId')
+gh workflow run verify-ui.yml --ref main -f journeys=<ids|all> [-f ipad=true]
+RUN=$(gh run list --workflow verify-ui.yml --branch main --limit 1 --json databaseId -q '.[0].databaseId')
 gh run watch "$RUN" --interval 120 --exit-status
 ```
 
-- Journey ids: `theme`, `drawer`, `composer`, `model-picker`, `settings`, `hub`. `all` runs every journey.
+- Journey ids: `theme`, `drawer`, `composer`, `model-picker`, `settings`, `hub`, `response-details`. `all` runs every journey.
 - The run builds once (about 8 minutes cold, less with the cache), boots an iPhone 17 Pro class simulator (plus iPad Pro 13-inch with `ipad=true`), and runs each journey in passes: light, dark, and large Dynamic Type (AccessibilityXL). The theme journey runs once because it changes the theme itself.
-- The workflow only runs code that is pushed. Push the branch first. A local edit is not verified until CI has run it.
+- The workflow only runs code that is pushed. Runner budget (AGENTS.md): dispatch on main only, one run at a time, and only when main CI is idle; ask the manager before a heavy run. A local edit is not verified until CI has run it.
 - Never poll in a loop. The GitHub API rate limit is shared by every agent on this machine. One `gh run watch --interval 120` or one `gh run view` per two minutes.
 - Ready means the run finished and the `verify-evidence` artifact exists. A green run with no artifact is a failure.
 

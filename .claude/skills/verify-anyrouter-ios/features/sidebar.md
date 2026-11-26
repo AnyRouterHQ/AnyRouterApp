@@ -5,7 +5,7 @@ The thread list: pinned and recent chats, system search, a settings button and a
 ## Sub-features
 
 - `sidebar-open` opens from `Menu` on iPhone.
-- `sidebar-search` focusing search raises the keyboard and filters the list.
+- `sidebar-search` the `sidebar.search` button opens a full-screen search (`search.close` dismisses it) with the keyboard up; typing filters.
 - `sidebar-select` picking a thread closes the drawer and shows that chat.
 - `sidebar-new-chat` starts a blank chat.
 - `sidebar-swipe` swipe or long-press offers Delete, Pin and Rename (not automated).
@@ -21,11 +21,10 @@ Preconditions:
 - Demo launch.
 
 - **Open.** Tap `Menu`. The search field `Search chats` appears; `Explain Swift actors` and the pinned `Trip ideas for Lisbon` are listed.
-- **Search.** Tap `Search chats`, type `swift`. The keyboard is up; `Trip ideas for Lisbon` disappears, `Explain Swift actors` stays.
-- **Clear.** Tap `Clear text` in the search field. The full list returns.
-- **Select.** Tap `Explain Swift actors`. The drawer closes and the static text `Key points:` is visible.
-- **New chat.** Tap `New chat`. `What can I help with?` is shown.
-- **Proof.** Screenshots `drawer-open`, `search-filtered`, `search-cleared`, `thread-opened`, `new-chat-home`. Journey: `drawer`.
+- **Search.** Tap `sidebar.search`. A full-screen search opens with the keyboard already up; type `swift`. `Trip ideas for Lisbon` leaves the list, `Explain Swift actors` stays.
+- **Select.** Tap the `Explain Swift actors` result. The search and drawer close and the static text `Key points:` is visible.
+- **New chat.** Tap `New chat`. `home.greeting` is shown.
+- **Proof.** Screenshots `drawer-open`, `search-open`, `search-filtered`, `thread-opened`, `new-chat-home`. Journey: `drawer`.
 
 ## Gotchas
 

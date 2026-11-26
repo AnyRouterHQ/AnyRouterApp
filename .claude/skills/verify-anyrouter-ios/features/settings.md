@@ -8,6 +8,7 @@ A sheet with a navigation stack: account card, grouped pages (Models, Chat, Appe
 - `settings-keyboard-toggle` "Show keyboard on launch" persists and focuses the composer at launch.
 - `settings-theme` Light, Dark and System apply live while the sheet is open and persist after relaunch.
 - `settings-account` account card for signed-in and signed-out states (screenshot only, see ScreenshotTests).
+- `settings-response-details` Response Customization, "Show response details" toggle (`settings-show-response-details`): the line under each reply (`response-details`) shows by default, hides when off and stays hidden after a relaunch (journey `response-details`).
 - `settings-delete-history` confirmation dialog (not automated).
 
 ## How to get to it (user POV)
