@@ -88,6 +88,8 @@ class JourneyCase: XCTestCase {
 
     /// Runs the system accessibility audit on the current screen. Issues are recorded as evidence, not failures.
     func audit(_ app: XCUIApplication, _ name: String) {
+        // Let drawers, sheets and tab switches finish animating first; a mid-animation audit reports false clipping.
+        sleep(1)
         var issues: [String] = []
         do {
             try app.performAccessibilityAudit { issue in
