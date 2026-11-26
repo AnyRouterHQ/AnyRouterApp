@@ -32,6 +32,7 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that follows a reference 
 | D13 | Markdown rendering uses `gonzalezreal/swift-markdown-ui` (MarkdownUI 2.4.x) | Maintained, SwiftUI-native, themeable to our colors. |
 | D10 | Persistence: SwiftData for threads/messages; Keychain for the AnyRouter key; `UserDefaults` for settings | Simplest native stack. |
 | D12 | llama.cpp is pinned to release b10456 through a local package `Packages/LlamaBinary` (binaryTarget + checksum) | b10456 is the newest official xcframework with iOS Simulator and device slices. From b10488 on, releases ship device slices only, and CI builds for Simulator. Revisit when upstream restores the simulator slice. |
+| D15 | UI boundary: native SwiftUI containers and behaviors skinned with the reference design's tokens (colors, radii, spacing, type scale). Per-screen deviations are listed in § Native UX & performance. | The reference is a web app; native containers give edge-swipe back, restoration, Liquid Glass, Dynamic Type, keyboard and pointer support that custom views cannot. |
 
 ## Out of scope for v1
 
@@ -166,8 +167,116 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - Q2 Create the app record in App Store Connect (bundle id `dev.anyrouter.app`, name AnyRouter).
 - Q4 Resolved: icon from the public AnyRouter logo, anyrouter.dev orange accent (#8).
 
+## Native UX & performance
+
+Audit of main at 00dee3c (2026-11-26). Every finding cites file:line on that commit. Nothing here was run on a device. Local checks were skipped (no Xcode on the maintainer Mac); numbers come from CI only, see § Measurement. Items marked "inference" are reasoned from the code and must be confirmed by the baseline (U1) before a fix claims a gain.
+
+### Boundary (decision D15)
+
+The reference design is a web app. "Match it 100%" cannot mean pixel-copying web widgets onto iOS. The boundary is:
+
+- **Native containers and behavior:** NavigationSplitView, sheets with detents, List with selection, swipe actions and context menus, Form, .searchable, toolbars, iOS 26 Liquid Glass on the control layer, haptics, Dynamic Type, VoiceOver, hardware keyboard and pointer.
+- **Reference tokens on top:** colors (ARColor), radii (10/14/24), spacing, type scale (mapped to text styles), brand accent, message bubble and markdown look, empty-state and onboarding content. Content surfaces (message bubbles, model cards) stay flat in token colors. Glass is for navigation and controls only.
+
+| Screen | Native container | Reference tokens kept | Deviation from the reference, and why |
+|---|---|---|---|
+| Shell | NavigationSplitView: sidebar + chat on iPad, list then chat on iPhone, opens on the chat (preferredCompactColumn = detail) | sidebar width 300, sidebar fill | iPhone drawer over the chat becomes the system push. We get edge-swipe back, interactive transition, iPad sidebar toggle, Stage Manager resizing, restoration. The drawer cannot give any of these. |
+| Chat | Navigation bar with toolbar items (menu or back, model pill as principal item, new chat) | message bubble color, radius 18, markdown theme, empty state | Opaque bordered circles become system glass buttons. Same icons, same positions. |
+| Composer | safeAreaInset bottom bar | radius 24, plus and send buttons, placeholder | Fill is Liquid Glass instead of an opaque bordered card, so messages scroll under it. Geometry is unchanged. |
+| Thread list | List(selection:) with swipe actions, context menus, .searchable | row text, pinned section, accent | System selection and hover replace the custom pill; row fill still uses sidebarAccent. Search field is the system one. |
+| Model picker | Sheet (medium, large detents) with NavigationStack, List, .searchable | grouping, subtitles, accent check | Bordered card rows become list rows. Sheet background is no longer opaque, so glass shows at the medium detent. |
+| Hub | Pushed or sheet page in a NavigationStack with .searchable and .refreshable | ModelCard (bordered card, chips, fit badge) | Page header and search field become system ones. Cards stay because they are content. |
+| Settings | Sheet with Form (grouped) | labels, accent, slider tint | Bordered card groups become grouped Form sections (Dynamic Type reflow, footers, keyboard navigation for free). |
+| Onboarding | Full-screen cover (unchanged) | everything | None. |
+| Type | Text styles with a documented map, @ScaledMetric for icon frames | scale: XS 12, SM 14, Base 16, LG 18, XL 20, Title 24, Hero 30 | Mapped to caption, subheadline, callout, body, title3, title2, title. Each size moves by at most 2 pt at the default setting. The price of scaling. |
+
+### Findings
+
+**Navigation**
+
+- N1 Custom drawer and HStack instead of a split view: Features/Shell/AppShell.swift:11-47. The drawer only closes by drag (:39-43), never opens by edge swipe, with a fixed 0.22 s animation (:49).
+- N2 A size-class change resets the sidebar (AppShell.swift:50-52), so Split View or Stage Manager resizing flips it.
+- N3 Hub and Settings are routes swapped inside the detail (AppShell.swift:61-65) with a custom back circle (Design/ARComponents.swift:131-146). No swipe-back, no transition, back always lands on chat. The picker dismisses then switches route (Features/ModelPicker/ModelPickerSheet.swift:100-103).
+- N4 No restoration: selectedThreadID is nil on every launch (Features/Shell/ShellModel.swift:11); no SceneStorage anywhere.
+- N5 No onOpenURL, no App Intents, no Spotlight. OAuth uses the loopback callback, so no URL scheme exists today.
+- N6 No hardware keyboard support: no keyboardShortcut or Commands. Return inserts a newline (Features/Chat/Composer.swift:21). The FocusState is declared but never driven (:7, :20), so a new chat does not focus the composer.
+- N7 No pointer or keyboard focus on custom controls: .buttonStyle(.plain) over a custom background (ARComponents.swift:30); thread rows use onTapGesture (Features/Threads/ThreadSidebar.swift:96), so they are not buttons for VoiceOver either.
+- N8 Multi-window: shell state is per window (App/RootView.swift:6) and AppState is shared, which is the right split. Whether the scene manifest allows multiple scenes is unverified (project.yml:78 only generates it). Check on an iPad.
+
+**Native feel**
+
+- F1 The top bar is views in a VStack (Features/Chat/ChatScreen.swift:30-40) with opaque card circles (ARComponents.swift:17-34): no toolbar, no glass, no scroll-edge effect.
+- F2 The composer is an opaque card in a VStack (Composer.swift:39, Design/ARTheme.swift:29-32), not a bottom inset, so messages never scroll under it.
+- F3 The picker forces an opaque background (ModelPickerSheet.swift:47), which hides the iOS 26 sheet glass at the medium detent. It is a ScrollView of bordered cards, not a List (:29-45).
+- F4 Settings is a ScrollView of bordered groups (Features/Settings/SettingsScreen.swift:24-37, :153-171). No Form semantics. Section titles lack the header trait (ARComponents.swift:117-128).
+- F5 Three custom search fields (ARComponents.swift:88-113; ThreadSidebar.swift:25, HubScreen.swift:27, ModelPickerSheet.swift:26): no system focus or cancel, no find shortcut. The only boundary is a 1.3:1 border in light mode.
+- F6 Dynamic Type is broken: 26 fixed-size font sites (ARTheme.swift:18-24 plus 19 inline), the comment at ARTheme.swift:17 claims the opposite, MarkdownUI is pinned to FontSize(16) (Features/Chat/MarkdownTheme.swift:11), and controls are fixed 40 pt (ARTheme.swift:12).
+- F7 No haptics anywhere.
+- F8 Accessibility gaps: hit targets of 28-32 pt (MarkdownTheme.swift:119, Features/Chat/MessageViews.swift:50, Composer.swift:27, :53, :61); the model pill reads "Model" without its value (Features/ModelPicker/ModelPill.swift:23); TypingDots ignores Reduce Motion (MessageViews.swift:73); no announcement when a reply finishes; copy and regenerate are not accessibility actions.
+- F9 Good: color tokens are dynamic light and dark (ARColor.swift:26-30); swipe actions and context menus exist (ThreadSidebar.swift:100-116); the scroll dismisses the keyboard interactively (ChatScreen.swift:107).
+
+**Performance**
+
+- P1 One SwiftData mutation per token on the main actor: assistant.content += piece (Features/Chat/ChatViewModel.swift:112). Each one is a change plus an Observation invalidation (inference: autosave work too).
+- P2 The list body re-runs per token because onChange(of: messages.last?.content.count) is evaluated in body (ChatScreen.swift:110). messages sorts the whole relationship on every access (ChatViewModel.swift:33-35), called again by canRegenerate (:44-46). O(n log n) per token at n = 200.
+- P3 MessageRow cannot be skipped: it takes a reference model and a fresh closure per body (ChatScreen.swift:93-98, MessageViews.swift:5-9). Every realized assistant row re-parses Markdown(message.content) (MessageViews.swift:38) and rebuilds the Theme (MarkdownTheme.swift:7, MessageViews.swift:39). The streaming row re-parses and re-lays out the whole reply per token, O(n) per token and O(n^2) per reply (inference from how MarkdownUI works).
+- P4 scrollTo("bottom") on every content change (ChatScreen.swift:109-112): forces layout per token and drags the reader down while they read earlier text. No jump-to-latest control.
+- P5 The reply is saved only at the end (ChatViewModel.swift:125-136). Killing the app mid-reply loses it.
+- P6 The model list waits for the slowest engine: allModels awaits each engine in turn (Core/EngineRegistry.swift:15-22) and the cloud request uses the default 60 s timeout (Engines/AnyRouter/AnyRouterEngine.swift:32-34). Until it returns, selected is nil (Features/ModelPicker/ModelStore.swift:23-26), the composer says "Choose a model to start" (Composer.swift:15) and send is refused (ChatViewModel.swift:55-58). On a bad network Apple and local models are unusable for up to a minute. There is no cached list. hub.reload then models.refresh also run in series (RootView.swift:27-30).
+- P7 Before the first frame: ModelContainer opens synchronously (App/AnyRouterApp.swift:12); AppState builds four engines (App/AppState.swift:14-22), AnyRouterAuth reads the Keychain three times (Engines/AnyRouter/Auth/AnyRouterAuth.swift:23, :33; KeychainStore.swift:15-23), LocalModelHub creates the background URLSession (AppState.swift:12; Engines/Local/Downloads/ModelDownloadManager.swift:33-38). After it, hub.reload does file IO on the main actor (ModelDownloadManager.swift:61-65, :143). Constraint: the session must exist when the system relaunches us for background events (App/AppDelegate.swift:8-12), so defer it, do not remove it. Cost unknown until U1.
+- P8 Picker: sections are filtered, sorted and formatted twice per body (ModelPickerSheet.swift:13-15, :31, :38; Features/ModelPicker/ModelPickerLogic.swift:24-40, :50) inside an eager VStack (:30). 500 models means 500 rows built at open. No search debounce.
+- P9 Hub: eager VStack (Features/Hub/HubScreen.swift:29-30); installedIDs asks the state of every catalog entry each body (:19-21, :44); a progress tick re-renders the whole screen.
+- P10 Thread search checks every message of every thread on the main actor per keystroke (Features/Threads/ThreadListLogic.swift:20-24), faulting all messages, with no debounce (ThreadSidebar.swift:18-20).
+- P11 Memory: unload() exists on both local engines (Engines/Local/GGUF/GGUFEngine.swift:62, Engines/Local/MLX/MLXEngine.swift:53) and nothing calls it. Weights stay resident after the chat, with no memory-warning or background release. The increased-memory-limit entitlement raises the ceiling, not the pressure. First send on a local model shows typing dots for the whole load (GGUFEngine.swift:10, MessageViews.swift:34-36).
+- P12 Cloud SSE reads one byte per await (AnyRouterEngine.swift:76-83). Known CPU cost, fine at chat rates; leave until a baseline says otherwise. Note that bytes.lines drops the blank lines SSE uses as separators.
+- P13 Images and logos: only a bundled template asset (ARComponents.swift:8), no AsyncImage. Nothing to cache yet; add a cached loader when provider logos arrive.
+- P14 Good: generation and model load run off the main actor (GGUFEngine.swift:10, :69; MLXEngine.swift:60); the chat list is a LazyVStack (ChatScreen.swift:91); catalog work is in an actor.
+
+### Measurement (Explain the Number)
+
+All numbers are Simulator numbers from a shared macOS runner. They rank changes against the previous baseline from the same job. They are not device numbers: the Simulator has no thermal limit and a different GPU path, so hitch ratios are low confidence and CPU time is the main signal. Device checks (Instruments, MetricKit) stay manual until F1.
+
+| ID | Metric | How CI measures it | Caveat | Target (proposal) |
+|---|---|---|---|---|
+| M1 | Cold launch | XCTApplicationLaunchMetric(waitUntilResponsive: true), 5 iterations, Release build; signposts split it into container, app state, first body | Includes dyld, SwiftData open, first SwiftUI body. Not the same as the system-measured launch on device | -30% after U8; device first frame under about 400 ms (Apple guidance) |
+| M2 | Chat scroll | XCTHitchMetric and XCTOSSignpostMetric.scrollDecelerationMetric on a 200-message thread (-ARDemoLongThread 200) | Simulator frame pacing. Compare runs only | device hitch ratio under 5 ms/s (Apple "good") |
+| M3 | Streaming cost | Demo engine, 1,000 tokens at 50 tok/s (20 s). XCTCPUMetric and XCTMemoryMetric around the window, minus an idle control run of the same length; XCTHitchMetric; signposts count flushes | CPU is the whole app process, so engine cost is zero here (fake engine) and render cost is included | -50% CPU per stream after U3 and U4; flushes at most 30 per second; last flush within 2x of the first |
+| M4 | Picker open | -ARDemoManyModels 500; signpost picker.open from tap to first appear, plus XCTClockMetric around the tap | onAppear can fire before the last row is laid out; the clock metric includes XCUITest idle waits | -70% after U9 |
+| M5 | First usable model | -ARDemoCloudDelay 15; signpost models.firstUsable from launch | Shows the P6 bug directly: baseline is about the delay | under 300 ms after U7, independent of the delay |
+
+Noise rule: run the perf class 3 times (3 separate xcodebuild invocations, 5 iterations each). Report per run average and relative standard deviation, plus the spread of the three run averages. A change counts only when it moves the mean by more than twice the spread across runs. No gate until we have a few baselines.
+
+### Checklist (small PRs, in this order)
+
+Size S under 1 day, M 1-3 days, L more. "After" names open work in the same files; rebase on it, do not edit it.
+
+- [ ] U1 (S, after #23) Perf baseline: signposts (launch, models.firstUsable, picker.open, stream.flush), PerformanceTests in the UI test target, demo flags (-ARDemoLongThread, -ARDemoManyModels, -ARDemoStream, -ARDemoCloudDelay), `perf.yml` job summary with 3 runs. Baseline only.
+- [ ] U2 (S) Dynamic Type: map ARTheme tokens to text styles (ARTheme.swift:18-24), replace the 19 inline sizes, @ScaledMetric for icon frames and controlSize, scaled MarkdownUI size via a cached theme. Fix the comment at ARTheme.swift:17. Effect: text follows the system size, including accessibility sizes. Metric: UI test at the largest accessibility size on all screens, no truncated primary control; the accessibility audit reports no Dynamic Type issues.
+- [ ] U3 (M, after #24, #28) Streaming path: keep streaming text in the view model and flush at most 30 Hz; write the record on finish and every 2 s as a checkpoint (P1, P5); stop reading content in the list body (P2). Effect: smooth typing, no lost replies. Metric: M3.
+- [ ] U4 (S, after U3) Row identity: Equatable MessageRowModel value, actions through the environment, one cached Theme, ordered array kept in the view model instead of sorting per access (P2, P3). Effect: finished rows never re-render during a stream. Metric: M3 CPU, plus 0 body updates for non-streaming rows (debug counter).
+- [ ] U5 (M, after U4) Stable-prefix markdown: render completed blocks with Markdown and the live tail as plain Text (break at the last blank line outside a code fence). Effect: no reflow jump at the end, flat per-token cost. Metric: M3 last flush within 2x of first.
+- [ ] U6 (S, after U3) Scroll follow: pinned-to-bottom state from onScrollGeometryChange, scroll only when pinned, jump-to-latest button, defaultScrollAnchor(.bottom, for: .sizeChanges) instead of per-token scrollTo (P4). Effect: you can read while it streams. Metric: M2 and a UI test that scrolls up during a stream and stays put.
+- [ ] U7 (S) Model list: per-engine tasks with incremental publish, 8 s timeout on the cloud request, last list cached on disk, hub.reload and models.refresh in parallel (P6). Effect: Apple and local models usable at once, offline or on a bad network. Metric: M5. Check the `fix/anyrouter-default-model` branch first, it may touch the same store.
+- [ ] U8 (M, after U1) Launch path: container, Keychain reads, URLSession creation and hub.reload off the first-frame path; create the background session in the delegate callback too (P7). Effect: faster first frame. Metric: M1 and its three signposts. Decide order from the U1 numbers, not from this list.
+- [ ] U9 (S) Picker and Hub lists: lazy containers, sections cached in ModelStore, one ByteCountFormatter, 150 ms search debounce, per-card progress observation so a tick redraws one card (P8, P9). Effect: instant open with hundreds of models. Metric: M4.
+- [ ] U10a (L, after #23, #28) Shell: NavigationSplitView, sidebar List(selection:) with Button rows, toolbar items, ShellModel.sheet for settings, hub and picker, SceneStorage for the selected thread, UITests selectors updated in the same PR (N1-N4, N7). Effect: edge-swipe back, iPad sidebar toggle, state restored after relaunch. Metric: UI tests for swipe-back and relaunch restore; navigation transition hitches via XCTOSSignpostMetric.navigationTransitionMetric.
+- [ ] U10b (S, after U10a) Settings as Form in a sheet (F4). U10c (S, after U10a) Hub as sheet with .searchable and .refreshable (F5). U10d (S, after U10a) Picker as List with .searchable and its own NavigationStack so "Browse more models" pushes (F3, N3).
+- [ ] U11 (M, after U10a) Liquid Glass: glass composer in a safeAreaInset with GlassEffectContainer and glass buttons, scrollEdgeEffectStyle under it, no opaque sheet backgrounds (F1-F3). Effect: native iOS 26 look. Metric: M2 before and after (glass over scrolling content must not add hitches); Reduce Transparency screenshot check.
+- [ ] U12 (S) Haptics with sensoryFeedback: send, stop, model change, pin, copy, download finished, error. Not per token. Effect: tactile feedback. Metric: manual on device, Simulator has no haptics.
+- [ ] U13 (M, after U10a) Keyboard and pointer: Commands for new chat (cmd N), model menu (cmd K), search (cmd F), settings (cmd comma) routed by FocusedValue per window; Return sends and Shift-Return adds a line on hardware keyboards; focus the composer on new chat; hover effects; verify multiple windows on iPad (N6-N8). Metric: UI test with typeKey for each shortcut.
+- [ ] U14 (M) Accessibility: 44 pt hit areas, copy and regenerate as accessibility actions, model pill value, header traits, Reduce Motion for TypingDots, announcement when a reply ends, XCUIApplication.performAccessibilityAudit in a UI test (F8). Metric: audit reports 0 issues on the main screens.
+- [ ] U15 (S) Thread search: predicate-based fetch (localizedStandardContains on title and messages) with a 200 ms debounce (P10). Metric: keystroke to results on 200 threads; ask lane A before any Core index change.
+- [ ] U16 (M) Memory: call unload() on memory warning and after the app has been in the background for a few minutes; show "Loading model" while a local engine loads (P11). Metric: M3 memory after the stream and after backgrounding.
+- [ ] U17 (L, low) Deep links, App Intents (new chat, ask), opt-in Spotlight of chat titles (N5). Chat titles are private, so Spotlight is off by default.
+- [ ] U18 (S, only if M3 on the real SSE path shows it) Chunked SSE read instead of per-byte (P12), with the blank-line rule kept.
+
+Top 10 for the next lanes, by user-visible effect per day of work: U1, U3 with U4, U7, U10a, U2, U11, U13, U6, U8, U9.
+
+Not doing: a custom navigation container, per-token haptics, pull-to-refresh on the thread list (local data, nothing to refresh), UIKit views, replacing MarkdownUI before U5 is measured.
+
 ## Status log
 
+- 2026-11-26 lane-ux: native UX and performance audit, boundary decision D15, plan U1-U18 and measurement plan; docs only, local checks skipped
 - 2026-11-26 lane-ui: launch screen shows the logo on a themed background, AppIcon dark and tinted variants, asset test; local checks skipped
 - 2026-11-26 lane-ci: unsigned debug IPA workflow `device-ipa.yml` and `docs/sideload.md`; local checks skipped
 - 2026-11-26 lane-docs: rewrite README for users; contributor detail already in AGENTS.md (#17); local checks skipped
