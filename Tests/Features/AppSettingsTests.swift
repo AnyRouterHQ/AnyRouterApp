@@ -24,6 +24,12 @@ struct AppSettingsTests {
         #expect(s.generationParams.systemPrompt == nil)
     }
 
+    @Test func appearanceMapsToWindowInterfaceStyle() {
+        #expect(AppSettings.Appearance.system.userInterfaceStyle == .unspecified)
+        #expect(AppSettings.Appearance.light.userInterfaceStyle == .light)
+        #expect(AppSettings.Appearance.dark.userInterfaceStyle == .dark)
+    }
+
     @Test func keyboardOnLaunchIsOffByDefaultAndPersists() {
         let d = testDefaults()
         #expect(!AppSettings(defaults: d).showKeyboardOnLaunch)

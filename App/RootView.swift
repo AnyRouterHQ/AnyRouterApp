@@ -5,6 +5,7 @@ struct RootView: View {
     @Environment(AppState.self) private var appState
     @State private var shell = ShellModel()
     @State private var showsOnboarding = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         AppShell()
@@ -13,7 +14,13 @@ struct RootView: View {
             .environment(appState.settings)
             .environment(appState.models)
             .tint(ARColor.accent)
-            .preferredColorScheme(appState.settings.appearance.colorScheme)
+            .onChange(of: appState.settings.appearance, initial: true) { _, appearance in
+                WindowAppearance.apply(appearance)
+            }
+            .onChange(of: scenePhase) { _, phase in
+                // A scene connected after launch has no override yet.
+                if phase == .active { WindowAppearance.apply(appState.settings.appearance) }
+            }
             .fullScreenCover(isPresented: $showsOnboarding) {
                 OnboardingScreen {
                     appState.settings.hasOnboarded = true
@@ -22,7 +29,6 @@ struct RootView: View {
                 .environment(appState)
                 .environment(appState.models)
                 .tint(ARColor.accent)
-                .preferredColorScheme(appState.settings.appearance.colorScheme)
             }
             .onAppear { showsOnboarding = !appState.settings.hasOnboarded }
             .task {

@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SwiftUI
+import UIKit
 
 /// User preferences backed by `UserDefaults`. Generation defaults feed every chat request.
 @MainActor @Observable
@@ -9,9 +10,9 @@ final class AppSettings {
         case system, light, dark
         var id: String { rawValue }
         var title: String { rawValue.capitalized }
-        var colorScheme: ColorScheme? {
+        var userInterfaceStyle: UIUserInterfaceStyle {
             switch self {
-            case .system: nil
+            case .system: .unspecified
             case .light: .light
             case .dark: .dark
             }
