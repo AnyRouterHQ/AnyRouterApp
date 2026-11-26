@@ -36,7 +36,7 @@ struct CloudShortListTests {
     }
 
     @Test func theTopTenAreNumberedOneToTen() {
-        let usage = Dictionary(uniqueKeysWithValues: rank.map { ($0.key, ModelUsage(id: $0.key, rank: 14 - $0.value, tokens: 5000, requests: 9)) })
+        let usage = Dictionary(uniqueKeysWithValues: rank.map { ($0.key, ModelUsage(id: $0.key, rank: $0.value + 1, tokens: 5000, requests: 9)) })
         let rows = list().rest.map { PickerRow.make($0, usage: CloudListLogic.rowUsage(of: $0, sort: .topUsage, in: usage)) }
         #expect(rows.compactMap(\.rankText) == (1...10).map { "#\($0)" })
     }
