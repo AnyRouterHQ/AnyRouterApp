@@ -8,7 +8,8 @@ on:
 
 concurrency:
   group: screenshots-${{ github.ref }}
-  cancel-in-progress: true
+  # Several agents dispatch this; a running capture finishes instead of being cancelled by the next one.
+  cancel-in-progress: false
 
 permissions:
   contents: read
