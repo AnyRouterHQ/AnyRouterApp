@@ -6,7 +6,8 @@ struct Composer: View {
     var hasModel: Bool
     var presets: PresetStore?
     @State private var showsPresets = false
-    @FocusState private var focused: Bool
+    /// Owned by the chat screen so a tap outside the card can dismiss the keyboard.
+    var focused: FocusState<Bool>.Binding
 
     var body: some View {
         VStack(spacing: 8) {
@@ -19,7 +20,7 @@ struct Composer: View {
                     .font(.arBase)
                     .foregroundStyle(ARColor.foreground)
                     .lineLimit(1...6)
-                    .focused($focused)
+                    .focused(focused)
                     .submitLabel(.return)
                     .padding(.horizontal, 4)
                 HStack {
@@ -48,11 +49,13 @@ struct Composer: View {
             .padding(.top, 12)
             .padding(.bottom, 8)
             .arCard(radius: ARTheme.radiusXL)
+            .contentShape(RoundedRectangle(cornerRadius: ARTheme.radiusXL, style: .continuous))
+            .onTapGesture { focused.wrappedValue = true }
         }
         .frame(maxWidth: ARTheme.contentMaxWidth)
         .padding(.horizontal, ARTheme.pagePadding)
         .padding(.bottom, 8)
-        .onChange(of: model.focusTick) { focused = true }
+        .onChange(of: model.focusTick) { focused.wrappedValue = true }
         .sheet(isPresented: $showsPresets) {
             if let presets {
                 PresetSheet(store: presets, onPick: { model.usePreset($0) }, onSend: { model.sendNow($0) })
