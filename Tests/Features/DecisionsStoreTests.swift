@@ -3,19 +3,19 @@ import SwiftData
 import Testing
 @testable import AnyRouter
 
-actor DecisionGate {
-    private var waiter: CheckedContinuation<Void, Never>?
-    private var isOpen = false
+struct DecisionGate: Sendable {
+    private let stream: AsyncStream<Void>
+    private let continuation: AsyncStream<Void>.Continuation
+
+    init() { (stream, continuation) = AsyncStream<Void>.makeStream() }
 
     func wait() async {
-        if isOpen { return }
-        await withCheckedContinuation { waiter = $0 }
+        for await _ in stream { return }
     }
 
     func open() {
-        isOpen = true
-        waiter?.resume()
-        waiter = nil
+        continuation.yield()
+        continuation.finish()
     }
 }
 
@@ -55,7 +55,7 @@ struct DecisionsStoreTests {
         return store
     }
 
-    private func context() throws -> (ModelContainer, ModelContext) {
+    private func makeContext() throws -> (ModelContainer, ModelContext) {
         let container = try ModelContainer.anyRouter(inMemory: true)
         return (container, ModelContext(container))
     }
@@ -103,7 +103,7 @@ struct DecisionsStoreTests {
     }
 
     @Test func aRunSendsTheRequestShowsTheResultAndSavesIt() async throws {
-        let (container, context) = try context()
+        let (container, context) = try makeContext()
         let service = FakeDecisionsService()
         let store = makeStore(service, context: context)
         #expect(store.canRun)
@@ -124,7 +124,7 @@ struct DecisionsStoreTests {
     }
 
     @Test func aFailedRunShowsTheMessageAndSavesNothing() async throws {
-        let (container, context) = try context()
+        let (container, context) = try makeContext()
         let service = FakeDecisionsService()
         service.outcome = .failure(AnyRouterError.signedOut)
         let store = makeStore(service, context: context)
@@ -142,13 +142,13 @@ struct DecisionsStoreTests {
         let task = Task { await store.run() }
         while store.phase != .running { await Task.yield() }
         #expect(!store.canRun)
-        await gate.open()
+        gate.open()
         await task.value
         #expect(store.canRun)
     }
 
     @Test func onlyTheLastTwentyRunsAreKept() async throws {
-        let (container, context) = try context()
+        let (container, context) = try makeContext()
         for index in 0..<25 {
             context.insert(try DecisionRunRecord(
                 modelID: "m", state: "run \(index)", questions: [], result: FakeDecisionsService.result,
@@ -186,7 +186,7 @@ struct DecisionsStoreTests {
     }
 
     @Test func attachingAContextLetsLaterRunsBeSaved() async throws {
-        let (container, context) = try context()
+        let (container, context) = try makeContext()
         let store = makeStore()
         store.attach(context)
         await store.run()
