@@ -46,6 +46,9 @@ final class LlamaModel: @unchecked Sendable {
         }
         #endif
         var params = llama_model_default_params()
+        // Weights are mapped from the file, not copied: pages are loaded on demand and can be dropped under pressure.
+        // That is what lets a mixture-of-experts file larger than RAM run. Never mlock: the system must be able to evict.
+        params.load_mode = LLAMA_LOAD_MODE_MMAP
         #if targetEnvironment(simulator)
         params.n_gpu_layers = 0
         #else

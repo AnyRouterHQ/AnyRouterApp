@@ -1,9 +1,10 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-// The official llama.cpp Apple build, pinned by tag and checksum.
-// b10456 is the newest release that still ships iOS Simulator and device slices; from b10488 on the
-// xcframework has device slices only, which CI (Simulator) cannot link. Move the pin when upstream restores them.
+// llama.cpp built by .github/workflows/llama-xcframework.yml from the pinned tag, with iOS device and Simulator slices.
+// Upstream releases ship device slices only since b10488, and CI runs on the Simulator.
+// To move the pin: run that workflow with the new tag, then paste its URL and checksum here.
+// b12603 is the first tag that runs the 26B looped-core models (inkling2_loop) and also covers Gemma 4, Qwen 3.5, LFM2 and SmolLM3.
 let package = Package(
     name: "LlamaBinary",
     platforms: [.iOS(.v17)],
@@ -13,8 +14,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "llama",
-            url: "https://github.com/ggml-org/llama.cpp/releases/download/b10456/llama-b10456-xcframework.zip",
-            checksum: "0223bedd0a01232399d943dcb72bc227882bc90df98e29d7a92343531a88cc02"
+            url: "https://github.com/AnyRouterHQ/AnyRouterApp/releases/download/llama-b12603/llama-b12603-xcframework.zip",
+            checksum: "8cd9e88eeaeb211e73499dde1737361d3f32e86a575f0c8bae7a252fbdc61544"
         ),
     ]
 )
