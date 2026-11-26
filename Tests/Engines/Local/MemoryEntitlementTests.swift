@@ -14,7 +14,7 @@ struct MemoryEntitlementTests {
     /// A code signature with an unrelated blob first, then the entitlements blob.
     private static func signature(_ plist: [String: Any]?) throws -> Data {
         let other = be(0xFADE_0C02) + be(8)
-        var blobs = [(UInt32, Data)]([(0, other)])
+        var blobs: [(UInt32, Data)] = [(UInt32(0), other)]
         if let plist { blobs.append((5, try entitlementsBlob(plist))) }
         var out = be(0xFADE_0CC0)
         let headerSize = 12 + blobs.count * 8

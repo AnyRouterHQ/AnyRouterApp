@@ -55,9 +55,10 @@ struct MainActorResponsivenessTests {
     @Test func theMainActorKeepsRunningWhileAModelLoadsAndAnswers() async throws {
         let engine = try installedEngine()
         let model = entry.descriptor(isInstalled: true)
-        var params = GenerationParams()
-        params.temperature = 0
-        params.maxTokens = 48
+        var settings = GenerationParams()
+        settings.temperature = 0
+        settings.maxTokens = 48
+        let params = settings
         let gap = try await longestGap {
             // First call loads the weights and creates the context; the second reuses them.
             for _ in 0..<2 {
