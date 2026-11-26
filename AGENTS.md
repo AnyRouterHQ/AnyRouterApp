@@ -47,36 +47,34 @@ This repo is **public** (Apache-2.0). Everything you commit, every PR, issue, co
 - Secrets: OAuth keys go to the Keychain only. Never log keys, tokens, or prompts. No secrets in the repo; signing material lives in GitHub Actions secrets.
 - Keep it small. No speculative abstractions, no feature beyond the task. Comments only where the why is not obvious.
 
-## Workflow
+## Workflow (trunk-based)
+
+Everyone commits to `main`. No pull requests for agent work (outside contributors may still open PRs).
 
 ```bash
-cd AnyRouterApp   # your main checkout
-git fetch origin
-git worktree add ../AnyRouterApp-wt-<lane> -b lane/<lane>-<topic> origin/main
-cd ../AnyRouterApp-wt-<lane>
-# edit, commit small semantic commits: feat(local): add GGUF downloader
-git push -u origin HEAD
-gh pr create --fill --base main   # ready for review, never draft
-gh pr checks --watch              # CI must be green
+cd AnyRouterApp                      # your own worktree or clone; one per agent
+git pull --rebase origin main
+# work in large, coherent chunks; commit often locally
+git commit -m "feat(local): add GGUF downloader"
+git pull --rebase origin main        # resolve conflicts yourself, you know your code
+git push origin HEAD:main            # retry pull --rebase + push if rejected
 ```
 
-- Commits: `type(scope): subject`, simple English. Scopes: `app`, `core`, `design`, `ui`, `auth`, `remote`, `apple`, `local`, `ci`, `docs`.
-- PR body headings, in order, 40 lines max: `Why`, `What changed`, `Scope`, `Tradeoffs`, `Verification`.
-- Merge with `gh pr merge --squash --delete-branch` once CI is green and the PR touches only your lane's folders. Then remove your worktree.
-- Rebase on `origin/main` before pushing if main moved.
+- **Builds:** every push to `main` builds on macOS, newest commit wins (older runs are cancelled), so pushes are cheap. Put `[skip ci]` in the commit message for docs-only or work-in-progress pushes you don't need built. Docs-only changes skip the macOS build automatically.
+- **Red main:** if the build on your commit fails, fixing it is your first job, as a new commit. Never revert someone else's work without telling the manager.
+- **Review:** a reviewer agent reads commits since the `review/last` tag, pushes fix commits, then moves the tag. Don't wait for review.
+- **Releases:** production builds come from tags (`v0.1.0`), which run the TestFlight workflow. Only the operator decides when to tag.
+- Commits: `type(scope): subject`, simple English. Scopes: `app`, `core`, `design`, `ui`, `auth`, `remote`, `apple`, `local`, `mcp`, `ci`, `docs`.
+- Never force-push `main`. Never rewrite published history.
 
 ## Updating PLAN.md (required)
 
-PLAN.md is how lanes and humans see progress. Every PR edits it, so keep edits to lines nobody else touches:
-
-- Tick your own task box and add the PR number on that same line: `- [x] A3 CI workflow (#4)`.
-- New finding, blocker, or decision → add one line to § Open questions or § Decisions.
-- **Do not append to § Status log in feature PRs.** Every PR appending at the same spot made each merge conflict with every open PR and cost a full macOS rebuild. The manager writes the status log in a batch, docs-only PR from the merged PR list.
-- Docs-only PRs (`*.md`, `docs/**`) skip the macOS build, so put long plans and logs there.
-- Rebase on `origin/main` right before you push, and push once per CI run: each push restarts the macOS queue.
+- Tick your own task line and add the short commit SHA: `- [x] A3 CI workflow (a1b2c3d)`.
+- New finding, blocker, or decision → one line in § Open questions or § Decisions.
+- Do not append to § Status log; the manager writes it in batches.
 
 ## Definition of done for a task
 
-- CI green on the PR (build for iOS Simulator + unit tests).
-- Behavior covered by a test where it is logic (parsing, catalog, SSE, PKCE, prompt building). UI is checked by SwiftUI previews and screenshots later.
-- PLAN.md updated as above.
+- Pushed to `main` and the `main` build for that commit (or a later one) is green.
+- Behavior covered by a test where it is logic (parsing, catalog, SSE, PKCE, prompt building). UI flows are covered by UI tests with stable accessibility identifiers.
+- PLAN.md task ticked as above.
