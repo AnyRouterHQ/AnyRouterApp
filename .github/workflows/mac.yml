@@ -1,0 +1,112 @@
+name: Mac
+
+# The Mac app is the iOS app "Designed for iPad" (PLAN F7, D22). This builds it for the Mac destination and captures
+# five key screens (light and dark) into the screenshots artifact, named Mac-<light|dark>-<screen>.png.
+# Nightly or by hand. It shares the extra-macOS concurrency group with the other capture workflows.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
+
+concurrency:
+  group: extra-macos-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  mac:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then echo "No Xcode 26 on this runner"; ls /Applications | grep -i xcode; exit 1; fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Cache SwiftPM and DerivedData
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            .build
+            SourcePackages
+            DerivedData
+          key: spm-dd-mac-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            spm-dd-mac-${{ runner.os }}-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      # An iOS app on a Mac needs at least an ad-hoc signature to launch. The increased-memory-limit entitlement is
+      # restricted and has no meaning on a Mac, so the build drops the entitlements file.
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots \
+            -destination "platform=macOS,variant=Designed for iPad" \
+            -derivedDataPath DerivedData \
+            -clonedSourcePackagesDirPath SourcePackages \
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_ENTITLEMENTS= \
+            | tee build.log | tail -n 100
+
+      - name: Build errors
+        if: failure()
+        run: |
+          grep -n -E "error:" build.log | sort -u -t: -k2 | cut -c1-500 | head -60 || true
+
+      - name: Capture five screens
+        run: |
+          set +e
+          xcodebuild test-without-building \
+            -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots \
+            -destination "platform=macOS,variant=Designed for iPad" \
+            -derivedDataPath DerivedData \
+            -only-testing:AnyRouterUITests/ScreenshotTests/testEmptyChat \
+            -only-testing:AnyRouterUITests/ScreenshotTests/testChatWithMarkdown \
+            -only-testing:AnyRouterUITests/ScreenshotTests/testThreadList \
+            -only-testing:AnyRouterUITests/ScreenshotTests/testModelPicker \
+            -only-testing:AnyRouterUITests/ScreenshotTests/testSettings \
+            -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 \
+            -maximum-test-execution-time-allowance 300 \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_ENTITLEMENTS= \
+            > test.log 2>&1
+          tail -n 60 test.log
+          grep -E "Test Case .* (passed|failed)" test.log | sed 's/^.*Test Case //' > results.txt || true
+
+      - name: Name the files
+        if: always()
+        run: |
+          mkdir -p screenshots
+          python3 scripts/export-xcresult-screenshots.py TestResults.xcresult screenshots Mac
+          cp results.txt screenshots/Mac-results.txt 2>/dev/null || true
+          {
+            echo "## Mac (Designed for iPad)"
+            echo "$(ls screenshots/*.png 2>/dev/null | wc -l) screenshots"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: screenshots-mac
+          path: screenshots
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: TestResults-mac
+          path: TestResults.xcresult
+          retention-days: 3

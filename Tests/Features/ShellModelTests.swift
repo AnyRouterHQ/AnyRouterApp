@@ -40,6 +40,15 @@ struct ShellModelTests {
         #expect(!shell.isDecisionsPresented)
     }
 
+    @Test func toggleSidebarCommandBumpsTheRequestWithoutTouchingTheDrawerState() {
+        let shell = ShellModel()
+        let before = shell.sidebarToggleRequest
+        shell.requestSidebarToggle()
+        shell.requestSidebarToggle()
+        #expect(shell.sidebarToggleRequest == before + 2)
+        #expect(!shell.isSidebarOpen)
+    }
+
     @Test func findCommandPresentsTheSearchScreen() {
         let shell = ShellModel()
         shell.presentSearch()

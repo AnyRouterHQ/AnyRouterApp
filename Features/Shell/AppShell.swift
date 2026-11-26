@@ -65,6 +65,11 @@ private struct PadShell: View {
         .onChange(of: isPortrait) { visibility = .automatic }
         // In portrait the sidebar floats over the chat, so picking a chat closes it.
         .onChange(of: shell.selectedThreadID) { if isPortrait { visibility = .detailOnly } }
+        // View > Toggle Sidebar. `.automatic` shows the sidebar except in portrait.
+        .onChange(of: shell.sidebarToggleRequest) {
+            let showing = visibility == .all || visibility == .doubleColumn || (visibility == .automatic && !isPortrait)
+            visibility = showing ? .detailOnly : .all
+        }
     }
 }
 
@@ -106,6 +111,8 @@ private struct PhoneShell: View {
         .animation(settle, value: shell.isSidebarOpen)
         // Opening the drawer ends the composer's editing.
         .onChange(of: shell.isSidebarOpen) { _, open in if open { KeyboardDismissal.endEditing() } }
+        // View > Toggle Sidebar from a hardware keyboard.
+        .onChange(of: shell.sidebarToggleRequest) { setOpen(!shell.isSidebarOpen) }
     }
 
     private func sidebar(width: CGFloat) -> some View {

@@ -1,10 +1,11 @@
 import Foundation
 import UIKit
 
-/// "iPhone" or "iPad", for sentences like "Too big for this iPhone".
+/// "iPhone", "iPad" or "Mac", for sentences like "Too big for this iPhone".
 enum DeviceName {
     @MainActor static var current: String {
-        UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+        if ProcessInfo.processInfo.isiOSAppOnMac { return "Mac" }
+        return UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
     }
 }
 

@@ -19,7 +19,9 @@ final class ScreenshotTests: XCTestCase {
 
     private func capture(_ name: String, _ appearance: Appearance) {
         sleep(1)
-        let screenshot = XCUIScreen.main.screenshot()
+        // On a Mac the screen is the whole desktop: capture the app's window.
+        let screenshot = ProcessInfo.processInfo.isiOSAppOnMac
+            ? XCUIApplication().windows.firstMatch.screenshot() : XCUIScreen.main.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = "\(appearance.rawValue)-\(name)"
         attachment.lifetime = .keepAlways

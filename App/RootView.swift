@@ -31,10 +31,14 @@ struct RootView: View {
                 if phase == .active {
                     WindowAppearance.apply(appState.settings.appearance)
                     KeyboardDismissal.install()
+                    MacWindow.configure()
                     pickUpShare()
                 }
             }
-            .onAppear { KeyboardDismissal.install() }
+            .onAppear {
+                KeyboardDismissal.install()
+                MacWindow.configure()
+            }
             .onDisappear { appState.memory.sceneClosed(sceneID) }
             .fullScreenCover(isPresented: $showsOnboarding) {
                 OnboardingScreen {

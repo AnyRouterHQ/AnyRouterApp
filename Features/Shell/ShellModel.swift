@@ -21,6 +21,8 @@ final class ShellModel {
     var isReplyStreaming = false
     /// The composer takes focus once per launch when the user asked for the keyboard.
     var didFocusComposerOnLaunch = false
+    /// Bumped by View > Toggle Sidebar; whichever shell is on screen (drawer or split view) reacts.
+    private(set) var sidebarToggleRequest = 0
     /// An outside request (Siri, Shortcuts, a control) waiting for the chat screen to pick it up.
     private(set) var inbound: InboundChat?
 
@@ -34,6 +36,8 @@ final class ShellModel {
     }
 
     func toggleSidebar() { isSidebarOpen.toggle() }
+
+    func requestSidebarToggle() { sidebarToggleRequest += 1 }
 
     /// The app became active again. After a long enough time away the window opens on a new chat.
     /// Returns true when it did, so the caller can forget the time away.

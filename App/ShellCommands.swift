@@ -5,7 +5,7 @@ extension FocusedValues {
     @Entry var shell: ShellModel?
 }
 
-/// Keyboard shortcuts for iPad and hardware keyboards.
+/// Menu items and keyboard shortcuts for iPad hardware keyboards and the Mac menu bar (Designed for iPad).
 struct ShellCommands: Commands {
     @FocusedValue(\.shell) private var shell
 
@@ -18,6 +18,12 @@ struct ShellCommands: Commands {
         CommandGroup(after: .textEditing) {
             Button("Find Chats") { shell?.presentSearch() }
                 .keyboardShortcut("f")
+                .disabled(shell == nil)
+        }
+        // The View menu's sidebar item, with the standard Mac shortcut (Control Command S).
+        CommandGroup(replacing: .sidebar) {
+            Button("Toggle Sidebar") { shell?.requestSidebarToggle() }
+                .keyboardShortcut("s", modifiers: [.command, .control])
                 .disabled(shell == nil)
         }
         CommandMenu("Model") {
