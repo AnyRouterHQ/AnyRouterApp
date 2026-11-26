@@ -134,7 +134,9 @@ struct PickerTitleTests {
     @Test func sectionsHaveFriendlyTitlesAndStableIDs() {
         let titles = [PickerSection.Kind.apple, .anyrouter, .local].map { PickerSection(kind: $0, models: []).title }
         #expect(titles == ["Apple Intelligence", "AnyRouter", "On this device"])
-        #expect(PickerSection(kind: .local, models: []).id == PickerSection.Kind.local.rawValue)
+        #expect(PickerSection(kind: .local, models: []).id == "local")
+        #expect(PickerSection(kind: .provider("openai"), models: []).title == "OpenAI")
+        #expect(PickerSection(kind: .provider("openai"), models: []).id == "provider/openai")
     }
 
     @Test func localSubtitleWithoutSizeShowsOnlyTheFormat() {
