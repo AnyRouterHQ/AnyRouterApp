@@ -1,5 +1,6 @@
 import PhotosUI
 import SwiftUI
+import UIKit
 
 /// Chat input: a round "+" menu and a capsule field with one round button inside (voice, send or stop).
 struct Composer: View {
@@ -77,6 +78,17 @@ struct Composer: View {
             if model.pasteOffered, let presets, !presets.pasteOffered.isEmpty {
                 PasteOfferRow(presets: presets.pasteOffered, onPick: { model.applyToPaste($0) }, onDismiss: { model.dismissPasteOffer() })
             }
+            if app.clipboard.isOffered, model.input.isEmpty, let presets {
+                ClipboardLauncherRow(
+                    presets: presets.pasteOffered,
+                    onPaste: { text in model.input = text; app.clipboard.dismiss() },
+                    onPreset: { preset in
+                        // This read is the person's own tap on a preset. The row itself never reads the text.
+                        model.useClipboard(preset, text: UIPasteboard.general.string ?? "")
+                        app.clipboard.dismiss()
+                    },
+                    onDismiss: { app.clipboard.dismiss() })
+            }
             if !model.mentions.isEmpty {
                 MentionChips(mentions: model.mentions) { model.removeMention($0) }
             }
@@ -117,12 +129,15 @@ struct Composer: View {
         .onChange(of: model.focusTick) { focused.wrappedValue = true }
         .onChange(of: model.input) { old, new in
             model.inputChanged(from: old, to: new)
+            if !new.isEmpty { app.clipboard.dismiss() }
             if showsPluginList, new != old { showsPluginList = false }
             // New input cuts off the voice that is reading a reply.
             if new != old { app.speaker.stop() }
         }
         // Dictation ends with the screen: leaving the chat, or the app going to the background, keeps the words so far.
-        .onChange(of: scenePhase) { _, phase in if phase != .active { app.dictation.finish() } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { app.dictation.finish() } else { app.clipboard.check(composerEmpty: model.input.isEmpty) }
+        }
         .onDisappear { app.dictation.cancel() }
         .sheet(isPresented: Bindable(app.dictation).showsExplanation, onDismiss: {
             if app.dictation.phase == .idle { app.dictation.declineExplanation() }
@@ -150,6 +165,7 @@ struct Composer: View {
                 PresetSheet(store: presets, onPick: { model.usePreset($0) }, onSend: { model.sendNow($0) })
             }
         }
+        .task { app.clipboard.check(composerEmpty: model.input.isEmpty) }
         .task {
             guard settings.showKeyboardOnLaunch, !shell.didFocusComposerOnLaunch else { return }
             shell.didFocusComposerOnLaunch = true

@@ -75,7 +75,10 @@ struct RootView: View {
                 // After the saved chat is restored: a quit and relaunch counts as time away too.
                 openNewChatAfterTimeAway()
                 launchHandled = true
-                if !DemoData.isEnabled { appState.network.start() }
+                if !DemoData.isEnabled {
+                    appState.network.start()
+                    appState.clipboard.startWatching()
+                }
                 let watchdog = MainThreadWatchdog.shared
                 watchdog.mark("launch: local models")
                 await appState.hub.reload()

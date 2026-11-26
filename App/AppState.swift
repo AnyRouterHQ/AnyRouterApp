@@ -46,6 +46,8 @@ final class AppState {
     let dictation = DictationController()
     /// Reads replies aloud.
     let speaker = ReplySpeaker()
+    /// Decides when the chat offers text copied in another app. Demo runs never see the real pasteboard.
+    let clipboard = ClipboardLauncher(probe: DemoData.isEnabled ? EmptyPasteboard() : SystemPasteboard())
     /// Whether the device has a connection: offline, cloud models and web tools are skipped.
     let network = NetworkStatus()
     /// Typed questions answered by decision models.

@@ -332,6 +332,21 @@ final class ChatViewModel {
 
     func dismissPasteOffer() { pasteOffered = false }
 
+    /// A preset tapped in the clipboard row, with the text read from the clipboard. A preset with pickers opens its
+    /// choices with the text as the message; any other preset goes out at once.
+    @discardableResult
+    func useClipboard(_ preset: PromptPreset, text: String) -> Task<Void, Never>? {
+        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !body.isEmpty else { return nil }
+        if preset.hasOptions {
+            fill(body)
+            presetNeedingChoices = preset
+            return nil
+        }
+        fill(PasteOfferLogic.apply(preset, to: body))
+        return send()
+    }
+
     /// Fills the composer with the preset prompt so the user can edit before sending. A preset with pickers opens
     /// its choices first.
     func usePreset(_ preset: PromptPreset) {

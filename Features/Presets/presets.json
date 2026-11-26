@@ -62,6 +62,7 @@
     "prompt": "Translate the text below into {language}. Keep the meaning, names and numbers. Give the translation only.\n\nText:\n",
     "category": "write",
     "symbol": "globe",
+    "offerOnPaste": true,
     "options": [
       {
         "id": "language",
@@ -144,7 +145,8 @@
     "title": "Summarize text",
     "prompt": "Summarize the text below in three bullet points, then in one sentence, then list any open questions it leaves.\n\nText:\n",
     "category": "write",
-    "symbol": "list.bullet.clipboard"
+    "symbol": "list.bullet.clipboard",
+    "offerOnPaste": true
   },
   {
     "id": "weekly-plan",

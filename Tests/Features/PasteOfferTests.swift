@@ -120,6 +120,6 @@ struct PasteOfferStoreTests {
     @Test func theBundledFixEnglishPresetIsOfferedByDefault() throws {
         let items = try PresetStore.bundled(bundle: Bundle(for: PresetStore.self))
         #expect(items.first { $0.id == InboundPreset.fixEnglish }?.offerOnPaste == true)
-        #expect(items.filter(\.offerOnPaste).count == 1)
+        #expect(Set(items.filter(\.offerOnPaste).map(\.id)) == [InboundPreset.fixEnglish, "translate", "summarize", "reply-to-this"])
     }
 }
