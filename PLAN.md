@@ -256,6 +256,11 @@ Entry points (reach AnyRouter from anywhere on the phone; owner sonnet-medium-lo
 - [ ] F13 Run a 26B looped-core mixture-of-experts GGUF (6.9 GB IQ1_S) on an 8 GB phone: llama.cpp b12603, mmap load, GPU layers tuned to the Metal working set, context auto-picked. Simulator proof through `model-smoke.yml` (`hf_repo` + `hf_file`, or the `SMOKE_HF_*` secrets) still to run.
 - [x] F18 (ad70f7d) Create account and onboarding: Create account opens the sign-up page in the same `ASWebAuthenticationSession` with the authorize URL as `redirect_url`, so a new user comes back signed in (no second login). Welcome page (three sources, Continue with AnyRouter, Create account, Use on-device only), `SignInFlow` state machine, Settings "Verify your email" row from `/me` `email_verified`.
 - [ ] F19 Coverage: the unit job gates 100% lines on Core and on logic, stores, view models, the AnyRouter engine, the catalog and the download state machine (`scripts/coverage-gate.sh`, exclusions in `scripts/coverage-exclusions.txt`; part 1, landed, summary lists uncovered functions). Part 2 open: XCUITest flows for every screen run in a separate ui-tests job on iPhone and iPad.
+- [ ] F20 Adopt the first-party mobile client and the universal-link sign-in callback once the server side ships (tracked privately).
+- [ ] F21 UI E2E against prod AnyRouter, gated on the repo secret ANYROUTER_E2E_API_KEY (skipped with a summary note when absent, never on fork PRs, key never printed): model list loads, pick auto, send a question, streamed answer contains the result, invalid key shows the signed-out state, sign out clears the key.
+- [x] F22 SSE usage from include_usage and anyrouter_metadata: the request sends `stream_options.include_usage`, unknown top-level fields are ignored, token counts fall back to `anyrouter_metadata.usage`; fixture in `Tests/Engines/AnyRouter/ProdStreamShapeTests.swift`.
+- [ ] F23 CI speed and cost: build once and test many in one macOS job, compilation caching, path-aware jobs, Xcode-free checks on Linux (device-ipa already runs after CI and only for app changes).
+- [ ] F24 UI test matrix: one iPhone per push, nightly device matrix, Dynamic Type and landscape, flows from the list in the coverage lane.
 
 ## Local inference roadmap
 
