@@ -147,7 +147,9 @@ struct AttachmentIngestTests {
         defer { temp.cleanup() }
         let attachment = try await AttachmentIngest.file(at: try write(pngData(width: 3000, height: 3000), named: "big.png"), store: temp.store)
         #expect(attachment.kind == .image && attachment.filename == "big.jpg")
-        #expect(try #require(ImageProcessing.pixelSize(of: try #require(temp.store.data(for: attachment)))).width == 2048)
+        let stored = try #require(temp.store.data(for: attachment))
+        let size = try #require(ImageProcessing.pixelSize(of: stored))
+        #expect(size.width == 2048)
     }
 
     @Test func audioIsStoredButNotRead() async throws {
