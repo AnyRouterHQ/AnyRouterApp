@@ -36,26 +36,37 @@ struct DictationRulesTests {
 
     @Test func silenceAfterSpeechEndsDictation() {
         var detector = SilenceDetector()
-        #expect(!detector.observe(level: 0.6, at: 0))
-        #expect(!detector.observe(level: 0.05, at: 1))
-        #expect(!detector.observe(level: 0.05, at: 3.4))
-        #expect(detector.observe(level: 0.05, at: 3.6))
+        let quiet1 = detector.observe(level: 0.6, at: 0)
+        #expect(!quiet1)
+        let quiet2 = detector.observe(level: 0.05, at: 1)
+        #expect(!quiet2)
+        let quiet3 = detector.observe(level: 0.05, at: 3.4)
+        #expect(!quiet3)
+        let quiet4 = detector.observe(level: 0.05, at: 3.6)
+        #expect(quiet4)
     }
 
     @Test func speakingAgainRestartsTheQuietTimer() {
         var detector = SilenceDetector()
         _ = detector.observe(level: 0.6, at: 0)
         _ = detector.observe(level: 0.05, at: 1)
-        #expect(!detector.observe(level: 0.6, at: 3))
-        #expect(!detector.observe(level: 0.05, at: 4))
-        #expect(!detector.observe(level: 0.05, at: 6))
-        #expect(detector.observe(level: 0.05, at: 6.5))
+        let quiet5 = detector.observe(level: 0.6, at: 3)
+        #expect(!quiet5)
+        let quiet6 = detector.observe(level: 0.05, at: 4)
+        #expect(!quiet6)
+        let quiet7 = detector.observe(level: 0.05, at: 6)
+        #expect(!quiet7)
+        let quiet8 = detector.observe(level: 0.05, at: 6.5)
+        #expect(quiet8)
     }
 
     @Test func nobodySpeakingEndsItAfterTheLongerWait() {
         var detector = SilenceDetector()
-        #expect(!detector.observe(level: 0.01, at: 100))
-        #expect(!detector.observe(level: 0.01, at: 107.9))
-        #expect(detector.observe(level: 0.01, at: 108))
+        let quiet9 = detector.observe(level: 0.01, at: 100)
+        #expect(!quiet9)
+        let quiet10 = detector.observe(level: 0.01, at: 107.9)
+        #expect(!quiet10)
+        let quiet11 = detector.observe(level: 0.01, at: 108)
+        #expect(quiet11)
     }
 }
