@@ -132,6 +132,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] B2 `Engines/AnyRouter/Auth`: `OAuthClient` + `KeychainStore` (lane brief gives the prototype to port); sign in, sign out, key status; client name "AnyRouter for iOS" (#2)
 - [x] B3 `Engines/AnyRouter`: `GET /api/v1/models` → `ModelDescriptor`s; `POST /api/v1/chat/completions` with `stream: true` SSE parser; app attribution headers per AnyRouter docs; 401 → signed-out state (#2)
 - [x] B4 Tests: PKCE challenge, SSE parsing (fixtures incl. `[DONE]`, usage chunk, error chunk), models decoding (#2)
+- [x] R-decisions `ModelKind` (chat | embedding | rerank | decision) parsed at the engine boundary, chat picker lists chat only; Decisions screen (sidebar row, `POST /api/v1/decisions`, last 20 runs in SwiftData) (7d4b8a1)
 
 ### Lane C — local Hugging Face models (model: sonnet-high)
 - [x] C1 `Engines/Local/Catalog`: bundled `catalog.json` (curated small models that fit phones: e.g. Qwen3 0.6B/1.7B/4B, Gemma 3 1B/4B, Llama 3.2 1B/3B, in GGUF Q4_K_M and MLX 4-bit), user-editable list of HF repos + optional remote catalog URL in Settings, HF search (`/api/models?search=&filter=gguf|mlx`), device-fit check (RAM vs size) (#7, data layer; Settings UI is D6)
