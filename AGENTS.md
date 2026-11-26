@@ -72,7 +72,7 @@ git pull --rebase origin main        # resolve conflicts yourself, you know your
 git push origin HEAD:main            # retry pull --rebase + push if rejected
 ```
 
-- **Builds:** every push to `main` builds on macOS, newest commit wins (older runs are cancelled), so pushes are cheap. Put `[skip ci]` in the commit message for docs-only or work-in-progress pushes you don't need built. Docs-only changes skip the macOS build automatically.
+- **Builds:** every push to `main` builds on macOS. A running build always finishes; only the newest waiting push queues behind it (pushes in between are skipped), so pushes are cheap. Put `[skip ci]` in the commit message for docs-only or work-in-progress pushes you don't need built. Docs-only changes skip the macOS build automatically.
 - **Red main:** if the build on your commit fails, fixing it is your first job, as a new commit. Never revert someone else's work without telling the manager.
 - **Review:** a reviewer agent reads commits since the `review/last` tag, pushes fix commits, then moves the tag. Don't wait for review.
 - **Releases:** production builds come from tags (`v0.1.0`), which run the TestFlight workflow. Only the operator decides when to tag.
