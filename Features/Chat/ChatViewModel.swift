@@ -40,14 +40,14 @@ final class ChatViewModel {
     @ObservationIgnored private let save: (ModelContext) throws -> Void
     /// Seconds from any steady clock. Injected so timings are testable.
     @ObservationIgnored private let now: () -> TimeInterval
-    /// Builds the tools for one request from the files attached anywhere in the chat.
-    @ObservationIgnored private let toolHost: @MainActor ([ChatAttachment]) -> (any ToolHost)?
+    /// Builds the tools for one request from what the chat holds: its attachments and the user's own words.
+    @ObservationIgnored private let toolHost: @MainActor (ToolContext) -> (any ToolHost)?
     @ObservationIgnored let attachmentStore: AttachmentStore
     @ObservationIgnored private var task: Task<Void, Never>?
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
          settings: AppSettings, models: ModelStore,
-         toolHost: @escaping @MainActor ([ChatAttachment]) -> (any ToolHost)? = { _ in nil },
+         toolHost: @escaping @MainActor (ToolContext) -> (any ToolHost)? = { _ in nil },
          attachments: AttachmentStore = .shared,
          save: @escaping (ModelContext) throws -> Void = { try $0.save() },
          now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
@@ -279,6 +279,14 @@ final class ChatViewModel {
         return created
     }
 
+    /// The chat's attachments, and only the user's own words and files as the texts a tool may trust.
+    static func toolContext(for thread: ThreadRecord) -> ToolContext {
+        let all = thread.messages.flatMap { $0.attachments }
+        let user = thread.messages.filter { $0.role == .user }
+        let texts = user.flatMap { [$0.content] + $0.attachments.compactMap(\.extractedText) }
+        return ToolContext(attachments: all, userTexts: texts)
+    }
+
     private func startStream(model: ModelDescriptor, thread: ThreadRecord) -> Task<Void, Never> {
         phase = .streaming
         errorMessage = nil
@@ -290,7 +298,7 @@ final class ChatViewModel {
         context.insert(assistant)
         assistant.thread = thread
         let params = settings.generationParams
-        let host = toolsEnabled && model.capabilities.contains("tools") ? toolHost(thread.messages.flatMap { $0.attachments }) : nil
+        let host = toolsEnabled && model.capabilities.contains("tools") ? toolHost(Self.toolContext(for: thread)) : nil
         let stream = registry.engine(for: model).stream(
             model: model, messages: history, params: params,
             tools: host?.specs.isEmpty == false ? host : nil)

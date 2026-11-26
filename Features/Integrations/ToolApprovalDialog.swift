@@ -9,9 +9,19 @@ enum ToolApprovalPrompt {
         "Allow \(request.spec.title ?? request.spec.name)?"
     }
 
-    /// The server name, then the arguments as compact JSON.
+    /// Longest address the message shows; an address is never cut short of this, because the user decides on it.
+    static let maxAddressCharacters = 2_000
+
+    /// The server name, then the reason and the full addresses when there are any, else the arguments as compact JSON.
     static func message(for request: ToolApprovalRequest) -> String {
-        "\(request.serverName)\n\(compactJSON(request.call.argumentsJSON))"
+        var lines = [request.serverName]
+        if let reason = request.reason { lines.append(reason) }
+        if request.urls.isEmpty {
+            lines.append(compactJSON(request.call.argumentsJSON))
+        } else {
+            lines += request.urls.map { String($0.prefix(maxAddressCharacters)) }
+        }
+        return lines.joined(separator: "\n")
     }
 
     static func compactJSON(_ text: String, limit: Int = maxArgumentCharacters) -> String {
@@ -52,11 +62,14 @@ private struct ToolApprovalDialog: ViewModifier {
                 }),
             titleVisibility: .visible,
             presenting: center.pending
-        ) { _ in
+        ) { entry in
             Button("Allow once") { answer(.allowOnce) }
                 .accessibilityIdentifier("tool-approval.allow-once")
-            Button("Always allow") { answer(.alwaysAllow) }
-                .accessibilityIdentifier("tool-approval.always-allow")
+            // A request with a reason is about this one call; remembering it would switch the protection off.
+            if entry.request.reason == nil {
+                Button("Always allow") { answer(.alwaysAllow) }
+                    .accessibilityIdentifier("tool-approval.always-allow")
+            }
             Button("Don't allow", role: .cancel) { answer(.deny) }
                 .accessibilityIdentifier("tool-approval.deny")
         } message: { entry in

@@ -2,7 +2,8 @@ import Foundation
 
 /// Which tools of the AnyRouter server are safe to run without asking. The server marks its own core tools
 /// read-only but not the Firecrawl ones, so those are judged by name: reading the web is read-only, creating,
-/// changing or deleting monitors, crawling, interacting with pages and sending feedback are not.
+/// changing or deleting monitors, crawling, interacting with pages, research (it can spend credits) and sending
+/// feedback are not.
 enum AnyRouterToolPolicy {
     /// `firecrawl__firecrawl_search` becomes `search`.
     static func bareName(_ name: String) -> String {
@@ -22,7 +23,7 @@ enum AnyRouterToolPolicy {
     static func isReadOnly(_ tool: MCPTool) -> Bool {
         if let hint = tool.annotations?.readOnlyHint { return hint }
         let bare = bareName(tool.name)
-        return readOnlyNames.contains(bare) || bare.hasPrefix("research_")
+        return readOnlyNames.contains(bare)
     }
 }
 

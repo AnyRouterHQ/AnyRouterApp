@@ -5,6 +5,10 @@ struct ToolApprovalRequest: Sendable, Equatable {
     var serverName: String
     var spec: ToolSpec
     var call: ToolCall
+    /// Why a tool that normally runs unasked is asking now. Such a request cannot be "always allowed".
+    var reason: String?
+    /// The full addresses the user never wrote, when that is the reason.
+    var urls: [String] = []
 }
 
 /// Asks the user. The chat UI implements this with a sheet; it suspends until the user decides.

@@ -100,7 +100,7 @@ final class ToolRegistry {
     // MARK: Host
 
     /// The tools for one chat request, or nil when none is on.
-    func makeHost(approver: any ToolApproving, attachments: [ChatAttachment] = []) -> AgentToolHost? {
+    func makeHost(approver: any ToolApproving, context: ToolContext = ToolContext()) -> AgentToolHost? {
         var mcpTools = integrations.enabledTools
         let match = searchMatch.flatMap { isBuiltInEnabled(WebSearchBinding.name) ? $0 : nil }
         if let match {
@@ -112,8 +112,8 @@ final class ToolRegistry {
             mcpTools.removeAll { $0.server.id == scrape.server.id && $0.tool.name == scrape.tool.name }
         }
         var builtIns = self.builtIns.filter { isBuiltInEnabled($0.name) }
-        if !attachments.isEmpty, isBuiltInEnabled("read_attachment") {
-            builtIns.append(ReadAttachmentTool(provider: ThreadAttachments(attachments: attachments)))
+        if !context.attachments.isEmpty, isBuiltInEnabled("read_attachment") {
+            builtIns.append(ReadAttachmentTool(provider: ThreadAttachments(attachments: context.attachments)))
         }
         guard match != nil || !builtIns.isEmpty || !mcpTools.isEmpty else { return nil }
 
@@ -121,6 +121,8 @@ final class ToolRegistry {
         let mcpHost = mcpTools.isEmpty ? nil : integrations.makeToolHost(enabled: mcpTools, approver: approver, reserved: reserved)
         let search = match.map { (match: $0, client: integrations.client(for: $0.server)) }
         let fetch = scrape.map { (match: $0, client: integrations.client(for: $0.server)) }
-        return AgentToolHost(builtIns: builtIns, search: search, mcp: mcpHost, fetch: fetch)
+        return AgentToolHost(
+            builtIns: builtIns, search: search, mcp: mcpHost, fetch: fetch,
+            approver: approver, exfiltration: ExfiltrationGuard(userTexts: context.userTexts))
     }
 }

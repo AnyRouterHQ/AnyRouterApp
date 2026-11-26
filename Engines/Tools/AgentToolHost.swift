@@ -12,15 +12,22 @@ struct AgentToolHost: ToolHost {
     private let mcp: MCPToolHost?
     private let builtInTimeout: Double
     private let searchTimeout: Double
+    private let approver: (any ToolApproving)?
+    private let exfiltration: ExfiltrationGuard
 
+    /// `approver` is asked in the cases `ExfiltrationGuard` describes; without one such calls are refused.
     init(
         builtIns: [any BuiltInTool],
         search: (match: WebSearchBinding.Match, client: MCPClient)?,
         mcp: MCPToolHost?,
         fetch: (match: WebSearchBinding.Match, client: MCPClient)? = nil,
         builtInTimeout: Double = AgentToolHost.builtInTimeout,
-        searchTimeout: Double = 45
+        searchTimeout: Double = 45,
+        approver: (any ToolApproving)? = nil,
+        exfiltration: ExfiltrationGuard = ExfiltrationGuard(userTexts: [])
     ) {
+        self.approver = approver
+        self.exfiltration = exfiltration
         self.builtIns = Dictionary(builtIns.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
         self.search = search
         self.mcp = mcp
@@ -41,6 +48,36 @@ struct AgentToolHost: ToolHost {
     }
 
     func execute(_ call: ToolCall) async -> ToolResult {
+        if let request = approvalRequest(for: call) {
+            guard let approver, await approver.decide(request) != .deny else {
+                return ToolResult(callID: call.id, name: call.name, text: "The user did not allow this tool call.", isError: true)
+            }
+        }
+        return await run(call)
+    }
+
+    /// A call that needs no approval of its own but could carry chat text out: a URL the user never wrote, or a
+    /// search that repeats a long passage of the chat. MCP tools that need approval already ask in `MCPToolHost`.
+    private func approvalRequest(for call: ToolCall) -> ToolApprovalRequest? {
+        guard let spec = specs.first(where: { $0.name == call.name }), spec.isReadOnly,
+            let arguments = MCPToolHost.arguments(from: call.argumentsJSON)
+        else { return nil }
+        let urls = exfiltration.unsuppliedURLs(in: arguments)
+        let reason: String
+        if !urls.isEmpty {
+            reason = "This address is not in your messages."
+        } else if call.name == WebSearchBinding.name, let query = arguments["query"]?.string,
+            exfiltration.repeatsUserText(query) {
+            reason = "This search repeats a long passage of the chat."
+        } else {
+            return nil
+        }
+        let onDevice = builtIns[call.name] != nil && !(call.name == FetchURLTool.toolName && fetch != nil)
+        return ToolApprovalRequest(
+            serverName: onDevice ? "This device" : "AnyRouter", spec: spec, call: call, reason: reason, urls: urls)
+    }
+
+    private func run(_ call: ToolCall) async -> ToolResult {
         func result(_ text: String, error: Bool) -> ToolResult {
             ToolResult(callID: call.id, name: call.name, text: text, isError: error)
         }

