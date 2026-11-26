@@ -25,8 +25,7 @@ struct ARIconButton: View {
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(ARColor.foreground)
                 .frame(width: ARTheme.controlSize, height: ARTheme.controlSize)
-                .background(ARColor.card, in: Circle())
-                .overlay(Circle().strokeBorder(ARColor.border, lineWidth: 1))
+                .arGlass(in: Circle(), interactive: true)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)

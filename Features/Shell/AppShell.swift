@@ -1,9 +1,12 @@
+import SwiftData
 import SwiftUI
 
 /// Sidebar plus chat. iPhone: a wide drawer the chat slides away from. iPad: a persistent sidebar column.
 struct AppShell: View {
     @Environment(ShellModel.self) private var shell
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.modelContext) private var context
+    @SceneStorage("shell.selectedThread") private var storedThread = ""
 
     private var isRegular: Bool { sizeClass == .regular }
 
@@ -16,6 +19,16 @@ struct AppShell: View {
         .onChange(of: isRegular, initial: true) { _, regular in
             shell.isSidebarOpen = regular
         }
+        .onAppear { restoreSelection() }
+        .onChange(of: shell.selectedThreadID) { _, id in storedThread = id?.uuidString ?? "" }
+    }
+
+    /// Reopens the thread this scene showed before it was closed, if it still exists.
+    private func restoreSelection() {
+        guard shell.selectedThreadID == nil, let id = UUID(uuidString: storedThread) else { return }
+        var descriptor = FetchDescriptor<ThreadRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        if ((try? context.fetchCount(descriptor)) ?? 0) > 0 { shell.selectedThreadID = id }
     }
 }
 
@@ -35,7 +48,7 @@ private struct PadShell: View {
                 .navigationSplitViewColumnWidth(min: 320, ideal: 320, max: 320)
                 .toolbar(.hidden, for: .navigationBar)
         } detail: {
-            Detail().toolbar(.hidden, for: .navigationBar)
+            Detail()
         }
         .navigationSplitViewStyle(.balanced)
     }
@@ -130,12 +143,15 @@ private struct Detail: View {
     @Environment(ShellModel.self) private var shell
 
     var body: some View {
-        Group {
-            switch shell.route {
-            case .chat: ChatScreen()
-            case .hub: HubScreen()
+        NavigationStack {
+            Group {
+                switch shell.route {
+                case .chat: ChatScreen()
+                // The hub still draws its own page header until it becomes a native sheet.
+                case .hub: HubScreen().toolbar(.hidden, for: .navigationBar)
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

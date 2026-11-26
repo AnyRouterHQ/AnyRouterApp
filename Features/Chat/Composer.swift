@@ -50,7 +50,7 @@ struct Composer: View {
             .padding(.horizontal, 12)
             .padding(.top, 12)
             .padding(.bottom, 8)
-            .arCard(radius: ARTheme.radiusXL)
+            .arGlass(in: RoundedRectangle(cornerRadius: ARTheme.radiusXL, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: ARTheme.radiusXL, style: .continuous))
             .onTapGesture { focused.wrappedValue = true }
         }

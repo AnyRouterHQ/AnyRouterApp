@@ -16,8 +16,7 @@ struct ModelPill: View {
             .foregroundStyle(ARColor.foreground)
             .padding(.horizontal, 14)
             .frame(height: ARTheme.controlSize)
-            .background(ARColor.card, in: Capsule())
-            .overlay(Capsule().strokeBorder(ARColor.border, lineWidth: 1))
+            .arGlass(in: Capsule(), interactive: true)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Model")

@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// Chat page: floating top bar, message list and composer. Rebuilds its view model when the thread changes.
+/// Chat page: toolbar (menu, model pill, new chat), message list and a glass composer. Rebuilds its view model when the thread changes.
 struct ChatScreen: View {
     @Environment(ShellModel.self) private var shell
     @Environment(\.modelContext) private var context
@@ -10,34 +10,40 @@ struct ChatScreen: View {
     @Environment(ModelStore.self) private var models
     @Environment(AppState.self) private var app
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
     @State private var chat: ChatViewModel?
     @State private var showsPicker = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            topBar
+        Group {
             if let chat {
                 ChatContent(chat: chat, hasModel: models.selected != nil, presets: app.presets)
             } else {
-                Spacer()
+                Color.clear
             }
         }
+        .toolbar {
+            // The regular-width split view supplies its own sidebar toggle when the column is collapsed.
+            if sizeClass == .compact {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { shell.toggleSidebar() } label: { Image(systemName: "line.3.horizontal") }
+                        .accessibilityLabel("Menu")
+                }
+            }
+            ToolbarItem(placement: .principal) {
+                ModelPill { showsPicker = true }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "plus") }
+                    .accessibilityLabel("New chat")
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
         .task(id: shell.selectedThreadID) { prepare() }
         .sheet(isPresented: $showsPicker) {
             ModelPickerSheet()
         }
-    }
-
-    private var topBar: some View {
-        HStack {
-            ARIconButton(systemName: "line.3.horizontal", label: "Menu") { shell.toggleSidebar() }
-            Spacer()
-            ModelPill { showsPicker = true }
-            Spacer()
-            ARIconButton(systemName: "plus", label: "New chat") { shell.newChat(closeSidebar: false) }
-        }
-        .padding(.horizontal, ARTheme.pagePadding)
-        .padding(.vertical, 8)
     }
 
     /// Keeps the current model when it already shows the selected thread (a first send creates the thread itself).
@@ -66,12 +72,15 @@ private struct ChatContent: View {
     @FocusState private var composerFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
+        Group {
             if chat.messages.isEmpty {
                 emptyState
             } else {
                 messageList
             }
+        }
+        // The composer floats on glass over the list, so messages scroll beneath it.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             Composer(model: chat, hasModel: hasModel, presets: presets, focused: $composerFocused)
         }
     }
@@ -112,6 +121,7 @@ private struct ChatContent: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
+            .scrollEdgeEffectStyle(.soft, for: .all)
             .simultaneousGesture(TapGesture().onEnded { composerFocused = false })
             .defaultScrollAnchor(.bottom)
             .onChange(of: messages.count) { proxy.scrollTo("bottom", anchor: .bottom) }
