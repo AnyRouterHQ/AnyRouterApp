@@ -112,13 +112,16 @@ private struct ChatContent: View {
             .buttonStyle(.plain)
             .accessibilityHint("Shows a tip")
             .accessibilityIdentifier("home.greeting")
-            Text(tip ?? subtitle)
-                .font(.arSM)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .contentTransition(.opacity)
-                .animation(.easeInOut(duration: 0.25), value: tip)
-                .accessibilityIdentifier("home.subtitle")
+            HStack(spacing: 6) {
+                if tip == nil, let model = chat.model { ModelLogo(brand: ModelBrand.resolve(model), size: 15) }
+                Text(tip ?? subtitle)
+                    .font(.arSM)
+                    .multilineTextAlignment(.center)
+            }
+            .foregroundStyle(.secondary)
+            .contentTransition(.opacity)
+            .animation(.easeInOut(duration: 0.25), value: tip)
+            .accessibilityIdentifier("home.subtitle")
             Spacer()
             PresetSuggestions(store: presets, onPick: { chat.usePreset($0) }, onSend: { chat.sendNow($0) })
                 .padding(.bottom, 8)

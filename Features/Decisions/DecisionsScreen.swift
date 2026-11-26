@@ -32,7 +32,9 @@ struct DecisionsScreen: View {
                         .foregroundStyle(.secondary)
                 } else {
                     Picker("Model", selection: $store.modelID) {
-                        ForEach(store.models) { Text($0.name).tag($0.id) }
+                        ForEach(store.models) {
+                            ModelLabel(name: $0.name, brand: .asset(ModelBrand.anyRouterMark), style: .row).tag($0.id)
+                        }
                     }
                     .accessibilityIdentifier("decisions-model")
                 }
