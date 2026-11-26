@@ -25,6 +25,10 @@ final class ShellModel {
         if closeSidebar { isSidebarOpen = false }
     }
 
+    init(selectedThreadID: UUID? = nil) {
+        self.selectedThreadID = selectedThreadID
+    }
+
     func toggleSidebar() { isSidebarOpen.toggle() }
 
     func newChat(closeSidebar: Bool) {

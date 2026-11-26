@@ -53,6 +53,9 @@ struct MessageRow: View {
     }
 
     private var assistantRow: some View {
+        // Body time of an assistant row. The MarkdownUI subtree below builds its layout later, outside this interval.
+        let signpost = Perf.signposter.beginInterval("row.assistant")
+        defer { Perf.signposter.endInterval("row.assistant", signpost) }
         let steps = message.toolSteps
         return VStack(alignment: .leading, spacing: 6) {
             if let switchNote {

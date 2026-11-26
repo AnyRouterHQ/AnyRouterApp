@@ -8,6 +8,26 @@ enum DemoData {
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: "ARDemoData") }
     private static var signedOut: Bool { UserDefaults.standard.bool(forKey: "ARDemoSignedOut") }
     private static var onboarding: Bool { UserDefaults.standard.bool(forKey: "ARDemoOnboarding") }
+
+    // Performance fixtures (UITests/PerformanceTests.swift). All off unless the argument is given.
+    /// `-ARDemoLongThread 200`: one extra thread with that many messages, opened at launch.
+    private static var longThreadMessages: Int { UserDefaults.standard.integer(forKey: "ARDemoLongThread") }
+    /// `-ARDemoManyModels 500`: that many extra cloud models.
+    private static var extraModels: Int { UserDefaults.standard.integer(forKey: "ARDemoManyModels") }
+    /// `-ARDemoCloudDelay 5`: seconds before the cloud engine returns its model list.
+    private static var cloudDelay: Int { UserDefaults.standard.integer(forKey: "ARDemoCloudDelay") }
+    /// `-ARDemoStream 1000@50`: every demo reply streams that many tokens at that many per second.
+    static var stream: (tokens: Int, perSecond: Int)? {
+        guard let raw = UserDefaults.standard.string(forKey: "ARDemoStream") else { return nil }
+        let parts = raw.split(separator: "@").compactMap { Int($0) }
+        guard parts.count == 2, parts[0] > 0, parts[1] > 0 else { return nil }
+        return (parts[0], parts[1])
+    }
+
+    /// Fixed id so the shell can open the long thread without tapping through the sidebar.
+    private static let longThreadID = UUID(uuidString: "00000000-0000-0000-0000-00000000A11C") ?? UUID()
+    /// Thread the shell selects at launch, or nil.
+    static var initialThreadID: UUID? { isEnabled && longThreadMessages > 0 ? longThreadID : nil }
     private static var tools: Bool { UserDefaults.standard.bool(forKey: "ARDemoTools") }
 
     /// Text of the demo search result, read by the UI tests.
@@ -63,6 +83,7 @@ enum DemoData {
             }
         }
         if tools { insertToolThread(in: context, at: now) }
+        if longThreadMessages > 0 { insertLongThread(into: context, now: now) }
         try context.save()
         return container
     }
@@ -98,10 +119,10 @@ enum DemoData {
            let appearance = AppSettings.Appearance(rawValue: raw) {
             settings.appearance = appearance
         }
-        let cloud = signedOut || onboarding ? [] : cloudModels
+        let cloud = signedOut || onboarding ? [] : cloudModels + extraCloudModels
         registry.register(DemoEngine(source: .apple, models: [descriptor("apple/foundation", .apple, "Apple Intelligence")]))
         registry.register(DemoEngine(source: .gguf, models: onboarding ? [] : installedLocal))
-        registry.register(DemoEngine(source: .anyrouter, models: cloud))
+        registry.register(DemoEngine(source: .anyrouter, models: cloud, listDelay: .seconds(cloudDelay)))
         let account: any AccountService = DemoAccount(state: signedOut || onboarding ? .signedOut : .signedIn(label: "you@example.com"))
         return (settings, ModelStore(registry: registry, defaults: defaults), DemoHub(installed: !onboarding), account)
     }
@@ -127,6 +148,44 @@ enum DemoData {
             availability: .usable, upstreamCount: upstreams, memberCount: members,
             supportsVision: vision, supportsReasoning: reasoning, created: nil, logoURL: nil)
         return model
+    }
+
+    private static var extraCloudModels: [ModelDescriptor] {
+        (0..<max(extraModels, 0)).map {
+            let number = String(format: "%03d", $0 + 1)
+            return descriptor("anyrouter/bench/model-\(number)", .anyrouter, "Bench model \(number)")
+        }
+    }
+
+    /// Alternating user and assistant messages with a mix of paragraphs, lists and code, newest thread first.
+    @MainActor
+    private static func insertLongThread(into context: ModelContext, now: Date) {
+        let thread = ThreadRecord(id: longThreadID, title: "Long thread", createdAt: now.addingTimeInterval(60),
+                                  modelID: "apple/foundation")
+        context.insert(thread)
+        for index in 0..<longThreadMessages {
+            let role: ChatMessage.Role = index.isMultiple(of: 2) ? .user : .assistant
+            let text = role == .user ? "Question \(index / 2 + 1): how does this part work?" : longAnswer(number: index / 2 + 1)
+            let record = MessageRecord(role: role, content: text, createdAt: now.addingTimeInterval(60 + Double(index)))
+            context.insert(record)
+            record.thread = thread
+        }
+    }
+
+    private static func longAnswer(number: Int) -> String {
+        """
+        Answer \(number). The short version: **keep state in one place** and let views read it.
+
+        - First point about the design, with `inline code` in it.
+        - Second point, a little longer so the line wraps on a phone screen and the layout has some work to do.
+
+        ```swift
+        let value = compute(\(number))
+        print(value)
+        ```
+
+        That is all there is to it.
+        """
     }
 
     private static let cloudModels: [ModelDescriptor] = [
@@ -220,15 +279,55 @@ struct DemoDecisionsService: DecisionsService {
 struct DemoEngine: ChatEngine {
     let source: ModelSource
     let models: [ModelDescriptor]
+    /// Wait before `availableModels` returns, to stand in for a slow network.
+    var listDelay: Duration = .zero
 
-    func availableModels() async throws -> [ModelDescriptor] { models }
+    func availableModels() async throws -> [ModelDescriptor] {
+        if listDelay > .zero { try await Task.sleep(for: listDelay) }
+        return models
+    }
 
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
         -> AsyncThrowingStream<ChatDelta, Error> {
         AsyncThrowingStream { continuation in
-            continuation.yield(.text("This is a demo reply."))
-            continuation.yield(.done(finishReason: "stop"))
-            continuation.finish()
+            guard let plan = DemoData.stream else {
+                continuation.yield(.text("This is a demo reply."))
+                continuation.yield(.done(finishReason: "stop"))
+                continuation.finish()
+                return
+            }
+            let task = Task {
+                let interval = Duration.seconds(1) / plan.perSecond
+                for index in 0..<plan.tokens {
+                    if Task.isCancelled { break }
+                    continuation.yield(.text(Self.token(index)))
+                    try? await Task.sleep(for: interval)
+                }
+                continuation.yield(.done(finishReason: "stop"))
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+}
+
+extension DemoEngine {
+    /// Deterministic text with paragraphs, bullets, bold and a code fence, so the markdown parser has real work.
+    static func token(_ index: Int) -> String {
+        let block = index % 120
+        switch block {
+        case 0: return "\n\n- "
+        case 1..<20: return "word\(index) "
+        case 20: return "\n- "
+        case 21..<40: return "item\(index) "
+        case 40: return "\n\n**"
+        case 41: return "Note"
+        case 42: return "** "
+        case 43..<70: return "text\(index) "
+        case 70: return "\n\n```swift\n"
+        case 71..<80: return "let v\(index) = \(index)\n"
+        case 80: return "```\n\n"
+        default: return "plain\(index) "
         }
     }
 }

@@ -8,6 +8,8 @@ struct AnyRouterApp: App {
     private let container: ModelContainer
 
     init() {
+        let signpost = Perf.signposter.beginInterval("launch.container")
+        defer { Perf.signposter.endInterval("launch.container", signpost) }
         do {
             container = DemoData.isEnabled ? try DemoData.makeContainer() : try ModelContainer.anyRouter()
         } catch {
