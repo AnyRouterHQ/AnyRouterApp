@@ -18,8 +18,8 @@ struct Composer: View {
             }
             if let notice = model.modelNotice {
                 Text(notice)
-                    .font(.arXS)
-                    .foregroundStyle(ARColor.mutedForeground)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 4)
             }
