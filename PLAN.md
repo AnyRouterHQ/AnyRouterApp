@@ -29,6 +29,7 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that copies the Atomic Ch
 | D9 | OAuth: dynamic client registration (`/api/v1/mcp/oauth/register`) + PKCE + loopback `127.0.0.1` callback via `ASWebAuthenticationSession` | Pattern proven on device in an earlier AnyRouter iOS prototype; the server rejects custom URL schemes. |
 | D11 | Config: `Config/Base.xcconfig` (committed) + `Config/Local.xcconfig` (gitignored) for Team ID; CI secrets for signing | Open source: no personal values in git. |
 | D12 | UI-facing service protocols live in `Features/Services/`: `AccountService` (sign-in state; lane B conforms, `@MainActor @Observable` class) and `ModelHubService` (catalog, download state, search, custom repos; lane C conforms). Lane D ships inert defaults in `AppState` (`account`, `hub`); B/C assign their real service there. | UI never imports engine types. |
+| D13 | Markdown rendering uses `gonzalezreal/swift-markdown-ui` (MarkdownUI 2.4.x) | Maintained, SwiftUI-native, themeable to Atomic's markdown.css. |
 | D10 | Persistence: SwiftData for threads/messages; Keychain for the AnyRouter key; `UserDefaults` for settings | Simplest native stack. |
 
 ## Out of scope for v1
@@ -135,7 +136,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 ### Lane D — UI clone of Atomic Chat mobile (model: sonnet-medium; starts after A merges)
 - [x] D1 (#8) `Design/`: port tokens from `Atomic-Chat/web-app/src/index.css` (oklch light/dark → `Color`), radius 10pt, fonts from `styles/font.css`, spacing; AnyRouter brand accent
 - [x] D2 (#8) Threads sidebar (Atomic `left-sidebar/`, `ThreadList.tsx`): new chat, search, pinned, rename, delete; compact on iPhone, split on iPad
-- [ ] D3 Chat screen (Atomic `ChatInput.tsx`, message list, markdown with code blocks, copy, regenerate, stop)
+- [x] D3 (#9) Chat screen (Atomic `ChatInput.tsx`, message list, markdown with code blocks, copy, regenerate, stop)
 - [ ] D4 Model picker (Atomic `DropdownModelProvider.tsx`): grouped by source, install state, sign-in prompt for AnyRouter
 - [ ] D5 Hub (Atomic `routes/hub`): catalog list, search, download/delete with progress, fit badge
 - [ ] D6 Settings (Atomic `routes/settings`): account (sign in/out), model providers, catalog sources editor, generation defaults, appearance, about + licenses
@@ -157,6 +158,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - 2026-11-26 manager: interviewed operator, wrote AGENTS.md + PLAN.md + base config, created public repo AnyRouterHQ/AnyRouterApp, started lanes A, B, C.
 - 2026-11-26 lane-A: scaffold, Core contract, app shell, CI workflow (#1); local checks skipped
 - 2026-11-26 lane-D: design tokens, adaptive shell, threads sidebar, AnyRouter icon (#8); local checks skipped
+- 2026-11-26 lane-D: chat screen, composer, markdown (MarkdownUI), view model tests (#9); AppState now registers the Apple and AnyRouter engines; local checks skipped
 - 2026-11-26 lane-A: hygiene (gitleaks, dependabot, templates, README, notices) (#3); PR #1 merged, CI green
 - 2026-11-26 lane-B: Apple + AnyRouter engines, OAuth sign-in, SSE/PKCE tests (#2); local checks skipped, CI is the gate
 - 2026-11-26 lane-C: catalog, HF client, device fit, background downloads and installer with tests (#7); local checks skipped
