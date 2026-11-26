@@ -140,6 +140,12 @@ class JourneyCase: XCTestCase {
         sleep(1)
     }
 
+    /// A button that is on screen. Closed-drawer buttons stay in the tree, so plain label lookups can pick them.
+    func visibleButton(_ app: XCUIApplication, _ label: String) -> XCUIElement {
+        let matches = app.buttons.matching(NSPredicate(format: "label == %@", label)).allElementsBoundByIndex
+        return matches.first(where: { $0.isHittable }) ?? app.buttons[label].firstMatch
+    }
+
     func openSettings(_ app: XCUIApplication) {
         openSidebar(app)
         for attempt in 1...2 {
