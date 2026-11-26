@@ -113,14 +113,15 @@ struct AnyRouterAuthLaunchTests {
 
     @Test func aMatchingHintStaysSignedInWithoutAChange() async {
         let log = ChangeLog()
-        let expiry = Date().addingTimeInterval(3600)
+        // Whole seconds, so the same instant compares equal whether it came from the hint (a Double) or the store.
+        let expiry = Date(timeIntervalSince1970: (Date().timeIntervalSince1970 + 3600).rounded())
         let store = SpyTokenStore(tokens: ["tok"], expiry: expiry)
         let auth = AnyRouterAuth(
             store: store, client: HeldSigner(), restore: .deferred, hints: hints(signedIn: true, expiry: expiry))
         auth.onSignedInChange = { log.values.append($0) }
         #expect(await waitUntil { store.reads >= 2 })
         await settle()
-        #expect(auth.state == .signedIn(expiresAt: Date(timeIntervalSince1970: expiry.timeIntervalSince1970)))
+        #expect(auth.state == .signedIn(expiresAt: expiry))
         #expect(log.values.isEmpty)
     }
 
