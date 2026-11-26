@@ -86,14 +86,14 @@ private final class PrefixCollector: NSObject, URLSessionDataDelegate, @unchecke
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        let (continuation, outcome): (CheckedContinuation<(Data, HTTPURLResponse), Error>?, Result<(Data, HTTPURLResponse), Error>) =
+        let (waiting, outcome): (CheckedContinuation<(Data, HTTPURLResponse), Error>?, Result<(Data, HTTPURLResponse), Error>) =
             lock.withLock {
                 defer { self.continuation = nil }
-                if notHTTP { return (continuation, .failure(LocalModelError.invalidResponse)) }
-                if let response, error == nil || capped { return (continuation, .success((data, response))) }
-                return (continuation, .failure(error ?? LocalModelError.invalidResponse))
+                if notHTTP { return (self.continuation, .failure(LocalModelError.invalidResponse)) }
+                if let response, error == nil || capped { return (self.continuation, .success((data, response))) }
+                return (self.continuation, .failure(error ?? LocalModelError.invalidResponse))
             }
-        continuation?.resume(with: outcome)
+        waiting?.resume(with: outcome)
     }
 }
 

@@ -45,8 +45,9 @@ struct MainActorResponsivenessTests {
         let size = try #require(try FileManager.default.attributesOfItem(atPath: target.path)[.size] as? NSNumber).int64Value
         try ModelInstaller.verifyAndInstall(
             DownloadJobRecord(entry: entry, files: [HFFile(path: "stories260K.gguf", size: size)]), storage: storage)
+        let tinyEntry = entry
         let catalog = CatalogService(
-            bundled: { CatalogDocument(schemaVersion: 1, updatedAt: nil, models: [self.entry]) },
+            bundled: { CatalogDocument(schemaVersion: 2, updatedAt: nil, models: [tinyEntry]) },
             cacheDirectory: makeTempDirectory(), settings: { CatalogSettings() })
         return GGUFEngine(storage: storage, catalog: catalog)
     }
