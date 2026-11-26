@@ -1,5 +1,7 @@
 import SwiftUI
 
+// prominent-ok: this file defines the modifier the check asks for.
+
 extension Color {
     /// The label color on a prominent button: the inverse of the accent, so white on black in light mode and black on
     /// white in dark mode. The system draws the label of `.borderedProminent` and `.glassProminent` in a fixed light

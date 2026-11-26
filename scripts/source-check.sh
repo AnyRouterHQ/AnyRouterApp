@@ -24,4 +24,12 @@ if git grep -n -E '#require\([^)]*#require\(' -- 'Tests/*.swift' 'UITests/*.swif
   git grep -n -E '#require\([^)]*#require\(' -- 'Tests/*.swift' 'UITests/*.swift' | sed 's/^/::error::nested #require, split it into a let: /'
   fail=1
 fi
+# A prominent button draws its label in a fixed light color, which vanishes on the mono accent in dark mode. Every file with
+# one must put .prominentLabel() on the label (Design/AccentForeground.swift), or say why not with "// prominent-ok: <reason>".
+for f in $(git grep -l -E '\.(borderedProminent|glassProminent)([^A-Za-z]|$)' -- 'App/*.swift' 'Core/*.swift' 'Design/*.swift' 'Engines/*.swift' 'Features/*.swift'); do
+  if ! grep -q -E '\.prominentLabel\(\)|prominent-ok:' "$f"; then
+    echo "::error file=$f::prominent button without .prominentLabel() on its label (white on white in dark mode). Add it, or a '// prominent-ok: <reason>' comment."
+    fail=1
+  fi
+done
 exit $fail
