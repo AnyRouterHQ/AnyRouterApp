@@ -88,17 +88,28 @@ enum FetchURLPolicy {
         return .success(url)
     }
 
-    /// Localhost, `.local`/`.internal` names, private and link-local IPv4, loopback and private IPv6.
-    static func isLocal(host: String) -> Bool {
-        let host = host.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+    /// Localhost, `.local`/`.internal` names, private and link-local IPv4 in any spelling (`127.1`, `0x7f.0.0.1`,
+    /// `2130706433`), and loopback, private, link-local or IPv4-mapped IPv6. An address it cannot read is refused.
+    static func isLocal(host raw: String) -> Bool {
+        var host = raw.trimmingCharacters(in: CharacterSet(charactersIn: "[]")).lowercased()
+        while host.hasSuffix(".") { host.removeLast() }
         if host == "localhost" || host.hasSuffix(".localhost") || host.hasSuffix(".local") || host.hasSuffix(".internal") { return true }
         if host.contains(":") {
-            return host == "::1" || host == "::" || host.hasPrefix("fc") || host.hasPrefix("fd") || host.hasPrefix("fe80")
-                || host.hasPrefix("::ffff:")
+            var address = in6_addr()
+            guard inet_pton(AF_INET6, host, &address) == 1 else { return true }
+            let bytes = withUnsafeBytes(of: &address) { Array($0) }
+            if bytes.dropLast().allSatisfy({ $0 == 0 }), bytes[15] <= 1 { return true } // :: and ::1
+            if bytes[0] & 0xFE == 0xFC { return true } // fc00::/7
+            if bytes[0] == 0xFE, bytes[1] & 0xC0 == 0x80 { return true } // fe80::/10
+            return bytes[0..<10].allSatisfy { $0 == 0 } && bytes[10] == 0xFF && bytes[11] == 0xFF // ::ffff:0:0/96
         }
-        let parts = host.split(separator: ".").compactMap { Int($0) }
-        guard parts.count == 4, parts.allSatisfy({ (0...255).contains($0) }) else { return false }
-        switch (parts[0], parts[1]) {
+        // Only digits, dots and hex marks can be an IPv4 address; inet_aton reads the same short, octal and hex
+        // spellings the system resolver does.
+        guard host.range(of: "^[0-9a-fx.]+$", options: .regularExpression) != nil else { return false }
+        var address = in_addr()
+        guard inet_aton(host, &address) != 0 else { return false }
+        let ip = UInt32(bigEndian: address.s_addr)
+        switch (Int(ip >> 24), Int((ip >> 16) & 0xFF)) {
         case (0, _), (10, _), (127, _), (169, 254), (192, 168): return true
         case (172, 16...31): return true
         case (100, 64...127): return true
