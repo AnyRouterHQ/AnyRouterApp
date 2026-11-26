@@ -2,7 +2,7 @@ import Foundation
 
 /// Identifies one file download inside a background session. Stored in `URLSessionTask.taskDescription`
 /// so the system can hand it back after the app was relaunched.
-struct DownloadTaskTag: Equatable, Sendable {
+struct DownloadTaskTag: Hashable, Sendable {
     var entryID: String
     var path: String
 
