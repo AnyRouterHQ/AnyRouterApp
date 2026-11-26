@@ -243,6 +243,49 @@ final class AnyRouterSignInConnectTests: XCTestCase {
     }
 }
 
+@MainActor
+private struct ImmediateSigner: OAuthSigning {
+    func signIn(mode: AuthMode) async throws -> IssuedToken { IssuedToken(accessToken: "sk-ar-live", expiresAt: nil) }
+}
+
+@MainActor
+final class AuthToIntegrationsTests: XCTestCase {
+    private func serveAnyRouter() {
+        MCPStubProtocol.register(host: MCPServer.anyRouter.url.host()!, standardMCPHandler())
+    }
+
+    func testSignedInStateFlowsFromTheAuthToTheStore() async throws {
+        serveAnyRouter()
+        let keychain = KeychainStore(backing: InMemoryBacking())
+        let store = IntegrationsStore(
+            defaults: testDefaults(), credentials: FakeCredentialStore(),
+            anyRouterToken: { keychain.token() }, session: MCPStubProtocol.session()
+        )
+        let auth = AnyRouterAuth(store: keychain, client: ImmediateSigner())
+        auth.onSignedInChange = { _ = store.accountChanged(signedIn: $0) }
+
+        await auth.signIn()
+        let connected = await waitUntil { store.state(for: .anyRouter).status == .connected }
+        XCTAssertTrue(connected)
+        XCTAssertEqual(store.state(for: .anyRouter).tools.count, 5)
+
+        auth.signOut()
+        XCTAssertEqual(store.state(for: .anyRouter).status, .needsSignIn)
+        XCTAssertTrue(store.state(for: .anyRouter).tools.isEmpty)
+    }
+
+    func testAuthReportsOnlyRealChanges() async {
+        let auth = AnyRouterAuth(store: KeychainStore(backing: InMemoryBacking()), client: ImmediateSigner())
+        var changes: [Bool] = []
+        auth.onSignedInChange = { changes.append($0) }
+        auth.refresh()
+        await auth.signIn()
+        auth.refresh()
+        auth.handleUnauthorized()
+        XCTAssertEqual(changes, [true, false])
+    }
+}
+
 private struct NeverAsked: ToolApproving {
     func decide(_ request: ToolApprovalRequest) async -> ToolDecision { .deny }
 }
