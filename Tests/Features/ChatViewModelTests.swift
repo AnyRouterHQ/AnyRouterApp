@@ -233,16 +233,16 @@ struct ChatViewModelTests {
 
     @Test func pickingAModelClearsTheNoticeAndSendingAlsoDoes() async throws {
         let r = try await rig(twoModels())
-        let picked = threadWithModel("gone/model", in: r)
-        picked.choose(testModel(id: "b"))
-        #expect(picked.modelNotice == nil)
-        #expect(picked.model?.id == "b")
-
         let sent = threadWithModel("gone/model", in: r)
         sent.input = "hi"
         await sent.send()?.value
         #expect(sent.modelNotice == nil)
         #expect(sent.thread?.modelID == "a")
+
+        let picked = threadWithModel("gone/model", in: r)
+        picked.choose(testModel(id: "b"))
+        #expect(picked.modelNotice == nil)
+        #expect(picked.model?.id == "b")
     }
 
     @Test func withNothingUsableTheNoticeAsksForAModel() async throws {
