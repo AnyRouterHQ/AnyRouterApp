@@ -1,4 +1,5 @@
 import Foundation
+@testable import AnyRouter
 
 /// Scripted HTTP for URLSession-based code. Each test uses its own host, so tests run in parallel.
 final class StubRegistry: @unchecked Sendable {
