@@ -56,8 +56,8 @@ struct MessageRow: View {
                     }
                     if let name = message.modelName {
                         Text(name)
-                            .font(.arXS)
-                            .foregroundStyle(ARColor.mutedForeground)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .padding(.leading, 4)
                     }
