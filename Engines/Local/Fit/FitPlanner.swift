@@ -16,7 +16,11 @@ struct ModelMemoryProfile: Equatable, Sendable {
     var isEstimated: Bool = false
 
     func kvBytes(context: Int) -> Int64 {
-        fullKVBytesPerToken * Int64(context) + windowKVBytesPerToken * Int64(min(context, windowTokens))
+        // The numbers can come from a catalog file or a GGUF header the user added: bound them so the products cannot overflow.
+        let tokens = Int64(min(max(context, 0), 1 << 22))
+        let full = min(max(fullKVBytesPerToken, 0), 1 << 36) * tokens
+        let window = min(max(windowKVBytesPerToken, 0), 1 << 36) * min(tokens, Int64(max(windowTokens, 0)))
+        return full + window
     }
 
     /// Weights one token reads. With mmap, a mixture-of-experts model only keeps these (plus churn) in RAM.

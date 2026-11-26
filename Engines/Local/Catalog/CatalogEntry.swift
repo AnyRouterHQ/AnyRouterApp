@@ -204,7 +204,7 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
     /// What the fit check needs. Uses the catalog's memory facts when present, else a guess from the file size.
     /// Nil when the size is unknown.
     var memoryProfile: ModelMemoryProfile? {
-        guard let sizeBytes else { return nil }
+        guard let sizeBytes = sizeBytes.map({ min(max($0, 0), 1 << 50) }) else { return nil }
         let trained = contextLength ?? 0
         guard let memory else { return .estimated(fileBytes: sizeBytes, trainedContext: trained) }
         return ModelMemoryProfile(

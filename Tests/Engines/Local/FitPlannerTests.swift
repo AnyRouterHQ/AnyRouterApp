@@ -46,6 +46,17 @@ struct FitPlannerTests {
         #expect(dense4.kvBytes(context: 0) == 0)
     }
 
+    @Test func numbersFromAHostileCatalogCannotOverflowTheCacheMath() {
+        let hostile = ModelMemoryProfile(
+            fileBytes: 1_000_000_000, fullKVBytesPerToken: Int64.max, windowKVBytesPerToken: Int64.max,
+            windowTokens: Int.max, trainedContext: Int.max, activeFraction: nil)
+        #expect(hostile.kvBytes(context: Int.max) > 0)
+        #expect(hostile.kvBytes(context: -5) == 0)
+        #expect(FitPlanner.estimate(hostile, memory: memory(8)).verdict == .wontFit)
+        let entry = CatalogEntry(repo: "org/m", format: .gguf, file: "m.gguf", title: "m", sizeBytes: Int64.max)
+        #expect(entry.memoryProfile?.fileBytes == 1 << 50)
+    }
+
     @Test func slidingWindowLayersStopGrowingAtTheirWindow() {
         let atWindow = moe.kvBytes(context: 1024)
         let beyond = moe.kvBytes(context: 8192)
