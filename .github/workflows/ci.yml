@@ -106,7 +106,12 @@ jobs:
 
       - name: Coverage gate
         if: ${{ !cancelled() }}
-        run: scripts/coverage-gate.sh TestResults.xcresult
+        run: |
+          if [ ! -d TestResults.xcresult ]; then
+            echo "No TestResults.xcresult: the build or test step failed first, so there is no coverage to gate." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          scripts/coverage-gate.sh TestResults.xcresult
 
       - name: Upload test results on failure
         if: failure()
