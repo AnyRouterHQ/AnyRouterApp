@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import os
 
 /// Finds main-thread hangs: a timer on the main run loop leaves a heartbeat, a background thread checks it.
@@ -16,6 +17,8 @@ final class MainThreadWatchdog: @unchecked Sendable {
     private var context = "idle"
     private var stalls: [MainThreadStall] = []
     private var started = false
+    /// While the app is in the background the system may suspend every thread, so a long gap is not a hang.
+    private var inBackground = false
     private let log = Logger(subsystem: "dev.anyrouter.app", category: "hang")
 
     /// Newest first.
@@ -27,12 +30,20 @@ final class MainThreadWatchdog: @unchecked Sendable {
     }
 
     /// Starts once. Call from the main thread.
-    func start() {
+    @MainActor func start() {
         let alreadyStarted = lock.withLock { () -> Bool in
             defer { started = true }
             return started
         }
         guard !alreadyStarted else { return }
+        lock.withLock { inBackground = UIApplication.shared.applicationState == .background }
+        let center = NotificationCenter.default
+        center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil) { [weak self] _ in
+            self?.setBackground(true)
+        }
+        center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: nil) { [weak self] _ in
+            self?.setBackground(false)
+        }
         let beat = Timer(timeInterval: Self.interval, repeats: true) { [weak self] _ in
             self?.lock.withLock { self?.lastBeat = ProcessInfo.processInfo.systemUptime }
         }
@@ -43,11 +54,26 @@ final class MainThreadWatchdog: @unchecked Sendable {
         thread.start()
     }
 
+    /// Entering the background stops the clock; coming back starts it from a fresh heartbeat, so the time the app
+    /// was suspended is never reported as a stall.
+    private func setBackground(_ on: Bool) {
+        lock.withLock {
+            inBackground = on
+            if !on { lastBeat = ProcessInfo.processInfo.systemUptime }
+        }
+    }
+
     private func watch() {
         var tracker = StallTracker(threshold: Self.threshold)
         while true {
             Thread.sleep(forTimeInterval: Self.interval)
-            let (beat, now, label) = lock.withLock { (lastBeat, ProcessInfo.processInfo.systemUptime, context) }
+            let (beat, now, label, background) = lock.withLock {
+                (lastBeat, ProcessInfo.processInfo.systemUptime, context, inBackground)
+            }
+            if background {
+                tracker = StallTracker(threshold: Self.threshold)
+                continue
+            }
             if let duration = tracker.observe(now: now, lastBeat: beat) {
                 let stall = MainThreadStall(date: Date(), duration: duration, context: label)
                 lock.withLock {
