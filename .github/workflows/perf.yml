@@ -2,18 +2,11 @@ name: Perf baseline
 
 # Records the numbers from PLAN.md § Native UX & performance in the job summary. Baseline only, no gate.
 # Simulator numbers rank changes against each other; they are not device numbers.
+# Not on every push: the free plan has 5 macOS runners and main CI must not wait behind this.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "Features/**"
-      - "Design/**"
-      - "App/**"
-      - "Core/**"
-      - "UITests/PerformanceTests.swift"
-      - "scripts/perf-summary.py"
-      - ".github/workflows/perf.yml"
+  schedule:
+    - cron: "17 3 * * *"
 
 concurrency:
   group: perf-${{ github.ref }}
