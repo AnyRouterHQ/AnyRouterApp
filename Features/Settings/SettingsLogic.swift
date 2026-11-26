@@ -7,11 +7,18 @@ enum SettingsLogic {
     static var appVersion: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0" }
     static var appBuild: String { Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1" }
 
-    static func versionText(version: String, build: String) -> String { "\(version) (\(build))" }
+    static var appCommit: String { Bundle.main.infoDictionary?["ARGitCommit"] as? String ?? "dev" }
+
+    /// "0.1.0 (123) · abc1234": the CI run number and commit tell builds apart.
+    static func versionText(version: String, build: String, commit: String? = nil) -> String {
+        let base = "\(version) (\(build))"
+        guard let commit, !commit.isEmpty else { return base }
+        return "\(base) · \(commit)"
+    }
 
     /// Plain facts for a bug report. No account, device name or paths.
     static func diagnostics(version: String, build: String, system: String) -> String {
-        "AnyRouter \(versionText(version: version, build: build))\niOS \(system)"
+        "AnyRouter \(versionText(version: version, build: build, commit: appCommit))\niOS \(system)"
     }
 
     /// Accepts `org/name` or a huggingface.co URL and returns `org/name`, or nil when it is not a repo id.

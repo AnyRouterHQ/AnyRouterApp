@@ -6,6 +6,8 @@ IPHONEOS_DEPLOYMENT_TARGET = 26.0
 TARGETED_DEVICE_FAMILY = 1,2
 MARKETING_VERSION = 0.1.0
 CURRENT_PROJECT_VERSION = 1
+// CI sets the short commit and the run number; local builds show "dev".
+AR_GIT_COMMIT = dev
 ANYROUTER_BASE_URL = https:/$()/anyrouter.dev/api/v1
 DEVELOPMENT_TEAM =
 

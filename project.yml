@@ -52,6 +52,7 @@ targets:
     info:
       path: App/Info.plist
       properties:
+        ARGitCommit: $(AR_GIT_COMMIT)
         UILaunchScreen:
           UIImageName: LaunchLogo
           UIColorName: LaunchBackground

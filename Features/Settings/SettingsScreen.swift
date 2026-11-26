@@ -82,7 +82,7 @@ private struct SettingsList: View {
             HStack {
                 Label("Version", systemImage: "info.circle")
                 Spacer()
-                Text(SettingsLogic.versionText(version: SettingsLogic.appVersion, build: SettingsLogic.appBuild))
+                Text(SettingsLogic.versionText(version: SettingsLogic.appVersion, build: SettingsLogic.appBuild, commit: SettingsLogic.appCommit))
                     .foregroundStyle(.secondary)
             }
         }

@@ -57,7 +57,8 @@ jobs:
             -destination 'generic/platform=iOS' \
             -derivedDataPath build \
             -clonedSourcePackagesDirPath SourcePackages \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -n 200
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} AR_GIT_COMMIT="${GITHUB_SHA::7}" | tail -n 200
 
       - name: Package IPA
         run: |
