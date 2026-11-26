@@ -61,8 +61,9 @@ enum FamilyLogic {
         return candidates.max { quality($0) < quality($1) }?.id
     }
 
-    private static func quality(_ entry: LocalModelEntry) -> [Double] {
-        [entry.parameterBillions ?? 0, entry.descriptor.source == .gguf ? 1 : 0, Double(entry.descriptor.sizeBytes ?? 0)]
+    /// Compared in order: parameter count, GGUF over MLX, then file size. Tuples of Comparable compare lexicographically.
+    private static func quality(_ entry: LocalModelEntry) -> (Double, Int, Int64) {
+        (entry.parameterBillions ?? 0, entry.descriptor.source == .gguf ? 1 : 0, entry.descriptor.sizeBytes ?? 0)
     }
 
     /// Parses "4B", "E2B", "0.6B", "700M" into billions. Nil when it is not a size.
