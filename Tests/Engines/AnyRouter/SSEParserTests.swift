@@ -22,6 +22,8 @@ final class SSEParserTests: XCTestCase {
         case .text(let text): return "text:\(text)"
         case .usage(let prompt, let completion): return "usage:\(prompt)/\(completion)"
         case .done(let reason): return "done:\(reason ?? "nil")"
+        case .toolCall(let call): return "toolCall:\(call.name)"
+        case .toolResult(let result): return "toolResult:\(result.name)"
         }
     }
 

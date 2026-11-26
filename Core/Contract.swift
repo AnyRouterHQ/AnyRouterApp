@@ -43,6 +43,10 @@ enum ChatDelta: Sendable, Equatable {
     case text(String)
     case usage(prompt: Int, completion: Int)
     case done(finishReason: String?)
+    /// The model asked for a tool. Emitted once per call, before it runs.
+    case toolCall(ToolCall)
+    /// Outcome of a call the engine ran through its `ToolHost`.
+    case toolResult(ToolResult)
 }
 
 /// Dropping the consumer Task must stop generation; implementations use `continuation.onTermination`.
@@ -51,4 +55,15 @@ protocol ChatEngine: Sendable {
     func availableModels() async throws -> [ModelDescriptor]
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
         -> AsyncThrowingStream<ChatDelta, Error>
+    /// Same, with tools the model may call. Engines that cannot call tools keep the default, which
+    /// ignores `tools` and streams plain text.
+    func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams, tools: (any ToolHost)?)
+        -> AsyncThrowingStream<ChatDelta, Error>
+}
+
+extension ChatEngine {
+    func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams, tools: (any ToolHost)?)
+        -> AsyncThrowingStream<ChatDelta, Error> {
+        stream(model: model, messages: messages, params: params)
+    }
 }

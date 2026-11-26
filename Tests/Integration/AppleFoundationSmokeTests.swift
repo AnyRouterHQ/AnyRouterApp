@@ -25,7 +25,7 @@ final class AppleFoundationSmokeTests: XCTestCase {
                 switch delta {
                 case .text(let piece): text += piece
                 case .done: done = true
-                case .usage: break
+                case .usage, .toolCall, .toolResult: break
                 }
             }
         } catch {

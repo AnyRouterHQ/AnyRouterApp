@@ -93,6 +93,8 @@ final class GGUFModelSmokeTests: XCTestCase {
             case .done(let reason):
                 done += 1
                 finishReason = reason
+            case .toolCall, .toolResult:
+                break
             }
         }
         let end = clock.now
