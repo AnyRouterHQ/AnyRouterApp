@@ -54,6 +54,8 @@ final class ReplySpeaker {
 
     func dismissNotice() { notice = nil }
 
+    func setNotice(_ text: String?) { notice = text }
+
     /// The line shown when no voice exists for a language on this device.
     static func missingVoiceNotice(_ language: VoiceLanguage) -> String {
         "No \(language.name) voice is installed. Add one in Settings, Accessibility, Spoken Content, Voices."

@@ -41,17 +41,24 @@ final class SettingsModelsTests: XCTestCase {
         XCTAssertTrue(reason.waitForExistence(timeout: 5), "each row says how much memory it needs")
     }
 
-    func testVoiceModelsAreListedWithSizeAndComingSoon() {
+    func testVoiceScreenListsTheSystemEnginesAndWhisper() {
         let app = openLocalModels()
-        let kokoro = app.descendants(matching: .any)["voice.kokoro"]
+        let link = app.buttons["local.voice"]
+        XCTAssertTrue(link.waitForExistence(timeout: 10))
+        scrollUntilHittable(link, in: app)
+        link.tap()
+        XCTAssertTrue(app.navigationBars["Voice"].waitForExistence(timeout: 10))
+        let system = app.descendants(matching: .any)["voice.row.system"]
+        XCTAssertTrue(system.waitForExistence(timeout: 10), "the System row is always there")
+        let whisper = app.descendants(matching: .any)["voice.row.whisper-small"]
         var tries = 0
-        while !kokoro.exists && tries < 8 {
+        while !whisper.exists && tries < 6 {
             app.swipeUp()
             tries += 1
         }
-        XCTAssertTrue(kokoro.exists)
-        XCTAssertTrue(kokoro.label.contains("Coming soon"))
-        XCTAssertTrue(kokoro.label.contains("MB"), "the size is shown")
+        XCTAssertTrue(whisper.exists)
+        let detail = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'MB' AND label CONTAINS 'MIT'")).firstMatch
+        XCTAssertTrue(detail.exists, "size and licence are shown")
     }
 
     func testStarAndHideACloudModel() {

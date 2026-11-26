@@ -138,28 +138,18 @@ struct LocalModelsScreen: View {
         .accessibilityIdentifier("local.featured")
     }
 
-    /// Voice models are listed with their size and a plain "Coming soon": the app cannot speak with them yet.
+    /// Voice engines and models: dictation and spoken replies.
     private var voiceSection: some View {
         Section {
-            ForEach(VoiceModelCatalog.all) { voice in
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        ModelLabel(name: voice.name, brand: .symbol("waveform"))
-                        Spacer()
-                        Text(VoiceModelCatalog.status).font(.subheadline).foregroundStyle(.secondary)
-                    }
-                    Text(voice.summary).font(.subheadline)
-                    Text(voice.detailLine).font(.subheadline).foregroundStyle(.secondary)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityIdentifier("voice.\(voice.id)")
+            NavigationLink {
+                VoiceModelsScreen()
+            } label: {
+                Label("Voice", systemImage: "waveform")
             }
-        } header: {
-            Text("Voice")
+            .accessibilityIdentifier("local.voice")
         } footer: {
-            Text(VoiceModelCatalog.footer)
+            Text("Speech to text and text to speech. The System voices are always there.")
         }
-        .accessibilityIdentifier("local.voice")
     }
 
     private var storageSection: some View {
