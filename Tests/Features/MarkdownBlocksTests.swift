@@ -53,4 +53,25 @@ struct MarkdownBlocksTests {
             #expect(Array(final.prefix(settled.count)) == settled)
         }
     }
+
+    @Test func aFenceWithOrWithoutALanguageStaysOneBlock() {
+        let plain = "before\n\n```\na\n\nb\n```\n\nafter"
+        #expect(MarkdownBlocks.split(plain) == ["before", "```\na\n\nb\n```", "after"])
+        let tilde = "~~~python\nx = 1\n\ny = 2\n~~~"
+        #expect(MarkdownBlocks.split(tilde) == [tilde])
+    }
+
+    @Test func aTableIsOneBlockAndAParagraphAfterItIsAnother() {
+        let table = "| a | b |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |"
+        #expect(MarkdownBlocks.split(table + "\n\nafter") == [table, "after"])
+    }
+
+    @Test func inlineCodeNeverSplitsABlock() {
+        #expect(MarkdownBlocks.split("use `let` and `var`\n\nthen `x`") == ["use `let` and `var`", "then `x`"])
+    }
+
+    @Test func aFenceStillOpenWhileStreamingKeepsAllTheCodeInTheLastBlock() {
+        let streaming = "intro\n\n```swift\nlet a = 1\n\nlet b"
+        #expect(MarkdownBlocks.split(streaming) == ["intro", "```swift\nlet a = 1\n\nlet b"])
+    }
 }

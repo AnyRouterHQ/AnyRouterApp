@@ -18,6 +18,11 @@ final class ToolRowTests: XCTestCase {
         thread.tap()
         // The drawer closes on iPhone but the iPad column stays, so the open chat is what proves the tap worked.
 
+        // Once the answer has started, the calls fold into one "Used N tools" line.
+        let chain = app.descendants(matching: .any)["tool.chain"]
+        XCTAssertTrue(chain.waitForExistence(timeout: 10), "the calls are folded into one line")
+        chain.tap()
+
         let rows = app.descendants(matching: .any).matching(NSPredicate(
             format: "identifier == %@ AND label BEGINSWITH %@", "tool.row", "Searched the web for"))
         let row = rows.firstMatch

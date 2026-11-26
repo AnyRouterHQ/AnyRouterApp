@@ -66,41 +66,79 @@ extension Theme {
                     .markdownMargin(top: 4, bottom: 12)
             }
             .table { configuration in
-                configuration.label
-                    .fixedSize(horizontal: false, vertical: true)
-                    .markdownTableBorderStyle(.init(color: Color(.separator)))
-                    .markdownMargin(top: 0, bottom: 12)
+                // A wide table scrolls sideways instead of squeezing its columns.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    configuration.label
+                        .fixedSize(horizontal: true, vertical: true)
+                        .markdownTableBorderStyle(.init(color: Color(.separator)))
+                }
+                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+                .markdownMargin(top: 0, bottom: 12)
             }
     }
 }
 
-/// Fenced code block with a language label and a copy button.
+/// Fenced code block: a rounded container with the language on the left and Copy on the right. Long lines scroll
+/// sideways, a block of six lines or more gets line numbers, and keywords, strings and comments are coloured.
 struct CodeBlockView: View {
     let language: String?
     let content: String
 
+    /// From this many lines on, a block shows line numbers.
+    static let lineNumberThreshold = 6
+
+    private var code: String { content.trimmingCharacters(in: .newlines) }
+
     var body: some View {
+        let lineCount = CodeBlockView.lineCount(code)
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text((language?.isEmpty == false ? language : nil) ?? "code")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
                 Spacer()
-                CopyButton(text: content, showsLabel: true)
+                CopyButton(text: code, showsLabel: true)
             }
             .padding(.leading, 12)
             ScrollView(.horizontal, showsIndicators: false) {
-                Text(content.trimmingCharacters(in: .newlines))
-                    .font(.system(.callout, design: .monospaced))
-                    .padding(12)
-                    .textSelection(.enabled)
+                HStack(alignment: .top, spacing: 12) {
+                    if lineCount >= CodeBlockView.lineNumberThreshold {
+                        Text((1...lineCount).map(String.init).joined(separator: "\n"))
+                            .multilineTextAlignment(.trailing)
+                            .foregroundStyle(.tertiary)
+                            .accessibilityHidden(true)
+                    }
+                    Text(highlighted)
+                        .textSelection(.enabled)
+                }
+                .font(.system(.callout, design: .monospaced))
+                .padding(12)
             }
         }
         .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: ARTheme.radius))
     }
+
+    static func lineCount(_ code: String) -> Int {
+        code.isEmpty ? 1 : code.split(separator: "\n", omittingEmptySubsequences: false).count
+    }
+
+    private var highlighted: AttributedString {
+        var result = AttributedString()
+        for token in SyntaxHighlighter.tokens(code, language: language) {
+            var piece = AttributedString(token.text)
+            switch token.kind {
+            case .plain: break
+            case .keyword: piece.foregroundColor = .pink
+            case .string: piece.foregroundColor = .red
+            case .comment: piece.foregroundColor = Color(.secondaryLabel)
+            }
+            result.append(piece)
+        }
+        return result
+    }
 }
 
-/// Copies text to the pasteboard and flips to a check mark for a moment.
+/// Copies text to the pasteboard and flips to a check mark for a moment, with a light tap.
 struct CopyButton: View {
     let text: String
     var showsLabel = false
@@ -130,8 +168,7 @@ struct CopyButton: View {
         .foregroundStyle(.secondary)
         // The HIG minimum hit area; a borderless button is only as big as its content.
         .frame(minWidth: 44, minHeight: 44)
-        .hoverEffect(.highlight)
-        .sensoryFeedback(.success, trigger: copied) { _, now in now }
+        .sensoryFeedback(.impact(weight: .light), trigger: copied) { _, now in now }
         .accessibilityLabel("Copy")
     }
 }

@@ -60,6 +60,57 @@ enum ToolRowLogic {
         }
     }
 
+    /// The tool's name as a person reads it: "Web search", "Read page"; others get their id spelled out.
+    static func displayName(for toolName: String) -> String {
+        switch toolName.lowercased() {
+        case "web_search": return "Web search"
+        case "fetch_url": return "Read page"
+        case "calculator": return "Calculator"
+        case "current_date_time": return "Date and time"
+        case "read_attachment": return "Attachment"
+        default:
+            let spaced = toolName.split(whereSeparator: { $0 == "_" || $0 == "-" }).joined(separator: " ")
+            return spaced.prefix(1).uppercased() + spaced.dropFirst()
+        }
+    }
+
+    /// An SF Symbol for the tool. A tool with its own logo can replace it later; unknown tools get a wrench.
+    static func symbol(for toolName: String) -> String {
+        switch toolName.lowercased() {
+        case "web_search": return "magnifyingglass"
+        case "fetch_url": return "globe"
+        case "calculator": return "plusminus"
+        case "current_date_time": return "clock"
+        case "read_attachment": return "paperclip"
+        default: return toolName.lowercased().contains("search") ? "magnifyingglass" : "wrench.and.screwdriver"
+        }
+    }
+
+    /// The call's main argument in a few words: the query, the page, the expression. Nil when there is none to show.
+    static func summary(for call: ToolCall) -> String? {
+        let args = arguments(of: call)
+        func text(_ key: String) -> String? {
+            guard let value = (args[key] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty
+            else { return nil }
+            return value
+        }
+        switch call.name.lowercased() {
+        case "web_search": return text("query").map(truncated)
+        case "fetch_url": return text("url").flatMap(shortURL)
+        case "calculator": return text("expression").map(truncated)
+        case "read_attachment": return text("name").map(truncated)
+        case "current_date_time": return nil
+        default:
+            let firstText = args.keys.sorted().lazy.compactMap { text($0) }.first
+            return firstText.map(truncated)
+        }
+    }
+
+    /// A result or argument text is long enough to be cut in the row until the user asks for more.
+    static func exceedsPreview(_ text: String, lines: Int = 6, characters: Int = 400) -> Bool {
+        text.count > characters || text.split(separator: "\n", omittingEmptySubsequences: false).count > lines
+    }
+
     private static func arguments(of call: ToolCall) -> [String: Any] {
         guard let data = call.argumentsJSON.data(using: .utf8),
             let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
