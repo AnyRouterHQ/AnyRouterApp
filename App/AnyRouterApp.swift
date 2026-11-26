@@ -9,7 +9,7 @@ struct AnyRouterApp: App {
 
     init() {
         do {
-            container = try ModelContainer.anyRouter()
+            container = DemoData.isEnabled ? try DemoData.makeContainer() : try ModelContainer.anyRouter()
         } catch {
             fatalError("Could not create the data store: \(error)")
         }
