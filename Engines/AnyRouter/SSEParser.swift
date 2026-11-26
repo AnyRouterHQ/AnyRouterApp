@@ -57,6 +57,28 @@ struct ChatChunkDecoder {
     private(set) var finishReason: String?
     private(set) var isDone = false
 
+    /// Tool calls arrive in fragments: the id and name once, the arguments in pieces, keyed by `index`.
+    private struct ToolFragment {
+        var id = ""
+        var name = ""
+        var arguments = ""
+    }
+    private var fragments: [Int: ToolFragment] = [:]
+
+    /// Complete calls seen so far, in the order the model listed them. A missing id is replaced,
+    /// empty arguments become `{}`, and a fragment that never got a name is dropped.
+    var toolCalls: [ToolCall] {
+        fragments.sorted { $0.key < $1.key }.compactMap { _, fragment in
+            guard !fragment.name.isEmpty else { return nil }
+            let arguments = fragment.arguments.trimmingCharacters(in: .whitespacesAndNewlines)
+            return ToolCall(
+                id: fragment.id.isEmpty ? "call_" + UUID().uuidString.prefix(8).lowercased() : fragment.id,
+                name: fragment.name,
+                argumentsJSON: arguments.isEmpty ? "{}" : fragment.arguments
+            )
+        }
+    }
+
     mutating func decode(_ payload: String) throws -> [ChatDelta] {
         let trimmed = payload.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed == "[DONE]" {
@@ -81,6 +103,9 @@ struct ChatChunkDecoder {
                     let text = delta["content"] as? String, !text.isEmpty {
                     deltas.append(.text(text))
                 }
+                if let delta = choice["delta"] as? [String: Any], let calls = delta["tool_calls"] as? [[String: Any]] {
+                    for call in calls { absorb(call) }
+                }
                 if let reason = choice["finish_reason"] as? String { finishReason = reason }
             }
         }
@@ -90,5 +115,22 @@ struct ChatChunkDecoder {
             deltas.append(.usage(prompt: prompt, completion: completion))
         }
         return deltas
+    }
+
+    private mutating func absorb(_ call: [String: Any]) {
+        let id = call["id"] as? String ?? ""
+        var index = (call["index"] as? NSNumber)?.intValue ?? fragments.keys.max() ?? 0
+        // Some providers leave `index` out; a new id then means a new call.
+        if call["index"] == nil, !id.isEmpty, let existing = fragments[index], !existing.id.isEmpty, existing.id != id {
+            index += 1
+        }
+        var fragment = fragments[index] ?? ToolFragment()
+        if !id.isEmpty { fragment.id = id }
+        if let function = call["function"] as? [String: Any] {
+            // Some providers repeat the name in every fragment; keep the first.
+            if let name = function["name"] as? String, !name.isEmpty, fragment.name.isEmpty { fragment.name = name }
+            if let piece = function["arguments"] as? String { fragment.arguments += piece }
+        }
+        fragments[index] = fragment
     }
 }

@@ -27,10 +27,17 @@ struct ModelsResponse: Decodable {
                     source: .anyrouter,
                     displayName: item.name ?? item.id,
                     contextLength: item.contextLength,
-                    capabilities: Set(item.capabilities ?? ["chat"]),
+                    capabilities: Self.normalized(item.capabilities ?? ["chat"]),
                     sizeBytes: nil,
                     isInstalled: usable
                 )
             }
+    }
+
+    /// The catalog tags tool support as `function-calling`; the app asks for `tools`.
+    static func normalized(_ tags: [String]) -> Set<String> {
+        var set = Set(tags)
+        if !set.isDisjoint(with: ["function-calling", "function_calling", "tool-use", "tool_use"]) { set.insert("tools") }
+        return set
     }
 }
