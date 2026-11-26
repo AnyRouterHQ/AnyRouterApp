@@ -49,10 +49,9 @@ struct HubScreen: View {
                 .padding(.bottom, 24)
                 .frame(maxWidth: .infinity)
             }
-            .refreshable { await hub.refreshCatalog() }
         }
         .searchable(text: $query, prompt: "Search models")
-        .refreshable { await hub.reload() }
+        .refreshable { await hub.refreshCatalog() }
         .sheet(isPresented: $showsRepoSearch) {
             RepoSearchSheet(query: query)
         }
