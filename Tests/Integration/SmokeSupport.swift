@@ -15,6 +15,8 @@ enum SmokeEnv {
     static var external: Bool { env["ANYROUTER_SMOKE_EXTERNAL"] == "1" }
     /// The catalog entry to run, as JSON, resolved by the workflow from models.json, dev-models.json or its inputs.
     static var entryJSON: String? { env["ANYROUTER_SMOKE_ENTRY_JSON"].flatMap { $0.isEmpty ? nil : $0 } }
+    /// Token limit of the "2+2" answer. Small for models that decode at a fraction of a token per second.
+    static var maxTokens: Int? { env["ANYROUTER_SMOKE_MAX_TOKENS"].flatMap { Int($0) } }
     /// Folder with the Gemma 4 MLX tokenizer files (no weights), for the chat template check.
     static var mlxTokenizerDir: String? { env["ANYROUTER_SMOKE_MLX_TOKENIZER_DIR"] }
 }

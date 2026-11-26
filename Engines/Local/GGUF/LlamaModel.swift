@@ -27,6 +27,9 @@ final class LlamaModel: @unchecked Sendable {
     private let template: String?
     /// The text of the vocabulary's BOS token (for example `<|begin_of_text|>`), nil when it has none.
     private let bosText: String?
+    private let eosText: String?
+    /// The template compiled once; nil when the model has none or it uses syntax the engine cannot compile.
+    private let jinja: JinjaChatTemplate?
     private let thoughtChannel: (open: llama_token, close: llama_token)?
 
     init(path: String) throws {
@@ -70,8 +73,10 @@ final class LlamaModel: @unchecked Sendable {
         self.trainedContext = Int(llama_model_n_ctx_train(model))
         self.contextSize = planned
         self.bosText = Self.specialPiece(llama_vocab_bos(vocab), vocab: vocab)
+        self.eosText = Self.specialPiece(llama_vocab_eos(vocab), vocab: vocab)
         let template = llama_model_chat_template(model, nil).map { String(cString: $0) }
         self.template = template
+        self.jinja = template.flatMap { Gemma4Formatter.matches(template: $0) ? nil : JinjaChatTemplate(source: $0) }
         if let template, Gemma4Formatter.matches(template: template),
            let open = Self.specialToken("<|channel>", vocab: vocab), let close = Self.specialToken("<channel|>", vocab: vocab) {
             self.thoughtChannel = (open, close)
@@ -90,7 +95,7 @@ final class LlamaModel: @unchecked Sendable {
     }
 
     /// The token id when `text` is exactly one special token of the vocabulary, else nil.
-    private static func specialToken(_ text: String, vocab: OpaquePointer) -> llama_token? {
+    static func specialToken(_ text: String, vocab: OpaquePointer) -> llama_token? {
         var token = llama_token(0)
         let count = llama_tokenize(vocab, text, Int32(text.utf8.count), &token, 1, false, true)
         return count == 1 ? token : nil
@@ -102,11 +107,28 @@ final class LlamaModel: @unchecked Sendable {
 
     // MARK: Prompt
 
-    /// The prompt in the model's own chat format. Uses the template stored in the GGUF; Gemma 4 has its own formatter,
-    /// and ChatML is the last resort when llama.cpp cannot apply the template.
+    /// Which formatter wrote a prompt, for the smoke report.
+    enum PromptPath: String, Sendable { case gemma4, jinja, native, chatML }
+
+    /// The prompt in the model's own chat format, and which formatter produced it. In order: the Gemma 4 formatter, the
+    /// model's own template rendered with Jinja, llama.cpp's built-in list of templates, and ChatML as the last resort.
+    func format(_ messages: [PromptMessage]) -> (path: PromptPath, text: String) {
+        if let template, Gemma4Formatter.matches(template: template) { return (.gemma4, Gemma4Formatter.format(messages)) }
+        if let rendered = jinja?.render(messages, bos: bosText, eos: eosText) { return (.jinja, rendered) }
+        if let native = formatWithTemplate(messages) { return (.native, native) }
+        return (.chatML, ChatMLFormatter.format(messages))
+    }
+
     func formatPrompt(_ messages: [PromptMessage]) -> String {
-        if let template, Gemma4Formatter.matches(template: template) { return Gemma4Formatter.format(messages) }
-        return formatWithTemplate(messages) ?? ChatMLFormatter.format(messages)
+        format(messages).text
+    }
+
+    /// For each text: its token id when it is one special token, and whether generation stops on it.
+    func stopReport(for texts: [String]) -> String {
+        texts.map { text in
+            guard let token = Self.specialToken(text, vocab: vocab) else { return "\(text): not a single token" }
+            return "\(text): id \(token), \(llama_vocab_is_eog(vocab, token) ? "stops" : "does not stop")"
+        }.joined(separator: "; ")
     }
 
     private func formatWithTemplate(_ messages: [PromptMessage]) -> String? {

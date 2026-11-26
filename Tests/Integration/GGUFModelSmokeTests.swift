@@ -71,7 +71,7 @@ final class GGUFModelSmokeTests: XCTestCase {
         let ctx = try await makeContext()
         var params = GenerationParams()
         params.temperature = 0
-        params.maxTokens = 1024
+        params.maxTokens = SmokeEnv.maxTokens ?? 1024
 
         let clock = ContinuousClock()
         let start = clock.now
@@ -116,6 +116,13 @@ final class GGUFModelSmokeTests: XCTestCase {
             ? "external model given at run time (not named here), \(ctx.size) bytes"
             : "\(ctx.entry.title) \(ctx.entry.quantization ?? "") (\(ctx.entry.id), rev \((ctx.entry.revision ?? "main").prefix(8)))")
         SmokeReport.record("GGUF file size", "\(ctx.size) bytes, sha256 \(ctx.sha256.prefix(12))")
+        if let report = await ctx.engine.promptReport(
+            model: ctx.model, stopTexts: ["</s>", "<s>", "<eos>", "<bos>", "<|im_start|>", "<|im_end|>", "<|endoftext|>", "<turn|>"]) {
+            SmokeReport.record("GGUF prompt format", report.path)
+            SmokeReport.record("GGUF prompt for \"hi\"", report.prompt.replacingOccurrences(of: "\n", with: "\\n"))
+            SmokeReport.record("GGUF special tokens", report.stops)
+        }
+        SmokeReport.record("App memory after the answer", FitFormat.gigabytes(MemoryReading.footprintBytes()))
         SmokeReport.record("GGUF prompt", "What is 2+2? Answer with one number.")
         SmokeReport.record("GGUF answer", answer)
         SmokeReport.record("GGUF raw output", String(text.prefix(300)))

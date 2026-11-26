@@ -16,6 +16,10 @@ on:
         description: "File name inside hf_repo, for example model-Q4_K_M.gguf"
         required: false
         default: ""
+      max_tokens:
+        description: "Token limit of the answer test. Lower it for a model that decodes under 1 token per second."
+        required: false
+        default: "1024"
       hf_from_secrets:
         description: "Take the repo and file from the SMOKE_HF_REPO and SMOKE_HF_FILE secrets instead. Values are masked in logs."
         type: boolean
@@ -196,6 +200,7 @@ jobs:
           TEST_RUNNER_ANYROUTER_SMOKE: "1"
           TEST_RUNNER_ANYROUTER_SMOKE_GGUF_PATH: ${{ runner.temp }}/model/${{ env.MODEL_FILE }}
           TEST_RUNNER_ANYROUTER_SMOKE_GGUF_SHA256: ${{ env.MODEL_SHA256 }}
+          TEST_RUNNER_ANYROUTER_SMOKE_MAX_TOKENS: ${{ inputs.max_tokens }}
           TEST_RUNNER_ANYROUTER_SMOKE_EXTERNAL: ${{ env.MODEL_EXTERNAL }}
           TEST_RUNNER_ANYROUTER_SMOKE_ENTRY_JSON: ${{ env.MODEL_ENTRY_JSON }}
           TEST_RUNNER_ANYROUTER_SMOKE_MLX_TOKENIZER_DIR: ${{ runner.temp }}/mlx-tokenizer

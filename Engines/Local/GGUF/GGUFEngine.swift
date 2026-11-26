@@ -110,6 +110,17 @@ final class GGUFEngine: ChatEngine {
         await cache.unload(ifID: modelID)
     }
 
+    /// For the smoke report: which formatter writes this model's prompt, what it writes for "hi", and which of the given
+    /// special tokens stop generation. Loads the model if it is not loaded. Nil when the model is not installed.
+    func promptReport(model: ModelDescriptor, stopTexts: [String]) async -> (path: String, prompt: String, stops: String)? {
+        guard let manifest = storage.readManifest(entryID: model.id), let file = manifest.files.first,
+              let llama = try? await cache.model(
+                  at: storage.fileURL(forEntryID: model.id, path: file.path).path, id: model.id, installedAt: manifest.completedAt)
+        else { return nil }
+        let formatted = llama.format([PromptMessage(role: "user", content: "hi")])
+        return (formatted.path.rawValue, formatted.text, llama.stopReport(for: stopTexts))
+    }
+
     /// Loads the weights ahead of the first message. No context is created, so it costs memory but no compute.
     /// Does nothing for a model that is not installed.
     func warm(model: ModelDescriptor) async {

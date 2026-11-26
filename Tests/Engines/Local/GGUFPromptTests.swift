@@ -62,6 +62,35 @@ struct PromptBuilderTests {
     }
 }
 
+struct JinjaChatTemplateTests {
+    private let chatML = #"{% for m in messages %}<|im_start|>{{ m.role }}\n{{ m.content }}<|im_end|>\n{% endfor %}{% if add_generation_prompt %}<|im_start|>assistant\n{% endif %}"#
+
+    @Test func aTemplateRendersTheConversationAndOpensTheReply() throws {
+        let template = try #require(JinjaChatTemplate(source: chatML))
+        let text = template.render(
+            [PromptMessage(role: "system", content: "Be brief."), PromptMessage(role: "user", content: "hi")], bos: nil, eos: nil)
+        #expect(text == "<|im_start|>system\nBe brief.<|im_end|>\n<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n")
+    }
+
+    @Test func theTemplateSeesTheSpecialTokensAndKnowsThinkingIsOff() throws {
+        let source = #"{{ bos_token }}{% for m in messages %}[{{ m.role }}]{{ m.content }}{{ eos_token }}{% endfor %}{% if enable_thinking %}T{% else %}N{% endif %}"#
+        let template = try #require(JinjaChatTemplate(source: source))
+        #expect(template.render([PromptMessage(role: "user", content: "x")], bos: "<s>", eos: "</s>") == "<s>[user]x</s>N")
+        #expect(template.render([PromptMessage(role: "user", content: "x")], bos: nil, eos: nil) == "[user]xN", "no BOS renders as nothing")
+    }
+
+    @Test func aTemplateThatFailsOrRendersNothingGivesNilSoTheNextFormatterRuns() throws {
+        let failing = try #require(JinjaChatTemplate(source: #"{{ raise_exception("no system role") }}"#))
+        #expect(failing.render([PromptMessage(role: "user", content: "x")], bos: nil, eos: nil) == nil)
+        let empty = try #require(JinjaChatTemplate(source: ""))
+        #expect(empty.render([PromptMessage(role: "user", content: "x")], bos: nil, eos: nil) == nil)
+    }
+
+    @Test func syntaxTheEngineCannotCompileGivesNoTemplate() {
+        #expect(JinjaChatTemplate(source: "{% for m in messages %}") == nil)
+    }
+}
+
 struct SpecialTokenTests {
     @Test func aPromptThatAlreadyStartsWithBOSDoesNotGetASecondOne() {
         #expect(!PromptBuilder.addsSpecialTokens(to: "<|begin_of_text|><|start_header_id|>user", bosText: "<|begin_of_text|>"))

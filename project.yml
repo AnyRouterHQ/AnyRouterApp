@@ -36,6 +36,10 @@ packages:
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
     from: 9.36.0
+  # Already in the build through swift-transformers. Declared so GGUF models can render their own chat template.
+  swift-jinja:
+    url: https://github.com/huggingface/swift-jinja
+    from: 2.4.2
 targets:
   AnyRouter:
     type: application
@@ -77,6 +81,8 @@ targets:
         product: MLXLMCommon
       - package: swift-transformers
         product: Tokenizers
+      - package: swift-jinja
+        product: Jinja
       - package: Sentry
         product: Sentry
     settings:
