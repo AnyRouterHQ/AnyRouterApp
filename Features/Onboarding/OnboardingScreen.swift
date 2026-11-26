@@ -21,88 +21,93 @@ struct OnboardingScreen: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 12) {
-                    ARLogoMark(size: 52).foregroundStyle(ARColor.foreground).padding(.top, 48)
-                    Text("Choose how to chat").font(.arHero).foregroundStyle(ARColor.foreground).padding(.top, 8)
-                    Text("You can change this any time in Settings.")
-                        .font(.arSM).foregroundStyle(ARColor.mutedForeground).padding(.bottom, 16)
+        NavigationStack {
+            List {
+                Section {
+                    VStack(spacing: 8) {
+                        ARLogoMark(size: 52).foregroundStyle(.primary)
+                        Text("Choose how to chat").font(.largeTitle.bold()).multilineTextAlignment(.center)
+                        Text("You can change this any time in Settings.").font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                    .padding(.vertical, 8)
+                }
+                Section {
                     option(.apple, title: "Apple Intelligence", detail: appleAvailable
                            ? "Private, on device. No download."
                            : "Not available on this device.", icon: "apple.logo", enabled: appleAvailable)
                     localOption
                     cloudOption
                 }
-                .frame(maxWidth: 560)
-                .padding(.horizontal, ARTheme.pagePadding)
-                .frame(maxWidth: .infinity)
             }
-            VStack(spacing: 10) {
-                Button("Continue") { finish() }
-                    .buttonStyle(.arFilled)
-                    .disabled(!canFinish)
-                    .opacity(canFinish ? 1 : 0.4)
-                Button("Skip for now") { onFinish() }
-                    .font(.arSM)
-                    .foregroundStyle(ARColor.mutedForeground)
+            .listStyle(.insetGrouped)
+            .navigationBarTitleDisplayMode(.inline)
+            // The actions stay reachable at the bottom, above the home indicator.
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: 8) {
+                    Button { finish() } label: { Text("Continue").frame(maxWidth: .infinity) }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .disabled(!canFinish)
+                    Button("Skip for now") { onFinish() }
+                        .controlSize(.large)
+                }
+                .padding()
+                .background(.bar)
             }
-            .frame(maxWidth: 560)
-            .padding(ARTheme.pagePadding)
         }
-        .background(ARColor.background.ignoresSafeArea())
         .task { await hub.reload() }
     }
 
     // MARK: Options
 
+    @ViewBuilder
     private var localOption: some View {
-        VStack(spacing: 10) {
-            option(.local, title: recommended?.descriptor.displayName ?? "Local model",
-                   detail: recommended?.summary ?? "Download a small model to run on this device.",
-                   icon: "iphone", enabled: recommended != nil,
-                   trailing: HubLogic.sizeText(recommended?.descriptor.sizeBytes))
-            if choice == .local, let recommended {
-                switch localState {
-                case .notInstalled, .failed:
-                    Button("Download\(HubLogic.sizeText(recommended.descriptor.sizeBytes).map { " (\($0))" } ?? "")") {
-                        hub.download(recommended)
-                    }
-                    .buttonStyle(.arFilled)
-                case .downloading(let progress), .paused(let progress):
-                    VStack(spacing: 6) {
-                        HStack {
-                            Text("Downloading").font(.arSM).foregroundStyle(ARColor.foreground)
-                            Spacer()
-                            Text(HubLogic.percent(progress)).font(.arSM).foregroundStyle(ARColor.mutedForeground)
-                        }
-                        if let progress { ProgressView(value: min(max(progress, 0), 1)).tint(ARColor.accent) }
-                        else { ProgressView().progressViewStyle(.linear).tint(ARColor.accent) }
-                        Text("Closing the app may pause the download.")
-                            .font(.arXS).foregroundStyle(ARColor.mutedForeground)
-                    }
-                case .verifying:
-                    HStack { ProgressView(); Text("Verifying").font(.arSM).foregroundStyle(ARColor.mutedForeground) }
-                case .installed:
-                    Label("Ready", systemImage: "checkmark.circle.fill").font(.arSM).foregroundStyle(ARColor.accent)
+        option(.local, title: recommended?.descriptor.displayName ?? "Local model",
+               detail: recommended?.summary ?? "Download a small model to run on this device.",
+               icon: "iphone", enabled: recommended != nil,
+               trailing: HubLogic.sizeText(recommended?.descriptor.sizeBytes))
+        if choice == .local, let recommended {
+            switch localState {
+            case .notInstalled, .failed:
+                Button("Download\(HubLogic.sizeText(recommended.descriptor.sizeBytes).map { " (\($0))" } ?? "")") {
+                    hub.download(recommended)
                 }
+            case .downloading(let progress), .paused(let progress):
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Downloading")
+                        Spacer()
+                        Text(HubLogic.percent(progress)).foregroundStyle(.secondary)
+                    }
+                    if let progress { ProgressView(value: min(max(progress, 0), 1)) }
+                    else { ProgressView().progressViewStyle(.linear) }
+                    Text("Closing the app may pause the download.").font(.footnote).foregroundStyle(.secondary)
+                }
+            case .verifying:
+                HStack { ProgressView(); Text("Verifying").foregroundStyle(.secondary) }
+            case .installed:
+                Label("Ready", systemImage: "checkmark.circle.fill")
             }
         }
     }
 
+    @ViewBuilder
     private var cloudOption: some View {
-        VStack(spacing: 10) {
-            option(.cloud, title: "AnyRouter cloud", detail: "Hundreds of cloud models with one sign-in.", icon: "cloud", enabled: true)
-            if choice == .cloud {
-                switch app.account.state {
-                case .signedOut:
-                    Button("Sign in with AnyRouter") { signIn() }.buttonStyle(.arFilled)
-                    if let signInError { Text(signInError).font(.arXS).foregroundStyle(ARColor.destructive) }
-                case .signingIn:
-                    HStack { ProgressView(); Text("Signing in…").font(.arSM).foregroundStyle(ARColor.mutedForeground) }
-                case .signedIn:
-                    Label("Signed in", systemImage: "checkmark.circle.fill").font(.arSM).foregroundStyle(ARColor.accent)
+        option(.cloud, title: "AnyRouter cloud", detail: "Hundreds of cloud models with one sign-in.", icon: "cloud", enabled: true)
+        if choice == .cloud {
+            switch app.account.state {
+            case .signedOut:
+                Button("Sign in with AnyRouter") { signIn() }
+                if let signInError {
+                    Text(signInError).font(.footnote).foregroundStyle(.secondary)
+                    Button("Try again") { signIn() }
                 }
+            case .signingIn:
+                HStack { ProgressView(); Text("Signing in…").foregroundStyle(.secondary) }
+            case .signedIn:
+                Label("Signed in", systemImage: "checkmark.circle.fill")
             }
         }
     }
@@ -112,27 +117,22 @@ struct OnboardingScreen: View {
         let selected = choice == value
         return Button { choice = value } label: {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: icon).font(.system(size: 20)).frame(width: 28).foregroundStyle(ARColor.foreground)
-                VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: icon).imageScale(.large).frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
                     HStack {
-                        Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(ARColor.foreground)
+                        Text(title).font(.headline)
                         Spacer()
-                        if let trailing { Text("· \(trailing)").font(.arSM).foregroundStyle(ARColor.mutedForeground) }
+                        if let trailing { Text(trailing).font(.subheadline).foregroundStyle(.secondary) }
                     }
-                    Text(detail).font(.arSM).foregroundStyle(ARColor.mutedForeground)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(detail).font(.subheadline).foregroundStyle(.secondary)
                 }
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(selected ? ARColor.accent : ARColor.mutedForeground)
+                    .foregroundStyle(selected ? Color.accentColor : Color.secondary)
             }
-            .padding(14)
-            .arCard(radius: ARTheme.radiusLarge)
-            .overlay(RoundedRectangle(cornerRadius: ARTheme.radiusLarge, style: .continuous)
-                .strokeBorder(selected ? ARColor.foreground : .clear, lineWidth: 1.5))
-            .opacity(enabled ? 1 : 0.5)
         }
-        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
         .disabled(!enabled)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     // MARK: Actions

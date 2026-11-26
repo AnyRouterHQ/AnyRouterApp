@@ -114,11 +114,10 @@ private struct PhoneShell: View {
             .accessibilityHidden(shell.isSidebarOpen)
             .overlay {
                 // Dims the chat and closes the drawer on tap. It covers the whole chat, edge to edge.
-                Color.black.opacity(0.2 * progress)
+                Button { setOpen(false) } label: { Color.black.opacity(0.2 * progress) }
+                    .buttonStyle(.plain)
                     .allowsHitTesting(shell.isSidebarOpen)
-                    .onTapGesture { setOpen(false) }
                     .accessibilityLabel("Close sidebar")
-                    .accessibilityAddTraits(.isButton)
                     .accessibilityHidden(!shell.isSidebarOpen)
             }
             // Concentric with the display corners while the drawer is open or moving; no clip when closed.

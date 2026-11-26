@@ -25,6 +25,6 @@ struct SettingsText: View {
     let text: String
     init(_ text: String) { self.text = text }
     var body: some View {
-        Text(text).font(.arSM).foregroundStyle(ARColor.mutedForeground).frame(maxWidth: .infinity, alignment: .leading)
+        Text(text).font(.subheadline).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
     }
 }
