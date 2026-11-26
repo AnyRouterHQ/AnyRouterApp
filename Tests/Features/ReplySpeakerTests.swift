@@ -28,7 +28,7 @@ struct ReplyFeederTests {
 
 @MainActor
 struct ReplySpeakerTests {
-    private struct Rig {
+    @MainActor private struct Rig {
         let speaker = ReplySpeaker()
         let hub: VoiceHub
         let voice: FakeTextToSpeech
