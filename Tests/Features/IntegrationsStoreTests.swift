@@ -198,7 +198,15 @@ final class AnyRouterSignInConnectTests: XCTestCase {
         XCTAssertNil(store.makeToolHost(approver: NeverAsked()))
     }
 
-    private nonisolated static func block(_ semaphore: DispatchSemaphore) { semaphore.wait() }
+    /// Waits for the semaphore on a background queue, so the main actor is free while the stub blocks.
+    private nonisolated static func waitOff(_ semaphore: DispatchSemaphore) async {
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global().async {
+                semaphore.wait()
+                done.resume()
+            }
+        }
+    }
 
     func testASignOutWhileConnectingWinsOverTheLateAnswer() async {
         let entered = DispatchSemaphore(value: 0)
@@ -215,7 +223,7 @@ final class AnyRouterSignInConnectTests: XCTestCase {
         box.token = "sk-ar-live"
         let store = makeStore(box)
         let refreshing = Task { await store.refresh(.anyRouter) }
-        await Task.detached { Self.block(entered) }.value
+        await Self.waitOff(entered)
         box.token = nil
         store.accountChanged(signedIn: false)
         release.signal()
