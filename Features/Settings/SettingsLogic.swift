@@ -40,5 +40,11 @@ struct LicenseNotice: Identifiable, Equatable {
             license: "MIT License",
             url: "https://github.com/gonzalezreal/swift-markdown-ui"
         ),
+        LicenseNotice(
+            name: "llama.cpp",
+            copyright: ["Copyright (c) 2023-2026 The ggml authors"],
+            license: "MIT License",
+            url: "https://github.com/ggml-org/llama.cpp"
+        ),
     ]
 }
