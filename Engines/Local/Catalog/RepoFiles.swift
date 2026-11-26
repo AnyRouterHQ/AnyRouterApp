@@ -53,7 +53,12 @@ enum RepoFiles {
                 if let listed = match.sha256, listed.lowercased() != pinned { throw LocalModelError.checksumMismatch(match.path) }
                 match.sha256 = pinned
             }
-            return [match]
+            // A size that takes photos downloads its projector with it. The model file stays first: the engine loads that one.
+            guard let vision = entry.vision else { return [match] }
+            guard let projector = files.first(where: { $0.path == vision.mmprojFile }) else {
+                throw LocalModelError.notFound(vision.mmprojFile)
+            }
+            return [match, projector]
         case .mlx:
             let snapshot = mlxSnapshotFiles(files)
             guard snapshot.contains(where: { $0.path.hasSuffix(".safetensors") }) else {

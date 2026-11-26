@@ -137,7 +137,9 @@ final class ChatViewModel {
     // MARK: Attachments
 
     /// Under the composer: pending photos and a model that cannot see them.
-    var attachmentNote: String? { AttachmentLogic.note(for: pending, model: model) }
+    var attachmentNote: String? {
+        AttachmentLogic.note(for: pending, model: model, alternative: AttachmentLogic.visionAlternative(in: models.models))
+    }
 
     /// A vision model to switch to, offered next to the note.
     var visionAlternative: ModelDescriptor? {

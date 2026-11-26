@@ -20,6 +20,10 @@ final class LlamaModel: @unchecked Sendable {
 
     private let model: OpaquePointer
     private let vocab: OpaquePointer
+    private let name: String
+    private let profile: ModelMemoryProfile
+    /// The image reader, loaded the first time a photo comes in and kept while the weights are.
+    private var vision: (path: String, session: VisionSession)?
     let trainedContext: Int
     /// Context size chosen from the memory this device can give: the largest that fits. A generation lowers it when the
     /// system cannot allocate that much, so the next one starts from what worked.
@@ -70,6 +74,8 @@ final class LlamaModel: @unchecked Sendable {
         }
         self.model = model
         self.vocab = vocab
+        self.name = name
+        self.profile = profile
         self.trainedContext = Int(llama_model_n_ctx_train(model))
         self.contextSize = planned
         self.bosText = Self.specialPiece(llama_vocab_bos(vocab), vocab: vocab)
@@ -102,7 +108,41 @@ final class LlamaModel: @unchecked Sendable {
     }
 
     deinit {
+        // The image reader points into the model: free it first.
+        vision = nil
         llama_model_free(model)
+    }
+
+    // MARK: Photos
+
+    /// Tokenizes `text` (one `VisionInput.defaultMarker` per photo) and the photos for this model, loading the projector
+    /// at `projectorPath` first when it is not loaded. Throws when the projector does not fit next to the weights.
+    func prepareImages(text: String, images: [Data], projectorPath: String) throws -> PreparedVision {
+        #if targetEnvironment(simulator)
+        let contextCap: Int? = nil
+        #else
+        var withProjector = profile
+        withProjector.projectorBytes = ((try? FileManager.default.attributesOfItem(atPath: projectorPath)[.size]) as? NSNumber)?.int64Value ?? 0
+        let memory = DeviceMemory.current()
+        let projected = FitPlanner.imageInputEstimate(withProjector, memory: memory)
+        guard let estimate = projected, estimate.verdict != .wontFit else {
+            throw GGUFError.imagesWontFit(
+                name: name, neededBytes: projected?.totalBytes ?? profile.fileBytes, availableBytes: memory.budgetBytes)
+        }
+        // The context was planned for the weights alone: leave room for the projector.
+        let contextCap: Int? = estimate.context
+        #endif
+        let session: VisionSession
+        if let loaded = vision, loaded.path == projectorPath {
+            session = loaded.session
+        } else {
+            vision = nil
+            session = try VisionSession(projectorPath: projectorPath, model: model)
+            vision = (projectorPath, session)
+        }
+        return try session.prepare(
+            text: text, addSpecial: PromptBuilder.addsSpecialTokens(to: text, bosText: bosText),
+            images: images, contextCap: contextCap)
     }
 
     // MARK: Prompt
@@ -191,47 +231,75 @@ final class LlamaModel: @unchecked Sendable {
     func generate(
         promptTokens: [llama_token], params: GenerationParams, isCancelled: () -> Bool, emit: (String) -> Void
     ) throws -> LlamaResult {
-        guard promptTokens.count < contextSize else {
-            throw GGUFError.promptTooLong(tokens: promptTokens.count, limit: contextSize)
+        try generate(
+            promptSize: promptTokens.count, batch: 512, contextCap: nil, params: params, isCancelled: isCancelled, emit: emit
+        ) { context, batchSize in
+            // Prefill in n_batch sized chunks; only the last token produces logits.
+            var tokens = promptTokens
+            var offset = 0
+            while offset < tokens.count {
+                if isCancelled() { throw CancellationError() }
+                let count = min(batchSize, tokens.count - offset)
+                let start = offset
+                let status = tokens.withUnsafeMutableBufferPointer { buffer in
+                    llama_decode(context, llama_batch_get_one(buffer.baseAddress! + start, Int32(count)))
+                }
+                guard status == 0 else { throw GGUFError.decodeFailed(status) }
+                offset += count
+            }
+        }
+    }
+
+    /// The answer to a prompt with photos. The photos and the text around them go through `mtmd`, which encodes each photo
+    /// into the tokens the model reads.
+    func generate(
+        images prompt: PreparedVision, params: GenerationParams, isCancelled: () -> Bool, emit: (String) -> Void
+    ) throws -> LlamaResult {
+        // A photo is read in one piece (up to a few hundred tokens), so the batch must hold it.
+        try generate(
+            promptSize: prompt.positionCount, batch: 1024, contextCap: prompt.contextCap, params: params,
+            isCancelled: isCancelled, emit: emit
+        ) { context, batchSize in
+            try prompt.evaluate(context: context, batchSize: batchSize)
+        }
+    }
+
+    /// Creates the context, reads the prompt through `prefill`, then samples until the model stops. `promptSize` is the
+    /// number of positions the prompt takes, checked against the context before anything is allocated.
+    private func generate(
+        promptSize: Int, batch: Int, contextCap: Int?, params: GenerationParams, isCancelled: () -> Bool,
+        emit: (String) -> Void, prefill: (OpaquePointer, Int) throws -> Void
+    ) throws -> LlamaResult {
+        guard promptSize < contextSize else {
+            throw GGUFError.promptTooLong(tokens: promptSize, limit: contextSize)
         }
         var contextParams = llama_context_default_params()
         let threads = Int32(max(1, min(6, ProcessInfo.processInfo.activeProcessorCount - 2)))
         contextParams.n_threads = threads
         contextParams.n_threads_batch = threads
         // Ask for the planned context. When the system cannot allocate that much, halve it until it can.
-        var attempt = contextSize
+        var attempt = min(contextSize, contextCap ?? contextSize)
+        let planned = attempt
         var created: OpaquePointer?
         while true {
             contextParams.n_ctx = UInt32(attempt)
-            contextParams.n_batch = UInt32(min(512, attempt))
-            contextParams.n_ubatch = UInt32(min(512, attempt))
+            contextParams.n_batch = UInt32(min(batch, attempt))
+            contextParams.n_ubatch = UInt32(min(batch, attempt))
             created = llama_init_from_model(model, contextParams)
             if created != nil || attempt <= FitPlanner.minContext { break }
             attempt = max(FitPlanner.minContext, attempt / 2 / FitPlanner.contextStep * FitPlanner.contextStep)
         }
         guard let context = created else { throw GGUFError.contextFailed }
         defer { llama_free(context) }
-        contextSize = attempt
-        guard promptTokens.count < attempt else {
-            throw GGUFError.promptTooLong(tokens: promptTokens.count, limit: attempt)
+        // Remember a smaller context only when the system forced it, not when a cap for photos set it.
+        if attempt < planned { contextSize = attempt }
+        guard promptSize < attempt else {
+            throw GGUFError.promptTooLong(tokens: promptSize, limit: attempt)
         }
         let sampler = Self.makeSampler(params)
         defer { llama_sampler_free(sampler) }
 
-        // Prefill in n_batch sized chunks; only the last token produces logits.
-        var tokens = promptTokens
-        let batchSize = Int(contextParams.n_batch)
-        var offset = 0
-        while offset < tokens.count {
-            if isCancelled() { throw CancellationError() }
-            let count = min(batchSize, tokens.count - offset)
-            let start = offset
-            let status = tokens.withUnsafeMutableBufferPointer { buffer in
-                llama_decode(context, llama_batch_get_one(buffer.baseAddress! + start, Int32(count)))
-            }
-            guard status == 0 else { throw GGUFError.decodeFailed(status) }
-            offset += count
-        }
+        try prefill(context, Int(contextParams.n_batch))
 
         var generated = 0
         var reason = "length"
@@ -254,7 +322,7 @@ final class LlamaModel: @unchecked Sendable {
             guard status == 0 else { throw GGUFError.decodeFailed(status) }
         }
         if let tail = accumulator.flush() { emit(tail) }
-        return LlamaResult(promptTokens: promptTokens.count, completionTokens: generated, finishReason: reason)
+        return LlamaResult(promptTokens: promptSize, completionTokens: generated, finishReason: reason)
     }
 
     private static func makeSampler(_ params: GenerationParams) -> UnsafeMutablePointer<llama_sampler> {

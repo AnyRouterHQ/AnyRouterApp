@@ -77,9 +77,11 @@ enum AttachmentLogic {
     static func hasImage(_ attachments: [ChatAttachment]) -> Bool { attachments.contains { $0.kind == .image } }
 
     /// The note under the composer: pending images and a model that cannot see them.
-    static func note(for attachments: [ChatAttachment], model: ModelDescriptor?) -> String? {
+    /// `alternative` is a model that does see photos, named in the note when there is one.
+    static func note(for attachments: [ChatAttachment], model: ModelDescriptor?, alternative: ModelDescriptor? = nil) -> String? {
         guard hasImage(attachments), let model, !model.supportsVision else { return nil }
-        return visionNote
+        guard let alternative else { return visionNote }
+        return "\(visionNote) Try \(alternative.displayName)."
     }
 
     /// A usable vision model to offer, the current one first when it already sees images.

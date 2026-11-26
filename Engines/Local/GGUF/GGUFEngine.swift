@@ -7,13 +7,16 @@ final class GGUFEngine: ChatEngine {
     private let storage: LocalModelStorage
     private let catalog: CatalogService
     private let residency: LocalResidency
+    private let attachments: AttachmentStore
     /// One generation at a time, shared with the other local engines. Internal so tests can hold it.
     var gate: GenerationGate { residency.gate }
 
     /// Pass one `LocalResidency` to every local engine of the app. Without it the engine keeps its own.
     init(storage: LocalModelStorage = LocalModelStorage(), catalog: CatalogService = CatalogService(),
-         telemetry: any Telemetry = NoopTelemetry(), residency: LocalResidency? = nil) {
+         telemetry: any Telemetry = NoopTelemetry(), residency: LocalResidency? = nil,
+         attachments: AttachmentStore = .shared) {
         self.storage = storage
+        self.attachments = attachments
         self.catalog = catalog
         self.residency = residency ?? LocalResidency(telemetry: telemetry)
     }
@@ -69,7 +72,7 @@ final class GGUFEngine: ChatEngine {
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
         -> AsyncThrowingStream<ChatDelta, Error> {
         AsyncThrowingStream { continuation in
-            let task = Task.detached(priority: .userInitiated) { [self, storage, residency] in
+            let task = Task.detached(priority: .userInitiated) { [self, storage, residency, attachments] in
                 await residency.gate.acquire()
                 do {
                     // Stop pressed while this waited its turn: do not load a model for a reply nobody reads.
@@ -78,7 +81,14 @@ final class GGUFEngine: ChatEngine {
                         throw GGUFError.modelNotInstalled(model.id)
                     }
                     let llama = try await loadWeights(model.id, file: file.path, installedAt: manifest.completedAt)
-                    let result = try Self.run(llama, messages: messages, params: params) { continuation.yield(.text($0)) }
+                    let result: LlamaResult
+                    if let images = await imageInput(model: model, manifest: manifest, messages: messages) {
+                        result = try Self.runWithImages(
+                            llama, messages: messages, params: params, input: images, store: attachments
+                        ) { continuation.yield(.text($0)) }
+                    } else {
+                        result = try Self.run(llama, messages: messages, params: params) { continuation.yield(.text($0)) }
+                    }
                     continuation.yield(.usage(prompt: result.promptTokens, completion: result.completionTokens))
                     continuation.yield(.done(finishReason: result.finishReason))
                     continuation.finish()
@@ -91,6 +101,62 @@ final class GGUFEngine: ChatEngine {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    /// What a message with photos needs from the model's files: the projector, and the image size it reads.
+    struct ImageInput: Equatable, Sendable {
+        var projectorPath: String
+        var side: Int
+    }
+
+    /// Set when the last user message has photos and the download holds a projector. Otherwise the photos go in as the text
+    /// read from them.
+    private func imageInput(model: ModelDescriptor, manifest: InstalledManifest, messages: [ChatMessage]) async -> ImageInput? {
+        guard Self.hasImages(messages),
+              let projector = manifest.files.first(where: { VisionInput.isProjector(path: $0.path) })
+        else { return nil }
+        let entry = (try? await catalog.entries())?.first { $0.id == model.id }
+        return ImageInput(
+            projectorPath: storage.fileURL(forEntryID: model.id, path: projector.path).path,
+            side: VisionInput.imageSide(for: entry?.vision))
+    }
+
+    /// Whether the last user message carries a photo.
+    static func hasImages(_ messages: [ChatMessage]) -> Bool {
+        messages.last(where: { $0.role == .user })?.attachments.contains { $0.kind == .image } ?? false
+    }
+
+    /// Reads each photo from the store and scales it to the longest side the model reads.
+    static func imageData(_ images: [ChatAttachment], side: Int, store: AttachmentStore) throws -> [Data] {
+        try images.map { image in
+            guard let data = store.data(for: image), let scaled = ImageProcessing.jpeg(from: data, maxSide: side) else {
+                throw GGUFError.imageUnreadable
+            }
+            return scaled
+        }
+    }
+
+    private static func runWithImages(
+        _ llama: LlamaModel, messages: [ChatMessage], params: GenerationParams, input: ImageInput,
+        store: AttachmentStore, emit: (String) -> Void
+    ) throws -> LlamaResult {
+        let contextSize = llama.contextSize
+        let reserve = min(params.maxTokens ?? 1024, contextSize / 2)
+        // The photos take their own share of the context: count them on top of the text.
+        let built = VisionInput.prompt(from: messages, systemPrompt: params.systemPrompt)
+        let photoTokens = built.images.count * VisionInput.tokensPerImage
+        let budget = contextSize - reserve
+        let fitted = try PromptBuilder.trimmed(built.messages) {
+            try llama.tokenize(llama.formatPrompt($0)).count + photoTokens <= budget
+        }
+        guard let fitted else {
+            let needed = try llama.tokenize(llama.formatPrompt(built.messages)).count + photoTokens
+            throw GGUFError.promptTooLong(tokens: needed, limit: budget)
+        }
+        let data = try imageData(built.images, side: input.side, store: store)
+        let prepared = try llama.prepareImages(
+            text: llama.formatPrompt(fitted), images: data, projectorPath: input.projectorPath)
+        return try llama.generate(images: prepared, params: params, isCancelled: { Task.isCancelled }, emit: emit)
     }
 
     private static func run(

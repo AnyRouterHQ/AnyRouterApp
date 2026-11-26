@@ -24,6 +24,8 @@ struct CatalogBadge: Codable, Hashable, Sendable {
 struct CatalogVision: Codable, Hashable, Sendable {
     var mmprojFile: String
     var mmprojSize: Int64?
+    /// Longest side, in pixels, of the photo handed to the projector. Larger photos are shrunk first.
+    var imageSide: Int?
 }
 
 /// Memory facts read from the model's metadata, so the fit check does not guess. Written by `scripts/catalog-add.sh`.
@@ -238,11 +240,17 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
     var memoryProfile: ModelMemoryProfile? {
         guard let sizeBytes = sizeBytes.map({ min(max($0, 0), 1 << 50) }) else { return nil }
         let trained = contextLength ?? 0
-        guard let memory else { return .estimated(fileBytes: sizeBytes, trainedContext: trained) }
+        let projector = vision?.mmprojSize ?? 0
+        guard let memory else {
+            var guess = ModelMemoryProfile.estimated(fileBytes: sizeBytes, trainedContext: trained)
+            guess.projectorBytes = projector
+            return guess
+        }
         return ModelMemoryProfile(
             fileBytes: sizeBytes, fullKVBytesPerToken: memory.fullKVBytesPerToken,
             windowKVBytesPerToken: memory.windowKVBytesPerToken ?? 0, windowTokens: memory.windowTokens ?? 0,
-            trainedContext: trained, activeFraction: memory.activeFraction, lazyBytes: memory.lazyWeightBytes ?? 0)
+            trainedContext: trained, activeFraction: memory.activeFraction, lazyBytes: memory.lazyWeightBytes ?? 0,
+            projectorBytes: projector)
     }
 
     /// False when the entry lists platforms and iOS is not one of them (iPad counts as iOS).

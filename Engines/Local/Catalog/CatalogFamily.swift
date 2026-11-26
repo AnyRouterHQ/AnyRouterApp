@@ -103,11 +103,13 @@ struct CatalogFamily: Decodable, Hashable, Sendable {
 
     /// The family's sizes as the entries the rest of the app works with. Family facts are copied onto each.
     func entries(familyIndex: Int) -> [CatalogEntry] {
-        let capabilities: Set<String> = Set(["chat"] + tags.map { $0 == "thinking" ? "reasoning" : $0 })
+        // "vision" is a fact of a size, not of a family: only a GGUF size with a projector takes photos.
+        let familyCapabilities = Set(["chat"] + tags.filter { $0 != "vision" }.map { $0 == "thinking" ? "reasoning" : $0 })
         let badgeList = badges.map { CatalogBadge(label: $0.capitalized, tone: $0 == "new" ? "success" : "info") }
         let isRecommended = badges.contains("recommended") || badges.contains("best")
         return variants.enumerated().map { index, variant in
-            CatalogEntry(
+            let capabilities = variant.vision == nil ? familyCapabilities : familyCapabilities.union(["vision"])
+            return CatalogEntry(
                 repo: variant.repo, format: variant.engine, file: variant.file,
                 title: "\(name) \(variant.params)" + (variant.engine == .mlx ? " (MLX)" : ""),
                 summary: summary, parameters: variant.params, quantization: variant.quant, sizeBytes: variant.sizeBytes,

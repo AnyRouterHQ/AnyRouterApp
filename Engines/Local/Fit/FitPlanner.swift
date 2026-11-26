@@ -18,6 +18,10 @@ struct ModelMemoryProfile: Equatable, Sendable {
     /// of Gemma 4). llama.cpp keeps them in CPU buffers over the mapped file, so only the rows a prompt touches load.
     var lazyBytes: Int64 = 0
 
+    /// Size of the vision projector file (mmproj), 0 for a text-only model. Loaded only when a photo is attached, so
+    /// the plain verdict leaves it out and `FitPlanner.imageInput` adds it.
+    var projectorBytes: Int64 = 0
+
     /// File bytes that must be in RAM while the model runs.
     var residentBytes: Int64 { max(0, fileBytes - max(0, lazyBytes)) }
 
@@ -129,6 +133,23 @@ enum FitPlanner {
             return make(.tight(maxContext: inMemory, maxReply: maxReply(forContext: inMemory)), context: inMemory)
         }
         return make(.wontFit, context: minContext)
+    }
+
+    /// Runtime buffers of the image encoder, on top of the projector's weights.
+    static let imageEncoderBytes: Int64 = 250_000_000
+
+    /// Whether the model can take a photo here: the same check with the projector loaded as well. A model that runs well
+    /// can still be too big for images.
+    static func imageInput(_ profile: ModelMemoryProfile, memory: DeviceMemory) -> FitEstimate.Verdict {
+        imageInputEstimate(profile, memory: memory)?.verdict ?? .wontFit
+    }
+
+    /// The estimate with the projector loaded as well. Nil for a model without one.
+    static func imageInputEstimate(_ profile: ModelMemoryProfile, memory: DeviceMemory) -> FitEstimate? {
+        guard profile.projectorBytes > 0 else { return nil }
+        var withProjector = profile
+        withProjector.fileBytes += profile.projectorBytes + imageEncoderBytes
+        return estimate(withProjector, memory: memory)
     }
 
     /// The context to load with: the largest that fits the budget, or nil when even the minimum does not.

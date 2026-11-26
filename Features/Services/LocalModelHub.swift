@@ -194,10 +194,15 @@ final class LocalModelHub: ModelHubService {
     }
 
     private func map(_ entry: CatalogEntry, isUser: Bool, replacementName: String? = nil) -> LocalModelEntry {
+        // A size sees photos only when it has a projector and this device has room for it as well.
+        let acceptsImages = entry.vision != nil
+            && entry.memoryProfile.map { FitPlanner.imageInput($0, memory: deviceMemory) != .wontFit } == true
+        var capabilities = entry.capabilities
+        if !acceptsImages { capabilities.remove("vision") }
         var tags = [entry.format == .mlx ? "mlx" : "gguf"]
         if let parameters = entry.parameters { tags.append(parameters) }
         if let quantization = entry.quantization { tags.append(quantization) }
-        tags += entry.capabilities.subtracting(["chat"]).sorted()
+        tags += capabilities.subtracting(["chat"]).sorted()
         var verdict = ModelFit.unknown
         var detail: FitDetail?
         if let profile = entry.memoryProfile {
@@ -212,7 +217,7 @@ final class LocalModelHub: ModelHubService {
             detail = FitDetail(
                 verdict: verdict, neededBytes: estimate.totalBytes, budgetBytes: estimate.deviceBudgetBytes,
                 context: estimate.context, maxReply: maxReply, streamsFromStorage: estimate.streamsFromStorage,
-                isEstimate: estimate.isEstimated)
+                isEstimate: estimate.isEstimated, acceptsImages: acceptsImages)
         }
         let installed = downloads.state(for: entry) == .installed
         var unavailable: String?
@@ -223,7 +228,7 @@ final class LocalModelHub: ModelHubService {
                 source: entry.format == .mlx ? .mlx : .gguf,
                 displayName: entry.title,
                 contextLength: entry.contextLength,
-                capabilities: entry.capabilities,
+                capabilities: capabilities,
                 sizeBytes: entry.sizeBytes,
                 isInstalled: installed
             ),

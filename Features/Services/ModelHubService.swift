@@ -45,6 +45,8 @@ struct FitDetail: Hashable, Sendable {
     var streamsFromStorage: Bool
     /// The numbers come from a guess at the model's shape, not its metadata.
     var isEstimate: Bool
+    /// The model has a vision projector and this device has room for it as well, so photos work.
+    var acceptsImages = false
 }
 
 /// A local (GGUF or MLX) model shown in the hub and the onboarding picker.

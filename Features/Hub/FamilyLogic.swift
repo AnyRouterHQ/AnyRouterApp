@@ -18,7 +18,8 @@ enum FamilyLogic {
             return LocalModelFamily(
                 id: id, name: first.familyName ?? id, publisher: first.publisher ?? "", logo: first.logo ?? "",
                 summary: first.summary, website: first.website,
-                tags: tags(from: first.descriptor.capabilities), badges: first.badges.map { $0.label.lowercased() },
+                tags: tags(from: variants.reduce(into: Set<String>()) { $0.formUnion($1.descriptor.capabilities) }),
+                badges: first.badges.map { $0.label.lowercased() },
                 variants: variants)
         }
     }
