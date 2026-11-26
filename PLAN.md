@@ -131,7 +131,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] C1 `Engines/Local/Catalog`: bundled `catalog.json` (curated small models that fit phones: e.g. Qwen3 0.6B/1.7B/4B, Gemma 3 1B/4B, Llama 3.2 1B/3B, in GGUF Q4_K_M and MLX 4-bit), user-editable list of HF repos + optional remote catalog URL in Settings, HF search (`/api/models?search=&filter=gguf|mlx`), device-fit check (RAM vs size) (#7, data layer; Settings UI is D6)
 - [x] C2 Downloads: background `URLSession`, resume, progress, disk usage, delete; store under Application Support, excluded from iCloud backup (#7)
 - [x] C3 `Engines/Local/GGUF`: llama.cpp via official `llama.xcframework` (pinned release, SPM binaryTarget with checksum), chat template from GGUF metadata, Metal offload, streaming tokens, cancel (#10)
-- [ ] C4 `Engines/Local/MLX`: `mlx-swift-lm` (MLXLLM/MLXLMCommon), load from downloaded snapshot, streaming, cancel; disabled on Simulator (no Metal GPU family) with a clear message
+- [x] C4 `Engines/Local/MLX`: `mlx-swift-lm` (MLXLLM/MLXLMCommon), load from downloaded snapshot, streaming, cancel; disabled on Simulator (no Metal GPU family) with a clear message (#11)
 - [x] C5 Tests: catalog decode/merge, HF search URL building, fit check, download state machine (#7, GGUF and MLX engine tests land with C3/C4)
 
 ### Lane D — UI clone of Atomic Chat mobile (model: sonnet-medium; starts after A merges)
@@ -165,3 +165,4 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - 2026-11-26 lane-B: Apple + AnyRouter engines, OAuth sign-in, SSE/PKCE tests (#2); local checks skipped, CI is the gate
 - 2026-11-26 lane-C: catalog, HF client, device fit, background downloads and installer with tests (#7); local checks skipped
 - 2026-11-26 lane-C: GGUF engine on llama.cpp b10456 with a real tiny-model test (#10); local checks skipped
+- 2026-11-26 lane-C: MLX engine on mlx-swift-lm 3.33 with Simulator guard (#11); generation path to be verified on device; local checks skipped
