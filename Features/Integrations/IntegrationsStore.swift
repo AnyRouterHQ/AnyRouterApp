@@ -31,6 +31,8 @@ final class IntegrationsStore {
     }
 
     private(set) var customServers: [MCPServer]
+    /// The user is signed in to AnyRouter. Decides which web tools start on.
+    private(set) var signedIn = false
     private(set) var states: [String: ServerState] = [:]
     /// Tool switches the user changed. A tool with no entry is on.
     private(set) var overrides: [String: Bool]
@@ -103,6 +105,7 @@ final class IntegrationsStore {
     @discardableResult
     func accountChanged(signedIn: Bool) -> Task<Void, Never>? {
         let server = MCPServer.anyRouter
+        self.signedIn = signedIn
         guard signedIn else {
             clients[server.id] = nil
             states[server.id] = ServerState(status: .needsSignIn)

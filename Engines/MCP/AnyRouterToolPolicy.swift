@@ -28,15 +28,19 @@ enum AnyRouterToolPolicy {
 }
 
 extension MCPServer {
-    /// True when a tool of this server runs without the user's approval. Only the app's own server is trusted
-    /// to say so; a custom server's hints never count.
+    /// A public web service the app ships (Exa and the like). Its tools are described in `ToolSourceCatalog`.
+    var isCurated: Bool { ToolSourceCatalog.isCurated(serverID: id) }
+
+    /// True when a tool of this server runs without the user's approval. Only the app's own server and the
+    /// public services it ships are trusted to say so; a custom server's hints never count.
     func skipsApproval(_ tool: MCPTool) -> Bool {
-        isTrusted && AnyRouterToolPolicy.isReadOnly(tool)
+        (isTrusted || isCurated) && AnyRouterToolPolicy.isReadOnly(tool)
     }
 
     /// New AnyRouter tools start on only when they read; the user turns the rest on, and each call still asks.
     /// A custom server's tools start on because the user added that server on purpose.
     func enabledByDefault(_ tool: MCPTool) -> Bool {
-        !isTrusted || AnyRouterToolPolicy.isReadOnly(tool)
+        if isCurated { return ToolSourceCatalog.pinned(serverID: id, tool: tool.name)?.onByDefault ?? false }
+        return !isTrusted || AnyRouterToolPolicy.isReadOnly(tool)
     }
 }

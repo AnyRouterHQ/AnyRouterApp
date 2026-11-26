@@ -49,7 +49,7 @@ final class AppState {
         if !DemoData.isEnabled { Task.detached { AttachmentStore.shared.purgePending() } }
         let integrations = IntegrationsStore(anyRouterToken: { tokenStore.token() })
         self.integrations = integrations
-        tools = ToolRegistry(integrations: integrations)
+        tools = ToolRegistry(integrations: integrations, publicSources: ToolSourceCatalog.publicSources)
         if DemoData.isEnabled {
             telemetry = NoopTelemetry()
             let demo = DemoData.install(registry: registry)

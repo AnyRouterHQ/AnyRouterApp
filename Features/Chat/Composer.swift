@@ -14,6 +14,7 @@ struct Composer: View {
     /// Owned by the chat screen so a tap outside the card can dismiss the keyboard.
     var focused: FocusState<Bool>.Binding
     @Environment(AppSettings.self) private var settings
+    @Environment(AppState.self) private var app
     @Environment(ShellModel.self) private var shell
 
     var body: some View {
@@ -136,6 +137,18 @@ struct Composer: View {
                         set: { model.setToolsEnabled($0) }
                     ))
                     .accessibilityIdentifier("composer.tools-toggle")
+                    if model.toolsEnabled {
+                        // The same icons as Settings › Integrations.
+                        ForEach(app.tools.menuSources) { source in
+                            Toggle(isOn: Binding(
+                                get: { app.tools.isOn(source, modelSource: model.model?.source) },
+                                set: { app.tools.setSource(source, on: $0) }
+                            )) {
+                                Label { Text(source.title) } icon: { ToolSourceIcon(icon: source.icon) }
+                            }
+                            .accessibilityIdentifier("composer.tool-source.\(source.id)")
+                        }
+                    }
                 }
             }
             if model.supportsThinking {

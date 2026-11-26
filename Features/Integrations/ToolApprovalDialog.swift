@@ -66,7 +66,8 @@ private struct ToolApprovalDialog: ViewModifier {
             Button("Allow once") { answer(.allowOnce) }
                 .accessibilityIdentifier("tool-approval.allow-once")
             // A request with a reason is about this one call; remembering it would switch the protection off.
-            if entry.request.reason == nil {
+            // The first-use note about a public web service is the exception: it is asked once per service.
+            if entry.request.reason == nil || entry.request.canRemember {
                 Button("Always allow") { answer(.alwaysAllow) }
                     .accessibilityIdentifier("tool-approval.always-allow")
             }

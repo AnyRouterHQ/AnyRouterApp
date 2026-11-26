@@ -280,11 +280,11 @@ final class ChatViewModel {
     }
 
     /// The chat's attachments, and only the user's own words and files as the texts a tool may trust.
-    static func toolContext(for thread: ThreadRecord) -> ToolContext {
+    static func toolContext(for thread: ThreadRecord, modelSource: ModelSource? = nil) -> ToolContext {
         let all = thread.messages.flatMap { $0.attachments }
         let user = thread.messages.filter { $0.role == .user }
         let texts = user.flatMap { [$0.content] + $0.attachments.compactMap(\.extractedText) }
-        return ToolContext(attachments: all, userTexts: texts)
+        return ToolContext(attachments: all, userTexts: texts, modelSource: modelSource)
     }
 
     private func startStream(model: ModelDescriptor, thread: ThreadRecord) -> Task<Void, Never> {
@@ -298,7 +298,7 @@ final class ChatViewModel {
         context.insert(assistant)
         assistant.thread = thread
         let params = settings.generationParams
-        let host = toolsEnabled && model.capabilities.contains("tools") ? toolHost(Self.toolContext(for: thread)) : nil
+        let host = toolsEnabled && model.capabilities.contains("tools") ? toolHost(Self.toolContext(for: thread, modelSource: model.source)) : nil
         let stream = registry.engine(for: model).stream(
             model: model, messages: history, params: params,
             tools: host?.specs.isEmpty == false ? host : nil)

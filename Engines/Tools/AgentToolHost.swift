@@ -14,6 +14,9 @@ struct AgentToolHost: ToolHost {
     private let searchTimeout: Double
     private let approver: (any ToolApproving)?
     private let exfiltration: ExfiltrationGuard
+    private let profile: ToolProfile
+    /// Every tool the host can run, including those the profile left out of `specs`: a call to one still gets the checks.
+    private let allSpecs: [ToolSpec]
 
     /// `approver` is asked in the cases `ExfiltrationGuard` describes; without one such calls are refused.
     init(
@@ -24,8 +27,10 @@ struct AgentToolHost: ToolHost {
         builtInTimeout: Double = AgentToolHost.builtInTimeout,
         searchTimeout: Double = 45,
         approver: (any ToolApproving)? = nil,
-        exfiltration: ExfiltrationGuard = ExfiltrationGuard(userTexts: [])
+        exfiltration: ExfiltrationGuard = ExfiltrationGuard(userTexts: []),
+        profile: ToolProfile = .full
     ) {
+        self.profile = profile
         self.approver = approver
         self.exfiltration = exfiltration
         self.builtIns = Dictionary(builtIns.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
@@ -37,7 +42,8 @@ struct AgentToolHost: ToolHost {
         var specs = builtIns.map { $0.spec }
         if search != nil { specs.append(WebSearchBinding.spec) }
         specs += mcp?.specs ?? []
-        self.specs = specs
+        allSpecs = specs
+        self.specs = profile.shaped(specs)
     }
 
     /// Names the built-in tools and `web_search` use, so MCP tools never take them.
@@ -53,20 +59,22 @@ struct AgentToolHost: ToolHost {
                 return ToolResult(callID: call.id, name: call.name, text: "The user did not allow this tool call.", isError: true)
             }
         }
-        return await run(call)
+        var result = await run(call)
+        result.text = profile.clipped(result.text)
+        return result
     }
 
     /// A call that needs no approval of its own but could carry chat text out: a URL the user never wrote, or a
     /// search that repeats a long passage of the chat. MCP tools that need approval already ask in `MCPToolHost`.
     private func approvalRequest(for call: ToolCall) -> ToolApprovalRequest? {
-        guard let spec = specs.first(where: { $0.name == call.name }), spec.isReadOnly,
+        guard let spec = allSpecs.first(where: { $0.name == call.name }), spec.isReadOnly,
             let arguments = MCPToolHost.arguments(from: call.argumentsJSON)
         else { return nil }
         let urls = exfiltration.unsuppliedURLs(in: arguments)
         let reason: String
         if !urls.isEmpty {
             reason = "This address is not in your messages."
-        } else if call.name == WebSearchBinding.name, let query = arguments["query"]?.string,
+        } else if let key = ToolSourceCatalog.queryArgument(forTool: call.name), let query = arguments[key]?.string,
             exfiltration.repeatsUserText(query) {
             reason = "This search repeats a long passage of the chat."
         } else {
@@ -74,7 +82,7 @@ struct AgentToolHost: ToolHost {
         }
         let onDevice = builtIns[call.name] != nil && !(call.name == FetchURLTool.toolName && fetch != nil)
         return ToolApprovalRequest(
-            serverName: onDevice ? "This device" : "AnyRouter", spec: spec, call: call, reason: reason, urls: urls)
+            serverName: onDevice ? "This device" : (mcp?.serverName(for: call.name) ?? "AnyRouter"), spec: spec, call: call, reason: reason, urls: urls)
     }
 
     private func run(_ call: ToolCall) async -> ToolResult {

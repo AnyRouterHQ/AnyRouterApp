@@ -1,155 +1,117 @@
 import SwiftUI
 
-/// Settings › Integrations: the AnyRouter tool server, built-in tools and custom MCP servers.
+/// Settings › Integrations: where the model's tools come from, in four sections (on device, web, AnyRouter, custom
+/// servers). Every source is a row with an icon, a one-line subtitle and a switch; its page lists its tools.
 /// Pushed from the Settings list, so it relies on that NavigationStack.
 struct IntegrationsSettingsView: View {
     @Environment(AppState.self) private var app
 
     @State private var showsAdd = false
+    @State private var detail: ToolSource?
 
     private var store: IntegrationsStore { app.integrations }
 
-    private var builtInTools: [RegisteredTool] { app.tools.tools.filter { $0.source == .builtIn } }
-
     var body: some View {
-        Form {
-            Section("AnyRouter") {
-                IntegrationServerRow(server: .anyRouter)
-            }
-            Section {
-                ForEach(builtInTools) { tool in
-                    Toggle(isOn: Binding(
-                        get: { app.tools.isBuiltInEnabled(tool.name) },
-                        set: { app.tools.setBuiltIn(tool.name, enabled: $0) }
-                    )) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(tool.title)
-                            Text(tool.description).font(.footnote).foregroundStyle(.secondary)
-                        }
+        List {
+            ForEach(ToolSource.Group.allCases) { group in
+                let sources = app.tools.sources.filter { $0.group == group }
+                if group == .custom {
+                    customSection(sources)
+                } else if !sources.isEmpty {
+                    Section {
+                        ForEach(sources) { source in ToolSourceRow(source: source) { detail = $0 } }
+                    } header: {
+                        Text(group.title)
+                    } footer: {
+                        footer(for: group)
                     }
                 }
-            } header: {
-                Text("Built-in tools")
-            } footer: {
-                Text("Turned-off tools are never offered to the model.")
-            }
-            Section {
-                ForEach(store.customServers) { IntegrationServerRow(server: $0) }
-                    .onDelete { offsets in
-                        let doomed = offsets.map { store.customServers[$0] }
-                        doomed.forEach { store.removeServer($0) }
-                    }
-                Button("Add MCP server") { showsAdd = true }
-            } header: {
-                Text("Custom servers")
-            } footer: {
-                if store.customServers.isEmpty { Text("Add a remote MCP server to give chats more tools.") }
             }
         }
-        .navigationDestination(for: MCPServer.self) { IntegrationServerScreen(server: $0) }
+        .navigationDestination(item: $detail) { ToolSourceScreen(source: $0) }
         .sheet(isPresented: $showsAdd) { AddMCPServerSheet() }
         .task { await store.refreshAll() }
     }
+
+    private func customSection(_ sources: [ToolSource]) -> some View {
+        Section {
+            ForEach(sources) { source in ToolSourceRow(source: source) { detail = $0 } }
+                .onDelete { offsets in
+                    let doomed = offsets.compactMap { sources[$0].server }
+                    doomed.forEach { store.removeServer($0) }
+                }
+            Button("Add MCP server") { showsAdd = true }
+        } header: {
+            Text(ToolSource.Group.custom.title)
+        } footer: {
+            if sources.isEmpty { Text("Add a remote MCP server to give chats more tools.") }
+        }
+    }
+
+    @ViewBuilder
+    private func footer(for group: ToolSource.Group) -> some View {
+        switch group {
+        case .web:
+            Text("A web tool sends what it needs, such as your search words, to the service named on its row. Your AnyRouter sign-in is never sent to them.")
+        case .onDevice:
+            Text("Turned-off tools are never offered to the model.")
+        default:
+            EmptyView()
+        }
+    }
 }
 
-/// One server: name and status line, opens its tool list.
-private struct IntegrationServerRow: View {
+/// A source as a row: icon, name, one line about it, a switch, and a button to its page.
+private struct ToolSourceRow: View {
     @Environment(AppState.self) private var app
-    let server: MCPServer
+    let source: ToolSource
+    let open: (ToolSource) -> Void
+
+    private var modelSource: ModelSource? { app.models.selected?.source }
 
     var body: some View {
-        let state = app.integrations.state(for: server)
-        NavigationLink(value: server) {
+        let signedOut = source.requiresSignIn && app.integrations.state(for: .anyRouter).status == .needsSignIn
+        HStack(spacing: 0) {
+            ToolToggleRow(
+                icon: source.icon, title: source.title,
+                subtitle: signedOut ? "Sign in to connect" : source.subtitle,
+                isOn: Binding(
+                    get: { app.tools.isOn(source, modelSource: modelSource) },
+                    set: { app.tools.setSource(source, on: $0) }))
+            .disabled(signedOut)
+            .accessibilityIdentifier("tools.source.\(source.id)")
+            Button { open(source) } label: {
+                Label("Tools of \(source.title)", systemImage: "chevron.right").labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            // The HIG minimum hit area; a borderless button is only as big as its symbol.
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityIdentifier("tools.detail.\(source.id)")
+        }
+    }
+}
+
+/// A switch with an icon, a name and one line about it. A light tap when it flips.
+struct ToolToggleRow: View {
+    let icon: ToolSource.Icon
+    let title: String
+    let subtitle: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
             Label {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(server.name)
-                    Text(IntegrationsLogic.statusText(state.status, toolCount: state.tools.count))
-                        .font(.footnote).foregroundStyle(.secondary).lineLimit(2)
+                    Text(title)
+                    Text(subtitle).font(.footnote).foregroundStyle(.secondary).lineLimit(3)
                 }
             } icon: {
-                if server.auth == .anyRouterSignIn {
-                    ARLogoMark(size: 22)
-                } else {
-                    Image(systemName: "server.rack")
-                }
+                ToolSourceIcon(icon: icon)
             }
         }
-    }
-}
-
-/// Status, the live tool list with switches, and removal for custom servers.
-struct IntegrationServerScreen: View {
-    @Environment(AppState.self) private var app
-    @Environment(\.dismiss) private var dismiss
-
-    let server: MCPServer
-    @State private var confirmsRemove = false
-
-    private var store: IntegrationsStore { app.integrations }
-
-    var body: some View {
-        let state = store.state(for: server)
-        Form {
-            Section("Connection") {
-                LabeledContent("Server", value: server.url.host() ?? server.url.absoluteString)
-                if case .failed(let message) = state.status {
-                    Text(message).foregroundStyle(.red)
-                } else {
-                    Text(IntegrationsLogic.statusText(state.status, toolCount: state.tools.count))
-                        .foregroundStyle(.secondary)
-                }
-                Button(state.status == .connecting ? "Connecting…" : "Reconnect") {
-                    Task { await store.refresh(server) }
-                }
-                .disabled(state.status == .connecting)
-            }
-            if !state.tools.isEmpty {
-                Section {
-                    ForEach(state.tools) { toolRow($0) }
-                } header: {
-                    Text("Tools")
-                } footer: {
-                    Text("Turned-off tools are never offered to the model.")
-                }
-            }
-            if server.id != MCPServer.anyRouter.id {
-                Section {
-                    Button("Remove server", role: .destructive) { confirmsRemove = true }
-                }
-            }
-        }
-        .navigationTitle(server.name)
-        .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog("Remove \(server.name)?", isPresented: $confirmsRemove, titleVisibility: .visible) {
-            Button("Remove", role: .destructive) {
-                store.removeServer(server)
-                dismiss()
-            }
-        } message: {
-            Text("Its saved token is deleted from this device.")
-        }
-    }
-
-    private func needsApproval(_ tool: MCPTool) -> Bool {
-        let id = IntegrationsLogic.toolKey(serverID: server.id, toolName: tool.name)
-        return app.tools.tools.first { $0.id == id }?.needsApproval ?? false
-    }
-
-    private func toolRow(_ tool: MCPTool) -> some View {
-        Toggle(isOn: Binding(
-            get: { store.isEnabled(tool, on: server) },
-            set: { store.setEnabled($0, tool: tool, on: server) }
-        )) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(tool.displayName)
-                if needsApproval(tool) {
-                    Text("Needs approval").font(.footnote).foregroundStyle(.secondary)
-                }
-                if let description = tool.description, !description.isEmpty {
-                    Text(description).font(.footnote).foregroundStyle(.secondary).lineLimit(4)
-                }
-            }
-        }
+        .frame(minHeight: 44)
+        .sensoryFeedback(.impact(weight: .light), trigger: isOn)
     }
 }
 

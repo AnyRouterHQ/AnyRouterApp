@@ -9,6 +9,8 @@ struct ToolApprovalRequest: Sendable, Equatable {
     var reason: String?
     /// The full addresses the user never wrote, when that is the reason.
     var urls: [String] = []
+    /// The dialog may offer "Always allow" although there is a reason: a first-use note about a public web service.
+    var canRemember = false
 }
 
 /// Asks the user. The chat UI implements this with a sheet; it suspends until the user decides.
@@ -23,6 +25,24 @@ final class ToolPermissionStore: @unchecked Sendable {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+    }
+
+    private static let agreedKey = "integrations.agreedSources"
+
+    /// The user saw which service a public web tool talks to and accepted it.
+    func hasAgreed(serverID: String) -> Bool {
+        (defaults.stringArray(forKey: Self.agreedKey) ?? []).contains(serverID)
+    }
+
+    func agree(serverID: String) {
+        var list = Set(defaults.stringArray(forKey: Self.agreedKey) ?? [])
+        list.insert(serverID)
+        defaults.set(list.sorted(), forKey: Self.agreedKey)
+    }
+
+    func forgetAgreement(serverID: String) {
+        let list = (defaults.stringArray(forKey: Self.agreedKey) ?? []).filter { $0 != serverID }
+        defaults.set(list, forKey: Self.agreedKey)
     }
 
     func isAlwaysAllowed(serverID: String, toolName: String) -> Bool {
@@ -104,8 +124,23 @@ struct MCPToolHost: ToolHost {
             ToolResult(callID: call.id, name: call.name, text: text, isError: true)
         }
         guard let entry = entries[call.name] else { return failure("Unknown tool: \(call.name).") }
-        guard let arguments = Self.arguments(from: call.argumentsJSON) else {
+        guard let given = Self.arguments(from: call.argumentsJSON) else {
             return failure("The arguments are not a JSON object.")
+        }
+        let arguments = ToolSourceCatalog.completing(given, serverID: entry.server.id, tool: entry.tool.name)
+
+        // A public web service gets a first-use note: it names who receives the tool's text.
+        if let recipient = ToolSourceCatalog.recipient(forServerID: entry.server.id),
+            !permissions.hasAgreed(serverID: entry.server.id) {
+            let request = ToolApprovalRequest(
+                serverName: recipient.name, spec: entry.spec, call: call,
+                reason: "\(recipient.name) (\(recipient.site)) receives what this tool sends, such as your search words. Your AnyRouter sign-in is never sent.",
+                canRemember: true)
+            switch await approver.decide(request) {
+            case .deny: return failure("The user did not allow this tool call.")
+            case .alwaysAllow: permissions.agree(serverID: entry.server.id)
+            case .allowOnce: break
+            }
         }
 
         if !entry.spec.isReadOnly,
@@ -142,10 +177,13 @@ struct MCPToolHost: ToolHost {
         return value
     }
 
-    static func clip(_ text: String) -> String {
-        guard text.count > maxResultCharacters else { return text }
-        return String(text.prefix(maxResultCharacters)) + "\n[Result cut at \(maxResultCharacters) characters.]"
+    static func clip(_ text: String, limit: Int = MCPToolHost.maxResultCharacters) -> String {
+        guard text.count > limit else { return text }
+        return String(text.prefix(limit)) + "\n[Result cut at \(limit) characters.]"
     }
+
+    /// The server that runs a tool, as the user knows it.
+    func serverName(for toolName: String) -> String? { entries[toolName]?.server.name }
 
     /// Model APIs want `[A-Za-z0-9_-]{1,64}` and unique names. Two servers may both have `search`; then the
     /// server name is put in front of the tool name.

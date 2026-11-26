@@ -4,7 +4,7 @@ import Foundation
 /// One scope per `stream` call: cancelling it stops every call still running.
 final class ToolRunScope: @unchecked Sendable {
     /// The model's context is small (about 4k tokens). A longer result is cut before it goes back to the model.
-    static let maxResultCharacters = 6000
+    static let maxResultCharacters = ToolProfile.compact.maxResultCharacters
 
     private let lock = NSLock()
     private var running: [String: Task<ToolResult, Never>] = [:]

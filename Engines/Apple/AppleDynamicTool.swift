@@ -17,7 +17,7 @@ struct AppleDynamicTool: Tool {
 
     /// Apple's model has a small context and every tool schema is placed in it, so only the first
     /// few enabled tools are offered.
-    static let maxTools = 8
+    static let maxTools = ToolProfile.compact.maxTools
 
     /// A spec whose schema the framework rejects is left out rather than offered broken.
     static func make(
