@@ -1,0 +1,93 @@
+name: Device IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: device-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ipa:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then echo "No Xcode 26 on this runner"; ls /Applications | grep -i xcode; exit 1; fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Cache SwiftPM and DerivedData
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            .build
+            SourcePackages
+            DerivedData
+          key: spm-dd-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            spm-dd-${{ runner.os }}-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build for device (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project AnyRouter.xcodeproj -scheme AnyRouter \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            -clonedSourcePackagesDirPath SourcePackages \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -n 200
+
+      - name: Package IPA
+        run: |
+          rm -rf Payload AnyRouter-debug-unsigned.ipa
+          mkdir Payload
+          cp -R build/Build/Products/Debug-iphoneos/AnyRouter.app Payload/
+          zip -qry AnyRouter-debug-unsigned.ipa Payload
+
+      - name: Check embedded frameworks
+        run: |
+          APP=Payload/AnyRouter.app
+          ls -la "$APP/Frameworks" || { echo "No Frameworks folder in the app"; exit 1; }
+          test -d "$APP/Frameworks/llama.framework" || { echo "llama.framework is missing from the app"; exit 1; }
+          lipo -archs "$APP/Frameworks/llama.framework/llama" || true
+          vtool -show-build "$APP/Frameworks/llama.framework/llama" | grep -i platform
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: AnyRouter-debug-unsigned
+          path: AnyRouter-debug-unsigned.ipa
+          retention-days: 14
+
+      - name: Summary
+        run: |
+          SIZE=$(du -h AnyRouter-debug-unsigned.ipa | cut -f1)
+          {
+            echo "## Unsigned debug IPA"
+            echo ""
+            echo "- IPA size: $SIZE"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo ""
+            echo "Sideload with Sideloadly or AltStore:"
+            echo "1. Download the artifact \`AnyRouter-debug-unsigned\` and unzip it to get the .ipa."
+            echo "2. Open the .ipa in Sideloadly or AltStore and sign in with your own Apple ID."
+            echo "3. Free Apple ID builds expire after 7 days; re-install to renew. See docs/sideload.md."
+          } >> "$GITHUB_STEP_SUMMARY"
