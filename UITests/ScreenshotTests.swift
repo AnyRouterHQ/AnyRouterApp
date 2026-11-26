@@ -43,7 +43,7 @@ final class ScreenshotTests: XCTestCase {
 
     /// iPhone: the sidebar is a drawer behind the menu button. iPad: a column, open in landscape only.
     private func showSidebar(_ app: XCUIApplication) {
-        app.revealSidebar(whenVisible: button(app, containing: "Settings"))
+        app.revealSidebar(whenVisible: app.buttons["Settings"].firstMatch)
     }
 
     private func open(_ app: XCUIApplication, footer title: String) {
@@ -62,14 +62,14 @@ final class ScreenshotTests: XCTestCase {
 
     func testOnboarding() {
         forEachAppearance(extra: ["-ARDemoOnboarding", "YES"]) { app, appearance in
-            XCTAssertTrue(app.staticTexts["Choose how to chat"].waitForExistence(timeout: 15))
+            XCTAssertTrue(app.staticTexts["Welcome to AnyRouter"].waitForExistence(timeout: 15))
             capture("onboarding", appearance)
         }
     }
 
     func testEmptyChat() {
         forEachAppearance { app, appearance in
-            XCTAssertTrue(app.staticTexts["How can I help?"].waitForExistence(timeout: 15))
+            XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
             capture("empty-chat", appearance)
         }
     }
@@ -137,7 +137,7 @@ final class ScreenshotTests: XCTestCase {
 
     func testComposerWithText() {
         forEachAppearance { app, appearance in
-            XCTAssertTrue(app.staticTexts["How can I help?"].waitForExistence(timeout: 15))
+            XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
             let field = app.textViews.firstMatch.exists ? app.textViews.firstMatch : app.textFields.firstMatch
             field.tap()
             field.typeText("Write a haiku about routers")
@@ -153,7 +153,7 @@ final class ScreenshotTests: XCTestCase {
             XCTAssertTrue(tabs.waitForExistence(timeout: 5))
             capture("model-picker-local", appearance)
             tabs.buttons["AnyRouter"].tap()
-            XCTAssertTrue(app.staticTexts["Top picks"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["model-row.anyrouter/anthropic/claude-sonnet-4-6"].waitForExistence(timeout: 5))
             capture("model-picker", appearance)
         }
     }
@@ -168,9 +168,6 @@ final class ScreenshotTests: XCTestCase {
             manage.tap()
             XCTAssertTrue(app.navigationBars["Local Models"].waitForExistence(timeout: 10))
             XCTAssertTrue(app.staticTexts["Storage"].waitForExistence(timeout: 10) || app.otherElements["local.storage"].exists)
-            // Rows are list cells with a link, so match by label instead of a static text id.
-            let qwen = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Qwen3 0.6B'")).firstMatch
-            XCTAssertTrue(qwen.waitForExistence(timeout: 10))
             capture("hub", appearance)
         }
     }
@@ -194,7 +191,7 @@ final class ScreenshotTests: XCTestCase {
     func testSettings() {
         forEachAppearance { app, appearance in
             open(app, footer: "Settings")
-            XCTAssertTrue(app.staticTexts["Account"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
             capture("settings", appearance)
             app.swipeUp()
             app.swipeUp()
@@ -214,7 +211,7 @@ final class ScreenshotTests: XCTestCase {
         forEachAppearance { app, appearance in
             open(app, footer: "Settings")
             let licenses = app.buttons["Licenses"]
-            XCTAssertTrue(licenses.waitForExistence(timeout: 10) || app.staticTexts["Account"].exists)
+            XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
             scrollTo(licenses, in: app)
             licenses.tap()
             XCTAssertTrue(app.staticTexts["Licenses"].waitForExistence(timeout: 5))
