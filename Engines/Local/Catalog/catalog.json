@@ -222,6 +222,72 @@
         "chat"
       ],
       "order": 12
+    },
+    {
+      "repo": "google/gemma-4-E2B-it-qat-q4_0-gguf",
+      "format": "gguf",
+      "file": "gemma-4-E2B_q4_0-it.gguf",
+      "title": "Gemma 4 E2B",
+      "summary": "Google on-device model, text chat. Strong for its size. Wants 8 GB of RAM.",
+      "parameters": "E2B",
+      "quantization": "Q4_0 (QAT)",
+      "sizeBytes": 3349516256,
+      "contextLength": 131072,
+      "license": "apache-2.0",
+      "revision": "675cff42a74c774d6cb76f76d8eacb49b48c9b93",
+      "capabilities": [
+        "chat"
+      ],
+      "order": 13
+    },
+    {
+      "repo": "mlx-community/gemma-4-e2b-it-4bit",
+      "format": "mlx",
+      "title": "Gemma 4 E2B (MLX)",
+      "summary": "Google on-device model, text chat. Strong for its size. Wants 8 GB of RAM.",
+      "parameters": "E2B",
+      "quantization": "4-bit",
+      "sizeBytes": 3583086498,
+      "contextLength": 131072,
+      "license": "apache-2.0",
+      "revision": "238767527555cb75a05732a84dff5d6ba0dd6809",
+      "capabilities": [
+        "chat"
+      ],
+      "order": 14
+    },
+    {
+      "repo": "google/gemma-4-E4B-it-qat-q4_0-gguf",
+      "format": "gguf",
+      "file": "gemma-4-E4B_q4_0-it.gguf",
+      "title": "Gemma 4 E4B",
+      "summary": "Bigger Gemma 4 for text chat. Large download. Wants 12 GB of RAM, tight on 8 GB.",
+      "parameters": "E4B",
+      "quantization": "Q4_0 (QAT)",
+      "sizeBytes": 5154941280,
+      "contextLength": 131072,
+      "license": "apache-2.0",
+      "revision": "4b4a2c1d584be7264f87aac328a1bc739ce81b6c",
+      "capabilities": [
+        "chat"
+      ],
+      "order": 15
+    },
+    {
+      "repo": "mlx-community/gemma-4-e4b-it-4bit",
+      "format": "mlx",
+      "title": "Gemma 4 E4B (MLX)",
+      "summary": "Bigger Gemma 4 for text chat. Large download. Wants 12 GB of RAM, tight on 8 GB.",
+      "parameters": "E4B",
+      "quantization": "4-bit",
+      "sizeBytes": 5179239349,
+      "contextLength": 131072,
+      "license": "apache-2.0",
+      "revision": "475b9088d29754a3379866cf5aeb6b41acd313c2",
+      "capabilities": [
+        "chat"
+      ],
+      "order": 16
     }
   ]
 }
