@@ -22,16 +22,6 @@ enum ModelStatusColor {
     }
 }
 
-enum ModelIcon {
-    static func name(for source: ModelSource) -> String {
-        switch source {
-        case .apple: "apple.logo"
-        case .anyrouter: "cloud"
-        case .gguf, .mlx: "cube"
-        }
-    }
-}
-
 /// One model in a Manage models list: name, a detail line, fit status, and progress while downloading.
 struct ModelRow: View {
     let entry: LocalModelEntry
@@ -41,7 +31,7 @@ struct ModelRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Label(entry.descriptor.displayName, systemImage: ModelIcon.name(for: entry.descriptor.source))
+                ModelLabel(model: entry.descriptor)
                 if isDefault {
                     Spacer()
                     Image(systemName: "star.fill").foregroundStyle(.secondary).accessibilityLabel("Default model")

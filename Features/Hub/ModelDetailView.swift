@@ -24,6 +24,7 @@ struct ModelDetailView: View {
     var body: some View {
         List {
             Section {
+                ModelLabel(model: entry.descriptor)
                 Text(entry.summary)
                 if let status = HubListOptions.fitStatus(entry, device: device) {
                     Label(status, systemImage: statusSymbol).foregroundStyle(ModelStatusColor.fit(entry))

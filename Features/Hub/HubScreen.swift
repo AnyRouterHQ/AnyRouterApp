@@ -192,7 +192,7 @@ struct HubScreen: View {
     private func appleRow(_ model: ModelDescriptor) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Label("Apple Intelligence", systemImage: "apple.logo")
+                ModelLabel(model: model)
                 Text("Built in · On device").font(.subheadline).foregroundStyle(.secondary)
             }
             if models.selected?.id == model.id {
