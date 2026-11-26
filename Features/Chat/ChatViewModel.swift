@@ -289,6 +289,12 @@ final class ChatViewModel {
 
     func dismissError() { errorMessage = nil }
 
+    /// The title of a chat whose first message is only files: the first file's name.
+    static func attachmentTitle(_ files: [ChatAttachment]) -> String {
+        guard let first = files.first else { return "Attachment" }
+        return first.filename
+    }
+
     @discardableResult
     func send() -> Task<Void, Never>? {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -301,7 +307,7 @@ final class ChatViewModel {
         // Files move first: if one cannot, nothing is sent and every file stays under the field.
         let threadID = thread?.id ?? draftThreadID
         guard let adopted = adoptPending(into: threadID) else { return nil }
-        let thread = ensureThread(id: threadID, firstMessage: text.isEmpty ? (adopted.first?.filename ?? "Attachment") : text)
+        let thread = ensureThread(id: threadID, firstMessage: text.isEmpty ? Self.attachmentTitle(adopted) : text)
         models.telemetry.track(.messageSent(source: model.source))
         let user = MessageRecord(role: .user, content: text)
         context.insert(user)
