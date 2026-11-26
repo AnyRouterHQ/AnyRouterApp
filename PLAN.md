@@ -156,4 +156,4 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - 2026-11-26 manager: interviewed operator, wrote AGENTS.md + PLAN.md + base config, created public repo AnyRouterHQ/AnyRouterApp, started lanes A, B, C.
 - 2026-11-26 lane-A: scaffold, Core contract, app shell, CI workflow (#1); local checks skipped
 - 2026-11-26 lane-A: hygiene (gitleaks, dependabot, templates, README, notices) (#3); PR #1 merged, CI green
-- 2026-11-26 lane-B: Apple and AnyRouter engines, OAuth, tests written; waiting on CI (#2)
+- 2026-11-26 lane-B: Apple + AnyRouter engines, OAuth sign-in, SSE/PKCE tests (#2); local checks skipped, CI is the gate
