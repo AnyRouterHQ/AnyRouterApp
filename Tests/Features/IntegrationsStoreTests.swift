@@ -198,35 +198,22 @@ final class AnyRouterSignInConnectTests: XCTestCase {
         XCTAssertNil(store.makeToolHost(approver: NeverAsked()))
     }
 
-    /// Waits for the semaphore on a background queue, so the main actor is free while the stub blocks.
-    private nonisolated static func waitOff(_ semaphore: DispatchSemaphore) async {
-        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
-            DispatchQueue.global().async {
-                semaphore.wait()
-                done.resume()
-            }
-        }
-    }
-
     func testASignOutWhileConnectingWinsOverTheLateAnswer() async {
-        let entered = DispatchSemaphore(value: 0)
-        let release = DispatchSemaphore(value: 0)
         let answer = standardMCPHandler()
         MCPStubProtocol.register(host: MCPServer.anyRouter.url.host()!) { request in
-            if request.rpcMethod == "initialize" {
-                entered.signal()
-                release.wait()
-            }
+            // The server is slow to answer the handshake, so the sign-out below lands while the connect is in flight.
+            if request.rpcMethod == "initialize" { Thread.sleep(forTimeInterval: 0.4) }
             return answer(request)
         }
         let box = TokenBox()
         box.token = "sk-ar-live"
         let store = makeStore(box)
         let refreshing = Task { await store.refresh(.anyRouter) }
-        await Self.waitOff(entered)
+        // `refresh` marks the server connecting before its first suspension.
+        let started = await waitUntil { store.state(for: .anyRouter).status == .connecting }
+        XCTAssertTrue(started)
         box.token = nil
         store.accountChanged(signedIn: false)
-        release.signal()
         await refreshing.value
         XCTAssertEqual(store.state(for: .anyRouter).status, .needsSignIn)
         XCTAssertTrue(store.state(for: .anyRouter).tools.isEmpty)
