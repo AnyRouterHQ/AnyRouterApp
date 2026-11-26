@@ -101,11 +101,20 @@ def collect_screenshots(folder, device_override=None):
     return screens
 
 
-def _tsv(path):
+def _tsv(path, columns):
+    """Rows of a tab separated file. An audit finding can hold the element label, with its own line breaks: a line
+    with fewer fields than a row has continues the last field of the row before it."""
     if not path.exists():
         return []
+    rows = []
     with path.open(newline="") as handle:
-        return [row for row in csv.reader(handle, delimiter="\t") if row]
+        for row in csv.reader(handle, delimiter="\t"):
+            if len(row) >= columns or not rows:
+                if row:
+                    rows.append(row)
+            elif any(row):
+                rows[-1][columns - 1 if len(rows[-1]) > columns - 1 else -1] += " " + " ".join(row).strip()
+    return rows
 
 
 def collect_evidence(folder, device_override=None):
@@ -117,7 +126,7 @@ def collect_evidence(folder, device_override=None):
     for device_dir in sorted(p for p in Path(folder).iterdir() if p.is_dir()):
         device = device_override or classify_device(device_dir.name)
         by_step, by_journey = {}, collections.defaultdict(list)
-        for journey, pass_name, number, name, png in (r[:5] for r in _tsv(device_dir / "results.tsv")):
+        for journey, pass_name, number, name, png in (r[:5] for r in _tsv(device_dir / "results.tsv", 5)):
             path = device_dir / png
             screen = _screen(device, f"{journey}/{name}", pass_name, "verify", str(path) if path.exists() else None)
             by_step[(journey, pass_name, int(number))] = screen
@@ -132,12 +141,12 @@ def collect_evidence(folder, device_override=None):
             return next((s for n, s in names if n == name), None) or next(
                 (s for n, s in names if n.startswith(name) or name.startswith(n)), None)
 
-        for row in _tsv(device_dir / "audited.tsv"):
+        for row in _tsv(device_dir / "audited.tsv", 4):
             target = find(row)
             if target is not None:
                 target["audit"] = []
         orphans = collections.defaultdict(list)
-        for row in _tsv(device_dir / "audit.tsv"):
+        for row in _tsv(device_dir / "audit.tsv", 4):
             target = find(row[:3] + row[4:5])
             if target is not None:
                 target["audit"] = (target["audit"] or []) + [row[3]]
@@ -563,7 +572,7 @@ def render(result, previous):
         lines += ["Nothing to score: no screenshots were found in the inputs.", ""]
         return "\n".join(lines)
 
-    lines += ["## By device", "", "| Device | Screens | Mean total | Delta |", "|---|---|---|---|"]
+    lines += ["## By device", "", "| Device | Screens | Mean total | Criteria scored per screen | Delta |", "|---|---|---|---|---|"]
     for device in sorted({r["device"] for r in rows.values()}, key=lambda d: DEVICE_ORDER.index(d) if d in DEVICE_ORDER else 99):
         mine = {k: r for k, r in rows.items() if r["device"] == device and r["total"] is not None}
         before = {k: prev_rows[k] for k in mine if k in prev_rows and prev_rows[k]["total"] is not None}
@@ -571,7 +580,9 @@ def render(result, previous):
         noise = statistics.fmean(r["spread"] for r in mine.values()) if mine else 0
         prev_mean = statistics.fmean(r["total"] for r in before.values()) if before else None
         same = statistics.fmean(mine[k]["total"] for k in before) if before else None
-        lines.append(f"| {device} | {len(mine)} | {mean:.1f} | {delta_text(same, prev_mean, noise)} |")
+        covered = statistics.fmean(len(r["criteria"]) for r in mine.values()) if mine else 0
+        lines.append(f"| {device} | {len(mine)} | {mean:.1f} | {covered:.1f} of {len(criteria)} | "
+                     f"{delta_text(same, prev_mean, noise)} |")
 
     lines += ["", "## Screens", "", "| Screen | " + " | ".join(criteria) + " | Total | Scored | Delta |",
               "|---|" + "---|" * (len(criteria) + 3)]
@@ -588,7 +599,7 @@ def render(result, previous):
     for number, issue in enumerate(worst_issues(rows), 1):
         owner = issue["lane"] + (" (" + ", ".join(issue["files"][:2]) + ")" if issue["files"] else "")
         lines.append(f"| {number} | {issue['screen']} ({issue['variant']}) | {issue['criterion']} | {issue['score']} | "
-                     f"{cell(issue['why'])} | {cell(issue['fix'])} | {cell(owner)} |")
+                     f"{cell(issue['why'])} | {cell(issue['fix'] or '-')} | {cell(owner)} |")
     lines.append("")
     return "\n".join(lines)
 

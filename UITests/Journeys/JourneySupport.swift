@@ -107,7 +107,7 @@ class JourneyCase: XCTestCase {
         // the audit ran after, so scripts/ux-score.py can tell a clean audit from no audit.
         append("\(journey)\t\(currentPass.rawValue)\t\(name)\t\(stepNumber)", to: "audited.tsv")
         for issue in issues {
-            append("\(journey)\t\(currentPass.rawValue)\t\(name)\t\(issue.replacingOccurrences(of: "\t", with: " "))\t\(stepNumber)", to: "audit.tsv")
+            append("\(journey)\t\(currentPass.rawValue)\t\(name)\t\(issue.replacingOccurrences(of: "\t", with: " ").replacingOccurrences(of: "\n", with: " "))\t\(stepNumber)", to: "audit.tsv")
         }
     }
 

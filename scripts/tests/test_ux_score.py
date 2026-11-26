@@ -103,6 +103,16 @@ class Collect(unittest.TestCase):
         self.assertEqual(found["drawer/search-open"]["audit"], [], "audited and clean is not unaudited")
         self.assertIsNone(found["drawer/audit:gone"]["png"], "a finding with no step keeps its numbers")
 
+    def test_an_element_label_with_line_breaks_stays_one_finding(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.evidence(tmp, audited=False)
+            dev = Path(tmp) / "iPhone-17-Pro"
+            (dev / "audit.tsv").write_text("drawer\tlight\tdrawer\tContrast failed [Explain the code,\n\nthen point out bugs]\n"
+                                           "drawer\tlight\tdrawer\tHit area is too small [x]\n")
+            found = {s["screen"]: s for s in ux.collect_evidence(tmp)}
+        self.assertEqual(found["drawer/drawer-open"]["audit"],
+                         ["Contrast failed [Explain the code, then point out bugs]", "Hit area is too small [x]"])
+
     def test_a_step_without_an_audit_gets_no_audit_score(self):
         with tempfile.TemporaryDirectory() as tmp:
             found = {s["screen"]: s for s in ux.collect_evidence(self.evidence(tmp, audited=False))}
@@ -300,7 +310,7 @@ class Report(unittest.TestCase):
             previous["rows"]["iphone:empty-chat"]["total"] -= 2
             text = ux.render(result, previous)
         self.assertIn("+2.0", text)
-        self.assertIn("| iphone | 1 |", text)
+        self.assertIn("| iphone | 1 | ", text)
 
 
 if __name__ == "__main__":
