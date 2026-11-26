@@ -51,9 +51,15 @@ private struct IntegrationServerRow: View {
         let state = app.integrations.state(for: server)
         NavigationLink(value: server) {
             HStack(spacing: 12) {
-                Image(systemName: server.auth == .anyRouterSignIn ? "cloud" : "server.rack")
-                    .frame(width: 22)
-                    .foregroundStyle(ARColor.mutedForeground)
+                Group {
+                    if server.auth == .anyRouterSignIn {
+                        ARLogoMark(size: 22)
+                    } else {
+                        Image(systemName: "server.rack").foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 22)
+                .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(server.name).font(.arBase).foregroundStyle(ARColor.foreground)
                     Text(server.url.host() ?? server.url.absoluteString)
