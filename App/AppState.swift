@@ -106,13 +106,13 @@ final class AppState {
         decisions = DecisionsStore(service: AnyRouterDecisionsAdapter(engine: anyRouter))
         account = AnyRouterAccountAdapter(auth: auth, telemetry: telemetry)
         let hubSignpost = Perf.signposter.beginInterval("launch.hub")
-        defer { Perf.signposter.endInterval("launch.hub", hubSignpost) }
         hub = LocalModelHub(
             downloads: ModelDownloadManager(telemetry: telemetry),
             unloadModel: { id in
                 await gguf.unload(modelID: id)
                 await mlx.unload(modelID: id)
             })
+        Perf.signposter.endInterval("launch.hub", hubSignpost)
         let reporter = MetricKitReporter(store: diagnostics, telemetry: telemetry)
         reporter.start()
         metricKit = reporter
