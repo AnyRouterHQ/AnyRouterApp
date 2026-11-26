@@ -91,6 +91,38 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    func testResponseDetailsAndSwitchNote() {
+        forEachAppearance { app, appearance in
+            showSidebar(app)
+            app.staticTexts["Switch models in a chat"].tap()
+            XCTAssertTrue(app.staticTexts["Switched to GPT-5"].waitForExistence(timeout: 10))
+            capture("response-footer", appearance)
+            let details = app.buttons["response-details"].firstMatch
+            XCTAssertTrue(details.waitForExistence(timeout: 5))
+            details.tap()
+            XCTAssertTrue(app.staticTexts["req_demo01"].waitForExistence(timeout: 5)
+                || app.staticTexts["req_demo02"].waitForExistence(timeout: 5))
+            capture("response-details", appearance)
+        }
+    }
+
+    func testModelPickerFilters() {
+        forEachAppearance { app, appearance in
+            XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
+            app.buttons["Model"].tap()
+            let tabs = app.segmentedControls.firstMatch
+            XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+            tabs.buttons["AnyRouter"].tap()
+            XCTAssertTrue(app.buttons["model-filter"].waitForExistence(timeout: 5))
+            app.buttons["model-filter"].tap()
+            XCTAssertTrue(app.switches["Free only"].waitForExistence(timeout: 5))
+            capture("model-filters", appearance)
+            app.switches["Free only"].tap()
+            app.buttons["Done"].tap()
+            capture("model-picker-free", appearance)
+        }
+    }
+
     func testComposerWithText() {
         forEachAppearance { app, appearance in
             XCTAssertTrue(app.staticTexts["How can I help?"].waitForExistence(timeout: 15))

@@ -82,10 +82,43 @@ enum DemoData {
                 record.thread = thread
             }
         }
+        insertSwitchThread(in: context, at: now)
         if tools { insertToolThread(in: context, at: now) }
         if longThreadMessages > 0 { insertLongThread(into: context, now: now) }
         try context.save()
         return container
+    }
+
+    static let switchThreadTitle = "Switch models in a chat"
+
+    /// A thread where the model changed between replies, with response details on both: shows the
+    /// footer, its expanded details and the "Switched to" note.
+    @MainActor
+    private static func insertSwitchThread(in context: ModelContext, at now: Date) {
+        let created = now.addingTimeInterval(-60)
+        let thread = ThreadRecord(title: switchThreadTitle, createdAt: created, modelID: "anyrouter/openai/gpt-5")
+        context.insert(thread)
+        func add(_ role: ChatMessage.Role, _ text: String, at offset: Double, name: String? = nil, id: String? = nil,
+                 metadata: ResponseMetadata? = nil) {
+            let record = MessageRecord(role: role, content: text, createdAt: created.addingTimeInterval(offset),
+                                       modelName: name, modelID: id)
+            record.metadata = metadata
+            context.insert(record)
+            record.thread = thread
+        }
+        add(.user, "Suggest a name for a small router app.", at: 0)
+        add(.assistant, "How about Waypoint? Short, clear, and it says what a router does.", at: 5,
+            name: "AnyRouter", id: "anyrouter/anyrouter/auto",
+            metadata: ResponseMetadata(
+                requestID: "req_demo01", servedModelID: "nvidia/nemotron-3.5-bolt-e4b",
+                servedModelName: "Nemotron 3.5 Bolt E4B", provider: "NVIDIA", costUSD: 0, promptTokens: 18,
+                completionTokens: 41, upstreamLatencyMs: 640, ttftMs: 600, totalMs: 2100))
+        add(.user, "Give me three more, more playful.", at: 10)
+        add(.assistant, "Hopscotch, Postmark, Zigzag.", at: 15, name: "GPT-5", id: "anyrouter/openai/gpt-5",
+            metadata: ResponseMetadata(
+                requestID: "req_demo02", servedModelID: "openai/gpt-5", servedModelName: "GPT-5", provider: "OpenAI",
+                costUSD: Decimal(string: "0.0004"), promptTokens: 74, completionTokens: 12, cachedTokens: 40,
+                upstreamLatencyMs: 880, ttftMs: 700, totalMs: 1300))
     }
 
     /// The newest thread: one reply that searched the web before answering.
