@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 
 @testable import AnyRouter
@@ -13,6 +14,7 @@ final class GGUFModelSmokeTests: XCTestCase {
         var sourceFile: URL
         var sha256: String
         var size: Int64
+        var attachments: AttachmentStore
     }
 
     /// A hard link when possible: a multi-GB model must not take twice the runner's disk.
@@ -22,7 +24,7 @@ final class GGUFModelSmokeTests: XCTestCase {
         }
     }
 
-    private func makeContext() async throws -> Context {
+    private func makeContext(withProjector: Bool = false) async throws -> Context {
         let path = SmokeEnv.ggufPath
         try XCTSkipUnless(path != nil, "ANYROUTER_SMOKE_GGUF_PATH is not set. The real-model test runs only in model-smoke.yml.")
         let sha = try XCTUnwrap(SmokeEnv.ggufSHA256, "ANYROUTER_SMOKE_GGUF_SHA256 is required with the path")
@@ -48,17 +50,41 @@ final class GGUFModelSmokeTests: XCTestCase {
         let partial = storage.partialFileURL(forEntryID: entry.id, path: file)
         try FileManager.default.createDirectory(at: partial.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Self.stage(source, as: partial)
-        try ModelInstaller.verifyAndInstall(
-            DownloadJobRecord(entry: entry, files: [HFFile(path: file, size: size, sha256: sha)]), storage: storage)
+        var installed = [HFFile(path: file, size: size, sha256: sha)]
+        if withProjector {
+            // The projector sits next to the model file. The workflow downloaded it and checked its sha256.
+            let name = try XCTUnwrap(SmokeEnv.mmprojFile, "the workflow gave no projector for this model")
+            let projector = source.deletingLastPathComponent().appending(path: name)
+            let projectorSize = try XCTUnwrap(try FileManager.default.attributesOfItem(atPath: projector.path)[.size] as? NSNumber).int64Value
+            let projectorPartial = storage.partialFileURL(forEntryID: entry.id, path: name)
+            try FileManager.default.createDirectory(at: projectorPartial.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Self.stage(projector, as: projectorPartial)
+            installed.append(HFFile(path: name, size: projectorSize, sha256: SmokeEnv.mmprojSHA256))
+        }
+        try ModelInstaller.verifyAndInstall(DownloadJobRecord(entry: entry, files: installed), storage: storage)
         XCTAssertTrue(storage.isInstalled(entryID: entry.id))
 
         let catalog = CatalogService(
             bundled: { document }, cacheDirectory: makeTempDirectory(), settings: { CatalogSettings() })
-        let engine = GGUFEngine(storage: storage, catalog: catalog)
+        let attachments = AttachmentStore(root: makeTempDirectory())
+        let engine = GGUFEngine(storage: storage, catalog: catalog, attachments: attachments)
         let models = try await engine.availableModels()
         let model = try XCTUnwrap(models.first { $0.id == entry.id }, "engine must list the installed catalog model")
         XCTAssertTrue(model.isInstalled)
-        return Context(engine: engine, storage: storage, entry: entry, model: model, sourceFile: source, sha256: sha, size: size)
+        return Context(engine: engine, storage: storage, entry: entry, model: model, sourceFile: source, sha256: sha, size: size, attachments: attachments)
+    }
+
+    /// A solid red square as a JPEG: a photo no model can mistake, and no fixture file in the repo.
+    private static func redPhoto(side: Int = 448) -> Data {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            return format
+        }())
+        return renderer.jpegData(withCompressionQuality: 0.9) { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: side, height: side))
+        }
     }
 
     /// Qwen3 thinks first. The answer is what follows `</think>`.
@@ -129,6 +155,45 @@ final class GGUFModelSmokeTests: XCTestCase {
         SmokeReport.record("GGUF tokens", "prompt \(reported.prompt), completion \(reported.completion), finish \(finishReason ?? "nil")")
         SmokeReport.record("GGUF load + first token", firstText.map { String(format: "%.2f s", seconds($0 - start)) } ?? "n/a")
         if reported.completion >= 8 { SmokeReport.record("GGUF tokens/sec (decode)", String(format: "%.1f", perSecond)) }
+    }
+
+    /// The eval prompt for a device run too: a photo of one flat color, asked for its name.
+    func testNamesTheColorOfAPhoto() async throws {
+        try XCTSkipUnless(SmokeEnv.mmprojFile != nil, "this model has no image projector")
+        let ctx = try await makeContext(withProjector: true)
+        XCTAssertTrue(ctx.model.capabilities.contains("vision"), "an installed model with a projector must list the vision capability")
+        let data = Self.redPhoto()
+        let id = UUID()
+        let relative = try ctx.attachments.write(data, id: id, fileExtension: "jpg")
+        let photo = ChatAttachment(
+            id: id, kind: .image, filename: "red.jpg", utType: "public.jpeg", byteCount: Int64(data.count), relativePath: relative)
+        var message = ChatMessage(role: .user, content: "What color is this image? Answer with one word.")
+        message.attachments = [photo]
+        var params = GenerationParams()
+        params.temperature = 0
+        params.maxTokens = SmokeEnv.maxTokens ?? 1024
+
+        let clock = ContinuousClock()
+        let start = clock.now
+        var text = ""
+        var usage: (prompt: Int, completion: Int)?
+        for try await delta in ctx.engine.stream(model: ctx.model, messages: [message], params: params) {
+            switch delta {
+            case .text(let piece): text += piece
+            case .usage(let prompt, let completion): usage = (prompt, completion)
+            case .done, .toolCall, .toolResult, .metadata: break
+            }
+        }
+        let elapsed = clock.now - start
+        let answer = Self.answer(from: text)
+        XCTAssertTrue(answer.lowercased().contains("red"), "the model must name the color of a red photo, got: \(answer)")
+        let reported = try XCTUnwrap(usage, "no .usage delta")
+        XCTAssertGreaterThan(reported.prompt, VisionInput.tokensPerImage / 4, "the photo must add tokens to the prompt")
+        SmokeReport.record("GGUF image prompt", "What color is this image? Answer with one word. (solid red 448x448 JPEG)")
+        SmokeReport.record("GGUF image answer", answer)
+        SmokeReport.record("GGUF image tokens", "prompt \(reported.prompt), completion \(reported.completion)")
+        SmokeReport.record("GGUF image load + answer", String(format: "%.1f s", Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18))
+        SmokeReport.record("App memory after the photo", FitFormat.gigabytes(MemoryReading.footprintBytes()))
     }
 
     func testCancellingMidStreamStopsWithinTwoSeconds() async throws {

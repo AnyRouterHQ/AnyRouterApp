@@ -79,7 +79,8 @@ jobs:
                           out.append({"repo": v["repo"], "format": "gguf", "file": v["file"],
                                       "title": f"{family['name']} {v['params']}", "quantization": v.get("quant"),
                                       "sizeBytes": v["sizeBytes"], "contextLength": v.get("contextLength"),
-                                      "revision": v["revision"], "sha256": v.get("sha256"), "status": family["status"]})
+                                      "revision": v["revision"], "sha256": v.get("sha256"), "vision": v.get("vision"),
+                                      "status": family["status"]})
               return out
           production = [m for m in ggufs("catalog/models.json") if m["status"] == "current"]
           catalog = production + ggufs("catalog/dev-models.json")
@@ -112,6 +113,11 @@ jobs:
           print(f"MODEL_FILE={file}")
           print(f"MODEL_REV={rev}")
           print(f"MODEL_SHA256={sha}")
+          # A size that takes photos: the projector is downloaded too, for the image test.
+          vision = entry.get("vision") or {}
+          projector = vision.get("mmprojFile", "")
+          print(f"MODEL_MMPROJ_FILE={projector}")
+          print("MODEL_MMPROJ_SHA256=" + (next(f["lfs"]["oid"] for f in listing if f["path"] == projector) if projector else ""))
           print(f"MODEL_TITLE={entry['title']}")
           print(f"MODEL_ID={'external' if external else 'gguf/' + repo + '/' + file}")
           print(f"MODEL_EXTERNAL={'1' if external else ''}")
@@ -132,6 +138,17 @@ jobs:
           mkdir -p "$RUNNER_TEMP/model"
           curl -L --fail --retry 5 --retry-delay 5 -o "$RUNNER_TEMP/model/$MODEL_FILE" \
             "https://huggingface.co/$MODEL_REPO/resolve/$MODEL_REV/$MODEL_FILE"
+
+      - name: Download the image projector (a size that takes photos)
+        if: env.MODEL_MMPROJ_FILE != ''
+        run: |
+          mkdir -p "$RUNNER_TEMP/model"
+          if [ ! -f "$RUNNER_TEMP/model/$MODEL_MMPROJ_FILE" ]; then
+            curl -L --fail --retry 5 --retry-delay 5 -o "$RUNNER_TEMP/model/$MODEL_MMPROJ_FILE" \
+              "https://huggingface.co/$MODEL_REPO/resolve/$MODEL_REV/$MODEL_MMPROJ_FILE"
+          fi
+          ACTUAL=$(shasum -a 256 "$RUNNER_TEMP/model/$MODEL_MMPROJ_FILE" | cut -d' ' -f1)
+          test "$ACTUAL" = "$MODEL_MMPROJ_SHA256"
 
       - name: Check the model file
         run: |
@@ -200,6 +217,8 @@ jobs:
           TEST_RUNNER_ANYROUTER_SMOKE: "1"
           TEST_RUNNER_ANYROUTER_SMOKE_GGUF_PATH: ${{ runner.temp }}/model/${{ env.MODEL_FILE }}
           TEST_RUNNER_ANYROUTER_SMOKE_GGUF_SHA256: ${{ env.MODEL_SHA256 }}
+          TEST_RUNNER_ANYROUTER_SMOKE_MMPROJ_FILE: ${{ env.MODEL_MMPROJ_FILE }}
+          TEST_RUNNER_ANYROUTER_SMOKE_MMPROJ_SHA256: ${{ env.MODEL_MMPROJ_SHA256 }}
           TEST_RUNNER_ANYROUTER_SMOKE_MAX_TOKENS: ${{ inputs.max_tokens }}
           TEST_RUNNER_ANYROUTER_SMOKE_EXTERNAL: ${{ env.MODEL_EXTERNAL }}
           TEST_RUNNER_ANYROUTER_SMOKE_ENTRY_JSON: ${{ env.MODEL_ENTRY_JSON }}
