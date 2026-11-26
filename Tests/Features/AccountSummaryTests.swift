@@ -19,6 +19,12 @@ struct AccountSummaryTests {
         #expect(summary.usageLine == "Credits: \(AccountSummary.money(12.5))")
     }
 
+    @Test func absurdFreeRequestCountsAreClampedNotTrapped() {
+        let credits = data(#"{"free_requests":{"remaining":-3,"limit":1e300}}"#)
+        let summary = AccountSummary.parse(me: nil, credits: credits, key: nil)
+        #expect(summary.freeRequests == AccountSummary.FreeRequests(remaining: 0, limit: 1_000_000_000))
+    }
+
     /// Shape of the live `GET /api/v1/me` for a sign-in key, whose `/credits` call is rejected.
     @Test func readsAvatarAndBalanceFromLiveMeShape() {
         let me = data(#"{"id":"user_1","email":"ada@example.com","name":"ada","image_url":"https://img.example.com/abc","username":"ada","plan":"go","balance":22.2416}"#)

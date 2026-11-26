@@ -82,7 +82,8 @@ struct AccountSummary: Equatable, Sendable {
             }
             if let free = credits["free_requests"] as? [String: Any],
                let remaining = number(free, ["remaining"]), let limit = number(free, ["limit"]) {
-                summary.freeRequests = FreeRequests(remaining: Int(remaining), limit: Int(limit))
+                // Counts come from the server: clamp them so an absurd number cannot trap the conversion.
+                summary.freeRequests = FreeRequests(remaining: Int(min(max(remaining, 0), 1e9)), limit: Int(min(max(limit, 0), 1e9)))
             }
         }
         if let key = object(key) {
