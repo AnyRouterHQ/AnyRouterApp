@@ -549,7 +549,6 @@ Reviewer passes over main up to 66ef975 (2026-11-26). Fixed items are in `fix(..
 ## Status log
 
 - 2026-11-26 lane-ui: default model is the auto router when signed in, BYOK hidden, picker groups routers and providers, model saved per thread and shown under replies (D8, #29); local checks skipped
-
 - 2026-11-26 lane-ux: native UX and performance audit, boundary decision D15, plan U1-U18 and measurement plan; docs only, local checks skipped
 - 2026-11-26 lane-mcp: MCP client, typed tool models, Settings › Integrations with per-tool switches (T1-T2) (#33); local checks skipped
 
