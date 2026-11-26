@@ -166,7 +166,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 
 ## Tools & integrations (MCP)
 
-Operator request: tools and integrations through AnyRouter's MCP server. Sign-in token works against `https://mcp.anyrouter.dev/api/v1/mcp` (streamable HTTP, bearer). Core read-only tools plus Firecrawl web tools when the user connected Firecrawl; management tools are not exposed to sign-in tokens. Phases land as separate PRs.
+Operator request: tools and integrations through AnyRouter's MCP server. Sign-in token works against `https://anyrouter.dev/api/v1/mcp` (streamable HTTP, bearer). Core read-only tools plus Firecrawl web tools when the user connected Firecrawl; management tools are not exposed to sign-in tokens. Phases land as separate PRs.
 
 Decision: a small focused client (`Engines/MCP/`) instead of the official MCP Swift SDK. We need only initialize, tools/list, tools/call, a session id and JSON or SSE bodies; it avoids a new package graph that we cannot build locally.
 
@@ -176,6 +176,7 @@ Decision: a small focused client (`Engines/MCP/`) instead of the official MCP Sw
 - [x] T4 AnyRouter engine (a9f68eb, 728056a): enabled tools sent as OpenAI `tools` (catalog tag `function-calling` maps to the `tools` capability), streamed `tool_calls` fragments joined by index, agent loop (max 8 rounds, then `tool_choice: none`), one summed usage delta, cancel-safe; `MCPToolHost` runs calls through MCP with approval for tools not marked read-only and per-tool "always allow"
 - [x] T5 Chat UI (c6b1b4b): tool-call rows (expandable), approval sheet for tools not marked read-only, "Tools" toggle in the composer and menu
 - [x] T6 Apple Foundation Models (019dd28): wrap enabled tools as `Tool` conformances with a dynamic `GenerationSchema` (`Tool.Arguments = GeneratedContent` works, verified in Apple docs; first 8 tools, results capped at 6000 chars for the 4k context)
+- [x] T8 MCP on sign-in: signing in connects the AnyRouter server with the same Keychain token, signing out disconnects it and clears its tools at once; a custom server's read-only hint no longer waives approval; MCP answers capped at 4 MB; a Keychain write failure no longer lists a custom server without its token
 - [ ] T7 Local GGUF and MLX tool calling (Later): needs chat-template tool rendering and parsing of the model's tool-call tokens per model family
 
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
@@ -415,6 +416,7 @@ Later (each needs its blocker first): M6 neural voices (measure first), M9 stabl
 - Q1 Add GitHub secrets: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_BASE64` (API key role App Manager).
 - Q2 Create the app record in App Store Connect (bundle id `dev.anyrouter.app`, name AnyRouter).
 - Q4 Resolved: icon from the public AnyRouter logo, anyrouter.dev orange accent (#8).
+- Q5 AnyRouter MCP with the sign-in token: the docs say the token (scopes `inference read:profile`, no others possible) works on `https://anyrouter.dev/api/v1/mcp`. A live `tools/list` with a sign-in token has not been run (no test key reachable from the agent environment). Operator: run `MCPLiveTests` with `ANYROUTER_E2E_API_KEY` set to a sign-in token, or tell us if the call returns 403.
 
 ## Native UX & performance
 
@@ -540,9 +542,6 @@ Reviewer passes over main up to 66ef975 (2026-11-26). Fixed items are in `fix(..
 - Engines/AnyRouter/Auth/OAuthClient.swift:133 — the continuation in `present` ignores task cancellation, so a cancelled sign-in waits for the web session to end. Owner: lane B.
 - Features/Presets/PresetStore.swift:23 — a presets file that fails to decode is treated as empty and the next save overwrites it. Move the bad file aside first. Owner: presets lane.
 - .github/workflows/device-ipa.yml:5 — a second full macOS device build still runs on every push to main next to `ci.yml` (macOS minutes cost 10x); build the IPA on `workflow_dispatch` or nightly. Owner: lane A (CI).
-- Engines/MCP/MCPToolHost.swift:101 — a custom server decides alone which tools skip approval (`readOnlyHint`); the chat approver, when it lands, must also resume `decide` when the reply is stopped, or the stream task hangs on the sheet. Owner: lane T (MCP).
-- Engines/MCP/MCPClient.swift:164 — responses are read whole with no size cap; stream with a cap (a few MB) before decoding. Owner: lane T (MCP).
-- Features/Integrations/IntegrationsStore.swift:142 — the result of `credentials.save` is ignored, so a custom server can be listed without its token after a Keychain failure; also sign-out leaves the AnyRouter server `connected` with its tools until the next refresh. Owner: lane T (MCP).
 - Engines/Local/Catalog/HuggingFaceAPI.swift:27 — `fetchPrefix` reads `AsyncBytes` one byte at a time, up to 192 MB for a big vocabulary; read in chunks. Owner: lane C.
 - Not reviewed in depth: Design/, Features/Presets views, Onboarding, MarkdownTheme, HubLogic and the screenshot and smoke workflows (read for secrets and injection only; none found).
 
