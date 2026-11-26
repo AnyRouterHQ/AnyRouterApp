@@ -15,6 +15,8 @@ final class ChatViewModel {
     private(set) var focusTick = 0
     /// Per-thread "Enable thinking"; a new chat keeps it here until the first send creates the thread.
     private(set) var thinkingEnabled = false
+    /// Model id saved on this thread. `nil` follows the default for new chats.
+    private(set) var preferredModelID: String?
 
     /// Called once when the first send creates the thread.
     @ObservationIgnored var onThreadCreated: (@MainActor (UUID) -> Void)?
@@ -34,6 +36,7 @@ final class ChatViewModel {
         self.save = save
         self.toolHost = toolHost
         self.thread = thread
+        self.preferredModelID = thread?.modelID
         self.context = context
         self.registry = registry
         self.settings = settings
@@ -41,7 +44,7 @@ final class ChatViewModel {
         self.thinkingEnabled = thread?.thinkingEnabled ?? false
     }
 
-    var supportsThinking: Bool { models.selected?.supportsThinking ?? false }
+    var supportsThinking: Bool { model?.supportsThinking ?? false }
 
     /// The selected model can call tools, so the composer shows the Tools switch.
     var supportsTools: Bool { models.selected?.capabilities.contains("tools") ?? false }
@@ -63,6 +66,32 @@ final class ChatViewModel {
 
     var isStreaming: Bool { phase == .streaming }
 
+    private var resolution: ModelStore.Resolution { models.resolve(preferred: preferredModelID) }
+
+    /// The model the next message goes to.
+    var model: ModelDescriptor? { resolution.model }
+
+    /// One line shown when this thread's saved model cannot be used and another one takes over.
+    var modelNotice: String? {
+        let resolution = resolution
+        guard resolution.preferredUnavailable else { return nil }
+        guard let fallback = resolution.model else { return "The model used earlier is unavailable. Choose another model." }
+        return "The model used earlier is unavailable. Using \(fallback.shortName)."
+    }
+
+    /// Applies to the next message in this thread, is saved on the thread, and becomes the default for new chats.
+    func choose(_ model: ModelDescriptor) {
+        preferredModelID = model.id
+        models.select(model)
+        guard let thread else { return }
+        thread.modelID = model.id
+        do {
+            try context.save()
+        } catch {
+            errorMessage = "Could not save the chat: \(error.localizedDescription)"
+        }
+    }
+
     var canSend: Bool {
         phase == .idle && !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -79,7 +108,7 @@ final class ChatViewModel {
     func send() -> Task<Void, Never>? {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard phase == .idle, !text.isEmpty else { return nil }
-        guard let model = models.selected else {
+        guard let model = self.model else {
             errorMessage = "Choose a model first."
             return nil
         }
@@ -111,7 +140,7 @@ final class ChatViewModel {
 
     @discardableResult
     func regenerate() -> Task<Void, Never>? {
-        guard canRegenerate, let thread, let model = models.selected else { return nil }
+        guard canRegenerate, let thread, let model = self.model else { return nil }
         if let last = messages.last, last.role == .assistant { remove(last) }
         guard messages.last?.role == .user else { return nil }
         return startStream(model: model, thread: thread)
@@ -139,7 +168,8 @@ final class ChatViewModel {
         phase = .streaming
         errorMessage = nil
         thread.modelID = model.id
-        let assistant = MessageRecord(role: .assistant, content: "")
+        preferredModelID = model.id
+        let assistant = MessageRecord(role: .assistant, content: "", modelName: model.shortName)
         let history = thread.orderedMessages
         context.insert(assistant)
         assistant.thread = thread

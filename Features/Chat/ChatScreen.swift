@@ -17,8 +17,8 @@ struct ChatScreen: View {
     var body: some View {
         Group {
             if let chat {
-                ChatContent(chat: chat, hasModel: models.selected != nil, presets: app.presets,
-                            subtitle: HomeLogic.subtitle(for: models.selected))
+                ChatContent(chat: chat, presets: app.presets,
+                            subtitle: HomeLogic.subtitle(for: chat.model))
             } else {
                 Color.clear
             }
@@ -33,7 +33,7 @@ struct ChatScreen: View {
                 }
             }
             ToolbarItem(placement: .principal) {
-                ModelPill { shell.isModelPickerPresented = true }
+                ModelPill(model: chat?.model, isLoading: models.isLoading) { shell.isModelPickerPresented = true }
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
                 MemoryMenu()
@@ -47,7 +47,7 @@ struct ChatScreen: View {
         .animation(.easeInOut(duration: 0.3), value: chat?.messages.isEmpty)
         .task(id: shell.selectedThreadID) { prepare() }
         .sheet(isPresented: Bindable(shell).isModelPickerPresented) {
-            ModelPickerSheet()
+            ModelPickerSheet(currentID: chat?.model?.id) { chat?.choose($0) }
         }
         // Swiping the sheet away denies the call.
         .sheet(item: Binding(
@@ -67,7 +67,6 @@ struct ChatScreen: View {
                                   settings: settings, models: models,
                                   toolHost: { [app] in app.integrations.makeToolHost(approver: app.toolApprovals) })
         model.onThreadCreated = { [shell] id in shell.selectedThreadID = id }
-        if let modelID = thread?.modelID { models.select(modelID: modelID) }
         chat = model
     }
 
@@ -80,7 +79,6 @@ struct ChatScreen: View {
 
 private struct ChatContent: View {
     @Bindable var chat: ChatViewModel
-    let hasModel: Bool
     let presets: PresetStore
     let subtitle: String
     @FocusState private var composerFocused: Bool
@@ -95,7 +93,7 @@ private struct ChatContent: View {
         }
         // The composer floats on glass over the list, so messages scroll beneath it.
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            Composer(model: chat, hasModel: hasModel, presets: presets, focused: $composerFocused)
+            Composer(model: chat, hasModel: chat.model != nil, presets: presets, focused: $composerFocused)
         }
     }
 
