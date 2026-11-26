@@ -34,6 +34,8 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that follows a reference 
 | D14 | No custom llama.cpp fork in v1.x. GGUF features that need more than `libllama` (speculative decoding, TurboQuant KV) wait for F4: our own xcframework built from an official tag. A fork is considered only if a measured on-device need remains after F4. | The official tags already carry MTP, DFlash and EAGLE-3 in `common/`. Forks add upkeep and licence review, and the app ships weights, not new engines. |
 | D12 | llama.cpp is pinned to release b10456 through a local package `Packages/LlamaBinary` (binaryTarget + checksum) | b10456 is the newest official xcframework with iOS Simulator and device slices. From b10488 on, releases ship device slices only, and CI builds for Simulator. Revisit when upstream restores the simulator slice. |
 | D15 | UI boundary: native SwiftUI containers and behaviors skinned with the reference design's tokens (colors, radii, spacing, type scale). Per-screen deviations are listed in § Native UX & performance. | The reference is a web app; native containers give edge-swipe back, restoration, Liquid Glass, Dynamic Type, keyboard and pointer support that custom views cannot. |
+| D16 | Chat stays one `ChatEngine`; images, video frames and audio ride on `ChatMessage.parts`. Image generation, speech-to-text and text-to-speech are separate protocols (`ImageGenerationEngine`, `SpeechRecognizer`, `SpeechSynthesizer`) behind the same registry. | Their input and output are progress, previews and audio streams, not text deltas. Overloading `ChatDelta` would make every chat engine handle them. |
+| D17 | Speech uses system frameworks first (`SpeechTranscriber`, `AVSpeechSynthesizer`). Open speech models are opt-in extras later. | No download, no model upkeep, no app-size cost. |
 
 ## Out of scope for v1
 
@@ -239,7 +241,7 @@ struct ReasoningTracker: Sendable {                                           //
 }
 ```
 
-Per-model support is a set of strings in the existing `ModelDescriptor.capabilities`: `reasoning`, `spec-mtp`, `kv-turboquant`. The catalog gains an optional `drafters` list per entry (`kind`, `repo`, `file`, `sizeBytes`, `sha256`); the downloader fetches a drafter next to its target and the hub lists it as part of the same model. `validated(for:)` is the one place that enforces the rules: V-cache quantization requires flash attention, `.mtp` needs a drafter on disk and a memory fit, Qwen drafters need temperature 0, TurboQuant excludes a rotating cache.
+Per-model support is a set of strings in the existing `ModelDescriptor.capabilities`: `reasoning`, `spec-mtp`, `kv-turboquant`. The catalog gains an optional `companions` list per entry (`role` such as `drafter` or `mmproj`, `repo`, `file`, `sizeBytes`, `sha256`; see Multimodal roadmap); the downloader fetches a drafter next to its target and the hub lists it as part of the same model. `validated(for:)` is the one place that enforces the rules: V-cache quantization requires flash attention, `.mtp` needs a drafter on disk and a memory fit, Qwen drafters need temperature 0, TurboQuant excludes a rotating cache.
 
 Memory model used by L4, L6, L8, L10: KV bytes per token = 2 x n_layer x n_head_kv x head_dim x bytes per element (f16 2, q8_0 about 1.06, q4_0 about 0.56), read from GGUF metadata (`llama_model_n_layer`, `llama_model_n_head_kv`, `llama_model_n_embd`) or the MLX config. Budget = `os_proc_available_memory()` at load, times 0.6 as a starting guess; tune from F1 device runs. Weights, KV and drafter must all fit inside it.
 
@@ -258,10 +260,121 @@ Core PRs go to lane A's files, engine PRs to lane C's, UI rows to lane D's. S3 (
 - [ ] S5 **L4** GGUF: pass `flash_attn_type`, `type_k`, `type_v` from `InferenceSettings`; settings rows for flash attention and KV type (GGUF only). Acceptance: `validated(for:)` drops a quantized V cache when flash attention is off; model-smoke produces non-empty output for `auto`, `on`, `off` and q8_0 KV (output may differ between settings). Measure: decode tok/s and peak footprint, f16 vs q8_0 vs q4_0 KV at 4k and 8k context.
 - [ ] S6 **L5** `ReasoningTracker` and `ChatDelta.reasoning` (completes F2), with the collapsible thinking block. History policy `.strip` by default; reasoning tokens counted against the context budget and dropped first. Acceptance: tracker tests for tags split across chunks, nested or missing close tags, and an interrupted stream; a Qwen3 answer shows a thinking block in the UI test.
 - [ ] S7 **L6** `ContextPolicy`: estimate prompt tokens, grow `n_ctx` (GGUF) or the KV window (MLX) up to the ceiling, else trim oldest turns or fail; emit `ChatDelta.notice` and show a one-line banner ("Context grew to 8192"). Replaces the fixed MLX `maxKVSize`. Acceptance: unit tests for the planner (fits, expands, hits ceiling, trims); model-smoke with a long prompt expands once and answers; the notice appears exactly once.
-- [ ] S8 **L2 and L8 on MLX** Register the Gemma 4 and Qwen MTP drafters at launch, add the catalog `drafters` field, download a drafter with its target, honour `SpeculativeDecodingConfig`/fallback reasons (greedy only for Qwen, memory policy), show "Speculative: on/off (reason)". Acceptance: Gemma 4 E2B and Qwen3.5 4B with drafter produce the same greedy text as without (token parity), device benchmark recorded here. Default stays off until the gate above passes.
+- [ ] S8 **L2 and L8 on MLX** Register the Gemma 4 and Qwen MTP drafters at launch, add the catalog `companions` field with role `drafter`, download a drafter with its target, honour `SpeculativeDecodingConfig`/fallback reasons (greedy only for Qwen, memory policy), show "Speculative: on/off (reason)". Acceptance: Gemma 4 E2B and Qwen3.5 4B with drafter produce the same greedy text as without (token parity), device benchmark recorded here. Default stays off until the gate above passes.
 - [ ] S9 **L10** TurboQuant KV on MLX behind an "Experimental" row, no rotating cache (needs S7). Acceptance: memory saving and first-256-token divergence versus f16 recorded on device; off by default.
 
 Later (each needs its blocker first): **F4** own xcframework (device and Simulator, `common/` built, C shim) → L3 DFlash, GGUF MTP, GGUF EAGLE-3 (L7), and a decision on L9 forks (D14).
+
+## Multimodal roadmap
+
+Plan for text, vision, audio, image and video models on device (research date 2026-11-26). Docs only. It builds on the Local inference roadmap above (same budget rule, same measuring protocol, same F4).
+
+What the research found, and why it sets the order:
+
+- **Every engine must be a linked library.** An iOS app cannot start helper executables, so server-style engines (a `sd-server`, an audio server, a Python MLX sidecar) are out. Each route below is an xcframework, a Swift package or a system framework.
+- **Vision and audio input for GGUF need nothing new.** The official `llama.xcframework` already contains `libmtmd` and ships `mtmd.h` and `mtmd-helper.h` (checked in b10456 and b12756). It handles images and audio through an `mmproj` companion file. Its video decoding is switched off in the Apple build (`MTMD_VIDEO=OFF`), so video means sampling frames in the app and sending them as images.
+- **`mlx-swift-lm` 3.33.0 already has `MLXVLM`**: Gemma 4 (with an audio encoder) and Gemma 3, Qwen2-VL, Qwen2.5-VL and Qwen3-VL, SmolVLM2, FastVLM, Idefics3, Mistral3, Pixtral, PaliGemma, LFM2-VL. `UserInput` takes images, video frames and audio. Our MLX engine imports only `MLXLLM` today (backlog F6).
+- **Speech has system answers.** `SpeechAnalyzer` and `SpeechTranscriber` (iOS 26.0+) transcribe on device with no app-size cost; `AVSpeechSynthesizer` speaks with system voices. Open models are an opt-in extra, not the base.
+- **Image generation is a different job from chat.** Real routes today: Apple Core ML Stable Diffusion, stable-diffusion.cpp (no iOS build published), the MLX Swift `StableDiffusion` example library, and Apple's ImagePlayground. Only the first and last are realistic on a 6 or 8 GB phone.
+- **Video generation is not realistic on phones.** The open video models stable-diffusion.cpp runs (Wan 2.1/2.2, LTX 2.x) start at about 5B parameters plus a text encoder and a video VAE.
+
+Model sizes behind the verdicts (Hugging Face file sizes, 2026-11-26):
+
+| Model | Files | Total |
+|---|---|---|
+| SmolVLM2 500M Video, GGUF | Q8_0 437 MB + mmproj Q8_0 109 MB | about 0.55 GB |
+| Qwen2.5-VL 3B, GGUF | Q4_K_M 1.93 GB + mmproj Q8_0 0.85 GB | about 2.8 GB |
+| Gemma 4 E2B, GGUF (vision and audio in) | Q4_0 2.84 GB + mmproj Q8_0 0.56 GB | about 3.4 GB |
+| Gemma 4 E4B, GGUF | Q4_0 4.59 GB + mmproj | over 5 GB: 12 GB-class iPad only |
+| Qwen3-ASR 0.6B, GGUF (speech in) | Q8_0 805 MB + mmproj 379 MB | about 1.2 GB |
+| Apple Core ML SD 2.1 base, palettized | split_einsum_v2 compiled, 1.14 GB | 1.14 GB |
+| stable-diffusion.cpp SD-Turbo, GGUF | f16-q8_0 2.0 GB | 2.0 GB (licence "other": review first) |
+| Whisper (whisper.cpp / WhisperKit) | tiny 75 MiB, base 142 MiB, small 466 MiB | optional |
+
+Fit on 6, 8 and 12 GB devices uses the existing device-fit check and the memory budget from the Local inference roadmap (weights + mmproj + KV must fit). On 6 GB that means SmolVLM2 500M and Qwen2.5-VL 3B; Gemma 4 E2B only if the check passes; E4B is refused.
+
+### Verdicts
+
+| ID | Feature | Engine | Verdict | Dependency and reason |
+|---|---|---|---|---|
+| M1 | Vision input, photo picker and camera | GGUF (`libmtmd`) and MLX (`MLXVLM`) | **Now** | Pinned b10456 and `mlx-swift-lm` 3.33.0 already carry it. Needs the `mmproj` companion file. |
+| M2 | Video understanding (frames into a VLM) | both | **Now**, after M1 | App-side frame sampling (at most 1 frame per second, at most 8 frames, long edge 512 px). No upstream change. |
+| M3 | Audio input to the LLM (Gemma 4 E2B/E4B, Qwen3-ASR) | GGUF now; MLX later | **Now** for GGUF Gemma 4 E2B; MLX **Later** | `libmtmd` audio projectors are in the pinned xcframework. MLX has a Gemma 4 audio encoder, but the audio input path is not verified. Check the maximum clip length per model before shipping. |
+| M4 | Speech-to-text dictation | system | **Now** | `SpeechTranscriber`, iOS 26.0+. WhisperKit (MIT, Core ML) is a **Later** fallback for locales the system lacks. |
+| M5 | Text-to-speech, system voices | system | **Now** | `AVSpeechSynthesizer`. Zero download. |
+| M6 | Neural text-to-speech (Soprano 80M, Pocket TTS, Qwen3-TTS 0.6B, Kokoro) | MLX | **Later** | Optional "natural voice" pack through the MIT-licensed MLX Audio Swift package (iOS 17+). Needs measured real-time factor and memory first. |
+| M7 | System image generation | system | **Now**, cheap first step | ImagePlayground (`ImageCreator` iOS 18.4+, which iOS 27 deprecates in favour of `ImagePlaygroundViewController`). No download. Apple Intelligence devices only; styles are Apple's. |
+| M8 | Image generation, Core ML | Core ML | **Now**, after M1 to M5 | `apple/ml-stable-diffusion` (MIT code), SD 2.1 base palettized (OpenRAIL++ weights). Apple's 2023 benchmark shows 7.9 to 18.5 s per 512x512 image on iPhone 12 mini to 14 Pro Max and 7.0 s on iPad Pro M2. Those are old numbers from iOS 17 betas: re-measure. |
+| M9 | Image generation, stable-diffusion.cpp or MLX image models | GGUF / MLX | **Later** | No iOS build is published: needs our own xcframework (same job as F4). Z-Image-Turbo and FLUX-class models are a 6B transformer plus a 4B text encoder: iPad 16 GB at best. MLX `StableDiffusion` covers SD 2.1 and SDXL-Turbo; SDXL-Turbo is 6.9 GB in fp16, too large for phones. |
+| M10 | Video generation | none | **Not on iOS phones today** | About 5B parameters minimum, memory and time far beyond a phone. Revisit only if a model under 1B appears, then measure on iPad first. Video understanding (M2) covers the useful part. |
+| M11 | Music and sound-effect generation | none | **Not planned** | No phone-size model verified. |
+
+### Core contract impact (lane A reviews; all fields default so stored data still decodes)
+
+`ChatEngine` does **not** change: attachments ride on the message, and an engine rejects a part it cannot take. Image generation and speech get their own protocols because their input and output are not text deltas (progress, previews, audio streams).
+
+```swift
+struct AttachmentRef: Codable, Hashable, Sendable {     // file in Application Support, excluded from backup
+  var id: UUID; var kind: Kind; var relativePath: String; var byteCount: Int64
+  enum Kind: String, Codable, Sendable { case image, audio, videoFrame }
+}
+
+enum MessagePart: Codable, Hashable, Sendable {         // ChatMessage.parts, default []
+  case image(AttachmentRef)
+  case video(frames: [AttachmentRef], durationSeconds: Double)   // sampled frames, original not sent
+  case audio(AttachmentRef, durationSeconds: Double)
+}                                                       // ChatMessage.content stays the text
+
+enum ModelKind: String, Codable, Sendable { case chat, speechToText, textToSpeech, imageGeneration }
+
+struct Companion: Codable, Hashable, Sendable {         // catalog; generalizes the drafters list
+  var role: Role                                        // .mmproj, .drafter, .vae, .textEncoder
+  var repo: String; var file: String; var sizeBytes: Int64; var sha256: String?; var required: Bool
+  enum Role: String, Codable, Sendable { case mmproj, drafter, vae, textEncoder }
+}
+// ModelDescriptor gains: kind (default .chat). ModelSource gains: .coreml, .system (and .sdcpp with M9).
+// capabilities strings: "vision", "audio-in", "video-frames" (already: "chat", "tools", "reasoning").
+// Catalog entry gains: kind, companions: [Companion], license (exists).
+
+protocol ImageGenerationEngine: Sendable {
+  func availableModels() async throws -> [ModelDescriptor]
+  func generate(model: ModelDescriptor, request: ImageRequest) -> AsyncThrowingStream<ImageEvent, Error>
+}
+struct ImageRequest: Codable, Sendable { var prompt: String; var negativePrompt: String?
+  var width: Int; var height: Int; var steps: Int; var guidance: Double; var seed: UInt64?; var count: Int }
+enum ImageEvent: Sendable { case progress(step: Int, of: Int); case preview(AttachmentRef); case done(AttachmentRef, seed: UInt64) }
+
+protocol SpeechRecognizer: Sendable {                   // M4, later WhisperKit
+  func transcribe(microphone locale: Locale) -> AsyncThrowingStream<TranscriptEvent, Error>  // .partial(String), .final(String), .assetDownload(Double)
+}
+protocol SpeechSynthesizer: Sendable {                  // M5, later M6
+  func speak(_ text: String, voice: VoiceDescriptor?) -> AsyncThrowingStream<SpeechEvent, Error>  // .started, .finished
+  func stop()
+}
+```
+
+`EngineRegistry` gets `register` overloads for the three new protocols; the UI asks it by kind and never branches on source. `ModelDescriptor.capabilities` decides whether the composer shows the photo, camera and microphone buttons. The downloader fetches `required` companions with their model and shows them as one item in the hub.
+
+iOS limits for this section: the app ships no executable code (weights are data, fine); the camera, microphone and speech-recognition usage strings go in `project.yml` with the PRs that need them (check whether `SpeechTranscriber` needs the speech-recognition string); recording and generation are foreground only (GPU work stops in the background); record thermal state with every benchmark; show each model's licence from the catalog before download.
+
+### Measuring
+
+Same rules as the Local inference roadmap: fixed inputs in the repo, cold and warm, 5 runs, median and range, peak footprint, thermal state, device named. Per feature: **vision** time to first token with one image of fixed size plus peak footprint; **speech-to-text** real-time factor and word error on a fixed 30 s clip; **text-to-speech** time to first audio and real-time factor; **image generation** seconds per image at fixed size, steps and seed, plus peak footprint; **audio-in** time to first token for a fixed clip. Simulator CI checks correctness only (CPU).
+
+### Sequence (small PRs, each ends in a check)
+
+Starts after S2 (Core types). Docs-only PRs skip the macOS build.
+
+- [ ] R1 Core: `AttachmentRef`, `MessagePart`, `ModelKind`, `Companion`, catalog fields, attachment storage and SwiftData link, tests that old stored messages and catalogs still decode. Replaces the `drafters` field named in S8 with `companions` (role `drafter`).
+- [ ] R2 **M1 GGUF** `mtmd` bridge (`mtmd_init_from_file`, `mtmd_tokenize`, `mtmd_helper_eval_chunks`), companion download, catalog entries (SmolVLM2 500M, Qwen2.5-VL 3B, Gemma 4 E2B with mmproj), photo picker and camera in the composer (button shown only for `vision`). `mtmd` aborts the whole process on a projector type it cannot build (seen as SIGABRT in server form), which in the app would crash it: read `clip.projector_type` from the mmproj header with `gguf.h` (shipped in the xcframework) and check it against an allowlist before `mtmd` init; on a miss, run text-only and say so. Acceptance: model-smoke runs SmolVLM2 500M on a fixture image of one solid colour and the answer names it; a text-only model hides the button; a test mmproj with an unknown projector type gives text-only, not a crash.
+- [ ] R3 **M1 MLX** add the `MLXVLM` product, pass images through `UserInput`, catalog entries for Gemma 3/4, Qwen2.5-VL, SmolVLM2 (4-bit). Acceptance: on device only (MLX has no Simulator GPU): one image Q&A per model, recorded in F1.
+- [ ] R4 **M2** `FrameSampler` (AVAssetImageGenerator): at most 1 frame per second, at most 8 frames, long edge 512 px. Acceptance: unit test on a generated 3 s clip checks frame count and size; model-smoke asks one question about a two-colour clip.
+- [ ] R5 **M4 and M5** `SpeechRecognizer` on `SpeechTranscriber` (microphone button, partial text in the composer, language asset download state) and `SpeechSynthesizer` on `AVSpeechSynthesizer` (read aloud on a message). Acceptance: fake-engine tests of the protocols; device check of both, word error recorded.
+- [ ] R6 **M3** audio input through `mtmd` with Gemma 4 E2B (record or pick a clip, `.audio` part, clip-length limit from the model). Acceptance: model-smoke on a fixture spoken clip; the answer contains the spoken word.
+- [ ] R7 **M7** ImagePlayground sheet behind an availability check; saved results become `.image` attachments.
+- [ ] R8 **M8** `ImageGenerationEngine` plus `CoreMLDiffusionEngine` (`StableDiffusionPipeline`, `reduceMemory` on), an Images screen with progress and a gallery, SD 2.1 base palettized as the first model. Acceptance: fake-engine tests in CI; device benchmark (seconds per image, peak memory, 512x512, fixed seed) recorded here.
+
+Later (each needs its blocker first): M6 neural voices (measure first), M9 stable-diffusion.cpp or MLX image models (own xcframework), WhisperKit fallback, MLX audio input. Not planned: M10, M11.
 
 ## Open questions (operator)
 
