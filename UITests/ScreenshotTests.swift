@@ -79,6 +79,18 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// iPad only: the split view in landscape, sidebar open next to the chat.
+    func testPadSplitLandscape() throws {
+        try XCTSkipUnless(UIDevice.current.userInterfaceIdiom == .pad, "iPad only")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        forEachAppearance { app, appearance in
+            XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
+            sleep(1)
+            capture("pad-split-landscape", appearance)
+        }
+        XCUIDevice.shared.orientation = .portrait
+    }
+
     func testChatWithMarkdown() {
         forEachAppearance { app, appearance in
             showSidebar(app)
