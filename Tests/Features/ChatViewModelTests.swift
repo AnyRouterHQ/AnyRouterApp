@@ -13,7 +13,7 @@ struct ChatViewModelTests {
         let models: ModelStore
 
         /// A second view model on the same thread, as when the thread is opened again.
-        func reopen() -> ChatViewModel {
+        @MainActor func reopen() -> ChatViewModel {
             ChatViewModel(thread: vm.thread, context: context, registry: registry,
                           settings: AppSettings(defaults: testDefaults()), models: models)
         }
