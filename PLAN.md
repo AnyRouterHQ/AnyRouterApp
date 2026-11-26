@@ -119,10 +119,10 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] A6 Open-source CI/CD hygiene: `gitleaks.yml` on PR + push, `dependabot.yml` (github-actions, swift), `.github/pull_request_template.md`, issue templates (bug, feature), `CONTRIBUTING.md` pointing at AGENTS.md, `SECURITY.md`; wire `Config/*.xcconfig` into `project.yml` (#3)
 
 ### Lane B — Apple + AnyRouter engines, auth (model: sonnet-medium; auth is a security path)
-- [ ] B1 `Engines/Apple`: `AppleFoundationEngine` (availability states, streaming snapshots → append-only deltas, instructions from system prompt)
-- [ ] B2 `Engines/AnyRouter/Auth`: `OAuthClient` + `KeychainStore` (lane brief gives the prototype to port); sign in, sign out, key status; client name "AnyRouter for iOS"
-- [ ] B3 `Engines/AnyRouter`: `GET /api/v1/models` → `ModelDescriptor`s; `POST /api/v1/chat/completions` with `stream: true` SSE parser; app attribution headers per AnyRouter docs; 401 → signed-out state
-- [ ] B4 Tests: PKCE challenge, SSE parsing (fixtures incl. `[DONE]`, usage chunk, error chunk), models decoding
+- [x] B1 `Engines/Apple`: `AppleFoundationEngine` (availability states, streaming snapshots → append-only deltas, instructions from system prompt) (#2)
+- [x] B2 `Engines/AnyRouter/Auth`: `OAuthClient` + `KeychainStore` (lane brief gives the prototype to port); sign in, sign out, key status; client name "AnyRouter for iOS" (#2)
+- [x] B3 `Engines/AnyRouter`: `GET /api/v1/models` → `ModelDescriptor`s; `POST /api/v1/chat/completions` with `stream: true` SSE parser; app attribution headers per AnyRouter docs; 401 → signed-out state (#2)
+- [x] B4 Tests: PKCE challenge, SSE parsing (fixtures incl. `[DONE]`, usage chunk, error chunk), models decoding (#2)
 
 ### Lane C — local Hugging Face models (model: sonnet-high)
 - [ ] C1 `Engines/Local/Catalog`: bundled `catalog.json` (curated small models that fit phones: e.g. Qwen3 0.6B/1.7B/4B, Gemma 3 1B/4B, Llama 3.2 1B/3B, in GGUF Q4_K_M and MLX 4-bit), user-editable list of HF repos + optional remote catalog URL in Settings, HF search (`/api/models?search=&filter=gguf|mlx`), device-fit check (RAM vs size)
@@ -156,3 +156,4 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - 2026-11-26 manager: interviewed operator, wrote AGENTS.md + PLAN.md + base config, created public repo AnyRouterHQ/AnyRouterApp, started lanes A, B, C.
 - 2026-11-26 lane-A: scaffold, Core contract, app shell, CI workflow (#1); local checks skipped
 - 2026-11-26 lane-A: hygiene (gitleaks, dependabot, templates, README, notices) (#3); PR #1 merged, CI green
+- 2026-11-26 lane-B: Apple and AnyRouter engines, OAuth, tests written; waiting on CI (#2)
