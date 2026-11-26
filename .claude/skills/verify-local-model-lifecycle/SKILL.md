@@ -65,15 +65,15 @@ Covered files and what each step of the model comes from (the CODE lines above e
 | Features/Services/LocalModelHub.swift | delete(modelID:) | DeleteStep1, DeleteStep2 |
 | Features/Services/MemoryMonitor.swift | unload, appInBackground | UnloadAll |
 
-Last confirmed that the model describes these files at commit: **SYNC_COMMIT**.
+Last confirmed that the model describes these files at commit: **5ee5c22**.
 Check what changed since:
 
 ```sh
-git diff --stat SYNC_COMMIT..HEAD -- Engines/Local/LocalResidency.swift Engines/Local/GGUF/GGUFEngine.swift Engines/Local/MLX/MLXEngine.swift App/AppState.swift Features/Services/LocalModelHub.swift Features/Services/MemoryMonitor.swift
+git diff --stat 5ee5c22..HEAD -- Engines/Local/LocalResidency.swift Engines/Local/GGUF/GGUFEngine.swift Engines/Local/MLX/MLXEngine.swift App/AppState.swift Features/Services/LocalModelHub.swift Features/Services/MemoryMonitor.swift
 ```
 
 If that prints nothing, the model is still in step. If it prints a change, read it against the table, run the checks,
-and only after you have confirmed that the spec describes the code at HEAD replace SYNC_COMMIT with HEAD's short SHA.
+and only after you have confirmed that the spec describes the code at HEAD replace 5ee5c22 with HEAD's short SHA.
 Do not move it for a change you did not read.
 
 ## Run the checks
@@ -118,7 +118,7 @@ the old design is no longer reachable. Fix the model: a check that cannot fail p
 1. Edit the spec first. A new caller of the gate, the cache or an unload: add the action, its CODE lines, and the file to the matching ONLY line.
 2. A new design decision: add a FLAG constant, a WHEN line that says what it looks like in the code, set it in formal/LocalModelLifecycle.cfg, and add a formal/mutants file that turns it back and names the invariant that must fail (the script checks that every flag has one).
 3. Run `scripts/formal-conformance.py` and `scripts/formal-check.sh all` (or push and read CI).
-4. Update the table above and move SYNC_COMMIT.
+4. Update the table above and move 5ee5c22.
 
 ## How this skill was proven
 

@@ -174,7 +174,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 
 ## Lane V: formal verification
 
-- [x] V1 TLA+ model of the local model lifecycle (`formal/`): one generation gate and one loaded model across both engines, unload vs a load in progress, delete vs a send, Stop at the gate. TLC and a conformance script run on Linux in `verify-formal.yml`; skill `.claude/skills/verify-local-model-lifecycle`. Found and fixed four ordering defects (V1_SHA)
+- [x] V1 TLA+ model of the local model lifecycle (`formal/`): one generation gate and one loaded model across both engines, unload vs a load in progress, delete vs a send, Stop at the gate. TLC and a conformance script run on Linux in `verify-formal.yml`; skill `.claude/skills/verify-local-model-lifecycle`. Found and fixed four ordering defects (c870204, 5ee5c22)
 
 ## Tools & integrations (MCP)
 
