@@ -25,6 +25,16 @@ final class ModelsDecodingTests: XCTestCase {
         XCTAssertTrue(models.allSatisfy { $0.source == .anyrouter })
     }
 
+    func testDescriptionBecomesTheSummary() throws {
+        let body = """
+            {"data":[{"id":"anyrouter/coding","name":"AnyRouter Coding","description":"Routes coding work."},
+                     {"id":"openai/gpt-5","name":"GPT-5"}]}
+            """
+        let models = try JSONDecoder().decode(ModelsResponse.self, from: Data(body.utf8)).descriptors(usable: true)
+        XCTAssertEqual(models[0].summary, "Routes coding work.")
+        XCTAssertNil(models[1].summary)
+    }
+
     func testSignedOutModelsAreNotUsable() throws {
         let response = try JSONDecoder().decode(ModelsResponse.self, from: Data(json.utf8))
         XCTAssertTrue(response.descriptors(usable: false).allSatisfy { !$0.isInstalled })

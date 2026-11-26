@@ -14,6 +14,8 @@ struct ModelDescriptor: Identifiable, Hashable, Codable, Sendable {
     var sizeBytes: Int64?
     /// Remote and Apple models: true when usable.
     var isInstalled: Bool
+    /// One-line description from the provider, when it has one.
+    var summary: String? = nil
 }
 
 struct ChatMessage: Identifiable, Hashable, Codable, Sendable {
