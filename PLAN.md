@@ -166,8 +166,8 @@ Decision: a small focused client (`Engines/MCP/`) instead of the official MCP Sw
 
 - [x] T1 `Engines/MCP/`: `MCPClient` (initialize, tools/list with paging, tools/call, session id, protocol version, one re-init on 404, JSON and SSE bodies), typed `MCPServer`, `MCPTool`, `MCPToolResult`, `JSONValue`; fixture tests with a stubbed URLSession; opt-in live test gated on `ANYROUTER_E2E_API_KEY` (#33)
 - [x] T2 Settings › Integrations (`Features/Integrations/`): AnyRouter card (connected when signed in), live tool list with persisted per-tool switches, add custom server (URL + optional bearer token in Keychain), connection test with clear errors (#33)
-- [ ] T3 Core data shape: `ChatDelta.toolCall` / `.toolResult` and tool parts on `ChatMessage` (one part model shared with attachments)
-- [ ] T4 AnyRouter engine: send enabled tools as OpenAI `tools`, parse streamed `tool_calls`, agent loop (max 8 steps, cancel-safe)
+- [x] T3 Core data shape (3e41ef6): `ToolSpec`, `ToolCall`, `ToolResult`, `ToolStep`, `ToolHost`, `ChatDelta.toolCall` / `.toolResult`, and a `stream(...tools:)` overload with a plain-text default. `ChatMessage` is unchanged on purpose: an engine runs its agent loop inside one `stream` call and reports steps as deltas; steps are kept on the assistant `MessageRecord` for display, not replayed to the model on later turns.
+- [x] T4 AnyRouter engine (a9f68eb, 728056a): enabled tools sent as OpenAI `tools` (catalog tag `function-calling` maps to the `tools` capability), streamed `tool_calls` fragments joined by index, agent loop (max 8 rounds, then `tool_choice: none`), one summed usage delta, cancel-safe; `MCPToolHost` runs calls through MCP with approval for tools not marked read-only and per-tool "always allow"
 - [ ] T5 Chat UI: tool-call rows (expandable), approval sheet for tools not marked read-only, "Tools" toggle in the composer and menu
 - [ ] T6 Apple Foundation Models: wrap enabled tools as `Tool` conformances with a dynamic `GenerationSchema`
 - [ ] T7 Local GGUF and MLX tool calling (Later): needs chat-template tool rendering and parsing of the model's tool-call tokens per model family
