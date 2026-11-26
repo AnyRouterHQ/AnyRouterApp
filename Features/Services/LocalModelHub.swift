@@ -13,11 +13,16 @@ final class LocalModelHub: ModelHubService {
     private(set) var lastError: String?
     private(set) var remoteCatalogURL: String = ""
     private(set) var usesDevelopmentCatalog = false
+    private(set) var memoryLimitNote: String?
 
     let downloads: ModelDownloadManager
     @ObservationIgnored private let service: CatalogService
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let memory: @Sendable () -> DeviceMemory
+    /// Whether the increased memory limit is signed into this install. Reads the executable: runs off the main actor.
+    @ObservationIgnored private let entitlementSigned: @Sendable () -> Bool?
+    /// Frees a model's weights before its files are deleted.
+    @ObservationIgnored private let unloadModel: @Sendable (String) async -> Void
     /// Read at each reload, so every card of one list is judged against the same numbers.
     @ObservationIgnored private var deviceMemory: DeviceMemory
     @ObservationIgnored private var raw: [String: CatalogEntry] = [:]
@@ -27,11 +32,15 @@ final class LocalModelHub: ModelHubService {
     init(downloads: ModelDownloadManager = ModelDownloadManager(),
          service: CatalogService = CatalogService(),
          defaults: UserDefaults = .standard,
-         memory: @escaping @Sendable () -> DeviceMemory = { DeviceMemory.current() }) {
+         memory: @escaping @Sendable () -> DeviceMemory = { DeviceMemory.current() },
+         entitlementSigned: @escaping @Sendable () -> Bool? = { MemoryEntitlement.isSignedForThisApp() },
+         unloadModel: @escaping @Sendable (String) async -> Void = { _ in }) {
         self.downloads = downloads
         self.service = service
         self.defaults = defaults
         self.memory = memory
+        self.entitlementSigned = entitlementSigned
+        self.unloadModel = unloadModel
         self.deviceMemory = memory()
         downloads.backgroundCompletionHandler = {
             Task { @MainActor in AppDelegate.finishBackgroundEvents() }
@@ -40,6 +49,8 @@ final class LocalModelHub: ModelHubService {
 
     func reload() async {
         deviceMemory = memory()
+        let signed = entitlementSigned
+        memoryLimitNote = FitText.memoryLimitNote(entitlementSigned: await Task.detached(priority: .utility) { signed() }.value)
         if !restored {
             restored = true
             await downloads.restore()
@@ -93,6 +104,7 @@ final class LocalModelHub: ModelHubService {
 
     func delete(modelID: String) async {
         guard let entry = raw[modelID] else { return }
+        await unloadModel(modelID)
         do {
             try downloads.delete(entry)
             lastError = nil

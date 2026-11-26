@@ -35,6 +35,9 @@ struct CatalogMemory: Codable, Hashable, Sendable {
     var windowTokens: Int?
     /// Mixture of experts: share of the weights one token touches.
     var activeFraction: Double?
+    /// Bytes of embedding tables mmap keeps out of RAM, from the GGUF tensor list. Gemma 4's per-layer embeddings are
+    /// more than half of its file.
+    var lazyWeightBytes: Int64?
 }
 
 /// One downloadable local model: a single GGUF file, or a whole MLX repo snapshot.
@@ -210,7 +213,7 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         return ModelMemoryProfile(
             fileBytes: sizeBytes, fullKVBytesPerToken: memory.fullKVBytesPerToken,
             windowKVBytesPerToken: memory.windowKVBytesPerToken ?? 0, windowTokens: memory.windowTokens ?? 0,
-            trainedContext: trained, activeFraction: memory.activeFraction)
+            trainedContext: trained, activeFraction: memory.activeFraction, lazyBytes: memory.lazyWeightBytes ?? 0)
     }
 
     /// False when the entry lists platforms and iOS is not one of them (iPad counts as iOS).

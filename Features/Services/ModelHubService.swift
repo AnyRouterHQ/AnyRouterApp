@@ -84,6 +84,9 @@ protocol ModelHubService: AnyObject {
     var remoteCatalogURL: String { get }
     /// True while the shared catalog is read from `dev-models.json` instead of `models.json`.
     var usesDevelopmentCatalog: Bool { get }
+    /// One line for Manage models when this install has the standard memory limit (the increased limit is not signed in),
+    /// else nil. Sideloaded builds re-signed with a free Apple ID lose it.
+    var memoryLimitNote: String? { get }
 
     /// Fetches the shared catalog (cached with an ETag) and reloads. Never throws: a failed fetch keeps the cached list.
     func refreshCatalog() async
@@ -113,6 +116,7 @@ final class EmptyModelHubService: ModelHubService {
     var lastError: String?
     var remoteCatalogURL: String = ""
     var usesDevelopmentCatalog = false
+    var memoryLimitNote: String?
 
     func refreshCatalog() async {}
     func setUsesDevelopmentCatalog(_ on: Bool) async { usesDevelopmentCatalog = on }

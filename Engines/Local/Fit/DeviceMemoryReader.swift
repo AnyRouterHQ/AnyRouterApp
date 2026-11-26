@@ -39,6 +39,9 @@ struct MemorySnapshot: Equatable, Sendable {
             physicalBytes: MemoryReading.physicalBytes())
     }
 
+    /// The most this app may use in total: what it uses now plus what is left. Zero where the system does not report it.
+    var processLimitBytes: Int64 { availableBytes > 0 ? footprintBytes + availableBytes : 0 }
+
     /// What a model may use. The process limit is what the app uses now plus what is left; a loaded model is already
     /// part of the first term, so the budget does not shrink while one is loaded. Without a reading, half of RAM:
     /// iOS ends a foreground app near that.

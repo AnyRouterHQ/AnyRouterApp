@@ -34,11 +34,29 @@ struct RootView: View {
             }
             .onAppear { showsOnboarding = !appState.settings.hasOnboarded }
             .task {
+                let watchdog = MainThreadWatchdog.shared
+                watchdog.mark("launch: local models")
                 await appState.hub.reload()
+                watchdog.mark("launch: model list")
                 await appState.models.refresh()
                 // The shared catalog updates without an app release. The bundled list is already showing.
+                watchdog.mark("launch: shared catalog")
                 await appState.hub.refreshCatalog()
+                watchdog.mark("idle")
+                await warmSelectedModel()
             }
+    }
+}
+
+extension RootView {
+    /// After the first frame: load the chosen local model in the background, but only one that runs well here, so a
+    /// model that is too big for the device is never loaded just to be ready.
+    private func warmSelectedModel() async {
+        guard let model = appState.models.selected, model.source == .gguf,
+              appState.hub.catalog.first(where: { $0.id == model.id })?.fitDetail?.verdict == .fits
+        else { return }
+        let warm = appState.warmUp
+        await Task.detached(priority: .utility) { await warm(model) }.value
     }
 }
 

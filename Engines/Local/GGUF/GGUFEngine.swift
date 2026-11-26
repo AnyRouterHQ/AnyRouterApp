@@ -1,8 +1,16 @@
 import Foundation
 
 /// Keeps one model loaded. Loading is slow (seconds), so a second chat with the same model reuses it.
+/// The cache key is the file's path and the time it was installed, so a download to the same path replaces the weights.
 actor LlamaModelCache {
-    private var current: (id: String, path: String, model: LlamaModel)?
+    private struct Key: Equatable {
+        var path: String
+        var installedAt: Date?
+    }
+
+    private var current: (id: String, key: Key, model: LlamaModel)?
+    /// A load in progress. A second request for the same file joins it instead of loading the weights twice.
+    private var loading: (key: Key, task: Task<LlamaModel, Error>)?
     private let telemetry: any Telemetry
 
     init(telemetry: any Telemetry = NoopTelemetry()) {
@@ -12,18 +20,35 @@ actor LlamaModelCache {
     /// Id of the loaded model, nil when none is.
     var loadedID: String? { current?.id }
 
-    func model(at path: String, id: String) async throws -> LlamaModel {
-        if let current, current.path == path { return current.model }
+    func model(at path: String, id: String, installedAt: Date? = nil) async throws -> LlamaModel {
+        let key = Key(path: path, installedAt: installedAt)
+        if let current, current.key == key { return current.model }
+        if let loading, loading.key == key { return try await loading.task.value }
         current = nil // free the old weights before the new ones load
         let started = ContinuousClock.now
-        let loaded = try await Task.detached(priority: .userInitiated) { try LlamaModel(path: path) }.value
-        current = (id, path, loaded)
-        telemetry.track(.engineLoadMs(TelemetryEvent.milliseconds(ContinuousClock.now - started), source: .gguf))
-        return loaded
+        let task = Task.detached(priority: .userInitiated) { try LlamaModel(path: path) }
+        loading = (key, task)
+        do {
+            let loaded = try await task.value
+            if loading?.key == key {
+                loading = nil
+                current = (id, key, loaded)
+                telemetry.track(.engineLoadMs(TelemetryEvent.milliseconds(ContinuousClock.now - started), source: .gguf))
+            }
+            return loaded
+        } catch {
+            if loading?.key == key { loading = nil }
+            throw error
+        }
     }
 
     func unload() {
         current = nil
+    }
+
+    /// Frees the weights only when they belong to this model (it was deleted or replaced).
+    func unload(ifID id: String) {
+        if current?.id == id { current = nil }
     }
 }
 
@@ -80,6 +105,19 @@ final class GGUFEngine: ChatEngine {
         await cache.loadedID
     }
 
+    /// Frees the weights when they belong to `modelID`, for example because it was deleted.
+    func unload(modelID: String) async {
+        await cache.unload(ifID: modelID)
+    }
+
+    /// Loads the weights ahead of the first message. No context is created, so it costs memory but no compute.
+    /// Does nothing for a model that is not installed.
+    func warm(model: ModelDescriptor) async {
+        guard let manifest = storage.readManifest(entryID: model.id), let file = manifest.files.first else { return }
+        let path = storage.fileURL(forEntryID: model.id, path: file.path).path
+        _ = try? await cache.model(at: path, id: model.id, installedAt: manifest.completedAt)
+    }
+
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
         -> AsyncThrowingStream<ChatDelta, Error> {
         AsyncThrowingStream { continuation in
@@ -90,7 +128,7 @@ final class GGUFEngine: ChatEngine {
                         throw GGUFError.modelNotInstalled(model.id)
                     }
                     let path = storage.fileURL(forEntryID: model.id, path: file.path).path
-                    let llama = try await cache.model(at: path, id: model.id)
+                    let llama = try await cache.model(at: path, id: model.id, installedAt: manifest.completedAt)
                     let result = try Self.run(llama, messages: messages, params: params) { continuation.yield(.text($0)) }
                     continuation.yield(.usage(prompt: result.promptTokens, completion: result.completionTokens))
                     continuation.yield(.done(finishReason: result.finishReason))

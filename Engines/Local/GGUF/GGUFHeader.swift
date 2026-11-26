@@ -7,13 +7,19 @@ struct GGUFInfo: Equatable, Sendable {
     var trainedContext: Int
     /// Nil when the architecture's metadata does not carry the attention keys (the app then estimates).
     var memory: CatalogMemory?
+    /// Bytes of tables that mmap keeps out of RAM (see `ModelMemoryProfile.lazyBytes`), from the tensor list.
+    var lazyBytes: Int64 = 0
 
     func profile(fileBytes: Int64) -> ModelMemoryProfile {
-        guard let memory else { return .estimated(fileBytes: fileBytes, trainedContext: trainedContext) }
+        guard let memory else {
+            var guess = ModelMemoryProfile.estimated(fileBytes: fileBytes, trainedContext: trainedContext)
+            guess.lazyBytes = lazyBytes
+            return guess
+        }
         return ModelMemoryProfile(
             fileBytes: fileBytes, fullKVBytesPerToken: memory.fullKVBytesPerToken,
             windowKVBytesPerToken: memory.windowKVBytesPerToken ?? 0, windowTokens: memory.windowTokens ?? 0,
-            trainedContext: trainedContext, activeFraction: memory.activeFraction)
+            trainedContext: trainedContext, activeFraction: memory.activeFraction, lazyBytes: lazyBytes)
     }
 }
 
@@ -52,15 +58,28 @@ enum GGUFHeader {
         var reader = Cursor(data: data)
         guard try reader.bytes(4) == Data("GGUF".utf8) else { throw GGUFHeaderError.notGGUF }
         _ = try reader.u32()
-        _ = try reader.u64() // tensor count
+        let tensorCount = try reader.u64()
         let count = try reader.u64()
+        guard tensorCount < 1 << 20, count < 1 << 20 else { throw GGUFHeaderError.unsupported("The GGUF header is implausible.") }
         var meta: [String: Value] = [:]
         for _ in 0..<count {
             let key = try reader.string()
             let kind = try reader.u32()
             meta[key] = try reader.value(kind: kind, keep: wanted(key))
         }
-        return try info(from: meta)
+        // Tensor list: name, dimensions, type, offset. Sizes follow from the gaps between offsets, so no type table is needed.
+        var tensors: [(name: String, offset: UInt64)] = []
+        tensors.reserveCapacity(Int(tensorCount))
+        for _ in 0..<tensorCount {
+            let name = try reader.string()
+            let dimensions = try reader.u32()
+            guard dimensions <= 8 else { throw GGUFHeaderError.unsupported("A GGUF tensor has too many dimensions.") }
+            try reader.skip(Int(dimensions) * 8 + 4)
+            tensors.append((name, try reader.u64()))
+        }
+        var result = try info(from: meta)
+        result.lazyBytes = lazyBytes(in: tensors)
+        return result
     }
 
     /// Reads the header through `prefix`, which returns the first N bytes of the file (for a remote file, a ranged request).
@@ -91,6 +110,22 @@ enum GGUFHeader {
             }
         }
         throw GGUFHeaderError.unsupported("The GGUF header is larger than \(readSizes.last! / 1_048_576) MB.")
+    }
+
+    /// Tables only read row by row: the per-layer embeddings (Gemma 4) and the token embeddings when the output matrix is a
+    /// separate tensor (when they are tied, the same table runs the output matmul and is not lazy). llama.cpp puts these
+    /// input tensors in CPU buffers over the mapped file, so untouched rows never load.
+    static func lazyBytes(in tensors: [(name: String, offset: UInt64)]) -> Int64 {
+        let sorted = tensors.sorted { $0.offset < $1.offset }
+        var sizes: [String: Int64] = [:]
+        for index in sorted.indices.dropLast() {
+            sizes[sorted[index].name] = Int64(clamping: sorted[index + 1].offset - sorted[index].offset)
+        }
+        var lazy = sizes["per_layer_token_embd.weight"] ?? 0
+        if sorted.contains(where: { $0.name == "output.weight" }) {
+            lazy += sizes["token_embd.weight"] ?? 0
+        }
+        return lazy
     }
 
     // MARK: Keys

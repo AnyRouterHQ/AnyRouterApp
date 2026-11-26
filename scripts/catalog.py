@@ -25,7 +25,7 @@ KNOWN_KEYS = {
     "license", "revision", "capabilities", "order", "sha256", "iconKey", "badges", "supportsThinking", "vision",
     "isOnboarding", "platforms", "recommended", "minRAMBytes", "createdAt", "updatedAt", "memory",
 }
-MEMORY_KEYS = {"fullKVBytesPerToken", "windowKVBytesPerToken", "windowTokens", "activeFraction"}
+MEMORY_KEYS = {"fullKVBytesPerToken", "windowKVBytesPerToken", "windowTokens", "activeFraction", "lazyWeightBytes"}
 
 _cache = {}
 
@@ -94,7 +94,7 @@ def _parse_gguf_metadata(data):
     if take(4) != b"GGUF":
         raise ValueError("not a GGUF file")
     take(4)
-    _tensors, count = struct.unpack("<QQ", take(16))
+    tensor_count, count = struct.unpack("<QQ", take(16))
     meta = {}
     for _ in range(count):
         key = string()
@@ -102,11 +102,17 @@ def _parse_gguf_metadata(data):
         item = value(kind)
         # Token tables are huge and not needed here.
         meta[key] = item if not (isinstance(item, list) and len(item) > 4096) else None
-    return meta
+    tensors = []
+    for _ in range(tensor_count):
+        name = string()
+        dimensions = struct.unpack("<I", take(4))[0]
+        take(dimensions * 8 + 4)
+        tensors.append((struct.unpack("<Q", take(8))[0], name))
+    return meta, tensors
 
 
 def gguf_header(repo, revision, file):
-    """Metadata of a remote GGUF, reading only as much of the file as the header needs."""
+    """Metadata and tensor list of a remote GGUF, reading only as much of the file as the header needs."""
     for megabytes in (4, 16, 64, 192):
         out = subprocess.run(
             ["curl", "-fsSL", "--retry", "3", "-r", f"0-{megabytes * 1024 * 1024 - 1}",
@@ -120,6 +126,17 @@ def gguf_header(repo, revision, file):
         except _Short:
             continue
     raise RuntimeError(f"{repo}/{file}: the GGUF header is larger than 192 MB")
+
+
+def lazy_weight_bytes(tensors):
+    """Bytes of tables that mmap keeps out of RAM: the per-layer embeddings, and the token embeddings when the output
+    matrix is a separate tensor. Sizes come from the gaps between tensor offsets. Same rule as GGUFHeader.lazyBytes."""
+    ordered = sorted(tensors)
+    sizes = {ordered[i][1]: ordered[i + 1][0] - ordered[i][0] for i in range(len(ordered) - 1)}
+    lazy = sizes.get("per_layer_token_embd.weight", 0)
+    if any(name == "output.weight" for _, name in ordered):
+        lazy += sizes.get("token_embd.weight", 0)
+    return lazy
 
 
 def memory_from_gguf(meta):
@@ -215,7 +232,12 @@ def memory_from_mlx_config(config):
 def memory_for_entry(entry):
     """The memory profile of an entry, read from the model's own metadata. None when the metadata lacks the keys."""
     if entry["format"] == "gguf":
-        return memory_from_gguf(gguf_header(entry["repo"], entry["revision"], entry["file"]))
+        meta, tensors = gguf_header(entry["repo"], entry["revision"], entry["file"])
+        memory = memory_from_gguf(meta)
+        lazy = lazy_weight_bytes(tensors)
+        if lazy:
+            memory = (memory or {"fullKVBytesPerToken": 0}) | {"lazyWeightBytes": lazy}
+        return memory
     config = fetch_json(f"{HF}/{entry['repo']}/resolve/{entry['revision']}/config.json")
     return memory_from_mlx_config(config)
 

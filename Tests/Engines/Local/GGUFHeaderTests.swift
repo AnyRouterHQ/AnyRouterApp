@@ -19,6 +19,7 @@ private actor SizeLog {
 private struct HeaderBuilder {
     private(set) var data = Data()
     private var pairs: [(String, Data)] = []
+    private var tensors: [(String, UInt64)] = []
 
     private static func le<T: FixedWidthInteger>(_ value: T) -> Data {
         withUnsafeBytes(of: value.littleEndian) { Data($0) }
@@ -63,9 +64,17 @@ private struct HeaderBuilder {
         pairs.append((key, body))
     }
 
+    /// A tensor-list entry: only the name and the data offset matter to the reader.
+    mutating func tensor(_ name: String, offset: UInt64) {
+        tensors.append((name, offset))
+    }
+
     func build() -> Data {
-        var out = Data("GGUF".utf8) + Self.le(UInt32(3)) + Self.le(UInt64(0)) + Self.le(UInt64(pairs.count))
+        var out = Data("GGUF".utf8) + Self.le(UInt32(3)) + Self.le(UInt64(tensors.count)) + Self.le(UInt64(pairs.count))
         for (key, value) in pairs { out += Self.string(key) + value }
+        for (name, offset) in tensors {
+            out += Self.string(name) + Self.le(UInt32(2)) + Self.le(UInt64(64)) + Self.le(UInt64(64)) + Self.le(UInt32(2)) + Self.le(offset)
+        }
         return out
     }
 }
@@ -211,6 +220,59 @@ struct GGUFHeaderTests {
         let bytes = try #require(try GGUFHeader.parse(b.build()).memory?.fullKVBytesPerToken)
         #expect(bytes == 2 * 4096 * (16384 + 128) * 2)
         #expect(bytes * Int64(FitPlanner.maxContext) > 0)
+    }
+
+    private func gemmaLikeHeader(withOutputMatrix: Bool) -> Data {
+        var b = HeaderBuilder()
+        b.string("general.architecture", "qwen3")
+        b.u32("qwen3.block_count", 2)
+        b.u32("qwen3.context_length", 4096)
+        b.u32("qwen3.embedding_length", 256)
+        b.u32("qwen3.attention.head_count", 4)
+        b.u32("qwen3.attention.head_count_kv", 4)
+        // Listed out of order on purpose: sizes come from the sorted offsets.
+        b.tensor("blk.0.attn_q.weight", offset: 4000)
+        b.tensor("token_embd.weight", offset: 1000)
+        b.tensor("per_layer_token_embd.weight", offset: 0)
+        b.tensor("blk.0.ffn_up.weight", offset: 4500)
+        if withOutputMatrix { b.tensor("output.weight", offset: 3000) }
+        return b.build()
+    }
+
+    @Test func perLayerEmbeddingsStayOutOfRAMBecauseTheyAreOnlyReadRowByRow() throws {
+        let info = try GGUFHeader.parse(gemmaLikeHeader(withOutputMatrix: false))
+        #expect(info.lazyBytes == 1000, "per_layer_token_embd spans offsets 0 to 1000")
+        let profile = info.profile(fileBytes: 10_000)
+        #expect(profile.lazyBytes == 1000 && profile.residentBytes == 9000)
+    }
+
+    @Test func tokenEmbeddingsAreLazyOnlyWhenTheOutputMatrixIsAnotherTensor() throws {
+        // Tied: the same table runs the output matmul on the GPU, so it is resident. Untied: input only, so it is lazy.
+        #expect(try GGUFHeader.parse(gemmaLikeHeader(withOutputMatrix: false)).lazyBytes == 1000)
+        #expect(try GGUFHeader.parse(gemmaLikeHeader(withOutputMatrix: true)).lazyBytes == 1000 + 2000)
+    }
+
+    @Test func aModelWithoutEmbeddingTablesHasNothingLazy() throws {
+        var b = HeaderBuilder()
+        b.string("general.architecture", "exotic")
+        b.u32("exotic.block_count", 2)
+        b.tensor("blk.0.attn_q.weight", offset: 0)
+        b.tensor("blk.0.ffn_up.weight", offset: 100)
+        let info = try GGUFHeader.parse(b.build())
+        #expect(info.lazyBytes == 0 && info.profile(fileBytes: 500).residentBytes == 500)
+    }
+
+    @Test func aTensorListThatEndsEarlyAsksForMoreBytesAndAnAbsurdOneIsRejected() throws {
+        var b = HeaderBuilder()
+        b.string("general.architecture", "qwen3")
+        b.tensor("a", offset: 0)
+        let whole = b.build()
+        #expect(throws: GGUFHeaderError.needMoreData) { _ = try GGUFHeader.parse(whole.prefix(whole.count - 3)) }
+        var absurd = Data("GGUF".utf8)
+        absurd += withUnsafeBytes(of: UInt32(3).littleEndian) { Data($0) }
+        absurd += withUnsafeBytes(of: UInt64(1 << 40).littleEndian) { Data($0) }
+        absurd += withUnsafeBytes(of: UInt64(0).littleEndian) { Data($0) }
+        #expect(throws: GGUFHeaderError.unsupported("The GGUF header is implausible.")) { _ = try GGUFHeader.parse(absurd) }
     }
 
     @Test func aHugeTokenTableIsSkippedNotDecoded() throws {

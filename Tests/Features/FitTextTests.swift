@@ -18,7 +18,7 @@ struct FitTextTests {
 
     @Test func badgesNameTheVerdictAndTheDevice() {
         #expect(FitText.badge(detail(.fits), device: "iPhone") == "Runs well")
-        #expect(FitText.badge(detail(.tight), device: "iPhone") == "Short context")
+        #expect(FitText.badge(detail(.tight), device: "iPhone") == "May be slow")
         #expect(FitText.badge(detail(.wontFit), device: "iPhone") == "Too big for this iPhone")
         #expect(FitText.badge(detail(.wontFit), device: "iPad") == "Too big for this iPad")
         #expect(FitText.badge(detail(.unknown), device: "iPhone") == nil)
@@ -37,7 +37,7 @@ struct FitTextTests {
 
     @Test func aTooBigModelSaysWhatItNeedsAndWhatTheDeviceCanGive() {
         #expect(FitText.explanation(detail(.wontFit), device: "iPhone")
-            == "Needs about 8.1 GB of memory. This iPhone can give about 5.7 GB.")
+            == "Needs ~8.1 GB · this iPhone has ~5.7 GB for apps")
     }
 
     @Test func onlyAModelThatWillNotFitWarnsBeforeDownloading() {
@@ -46,6 +46,13 @@ struct FitTextTests {
         #expect(FitText.downloadWarning(nil, sizeText: nil, device: "iPhone") == nil)
         let warning = FitText.downloadWarning(detail(.wontFit), sizeText: "6.88 GB", device: "iPhone")
         #expect(warning == "This model (6.88 GB) needs about 8.1 GB of memory. This iPhone can give about 5.7 GB, so it will not load.")
+    }
+
+    @Test func theStandardLimitNoteAppearsOnlyWhenTheEntitlementIsKnownToBeMissing() {
+        #expect(FitText.memoryLimitNote(entitlementSigned: false)
+            == "This install has the standard memory limit. TestFlight builds can load bigger models.")
+        #expect(FitText.memoryLimitNote(entitlementSigned: true) == nil)
+        #expect(FitText.memoryLimitNote(entitlementSigned: nil) == nil, "an unreadable signature must not scare anyone")
     }
 
     @Test func theMemoryLineShowsUseAndFreeSpace() {

@@ -23,6 +23,52 @@ struct FitPlannerTests {
         FitPlanner.estimate(profile, memory: memory(gigabytes)).verdict
     }
 
+    // MARK: Per-layer embeddings (Gemma 4)
+
+    // Numbers from the real GGUF headers: the file, and per_layer_token_embd.weight, which mmap keeps out of RAM.
+    private let gemmaE2B = ModelMemoryProfile(
+        fileBytes: 3_349_516_256, fullKVBytesPerToken: 6144, windowKVBytesPerToken: 12_288, windowTokens: 512,
+        trainedContext: 131_072, activeFraction: nil, lazyBytes: 1_926_758_400)
+    private let gemmaE4B = ModelMemoryProfile(
+        fileBytes: 5_154_941_280, fullKVBytesPerToken: 16_384, windowKVBytesPerToken: 40_960, windowTokens: 512,
+        trainedContext: 131_072, activeFraction: nil, lazyBytes: 2_312_110_080)
+
+    @Test func onlyTheResidentPartOfTheFileCountsAndTheCardNeedsThatMuch() {
+        #expect(gemmaE2B.residentBytes == 1_422_757_856)
+        let estimate = FitPlanner.estimate(gemmaE2B, memory: memory(12))
+        #expect(estimate.totalBytes == 1_422_757_856 + gemmaE2B.kvBytes(context: 8192) + 1_000_000_000)
+        #expect(estimate.totalBytes < 2_500_000_000, "about 2.5 GB, not the 4.4 GB a whole-file count gives")
+        #expect(estimate.fileBytes == 3_349_516_256, "the download size is still the file")
+    }
+
+    @Test func gemma4E2BRunsWellOnEveryRealisticPhone() {
+        // A 12 GB phone without the increased limit has a standard limit of about 3.5 GB: 3.2 GB for a model.
+        for gigabytes in [3.2, 4.0, 6.0, 8.0, 12.0] {
+            #expect(verdict(gemmaE2B, gigabytes) == .runsWell, "\(gigabytes) GB")
+        }
+    }
+
+    @Test func gemma4E4BNeedsAboutFourGigabytesOfBudget() {
+        #expect(verdict(gemmaE4B, 3.2) == .wontFit)
+        #expect(verdict(gemmaE4B, 4.5) == .tight(maxContext: 8192, maxReply: 512))
+        #expect(verdict(gemmaE4B, 5.0) == .runsWell)
+        #expect(verdict(gemmaE4B, 8.0) == .runsWell)
+    }
+
+    @Test func lazyBytesNeverMakeTheResidentPartNegativeOrLargerThanTheFile() {
+        var profile = dense06
+        profile.lazyBytes = profile.fileBytes * 2
+        #expect(profile.residentBytes == 0)
+        profile.lazyBytes = -5
+        #expect(profile.residentBytes == profile.fileBytes)
+    }
+
+    @Test func aMixtureOfExpertsFilesActiveBytesBuildOnItsResidentPart() {
+        var profile = moe
+        profile.lazyBytes = 1_000_000_000
+        #expect(profile.activeBytes == Int64(Double(5_880_000_000) * 0.119))
+    }
+
     // MARK: Device budget
 
     @Test func theBudgetIsTheProcessLimitMinusTheAppAndDoesNotShrinkWhileAModelIsLoaded() {

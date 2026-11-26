@@ -20,6 +20,8 @@ final class ModelDownloadManager {
     @ObservationIgnored private var jobs: [String: Job] = [:]
     /// Identifies the latest `start` per entry, so a start that was cancelled while the file listing loaded does nothing.
     @ObservationIgnored private var startTokens: [String: UUID] = [:]
+    /// The clean-up of a cancelled attempt. A new `start` of the same model waits for it, so it cannot delete the new files.
+    @ObservationIgnored private var discards: [String: Task<Void, Never>] = [:]
     @ObservationIgnored var backgroundCompletionHandler: (@Sendable () -> Void)?
 
     private struct Job {
@@ -69,6 +71,10 @@ final class ModelDownloadManager {
         startTokens[id] = token
         do {
             try storage.prepareRoot()
+            if let pending = discards[id] {
+                await pending.value
+                if discards[id] == pending { discards[id] = nil }
+            }
             let listing = try await api.listFiles(repo: entry.repo, revision: entry.revision ?? "main")
             let files = try RepoFiles.downloadPlan(for: entry, files: listing)
             guard startTokens[id] == token else { return }
@@ -135,7 +141,7 @@ final class ModelDownloadManager {
         jobs[id] = nil
         startTokens[id] = nil
         apply(.cancel, to: id)
-        Task { await discard(id) }
+        discards[id] = Task { await discard(id) }
     }
 
     /// Removes an installed model (or a failed attempt) from disk.

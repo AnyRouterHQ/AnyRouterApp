@@ -259,6 +259,7 @@ final class DemoHub: ModelHubService {
     var lastError: String?
     var remoteCatalogURL = ""
     var usesDevelopmentCatalog = false
+    var memoryLimitNote: String?
     private let states: [String: DownloadState]
 
     init(installed: Bool) {

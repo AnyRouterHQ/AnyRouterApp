@@ -14,6 +14,8 @@ final class AppState {
     var hub: any ModelHubService
     /// App memory and the loaded local model, with unload.
     let memory: MemoryMonitor
+    /// Loads a local model's weights ahead of the first message. Called after launch, never before the first frame.
+    let warmUp: @Sendable (ModelDescriptor) async -> Void
     /// Tool servers (AnyRouter MCP and custom ones).
     let integrations: IntegrationsStore
     /// Built-in tools, the AnyRouter MCP server and custom servers, merged for chat and Settings.
@@ -29,6 +31,8 @@ final class AppState {
     @ObservationIgnored private var metricKit: MetricKitReporter?
 
     init() {
+        // First, so a stall anywhere in launch is recorded (Settings > Diagnostics).
+        MainThreadWatchdog.shared.start()
         let tokenStore = KeychainStore()
         // Files that were picked but never sent are not kept across launches.
         if !DemoData.isEnabled { Task.detached { AttachmentStore.shared.purgePending() } }
@@ -43,6 +47,7 @@ final class AppState {
             account = demo.account
             hub = demo.hub
             memory = MemoryMonitor.inert()
+            warmUp = { _ in }
             decisions = DecisionsStore(service: DemoDecisionsService())
             return
         }
@@ -65,6 +70,9 @@ final class AppState {
                 await mlx.unload()
             }
         }
+        warmUp = { model in
+            if model.source == .gguf { await gguf.warm(model: model) }
+        }
         memory = MemoryMonitor(
             read: {
                 let snapshot = MemorySnapshot.read()
@@ -77,6 +85,13 @@ final class AppState {
             unload: {
                 await gguf.unload()
                 await mlx.unload()
+            },
+            diagnostics: {
+                let snapshot = MemorySnapshot.read()
+                return MemoryDiagnostics(
+                    footprintBytes: snapshot.footprintBytes, availableBytes: snapshot.availableBytes,
+                    physicalBytes: snapshot.physicalBytes, budgetBytes: snapshot.deviceMemory.budgetBytes,
+                    limitBytes: snapshot.processLimitBytes, entitlementSigned: MemoryEntitlement.isSignedForThisApp())
             })
         let auth = AnyRouterAuth()
         // Signing in connects the AnyRouter MCP server with the same token; signing out disconnects it.
@@ -86,7 +101,12 @@ final class AppState {
         registry.register(anyRouter)
         decisions = DecisionsStore(service: AnyRouterDecisionsAdapter(engine: anyRouter))
         account = AnyRouterAccountAdapter(auth: auth, telemetry: telemetry)
-        hub = LocalModelHub(downloads: ModelDownloadManager(telemetry: telemetry))
+        hub = LocalModelHub(
+            downloads: ModelDownloadManager(telemetry: telemetry),
+            unloadModel: { id in
+                await gguf.unload(modelID: id)
+                await mlx.unload(modelID: id)
+            })
         let reporter = MetricKitReporter(store: diagnostics, telemetry: telemetry)
         reporter.start()
         metricKit = reporter

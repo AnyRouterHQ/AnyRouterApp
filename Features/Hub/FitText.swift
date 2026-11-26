@@ -30,7 +30,7 @@ enum FitText {
     static func badge(_ detail: FitDetail, device: String) -> String? {
         switch detail.verdict {
         case .fits: "Runs well"
-        case .tight: "Short context"
+        case .tight: "May be slow"
         case .wontFit: "Too big for this \(device)"
         case .unknown: nil
         }
@@ -46,7 +46,7 @@ enum FitText {
             if detail.streamsFromStorage { text += " Weights stream from storage, so it is slower." }
             return text
         case .wontFit:
-            return "Needs about \(gigabytes(detail.neededBytes)) of memory. This \(device) can give about \(gigabytes(detail.budgetBytes))."
+            return "Needs ~\(gigabytes(detail.neededBytes)) · this \(device) has ~\(gigabytes(detail.budgetBytes)) for apps"
         }
     }
 
@@ -55,6 +55,12 @@ enum FitText {
         guard let detail, detail.verdict == .wontFit else { return nil }
         let size = sizeText.map { " (\($0))" } ?? ""
         return "This model\(size) needs about \(gigabytes(detail.neededBytes)) of memory. This \(device) can give about \(gigabytes(detail.budgetBytes)), so it will not load."
+    }
+
+    /// Shown once in Manage models when the increased memory limit is not signed into this install.
+    static func memoryLimitNote(entitlementSigned: Bool?) -> String? {
+        entitlementSigned == false
+            ? "This install has the standard memory limit. TestFlight builds can load bigger models." : nil
     }
 
     /// Line for a loaded model: what the app uses and what is left.

@@ -349,7 +349,8 @@
       "memory": {
         "fullKVBytesPerToken": 6144,
         "windowKVBytesPerToken": 12288,
-        "windowTokens": 512
+        "windowTokens": 512,
+        "lazyWeightBytes": 1926758400
       },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
@@ -415,7 +416,8 @@
       "memory": {
         "fullKVBytesPerToken": 16384,
         "windowKVBytesPerToken": 40960,
-        "windowTokens": 512
+        "windowTokens": 512,
+        "lazyWeightBytes": 2312110080
       },
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",

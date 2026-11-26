@@ -14,6 +14,12 @@ struct ModelMemoryProfile: Equatable, Sendable {
     var activeFraction: Double?
     /// True when the KV numbers are a guess from the file size, not read from the model's metadata.
     var isEstimated: Bool = false
+    /// Weights that stay out of RAM with mmap: tables only read row by row (token embeddings, the per-layer embeddings
+    /// of Gemma 4). llama.cpp keeps them in CPU buffers over the mapped file, so only the rows a prompt touches load.
+    var lazyBytes: Int64 = 0
+
+    /// File bytes that must be in RAM while the model runs.
+    var residentBytes: Int64 { max(0, fileBytes - max(0, lazyBytes)) }
 
     func kvBytes(context: Int) -> Int64 {
         // The numbers can come from a catalog file or a GGUF header the user added: bound them so the products cannot overflow.
@@ -25,7 +31,7 @@ struct ModelMemoryProfile: Equatable, Sendable {
 
     /// Weights one token reads. With mmap, a mixture-of-experts model only keeps these (plus churn) in RAM.
     var activeBytes: Int64 {
-        activeFraction.map { Int64(Double(fileBytes) * $0) } ?? fileBytes
+        activeFraction.map { Int64(Double(residentBytes) * $0) } ?? residentBytes
     }
 
     /// Guess for a model whose metadata is not known (a repo the user added, before the header is read).
@@ -104,14 +110,14 @@ enum FitPlanner {
             let kv = profile.kvBytes(context: context)
             return FitEstimate(
                 fileBytes: profile.fileBytes, kvBytes: kv, overheadBytes: overheadBytes,
-                totalBytes: profile.fileBytes + kv + overheadBytes, deviceBudgetBytes: budget, context: context,
+                totalBytes: profile.residentBytes + kv + overheadBytes, deviceBudgetBytes: budget, context: context,
                 verdict: verdict, streamsFromStorage: streams, isEstimated: profile.isEstimated)
         }
 
-        if let context = largestContext(profile, resident: profile.fileBytes, limit: comfortable, cap: cap), context >= preferred {
+        if let context = largestContext(profile, resident: profile.residentBytes, limit: comfortable, cap: cap), context >= preferred {
             return make(.runsWell, context: context)
         }
-        let inMemory = largestContext(profile, resident: profile.fileBytes, limit: budget, cap: cap)
+        let inMemory = largestContext(profile, resident: profile.residentBytes, limit: budget, cap: cap)
         // A mixture-of-experts model can also run from mmap: only the experts in use are resident, the rest is paged in
         // from storage (slower). It wins when the whole file would leave less than the preferred context.
         let streamed = profile.activeFraction == nil
