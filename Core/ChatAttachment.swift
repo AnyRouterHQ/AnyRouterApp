@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 /// A file, photo or document attached to a user message. The bytes live in the attachments folder
 /// (see `AttachmentStore`); SwiftData keeps only this description.
-struct Attachment: Identifiable, Hashable, Codable, Sendable {
+struct ChatAttachment: Identifiable, Hashable, Codable, Sendable {
     enum Kind: String, Codable, Sendable { case image, pdf, text, audio }
 
     var id: UUID
@@ -43,7 +43,7 @@ enum AttachmentPrompt {
         return parts.joined(separator: "\n\n")
     }
 
-    private static func block(_ attachment: Attachment) -> String {
+    private static func block(_ attachment: ChatAttachment) -> String {
         let name = attachment.filename
         if let text = attachment.extractedText, !text.isEmpty {
             let source = attachment.isOCR ? " (text read from the image)" : ""

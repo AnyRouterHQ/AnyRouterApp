@@ -15,14 +15,14 @@ struct TempAttachments {
 
     func cleanup() { try? FileManager.default.removeItem(at: folder) }
 
-    func exists(_ attachment: Attachment) -> Bool {
+    func exists(_ attachment: ChatAttachment) -> Bool {
         FileManager.default.fileExists(atPath: attachment.url(in: store.root).path)
     }
 
-    func attachment(_ text: String = "hi", name: String = "a.txt") throws -> Attachment {
+    func attachment(_ text: String = "hi", name: String = "a.txt") throws -> ChatAttachment {
         let id = UUID()
         let path = try store.write(Data(text.utf8), id: id, fileExtension: "txt")
-        return Attachment(id: id, kind: .text, filename: name, utType: "public.plain-text",
+        return ChatAttachment(id: id, kind: .text, filename: name, utType: "public.plain-text",
                           byteCount: Int64(text.utf8.count), relativePath: path, extractedText: text)
     }
 }

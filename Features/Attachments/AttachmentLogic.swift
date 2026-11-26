@@ -17,7 +17,7 @@ enum AttachmentLogic {
     }
 
     /// `nil` for a type we cannot read (a zip, a video).
-    static func kind(forUTType identifier: String) -> Attachment.Kind? {
+    static func kind(forUTType identifier: String) -> ChatAttachment.Kind? {
         guard let type = UTType(identifier) else { return nil }
         if type.conforms(to: .image) { return .image }
         if type.conforms(to: .pdf) { return .pdf }
@@ -34,12 +34,12 @@ enum AttachmentLogic {
     ]
 
     /// The kind of a file: by its type first, then by a known text extension.
-    static func kind(forUTType identifier: String?, fileExtension: String) -> Attachment.Kind? {
+    static func kind(forUTType identifier: String?, fileExtension: String) -> ChatAttachment.Kind? {
         if let identifier, let kind = kind(forUTType: identifier) { return kind }
         return textExtensions.contains(fileExtension.lowercased()) ? .text : nil
     }
 
-    static func systemImage(for kind: Attachment.Kind) -> String {
+    static func systemImage(for kind: ChatAttachment.Kind) -> String {
         switch kind {
         case .image: "photo"
         case .pdf: "doc.richtext"
@@ -72,10 +72,10 @@ enum AttachmentLogic {
         return cleaned.isEmpty ? fallback : cleaned
     }
 
-    static func hasImage(_ attachments: [Attachment]) -> Bool { attachments.contains { $0.kind == .image } }
+    static func hasImage(_ attachments: [ChatAttachment]) -> Bool { attachments.contains { $0.kind == .image } }
 
     /// The note under the composer: pending images and a model that cannot see them.
-    static func note(for attachments: [Attachment], model: ModelDescriptor?) -> String? {
+    static func note(for attachments: [ChatAttachment], model: ModelDescriptor?) -> String? {
         guard hasImage(attachments), let model, !model.supportsVision else { return nil }
         return visionNote
     }

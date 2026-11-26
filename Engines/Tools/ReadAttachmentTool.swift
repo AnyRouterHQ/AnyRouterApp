@@ -9,7 +9,7 @@ protocol AttachmentTextProviding: Sendable {
 
 /// The files attached in one chat, as the tool reads them.
 struct ThreadAttachments: AttachmentTextProviding {
-    let attachments: [Attachment]
+    let attachments: [ChatAttachment]
 
     func attachmentNames() async -> [String] { attachments.map(\.filename) }
 

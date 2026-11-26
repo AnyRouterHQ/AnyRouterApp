@@ -3,10 +3,10 @@ import Testing
 @testable import AnyRouter
 
 struct AttachmentWireTests {
-    private func photo(_ temp: TempAttachments, bytes: String = "JPEGDATA") throws -> Attachment {
+    private func photo(_ temp: TempAttachments, bytes: String = "JPEGDATA") throws -> ChatAttachment {
         let id = UUID()
         let path = try temp.store.write(Data(bytes.utf8), id: id, fileExtension: "jpg")
-        return Attachment(id: id, kind: .image, filename: "cat.jpg", utType: "public.jpeg", byteCount: 8,
+        return ChatAttachment(id: id, kind: .image, filename: "cat.jpg", utType: "public.jpeg", byteCount: 8,
                           relativePath: path, extractedText: "WORDS", isOCR: true)
     }
 

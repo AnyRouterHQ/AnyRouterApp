@@ -72,8 +72,8 @@ final class MessageRecord {
         set { roleRaw = newValue.rawValue }
     }
 
-    var attachments: [Attachment] {
-        get { attachmentsData.flatMap { try? JSONDecoder().decode([Attachment].self, from: $0) } ?? [] }
+    var attachments: [ChatAttachment] {
+        get { attachmentsData.flatMap { try? JSONDecoder().decode([ChatAttachment].self, from: $0) } ?? [] }
         set { attachmentsData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
     }
 

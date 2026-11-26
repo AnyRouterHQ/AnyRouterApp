@@ -4,15 +4,15 @@ import Testing
 @testable import AnyRouter
 
 func sampleAttachment(
-    _ kind: Attachment.Kind = .text, name: String = "notes.txt", text: String? = "hello",
+    _ kind: ChatAttachment.Kind = .text, name: String = "notes.txt", text: String? = "hello",
     ocr: Bool = false, truncated: Bool = false, utType: String = "public.plain-text", path: String = "t/a.txt"
-) -> Attachment {
-    Attachment(id: UUID(), kind: kind, filename: name, utType: utType, byteCount: 5, relativePath: path,
+) -> ChatAttachment {
+    ChatAttachment(id: UUID(), kind: kind, filename: name, utType: utType, byteCount: 5, relativePath: path,
                extractedText: text, isOCR: ocr, isTruncated: truncated)
 }
 
 struct AttachmentPromptTests {
-    private func message(_ content: String, _ attachments: [Attachment]) -> ChatMessage {
+    private func message(_ content: String, _ attachments: [ChatAttachment]) -> ChatMessage {
         ChatMessage(role: .user, content: content, attachments: attachments)
     }
 
@@ -48,7 +48,7 @@ struct AttachmentPromptTests {
     }
 
     @Test func aFileWithNoTextSaysWhatIsMissing() {
-        func text(_ kind: Attachment.Kind, _ value: String?) -> String {
+        func text(_ kind: ChatAttachment.Kind, _ value: String?) -> String {
             AttachmentPrompt.text(for: message("", [sampleAttachment(kind, name: "f", text: value)]), sendsImages: false)
         }
         #expect(text(.image, nil) == "[Image: f. This model cannot see images and no text was found in it.]")

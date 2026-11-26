@@ -5,10 +5,10 @@ import UIKit
 
 /// Chips above the composer field: a thumbnail for photos, an icon and name for files, each with a remove button.
 struct PendingAttachments: View {
-    let attachments: [Attachment]
+    let attachments: [ChatAttachment]
     let ingesting: Int
     let store: AttachmentStore
-    var onRemove: (Attachment) -> Void
+    var onRemove: (ChatAttachment) -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -26,7 +26,7 @@ struct PendingAttachments: View {
 
 /// One pending attachment. The remove button is a full 44 point target.
 struct AttachmentChip: View {
-    let attachment: Attachment
+    let attachment: ChatAttachment
     let store: AttachmentStore
     var onRemove: () -> Void
 
@@ -63,7 +63,7 @@ private struct SendableImage: @unchecked Sendable { let image: UIImage? }
 
 /// A square preview of a stored photo, read off the main thread.
 struct AttachmentThumbnail: View {
-    let attachment: Attachment
+    let attachment: ChatAttachment
     let store: AttachmentStore
     let side: CGFloat
     @State private var image: UIImage?
@@ -88,7 +88,7 @@ struct AttachmentThumbnail: View {
 
 /// Attachments inside the user's bubble: photo thumbnails and file rows. A tap opens a Quick Look preview.
 struct MessageAttachments: View {
-    let attachments: [Attachment]
+    let attachments: [ChatAttachment]
     var store: AttachmentStore = .shared
     @State private var preview: URL?
 
@@ -105,7 +105,7 @@ struct MessageAttachments: View {
     }
 
     @ViewBuilder
-    private func content(_ attachment: Attachment) -> some View {
+    private func content(_ attachment: ChatAttachment) -> some View {
         if attachment.kind == .image {
             AttachmentThumbnail(attachment: attachment, store: store, side: 160)
                 .clipShape(.rect(cornerRadius: 16))

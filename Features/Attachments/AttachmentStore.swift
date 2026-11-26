@@ -32,15 +32,15 @@ struct AttachmentStore: Sendable {
         return relative
     }
 
-    func data(for attachment: Attachment) -> Data? {
+    func data(for attachment: ChatAttachment) -> Data? {
         try? Data(contentsOf: attachment.url(in: root))
     }
 
     /// Text read from the attachment when it was added. What the `read_attachment` tool returns.
-    func extractedText(for attachment: Attachment) -> String? { attachment.extractedText }
+    func extractedText(for attachment: ChatAttachment) -> String? { attachment.extractedText }
 
     /// Moves a pending attachment into its thread's folder.
-    func adopt(_ attachment: Attachment, intoThread thread: UUID) throws -> Attachment {
+    func adopt(_ attachment: ChatAttachment, intoThread thread: UUID) throws -> ChatAttachment {
         let name = (attachment.relativePath as NSString).lastPathComponent
         let folder = thread.uuidString
         let directory = root.appending(path: folder, directoryHint: .isDirectory)
@@ -53,7 +53,7 @@ struct AttachmentStore: Sendable {
         return moved
     }
 
-    func remove(_ attachment: Attachment) {
+    func remove(_ attachment: ChatAttachment) {
         try? FileManager.default.removeItem(at: attachment.url(in: root))
     }
 

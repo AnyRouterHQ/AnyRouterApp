@@ -17,11 +17,11 @@ enum AttachmentError: LocalizedError, Equatable {
     }
 }
 
-/// Turns a picked photo or file into a stored `Attachment`: images are shrunk to JPEG, text is read on device.
+/// Turns a picked photo or file into a stored `ChatAttachment`: images are shrunk to JPEG, text is read on device.
 /// All of it runs off the main actor.
 enum AttachmentIngest {
     /// A photo or camera image, as the bytes the system gave us (HEIC, PNG, JPEG).
-    @concurrent static func image(from data: Data, filename: String, store: AttachmentStore) async throws -> Attachment {
+    @concurrent static func image(from data: Data, filename: String, store: AttachmentStore) async throws -> ChatAttachment {
         let name = AttachmentLogic.displayName(filename, fallback: "Photo.jpg")
         guard let jpeg = ImageProcessing.jpeg(from: data, maxSide: AttachmentLogic.maxImageSide) else {
             throw AttachmentError.unreadable(name)
@@ -30,14 +30,14 @@ enum AttachmentIngest {
         let path = try store.write(jpeg, id: id, fileExtension: "jpg")
         let ocr = TextExtraction.ocr(jpeg)
         let capped = ocr.map(AttachmentLogic.capped)
-        return Attachment(
+        return ChatAttachment(
             id: id, kind: .image, filename: Self.jpegName(name), utType: UTType.jpeg.identifier,
             byteCount: Int64(jpeg.count), relativePath: path,
             extractedText: capped?.text, isOCR: capped != nil, isTruncated: capped?.truncated ?? false)
     }
 
     /// A file from the Files importer. The URL is security scoped.
-    @concurrent static func file(at url: URL, store: AttachmentStore) async throws -> Attachment {
+    @concurrent static func file(at url: URL, store: AttachmentStore) async throws -> ChatAttachment {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let name = AttachmentLogic.displayName(url.lastPathComponent, fallback: "File")
@@ -55,7 +55,7 @@ enum AttachmentIngest {
             let id = UUID()
             let path = try store.write(data, id: id, fileExtension: "pdf")
             let capped = TextExtraction.pdfText(data).map(AttachmentLogic.capped)
-            return Attachment(
+            return ChatAttachment(
                 id: id, kind: .pdf, filename: name, utType: typeID, byteCount: Int64(data.count),
                 relativePath: path, extractedText: capped?.text, isTruncated: capped?.truncated ?? false)
         case .text:
@@ -63,13 +63,13 @@ enum AttachmentIngest {
             let id = UUID()
             let path = try store.write(data, id: id, fileExtension: url.pathExtension)
             let capped = AttachmentLogic.capped(text)
-            return Attachment(
+            return ChatAttachment(
                 id: id, kind: .text, filename: name, utType: typeID, byteCount: Int64(data.count),
                 relativePath: path, extractedText: capped.text, isTruncated: capped.truncated)
         case .audio:
             let id = UUID()
             let path = try store.write(data, id: id, fileExtension: url.pathExtension)
-            return Attachment(
+            return ChatAttachment(
                 id: id, kind: .audio, filename: name, utType: typeID, byteCount: Int64(data.count),
                 relativePath: path)
         }

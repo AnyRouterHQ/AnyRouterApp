@@ -32,7 +32,7 @@ struct AttachmentLogicTests {
     }
 
     @Test func everyKindHasAnIconAndSizesAreReadable() {
-        let icons = [Attachment.Kind.image, .pdf, .text, .audio].map(AttachmentLogic.systemImage(for:))
+        let icons = [ChatAttachment.Kind.image, .pdf, .text, .audio].map(AttachmentLogic.systemImage(for:))
         #expect(Set(icons).count == 4)
         #expect(AttachmentLogic.sizeText(2_048).contains("KB"))
     }

@@ -22,7 +22,7 @@ final class ChatViewModel {
     /// Model id saved on this thread. `nil` follows the default for new chats.
     private(set) var preferredModelID: String?
     /// Files and photos waiting under the composer for the next send.
-    private(set) var pending: [Attachment] = []
+    private(set) var pending: [ChatAttachment] = []
     /// Attachments still being read (images are shrunk, text and OCR are read off the main actor).
     private(set) var ingesting = 0
 
@@ -37,13 +37,13 @@ final class ChatViewModel {
     /// Seconds from any steady clock. Injected so timings are testable.
     @ObservationIgnored private let now: () -> TimeInterval
     /// Builds the tools for one request from the files attached anywhere in the chat.
-    @ObservationIgnored private let toolHost: @MainActor ([Attachment]) -> (any ToolHost)?
+    @ObservationIgnored private let toolHost: @MainActor ([ChatAttachment]) -> (any ToolHost)?
     @ObservationIgnored let attachmentStore: AttachmentStore
     @ObservationIgnored private var task: Task<Void, Never>?
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
          settings: AppSettings, models: ModelStore,
-         toolHost: @escaping @MainActor ([Attachment]) -> (any ToolHost)? = { _ in nil },
+         toolHost: @escaping @MainActor ([ChatAttachment]) -> (any ToolHost)? = { _ in nil },
          attachments: AttachmentStore = .shared,
          save: @escaping (ModelContext) throws -> Void = { try $0.save() },
          now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
@@ -144,14 +144,14 @@ final class ChatViewModel {
         add(urls.count) { store, index in try await AttachmentIngest.file(at: urls[index], store: store) }
     }
 
-    func removePending(_ attachment: Attachment) {
+    func removePending(_ attachment: ChatAttachment) {
         guard pending.contains(where: { $0.id == attachment.id }) else { return }
         pending.removeAll { $0.id == attachment.id }
         attachmentStore.remove(attachment)
     }
 
     /// Starts one reader per item; each result lands in `pending` in the order the items were picked.
-    private func add(_ count: Int, _ read: @escaping @Sendable (AttachmentStore, Int) async throws -> Attachment) {
+    private func add(_ count: Int, _ read: @escaping @Sendable (AttachmentStore, Int) async throws -> ChatAttachment) {
         let room = max(0, AttachmentLogic.maxPerMessage - pending.count - ingesting)
         if count > room { errorMessage = "You can attach up to \(AttachmentLogic.maxPerMessage) files to a message." }
         let store = attachmentStore
@@ -168,7 +168,7 @@ final class ChatViewModel {
         }
     }
 
-    private func finishIngest(_ result: Result<Attachment, Error>) {
+    private func finishIngest(_ result: Result<ChatAttachment, Error>) {
         ingesting -= 1
         switch result {
         case .success(let attachment): pending.append(attachment)

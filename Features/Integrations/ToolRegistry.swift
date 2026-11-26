@@ -100,7 +100,7 @@ final class ToolRegistry {
     // MARK: Host
 
     /// The tools for one chat request, or nil when none is on.
-    func makeHost(approver: any ToolApproving, attachments: [Attachment] = []) -> AgentToolHost? {
+    func makeHost(approver: any ToolApproving, attachments: [ChatAttachment] = []) -> AgentToolHost? {
         var mcpTools = integrations.enabledTools
         let match = searchMatch.flatMap { isBuiltInEnabled(WebSearchBinding.name) ? $0 : nil }
         if let match {

@@ -172,8 +172,8 @@ final class ToolRegistryTests: XCTestCase {
     }
 
     func testReadAttachmentIsOfferedOnlyInAChatWithAttachments() async {
-        func attachment(_ name: String, text: String?) -> Attachment {
-            Attachment(id: UUID(), kind: .text, filename: name, utType: "public.plain-text", byteCount: 10,
+        func attachment(_ name: String, text: String?) -> ChatAttachment {
+            ChatAttachment(id: UUID(), kind: .text, filename: name, utType: "public.plain-text", byteCount: 10,
                        relativePath: "t/\(name)", extractedText: text)
         }
         let registry = makeRegistry()

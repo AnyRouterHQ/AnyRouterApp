@@ -27,9 +27,9 @@ struct ChatMessage: Identifiable, Hashable, Codable, Sendable {
     var content: String
     var createdAt: Date
     /// Files and photos attached to a user message.
-    var attachments: [Attachment]
+    var attachments: [ChatAttachment]
 
-    init(id: UUID = UUID(), role: Role, content: String, createdAt: Date = Date(), attachments: [Attachment] = []) {
+    init(id: UUID = UUID(), role: Role, content: String, createdAt: Date = Date(), attachments: [ChatAttachment] = []) {
         self.id = id
         self.role = role
         self.content = content
