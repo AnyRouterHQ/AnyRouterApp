@@ -62,14 +62,19 @@ struct MCPToolHost: ToolHost {
     private let entries: [String: Entry]
     private let approver: any ToolApproving
     private let permissions: ToolPermissionStore
+    private let timeout: Double
 
+    /// `reserved` are names other tool sources already use (the built-in tools); an MCP tool with such a name gets its server name in front.
     init(
         enabled: [(server: MCPServer, tool: MCPTool)],
         client: (MCPServer) -> MCPClient,
         approver: any ToolApproving,
-        permissions: ToolPermissionStore
+        permissions: ToolPermissionStore,
+        reserved: Set<String> = [],
+        timeout: Double = 45
     ) {
-        let names = Self.uniqueNames(for: enabled)
+        self.timeout = timeout
+        let names = Self.uniqueNames(for: enabled, reserved: reserved)
         var entries: [String: Entry] = [:]
         var specs: [ToolSpec] = []
         for (index, item) in enabled.enumerated() {
@@ -110,7 +115,11 @@ struct MCPToolHost: ToolHost {
         }
 
         do {
-            let result = try await entry.client.callTool(name: entry.tool.name, arguments: arguments)
+            let client = entry.client
+            let toolName = entry.tool.name
+            let timeout = timeout
+            // The deadline starts after approval: waiting for the user does not count.
+            let result = try await withDeadline(timeout) { try await client.callTool(name: toolName, arguments: arguments) }
             return ToolResult(callID: call.id, name: call.name, text: Self.clip(result.text), isError: result.isError)
         } catch is CancellationError {
             return failure("The tool call was cancelled.")
@@ -136,12 +145,13 @@ struct MCPToolHost: ToolHost {
 
     /// Model APIs want `[A-Za-z0-9_-]{1,64}` and unique names. Two servers may both have `search`; then the
     /// server name is put in front of the tool name.
-    static func uniqueNames(for enabled: [(server: MCPServer, tool: MCPTool)]) -> [String] {
+    static func uniqueNames(for enabled: [(server: MCPServer, tool: MCPTool)], reserved: Set<String> = []) -> [String] {
         let plain = enabled.map { sanitize($0.tool.name) }
         let counts = Dictionary(plain.map { ($0, 1) }, uniquingKeysWith: +)
-        var used = Set<String>()
+        var used = reserved
         return enabled.enumerated().map { index, item in
-            var name = counts[plain[index]] == 1 ? plain[index] : sanitize("\(item.server.name)__\(item.tool.name)")
+            let alone = counts[plain[index]] == 1 && !reserved.contains(plain[index])
+            var name = alone ? plain[index] : sanitize("\(item.server.name)__\(item.tool.name)")
             var suffix = 2
             let base = name.prefix(60)
             while used.contains(name) {

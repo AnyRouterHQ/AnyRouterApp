@@ -195,13 +195,22 @@ final class IntegrationsStore {
 
     /// Tool host for one chat request, or nil when no connected server has a tool turned on.
     func makeToolHost(approver: any ToolApproving) -> MCPToolHost? {
-        let enabled = enabledTools
+        makeToolHost(enabled: enabledTools, approver: approver)
+    }
+
+    /// Same for a chosen list of tools. `reserved` are names other tool sources already use.
+    func makeToolHost(
+        enabled: [(server: MCPServer, tool: MCPTool)],
+        approver: any ToolApproving,
+        reserved: Set<String> = []
+    ) -> MCPToolHost? {
         guard !enabled.isEmpty else { return nil }
         return MCPToolHost(
             enabled: enabled,
             client: { self.client(for: $0) },
             approver: approver,
-            permissions: permissions
+            permissions: permissions,
+            reserved: reserved
         )
     }
 

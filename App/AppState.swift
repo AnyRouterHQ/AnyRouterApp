@@ -16,6 +16,8 @@ final class AppState {
     let memory: MemoryMonitor
     /// Tool servers (AnyRouter MCP and custom ones).
     let integrations: IntegrationsStore
+    /// Built-in tools, the AnyRouter MCP server and custom servers, merged for chat and Settings.
+    let tools: ToolRegistry
     /// The tool approval sheet's queue.
     let toolApprovals = ToolApprovalCenter()
     /// Typed questions answered by decision models.
@@ -28,7 +30,9 @@ final class AppState {
 
     init() {
         let tokenStore = KeychainStore()
-        integrations = IntegrationsStore(anyRouterToken: { tokenStore.token() })
+        let integrations = IntegrationsStore(anyRouterToken: { tokenStore.token() })
+        self.integrations = integrations
+        tools = ToolRegistry(integrations: integrations)
         if DemoData.isEnabled {
             telemetry = NoopTelemetry()
             let demo = DemoData.install(registry: registry)

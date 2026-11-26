@@ -66,7 +66,7 @@ struct ChatScreen: View {
         let thread = shell.selectedThreadID.flatMap(fetchThread)
         let model = ChatViewModel(thread: thread, context: context, registry: registry,
                                   settings: settings, models: models,
-                                  toolHost: { [app] in app.integrations.makeToolHost(approver: app.toolApprovals) })
+                                  toolHost: { [app] in app.tools.makeHost(approver: app.toolApprovals) })
         model.onThreadCreated = { [shell] id in shell.selectedThreadID = id }
         chat = model
     }
