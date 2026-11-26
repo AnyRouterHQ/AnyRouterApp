@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Testing
+import Vision
 @testable import AnyRouter
 
 private final class ReceiptFixtureAnchor {}
@@ -20,6 +21,8 @@ struct ReadTextTests {
 
     @Test func languagesFollowThePreferredOrderAndOnlyKeepSupportedOnes() {
         #expect(OCRLogic.languages(supported: ["en-US", "fr-FR", "vi-VT"]) == ["vi-VT", "en-US"])
+        #expect(OCRLogic.languages(supported: ["vi-VN", "en-US"]) == ["vi-VN", "en-US"], "the standard code works if a system uses it")
+        #expect(OCRLogic.languages(supported: ["vi-VT", "vi-VN", "en-US"]) == ["vi-VT", "en-US"], "one Vietnamese code")
         #expect(OCRLogic.languages(supported: ["en-US", "fr-FR"]) == ["en-US"])
         #expect(OCRLogic.languages(supported: []).isEmpty)
     }
@@ -44,6 +47,14 @@ struct ReadTextTests {
     }
 
     // MARK: Vision on the fixture image
+
+    @Test func visionOnThisSystemKnowsBothLanguagesWeAskFor() throws {
+        // The real list, not a copy of it: a wrong code would be dropped by Vision without an error.
+        let supported = try VNRecognizeTextRequest().supportedRecognitionLanguages()
+        let languages = OCRLogic.languages(supported: supported)
+        #expect(languages.count == 2, "Vietnamese and English must both be in Vision's list: \(supported)")
+        #expect(languages.last == "en-US")
+    }
 
     @Test func theReceiptPhotoIsRead() throws {
         let text = try #require(TextExtraction.ocr(try receiptFixture()))

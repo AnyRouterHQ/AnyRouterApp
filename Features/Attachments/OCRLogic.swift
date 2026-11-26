@@ -7,17 +7,21 @@ struct ScannedText: Identifiable, Equatable, Sendable {
 }
 
 enum OCRLogic {
-    /// Vision's names for the languages the app reads. Vietnamese comes first because it is not the default model.
-    static let preferredLanguages = ["vi-VT", "en-US"]
+    /// Vision's own name for Vietnamese is "vi-VT" (it is what `supportedRecognitionLanguages()` lists). "vi-VN" is the
+    /// standard code, kept in case a later system uses it. Vision drops a code it does not know without saying so.
+    static let vietnameseCodes = ["vi-VT", "vi-VN"]
+    static let englishCodes = ["en-US"]
 
     /// The ids of the presets offered after a scan, in the order the sheet lists them.
     static let scanPresetIDs = ["translate", "split-bill", "summarize"]
 
     static let noTextMessage = "No text found in the photo."
 
-    /// The preferred languages this device's Vision supports, in priority order. Empty means "use Vision's default".
+    /// Vietnamese (first, since its model is not the default), then English, each as Vision names it on this system.
+    /// A language Vision does not list is left out; empty means "use Vision's default".
     static func languages(supported: [String]) -> [String] {
-        preferredLanguages.filter { supported.contains($0) }
+        let vietnamese = vietnameseCodes.first(where: supported.contains).map { [$0] } ?? []
+        return vietnamese + englishCodes.filter { supported.contains($0) }
     }
 
     /// Several photos: one block each, with a blank line between.
