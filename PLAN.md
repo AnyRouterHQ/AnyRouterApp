@@ -34,6 +34,7 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that follows a reference 
 | D10 | Persistence: SwiftData for threads/messages; Keychain for the AnyRouter key; `UserDefaults` for settings | Simplest native stack. |
 | D14 | No custom llama.cpp fork in v1.x. GGUF features that need more than `libllama` (speculative decoding, TurboQuant KV) wait for F4: our own xcframework built from an official tag. A fork is considered only if a measured on-device need remains after F4. | The official tags already carry MTP, DFlash and EAGLE-3 in `common/`. Forks add upkeep and licence review, and the app ships weights, not new engines. |
 | D18 | llama.cpp is pinned to release b10456 through a local package `Packages/LlamaBinary` (binaryTarget + checksum) | b10456 is the newest official xcframework with iOS Simulator and device slices. From b10488 on, releases ship device slices only, and CI builds for Simulator. Revisit when upstream restores the simulator slice. |
+| D19 | iPhone keeps a wide sidebar drawer (82% of the screen, cap 360pt) that the chat slides away from, with interactive drag and edge swipe. This is an operator request and deviates from U10a for iPhone only. iPad uses `NavigationSplitView`. Settings and its pages already follow U10b (sheet, `NavigationStack`, grouped list). | The operator wants the drawer look of the reference screenshots; the system compact split view cannot slide the chat aside. |
 | D15 | UI boundary: native SwiftUI containers and behaviors skinned with the reference design's tokens (colors, radii, spacing, type scale). Per-screen deviations are listed in § Native UX & performance. | The reference is a web app; native containers give edge-swipe back, restoration, Liquid Glass, Dynamic Type, keyboard and pointer support that custom views cannot. |
 | D16 | Chat stays one `ChatEngine`; images, video frames and audio ride on `ChatMessage.parts`. Image generation, speech-to-text and text-to-speech are separate protocols (`ImageGenerationEngine`, `SpeechRecognizer`, `SpeechSynthesizer`) behind the same registry. | Their input and output are progress, previews and audio streams, not text deltas. Overloading `ChatDelta` would make every chat engine handle them. |
 | D17 | Speech uses system frameworks first (`SpeechTranscriber`, `AVSpeechSynthesizer`). Open speech models are opt-in extras later. | No download, no model upkeep, no app-size cost. |
@@ -155,7 +156,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 ## Lane G — sidebar and settings IA (feat/sidebar-settings)
 
 - [x] G1 Settings as a drill-down sheet (Models, Chat, Appearance, About), `SettingsDestination` routing, account card with `AccountSummary` from /me, /credits and /key
-- [ ] G2 Wide sidebar drawer on iPhone (interactive drag, edge swipe), `NavigationSplitView` sidebar on iPad, bottom search and compose buttons
+- [x] G2 Wide sidebar drawer on iPhone (interactive drag, edge swipe), `NavigationSplitView` sidebar on iPad, bottom search and compose buttons (#31)
 
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
 
@@ -497,6 +498,7 @@ Not doing: a custom navigation container, per-token haptics, pull-to-refresh on 
 
 ## Status log
 
+- 2026-11-26 lane-G: sidebar drawer (82% width, cap 360, interactive drag, Reduce Motion fade), iPad split sidebar, search and compose footer (#31); local checks skipped
 - 2026-11-26 lane-ux: native UX and performance audit, boundary decision D15, plan U1-U18 and measurement plan; docs only, local checks skipped
 - 2026-11-26 lane-G: settings IA, `SettingsDestination`, account card with credits or key usage; local checks skipped
 
