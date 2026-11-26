@@ -7,7 +7,7 @@ final class ComposerJourney: JourneyCase {
         runPasses { app, _ in
             XCTAssertTrue(greeting(app).waitForExistence(timeout: 15))
             step("home")
-            let subtitle = app.descendants(matching: .any)["home.subtitle"]
+            let subtitle = app.staticTexts["home.subtitle"]
             let before = subtitle.label
             greeting(app).tap()
             sleep(1)
