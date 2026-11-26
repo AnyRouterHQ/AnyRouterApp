@@ -21,6 +21,18 @@ enum SettingsLogic {
         "AnyRouter \(versionText(version: version, build: build, commit: appCommit))\niOS \(system)"
     }
 
+    /// Second line of the Local Models row: "3 installed · 4.1 GB", or nil when nothing is installed.
+    static func localModelsSubtitle(installedCount: Int, usedBytes: Int64) -> String? {
+        guard installedCount > 0 else { return nil }
+        return "\(installedCount) installed · \(FitFormat.gigabytes(usedBytes))"
+    }
+
+    /// Second line of the AnyRouter Models row: the default when it is a cloud model, else how many are starred.
+    static func anyRouterModelsSubtitle(defaultName: String?, starredCount: Int) -> String? {
+        if let defaultName { return "Default: \(defaultName)" }
+        return starredCount > 0 ? "\(starredCount) starred" : nil
+    }
+
     /// Accepts `org/name` or a huggingface.co URL and returns `org/name`, or nil when it is not a repo id.
     static func parseRepo(_ input: String) -> String? {
         var text = input.trimmingCharacters(in: .whitespacesAndNewlines)

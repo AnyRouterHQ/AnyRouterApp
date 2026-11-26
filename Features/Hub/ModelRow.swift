@@ -22,7 +22,7 @@ enum ModelStatusColor {
     }
 }
 
-/// One model in a Manage models list: name, a detail line, fit status, and progress while downloading.
+/// One model in a Local Models list: name, a detail line, fit status, and progress while downloading.
 struct ModelRow: View {
     let entry: LocalModelEntry
     let state: DownloadState

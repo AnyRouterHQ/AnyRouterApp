@@ -1,0 +1,102 @@
+import SwiftUI
+
+/// The two questions every list of local models can ask: delete this one, or download one that will not fit anyway.
+@MainActor @Observable
+final class LocalModelPrompts {
+    var pendingDelete: LocalModelEntry?
+    var pendingDownload: LocalModelEntry?
+}
+
+/// Swipe actions, context menu and the download rule shared by Local Models and Browse models.
+@MainActor
+struct LocalModelActions {
+    let hub: any ModelHubService
+    let models: ModelStore
+    let memory: MemoryMonitor
+    let prompts: LocalModelPrompts
+    /// "iPhone" or "iPad".
+    let device: String
+
+    /// A model that will not fit asks first. Everything else downloads at once.
+    func requestDownload(_ entry: LocalModelEntry) {
+        let warning = FitText.downloadWarning(entry.fitDetail, sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes), device: device)
+        if warning != nil { prompts.pendingDownload = entry } else { hub.download(entry) }
+    }
+
+    @ViewBuilder
+    func swipe(_ entry: LocalModelEntry, state: DownloadState) -> some View {
+        switch state {
+        case .installed:
+            Button("Delete", systemImage: "trash", role: .destructive) { prompts.pendingDelete = entry }
+        case .downloading:
+            Button("Cancel", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
+            Button("Pause", systemImage: "pause") { hub.pause(modelID: entry.id) }.tint(.orange)
+        case .paused:
+            Button("Cancel", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
+            Button("Resume", systemImage: "play") { hub.resume(modelID: entry.id) }.tint(.green)
+        case .notInstalled, .failed:
+            if entry.unavailableReason == nil {
+                Button("Download", systemImage: "arrow.down") { requestDownload(entry) }.tint(.blue)
+            }
+        case .verifying:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    func menu(_ entry: LocalModelEntry, state: DownloadState) -> some View {
+        switch state {
+        case .installed:
+            if let descriptor = models.models.first(where: { $0.id == entry.id && $0.isInstalled }) {
+                Button("Set as Default", systemImage: "star") { models.select(descriptor) }
+            }
+            if memory.loadedModelID == entry.id {
+                Button("Unload", systemImage: "memorychip") { Task { await memory.unload() } }
+            }
+            Button("Delete", systemImage: "trash", role: .destructive) { prompts.pendingDelete = entry }
+        case .downloading:
+            Button("Pause", systemImage: "pause") { hub.pause(modelID: entry.id) }
+            Button("Cancel download", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
+        case .paused:
+            Button("Resume", systemImage: "play") { hub.resume(modelID: entry.id) }
+            Button("Cancel download", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
+        case .notInstalled, .failed:
+            if entry.unavailableReason == nil {
+                Button("Download", systemImage: "arrow.down.circle") { requestDownload(entry) }
+            }
+        case .verifying:
+            EmptyView()
+        }
+    }
+}
+
+/// The confirmation dialogs behind `LocalModelPrompts`.
+struct LocalModelDialogs: ViewModifier {
+    let prompts: LocalModelPrompts
+    let hub: any ModelHubService
+    let device: String
+
+    func body(content: Content) -> some View {
+        content
+            .confirmationDialog(
+                "Delete model?",
+                isPresented: Binding(get: { prompts.pendingDelete != nil }, set: { if !$0 { prompts.pendingDelete = nil } }),
+                titleVisibility: .visible, presenting: prompts.pendingDelete
+            ) { entry in
+                Button("Delete \(entry.descriptor.displayName)", role: .destructive) {
+                    Task { await hub.delete(modelID: entry.id) }
+                }
+            } message: { _ in
+                Text("The files are removed from this \(device). You can download it again later.")
+            }
+            .confirmationDialog(
+                "Download anyway?",
+                isPresented: Binding(get: { prompts.pendingDownload != nil }, set: { if !$0 { prompts.pendingDownload = nil } }),
+                titleVisibility: .visible, presenting: prompts.pendingDownload
+            ) { entry in
+                Button("Download anyway", role: .destructive) { hub.download(entry) }
+            } message: { entry in
+                Text(FitText.downloadWarning(entry.fitDetail, sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes), device: device) ?? "")
+            }
+    }
+}

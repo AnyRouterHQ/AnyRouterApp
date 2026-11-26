@@ -13,4 +13,17 @@ enum DefaultModelPolicy {
             ?? usable.first { $0.source == .gguf || $0.source == .mlx }
             ?? usable.first { $0.source == .anyrouter && $0.id != ModelDescriptor.byokRouterID }
     }
+
+    /// One line for Settings when the saved default cannot be used and the policy picked another model (or none).
+    /// Nil when there is no saved default or it still works.
+    static func fallbackNote(saved: String?, models: [ModelDescriptor]) -> String? {
+        guard let saved else { return nil }
+        let listed = models.first { $0.id == saved }
+        if listed?.isInstalled == true { return nil }
+        let name = listed?.shortName ?? (saved as NSString).lastPathComponent
+        guard let fallback = resolve(saved: saved, models: models) else {
+            return "Your default model, \(name), is not available. Choose another default."
+        }
+        return "Your default model, \(name), is not available. New chats use \(fallback.shortName)."
+    }
 }

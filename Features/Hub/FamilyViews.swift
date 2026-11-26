@@ -65,7 +65,7 @@ struct FamilyDetailView: View {
                 Text("Sizes")
             } footer: {
                 if variants.count < family.variants.count {
-                    Text("Showing the sizes that match your filters. Change them in Manage models to see all \(family.variants.count).")
+                    Text("Showing the sizes that match your filters. Change them in Browse models to see all \(family.variants.count).")
                 }
             }
         }
@@ -74,7 +74,7 @@ struct FamilyDetailView: View {
         .overlay {
             if variants.isEmpty {
                 ContentUnavailableView("No size matches", systemImage: "cube",
-                                       description: Text("Change the filters in Manage models to see every size."))
+                                       description: Text("Change the filters in Browse models to see every size."))
             }
         }
     }

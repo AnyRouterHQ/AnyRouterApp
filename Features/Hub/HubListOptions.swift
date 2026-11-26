@@ -1,6 +1,6 @@
 import Foundation
 
-/// Row text and search for Manage models. Pure, so it is tested without UI.
+/// Row text and search for the model lists. Pure, so it is tested without UI.
 /// Sorting and filtering of families live in `FamilyLogic`.
 enum HubListOptions {
     /// A family matches a search by name, publisher, summary or tag.

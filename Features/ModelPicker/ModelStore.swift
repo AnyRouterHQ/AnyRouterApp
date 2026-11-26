@@ -49,6 +49,11 @@ final class ModelStore {
         DefaultModelPolicy.resolve(saved: selectedID, models: models)
     }
 
+    /// Set once the models are loaded and the saved default can no longer be used: Settings says which model took over.
+    var defaultNote: String? {
+        hasLoaded ? DefaultModelPolicy.fallbackNote(saved: selectedID, models: models) : nil
+    }
+
     /// The model a chat should use, given the model id saved on its thread (nil for a new chat).
     func resolve(preferred: String?) -> Resolution {
         guard let preferred else { return Resolution(model: selected, preferredUnavailable: false) }

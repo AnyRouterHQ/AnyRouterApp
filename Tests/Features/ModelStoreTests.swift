@@ -64,6 +64,23 @@ struct ModelStoreTests {
         #expect(second.selected?.id == "apple/foundation")
     }
 
+    @Test func theDefaultNoteAppearsOnlyAfterLoadingAndOnlyWhenTheSavedDefaultIsGone() async {
+        let defaults = testDefaults()
+        let first = await store(models: [testModel(id: "a"), testModel(id: "b")], defaults: defaults)
+        #expect(first.defaultNote == nil)
+        first.select(first.models[1])
+        #expect(first.defaultNote == nil)
+
+        let registry = EngineRegistry()
+        registry.register(ScriptedEngine(models: [testModel(id: "a"), testModel(id: "b", installed: false)]))
+        let second = ModelStore(registry: registry, defaults: defaults)
+        #expect(second.defaultNote == nil, "nothing is said before the list has loaded")
+        await second.refresh()
+        #expect(second.defaultNote == "Your default model, b, is not available. New chats use a.")
+        second.select(second.models[0])
+        #expect(second.defaultNote == nil, "picking a new default clears the note")
+    }
+
     @Test func resolveFlagsAnUnusablePreferenceOnlyAfterModelsLoaded() async {
         let registry = EngineRegistry()
         registry.register(ScriptedEngine(models: [testModel(id: "a")]))

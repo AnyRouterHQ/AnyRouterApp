@@ -241,17 +241,27 @@ enum DemoData {
                         output: Decimal(string: "0.6")!, context: 1_000_000, upstreams: 9),
     ]
 
-    private static let localCatalog: [(id: String, name: String, size: Int64, summary: String, tags: [String], fit: ModelFit)] = [
+    private static let localCatalog: [(id: String, name: String, size: Int64, summary: String, tags: [String], fit: ModelFit, family: String)] = [
         ("gguf/Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q4_K_M.gguf", "Qwen3 0.6B", 484_000_000,
-         "Small and fast. Good for quick answers.", ["gguf", "0.6B", "Q4_K_M"], .fits),
+         "Small and fast. Good for quick answers.", ["gguf", "0.6B", "Q4_K_M"], .fits, "qwen3"),
         ("gguf/bartowski/Llama-3.2-1B-Instruct-GGUF/Llama-3.2-1B-Instruct-Q4_K_M.gguf", "Llama 3.2 1B Instruct", 808_000_000,
-         "Meta's compact instruction model.", ["gguf", "1B", "Q4_K_M"], .fits),
+         "Meta's compact instruction model.", ["gguf", "1B", "Q4_K_M"], .fits, "llama32"),
         ("gguf/ggml-org/gemma-3-1b-it-GGUF/gemma-3-1b-it-Q4_K_M.gguf", "Gemma 3 1B", 806_000_000,
-         "Google's small multilingual model.", ["gguf", "1B", "Q4_K_M"], .fits),
+         "Google's small multilingual model.", ["gguf", "1B", "Q4_K_M"], .fits, "gemma3"),
         ("gguf/Qwen/Qwen3-1.7B-GGUF/Qwen3-1.7B-Q4_K_M.gguf", "Qwen3 1.7B", 1_280_000_000,
-         "Stronger reasoning, still phone sized.", ["gguf", "1.7B", "Q4_K_M"], .fits),
+         "Stronger reasoning, still phone sized.", ["gguf", "1.7B", "Q4_K_M"], .fits, "qwen3"),
         ("gguf/bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_M.gguf", "Llama 3.2 3B Instruct", 2_020_000_000,
-         "Best quality of the small Llama models.", ["gguf", "3B", "Q4_K_M"], .tight),
+         "Best quality of the small Llama models.", ["gguf", "3B", "Q4_K_M"], .tight, "llama32"),
+    ]
+
+    private static let familyNames = ["qwen3": "Qwen3", "llama32": "Llama 3.2", "gemma3": "Gemma 3"]
+
+    /// Sizes that do not fit the demo device (3.2 GB for models), so Local Models has a Not available list.
+    private static let tooBigCatalog: [(id: String, name: String, size: Int64, summary: String)] = [
+        ("gguf/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf", "Llama 3.1 8B Instruct", 4_920_000_000,
+         "A larger Llama for devices with more memory."),
+        ("gguf/Qwen/Qwen3-14B-GGUF/Qwen3-14B-Q4_K_M.gguf", "Qwen3 14B", 9_000_000_000,
+         "Strong reasoning, needs a lot of memory."),
     ]
 
     private static var installedLocal: [ModelDescriptor] {
@@ -259,10 +269,20 @@ enum DemoData {
     }
 
     fileprivate static var hubEntries: [LocalModelEntry] {
-        localCatalog.map {
+        let fitting = localCatalog.map {
             LocalModelEntry(descriptor: descriptor($0.id, .gguf, $0.name, size: $0.size, installed: false),
-                            summary: $0.summary, tags: $0.tags, fit: $0.fit, isUserAdded: false)
+                            summary: $0.summary, tags: $0.tags, fit: $0.fit, isUserAdded: false,
+                            familyID: $0.family, familyName: familyNames[$0.family])
         }
+        let tooBig = tooBigCatalog.map { model in
+            let detail = FitDetail(
+                verdict: .wontFit, neededBytes: model.size + 1_200_000_000, budgetBytes: 3_200_000_000, context: 512,
+                maxReply: 64, streamsFromStorage: false, isEstimate: false)
+            return LocalModelEntry(
+                descriptor: descriptor(model.id, .gguf, model.name, size: model.size, installed: false),
+                summary: model.summary, tags: ["gguf", "Q4_K_M"], fit: .wontFit, isUserAdded: false, fitDetail: detail)
+        }
+        return fitting + tooBig
     }
 
     private static let markdownAnswer = """

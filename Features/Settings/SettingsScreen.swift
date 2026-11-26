@@ -28,6 +28,8 @@ private struct SettingsList: View {
     @Environment(AppSettings.self) private var settings
     @Environment(ShellModel.self) private var shell
     @Environment(\.modelContext) private var context
+    @Environment(AppState.self) private var app
+    @Environment(ModelStore.self) private var models
 
     @State private var confirmsDelete = false
     @State private var versionTaps = 0
@@ -38,9 +40,15 @@ private struct SettingsList: View {
         List {
             Section { AccountCard() }
             ForEach(SettingsDestination.Group.allCases, id: \.self) { group in
-                Section(group.title) {
+                Section {
                     ForEach(group.destinations, id: \.self) { destination in
-                        NavigationLink(value: destination) { Label(destination.title, systemImage: destination.systemImage) }
+                        NavigationLink(value: destination) {
+                            LabeledContent {
+                                if let subtitle = subtitle(for: destination) { Text(subtitle) }
+                            } label: {
+                                Label(destination.title, systemImage: destination.systemImage)
+                            }
+                        }
                     }
                     if group == .chat {
                         Toggle(isOn: $settings.showKeyboardOnLaunch) {
@@ -52,6 +60,10 @@ private struct SettingsList: View {
                         }
                     }
                     if group == .about { versionRow }
+                } header: {
+                    Text(group.title)
+                } footer: {
+                    if group == .models, let note = models.defaultNote { Text(note) }
                 }
             }
         }
@@ -63,6 +75,22 @@ private struct SettingsList: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes every chat and its messages from this device.")
+        }
+    }
+
+    /// The second line of a row that has one: how much is installed, which cloud model is the default.
+    private func subtitle(for destination: SettingsDestination) -> String? {
+        switch destination {
+        case .localModels:
+            let installed = LocalModelsLogic.installed(app.hub.catalog, state: { app.hub.downloadState(for: $0) })
+            let storage = LocalModelsLogic.storage(installed: installed, freeBytes: nil)
+            return SettingsLogic.localModelsSubtitle(installedCount: storage.modelCount, usedBytes: storage.usedBytes)
+        case .anyRouterModels:
+            let selected = models.selected
+            return SettingsLogic.anyRouterModelsSubtitle(
+                defaultName: selected?.source == .anyrouter ? selected?.shortName : nil, starredCount: 0)
+        default:
+            return nil
         }
     }
 
@@ -103,10 +131,9 @@ struct SettingsDestinationView: View {
     var body: some View {
         Group {
             switch destination {
-            case .manageModels: HubScreen()
-            case .defaultModel: DefaultModelSettings()
-            case .inference: InferenceSettings()
-            case .catalogSources: CatalogSourcesSheet()
+            case .localModels: LocalModelsScreen()
+            case .anyRouterModels: AnyRouterModelsScreen()
+            case .responseCustomization: ResponseCustomizationSettings()
             case .presets: PresetsSettingsView()
             case .integrations: IntegrationsSettingsView()
             case .theme: ThemeSettings()

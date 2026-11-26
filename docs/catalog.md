@@ -6,7 +6,7 @@ The list of local models in the app comes from JSON files in this repo. Adding o
 | File | Used by |
 |---|---|
 | `catalog/models.json` | Production. Bundled in the app as the offline fallback, and fetched from GitHub at launch and on pull-to-refresh. |
-| `catalog/dev-models.json` | Development. Fetched when **Settings > Catalog source > Use the development catalog** is on. Try new models here first. |
+| `catalog/dev-models.json` | Development. Fetched when **Settings > Local Models > Catalog Sources > AnyRouter catalog > Use the development catalog** is on. Try new models here first. |
 
 Remote URL: `https://raw.githubusercontent.com/AnyRouterHQ/AnyRouterApp/main/catalog/models.json` (and `dev-models.json`).
 A user can replace it with their own https URL in Settings.
@@ -76,7 +76,7 @@ longer matches.
 
 1. Keep the list short: at most three sizes per family, the best quant per size, GGUF and MLX only where both are tested.
 2. One current generation per line. When a new generation lands, set the old family to `deprecated` with `replacedBy`; do not delete it.
-3. A deprecated model is hidden from browsing, search and recommendations. A person who installed it keeps using it, sees "Older model, try <replacement>" in Manage models, and can delete it.
+3. A deprecated model is hidden from browsing, search and recommendations. A person who installed it keeps using it, sees "Older model, try <replacement>" in Local Models, and can delete it.
 4. A model enters `models.json` only after it loaded and answered in the `model-smoke` workflow. New ones start in `dev-models.json`.
 5. Memory claims come from the `memory` facts and the fit check, never from prose.
 

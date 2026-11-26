@@ -80,6 +80,9 @@ struct LocalModelEntry: Identifiable, Hashable, Sendable {
     var isDeprecated = false
     /// Name of the family that replaces a deprecated one.
     var replacementName: String? = nil
+    /// Hugging Face repo (`org/name`), empty when unknown, and the commit or branch it downloads from. Nil revision means `main`.
+    var repo = ""
+    var revision: String? = nil
     var id: String { descriptor.id }
 }
 
@@ -117,7 +120,7 @@ protocol ModelHubService: AnyObject {
     var remoteCatalogURL: String { get }
     /// True while the shared catalog is read from `dev-models.json` instead of `models.json`.
     var usesDevelopmentCatalog: Bool { get }
-    /// One line for Manage models when this install has the standard memory limit (the increased limit is not signed in),
+    /// One line for Local Models when this install has the standard memory limit (the increased limit is not signed in),
     /// else nil. Sideloaded builds re-signed with a free Apple ID lose it.
     var memoryLimitNote: String? { get }
 
@@ -143,6 +146,18 @@ protocol ModelHubService: AnyObject {
 }
 
 extension ModelHubService {
+    /// Deletes every installed model, one at a time. A model that fails to delete leaves `lastError` set and the rest still go.
+    func deleteAllModels() async {
+        for entry in catalog where downloadState(for: entry.id) == .installed {
+            await delete(modelID: entry.id)
+        }
+    }
+
+    /// Removes models from the person's own list (`removeUserModel`), one at a time.
+    func removeUserModels(_ ids: [String]) async {
+        for id in ids { await removeUserModel(modelID: id) }
+    }
+
     /// Current model families with their sizes. Deprecated models are not listed.
     var families: [LocalModelFamily] { FamilyLogic.families(from: catalog) }
     /// Models without a family (repos the user added).

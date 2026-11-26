@@ -57,7 +57,7 @@ enum FitText {
         return "This model\(size) needs about \(gigabytes(detail.neededBytes)) of memory. This \(device) can give about \(gigabytes(detail.budgetBytes)), so it will not load."
     }
 
-    /// Shown once in Manage models when the increased memory limit is not signed into this install.
+    /// Shown once in Local Models when the increased memory limit is not signed into this install.
     static func memoryLimitNote(entitlementSigned: Bool?) -> String? {
         entitlementSigned == false
             ? "This install has the standard memory limit. TestFlight builds can load bigger models." : nil

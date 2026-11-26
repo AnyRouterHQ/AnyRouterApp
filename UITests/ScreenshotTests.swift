@@ -145,14 +145,14 @@ final class ScreenshotTests: XCTestCase {
 
     func testHub() {
         forEachAppearance { app, appearance in
-            // The sidebar has no hub entry any more: Settings > Models > Manage models.
+            // The sidebar has no hub entry any more: Settings > Models > Local Models.
             open(app, footer: "Settings")
-            let manage = button(app, containing: "Manage models")
+            let manage = button(app, containing: "Local Models")
             XCTAssertTrue(manage.waitForExistence(timeout: 10))
             scrollTo(manage, in: app)
             manage.tap()
-            XCTAssertTrue(app.navigationBars["Manage models"].waitForExistence(timeout: 10))
-            XCTAssertTrue(app.otherElements["hub.storage"].exists || app.staticTexts["Storage"].exists)
+            XCTAssertTrue(app.navigationBars["Local Models"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["Storage"].waitForExistence(timeout: 10) || app.otherElements["local.storage"].exists)
             // Rows are list cells with a link, so match by label instead of a static text id.
             let qwen = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Qwen3 0.6B'")).firstMatch
             XCTAssertTrue(qwen.waitForExistence(timeout: 10))

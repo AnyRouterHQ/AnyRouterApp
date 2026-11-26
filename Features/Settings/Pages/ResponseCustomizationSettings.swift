@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Generation defaults: system prompt, max tokens, temperature, top P.
-struct InferenceSettings: View {
+/// How replies are shaped and shown: system prompt, max tokens, temperature, top P, and the line under each reply.
+struct ResponseCustomizationSettings: View {
     @Environment(AppSettings.self) private var settings
 
     var body: some View {
@@ -23,6 +23,13 @@ struct InferenceSettings: View {
             Section("Sampling") {
                 slider("Temperature", value: $settings.temperature, range: 0...2, step: 0.05)
                 slider("Top P", value: $settings.topP, range: 0...1, step: 0.01)
+            }
+            Section {
+                Toggle("Show response details", isOn: $settings.showResponseDetails)
+            } header: {
+                Text("Replies")
+            } footer: {
+                Text("The model, cost and speed under each reply.")
             }
             Section {
                 Button("Reset to defaults", role: .destructive) { settings.resetGenerationDefaults() }

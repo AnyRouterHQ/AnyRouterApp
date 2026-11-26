@@ -68,4 +68,31 @@ struct DefaultModelPolicyTests {
         let withCoding = onlyByok + [cloud("anyrouter/coding", usable: true)]
         #expect(DefaultModelPolicy.resolve(saved: nil, models: withCoding)?.id == "anyrouter/anyrouter/coding")
     }
+
+    // MARK: Fallback note
+
+    @Test func noNoteWithoutASavedDefaultOrWhileItStillWorks() {
+        let models = world(signedIn: true, apple: true, local: true)
+        #expect(DefaultModelPolicy.fallbackNote(saved: nil, models: models) == nil)
+        #expect(DefaultModelPolicy.fallbackNote(saved: "apple/foundation", models: models) == nil)
+    }
+
+    @Test func aDefaultThatCannotBeUsedNamesItAndTheModelThatTookOver() {
+        // Signed out: the saved cloud model is listed but not usable, Apple Intelligence takes over.
+        let models = world(signedIn: false, apple: true, local: true)
+        #expect(DefaultModelPolicy.fallbackNote(saved: "anyrouter/openai/gpt-5", models: models)
+            == "Your default model, openai/gpt-5, is not available. New chats use apple/foundation.")
+    }
+
+    @Test func aDeletedDefaultIsNamedByItsFileAndAutoTakesOverWhenSignedIn() {
+        let models = world(signedIn: true, apple: true, local: true)
+        #expect(DefaultModelPolicy.fallbackNote(saved: "gguf/gone/model-q4.gguf", models: models)
+            == "Your default model, model-q4.gguf, is not available. New chats use AnyRouter.")
+    }
+
+    @Test func withNothingUsableTheNoteAsksForAnotherDefault() {
+        let models = world(signedIn: false, apple: false, local: false)
+        #expect(DefaultModelPolicy.fallbackNote(saved: "gguf/org/m/m.gguf", models: models)
+            == "Your default model, gguf/org/m/m.gguf, is not available. Choose another default.")
+    }
 }

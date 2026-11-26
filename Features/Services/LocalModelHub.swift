@@ -246,7 +246,9 @@ final class LocalModelHub: ModelHubService {
             quantization: entry.quantization,
             releasedAt: entry.updatedAt ?? entry.createdAt,
             isDeprecated: entry.status == .deprecated,
-            replacementName: replacementName
+            replacementName: replacementName,
+            repo: entry.repo,
+            revision: entry.revision
         )
     }
 }

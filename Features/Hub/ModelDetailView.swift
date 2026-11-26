@@ -97,7 +97,7 @@ struct ModelDetailView: View {
             Label("Verifying", systemImage: "checkmark.shield").foregroundStyle(.secondary)
         case .installed:
             if let installedDescriptor {
-                Button("Set as default", systemImage: "star") { models.select(installedDescriptor) }
+                Button("Set as Default", systemImage: "star") { models.select(installedDescriptor) }
             }
             if isLoaded {
                 Button("Unload from memory", systemImage: "memorychip") { Task { await app.memory.unload() } }

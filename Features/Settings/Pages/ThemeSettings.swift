@@ -11,11 +11,6 @@ struct ThemeSettings: View {
             }
             .pickerStyle(.inline)
             .labelsHidden()
-            Section {
-                Toggle("Show response details", isOn: $settings.showResponseDetails)
-            } footer: {
-                Text("The model, cost and speed under each reply.")
-            }
         }
     }
 }

@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Sheet wrapper: Manage models in its own navigation stack with a close button.
+/// Sheet wrapper: Local Models in its own navigation stack with a close button.
 struct HubSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            HubScreen()
+            LocalModelsScreen()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
                 }
@@ -14,8 +14,8 @@ struct HubSheet: View {
     }
 }
 
-/// Manage models: what is on this device, what is downloading, and what can be added. A stock inset-grouped list.
-/// The caller supplies the navigation stack (the hub sheet and Settings both do).
+/// Browse models: everything in the catalog, searchable, with sort and filters, plus add by link. A stock inset-grouped list.
+/// Local Models pushes it; the caller supplies the navigation stack.
 struct HubScreen: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models
@@ -26,11 +26,13 @@ struct HubScreen: View {
     @State private var showsRepoSearch = false
     @State private var showsAddByLink = false
     @State private var freeBytes: Int64?
-    @State private var pendingDelete: LocalModelEntry?
-    @State private var pendingDownload: LocalModelEntry?
+    @State private var prompts = LocalModelPrompts()
 
     private var hub: any ModelHubService { app.hub }
     private var device: String { DeviceName.current }
+    private var actions: LocalModelActions {
+        LocalModelActions(hub: hub, models: models, memory: app.memory, prompts: prompts, device: device)
+    }
 
     private var sections: HubLogic.Sections {
         HubLogic.sections(catalog: hub.catalog, state: { hub.downloadState(for: $0) }, query: query)
@@ -134,7 +136,7 @@ struct HubScreen: View {
         }
         .listStyle(.insetGrouped)
         .accessibilityIdentifier("hub.list")
-        .navigationTitle("Manage models")
+        .navigationTitle("Browse models")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "Search models")
         .overlay {
@@ -151,20 +153,7 @@ struct HubScreen: View {
         .refreshable { await hub.refreshCatalog() }
         .sheet(isPresented: $showsRepoSearch) { RepoSearchSheet(query: query).presentationSizing(.page) }
         .sheet(isPresented: $showsAddByLink) { AddByLinkSheet() }
-        .confirmationDialog("Delete model?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
-                            titleVisibility: .visible, presenting: pendingDelete) { entry in
-            Button("Delete \(entry.descriptor.displayName)", role: .destructive) {
-                Task { await hub.delete(modelID: entry.id) }
-            }
-        } message: { _ in
-            Text("The files are removed from this \(device). You can download it again later.")
-        }
-        .confirmationDialog("Download anyway?", isPresented: Binding(get: { pendingDownload != nil }, set: { if !$0 { pendingDownload = nil } }),
-                            titleVisibility: .visible, presenting: pendingDownload) { entry in
-            Button("Download anyway", role: .destructive) { hub.download(entry) }
-        } message: { entry in
-            Text(FitText.downloadWarning(entry.fitDetail, sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes), device: device) ?? "")
-        }
+        .modifier(LocalModelDialogs(prompts: prompts, hub: hub, device: device))
         .onChange(of: installedIDs) { Task { await models.refresh() } }
         .task {
             await app.memory.refresh()
@@ -250,7 +239,7 @@ struct HubScreen: View {
                 Image(systemName: "star.fill").foregroundStyle(.secondary).accessibilityLabel("Default model")
             }
         }
-        .contextMenu { Button("Set as default", systemImage: "star") { models.select(model) } }
+        .contextMenu { Button("Set as Default", systemImage: "star") { models.select(model) } }
     }
 
     private func row(_ entry: LocalModelEntry) -> some View {
@@ -261,63 +250,11 @@ struct HubScreen: View {
         } label: {
             ModelRow(entry: entry, state: state, isDefault: models.selected?.id == id && state == .installed)
         }
-        .swipeActions(edge: .trailing) { swipeActions(entry, state: state) }
-        .contextMenu { menu(entry, state: state) }
+        .swipeActions(edge: .trailing) { actions.swipe(entry, state: state) }
+        .contextMenu { actions.menu(entry, state: state) }
     }
 
-    @ViewBuilder
-    private func swipeActions(_ entry: LocalModelEntry, state: DownloadState) -> some View {
-        switch state {
-        case .installed:
-            Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = entry }
-        case .downloading:
-            Button("Cancel", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
-            Button("Pause", systemImage: "pause") { hub.pause(modelID: entry.id) }.tint(.orange)
-        case .paused:
-            Button("Cancel", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
-            Button("Resume", systemImage: "play") { hub.resume(modelID: entry.id) }.tint(.green)
-        case .notInstalled, .failed:
-            if entry.unavailableReason == nil {
-                Button("Download", systemImage: "arrow.down") { requestDownload(entry) }.tint(.blue)
-            }
-        case .verifying:
-            EmptyView()
-        }
-    }
-
-    @ViewBuilder
-    private func menu(_ entry: LocalModelEntry, state: DownloadState) -> some View {
-        switch state {
-        case .installed:
-            if let descriptor = models.models.first(where: { $0.id == entry.id && $0.isInstalled }) {
-                Button("Set as default", systemImage: "star") { models.select(descriptor) }
-            }
-            if app.memory.loadedModelID == entry.id {
-                Button("Unload", systemImage: "memorychip") { Task { await app.memory.unload() } }
-            }
-            Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = entry }
-        case .downloading:
-            Button("Pause", systemImage: "pause") { hub.pause(modelID: entry.id) }
-            Button("Cancel download", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
-        case .paused:
-            Button("Resume", systemImage: "play") { hub.resume(modelID: entry.id) }
-            Button("Cancel download", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
-        case .notInstalled, .failed:
-            if entry.unavailableReason == nil {
-                Button("Download", systemImage: "arrow.down.circle") { requestDownload(entry) }
-            }
-        case .verifying:
-            EmptyView()
-        }
-    }
-
-    /// A model that will not fit asks first. Everything else downloads at once.
-    private func requestDownload(_ entry: LocalModelEntry) {
-        let warning = FitText.downloadWarning(entry.fitDetail, sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes), device: device)
-        if warning != nil { pendingDownload = entry } else { hub.download(entry) }
-    }
-
-    private static func freeDiskBytes() -> Int64? {
+    static func freeDiskBytes() -> Int64? {
         let values = try? URL.documentsDirectory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
         return values?.volumeAvailableCapacityForImportantUsage
     }

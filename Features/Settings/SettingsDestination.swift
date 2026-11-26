@@ -2,9 +2,10 @@ import Foundation
 
 /// Every page Settings can push. One case plus one view in `SettingsDestinationView` adds a page;
 /// other lanes (presets, integrations) fill their view file and leave the list alone.
+/// Local Models owns its own sub-pages (Not available, Catalog Sources, Voice): they push from there, not from this list.
 enum SettingsDestination: Hashable, CaseIterable, Sendable {
-    case manageModels, defaultModel, inference, catalogSources
-    case presets, integrations
+    case localModels, anyRouterModels
+    case responseCustomization, presets, integrations
     case theme
     case diagnostics, privacy, terms, licenses
 
@@ -22,8 +23,8 @@ enum SettingsDestination: Hashable, CaseIterable, Sendable {
 
         var destinations: [SettingsDestination] {
             switch self {
-            case .models: [.manageModels, .defaultModel, .inference, .catalogSources]
-            case .chat: [.presets, .integrations]
+            case .models: [.localModels, .anyRouterModels]
+            case .chat: [.responseCustomization, .presets, .integrations]
             case .appearance: [.theme]
             case .about: [.diagnostics, .privacy, .terms, .licenses]
             }
@@ -32,10 +33,9 @@ enum SettingsDestination: Hashable, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .manageModels: "Manage models"
-        case .defaultModel: "Default model"
-        case .inference: "Inference"
-        case .catalogSources: "Catalog sources"
+        case .localModels: "Local Models"
+        case .anyRouterModels: "AnyRouter Models"
+        case .responseCustomization: "Response Customization"
         case .presets: "Presets"
         case .integrations: "Integrations"
         case .theme: "Theme"
@@ -48,10 +48,9 @@ enum SettingsDestination: Hashable, CaseIterable, Sendable {
 
     var systemImage: String {
         switch self {
-        case .manageModels: "cube"
-        case .defaultModel: "star"
-        case .inference: "slider.horizontal.3"
-        case .catalogSources: "books.vertical"
+        case .localModels: "cube"
+        case .anyRouterModels: "cloud"
+        case .responseCustomization: "slider.horizontal.3"
         case .presets: "text.badge.star"
         case .integrations: "puzzlepiece.extension"
         case .theme: "circle.lefthalf.filled"

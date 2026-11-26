@@ -13,11 +13,18 @@ struct SettingsDestinationTests {
     }
 
     @Test func routingTableMatchesTheSpec() {
-        #expect(SettingsDestination.Group.models.destinations == [.manageModels, .defaultModel, .inference, .catalogSources])
-        #expect(SettingsDestination.Group.chat.destinations == [.presets, .integrations])
+        #expect(SettingsDestination.Group.models.destinations == [.localModels, .anyRouterModels])
+        #expect(SettingsDestination.Group.chat.destinations == [.responseCustomization, .presets, .integrations])
         #expect(SettingsDestination.Group.about.destinations == [.diagnostics, .privacy, .terms, .licenses])
         #expect(SettingsDestination.presets.group == .chat)
         #expect(SettingsDestination.theme.group == .appearance)
+    }
+
+    @Test func modelsComeFirstAsLocalThenAnyRouter() {
+        #expect(SettingsDestination.localModels.title == "Local Models")
+        #expect(SettingsDestination.anyRouterModels.title == "AnyRouter Models")
+        #expect(SettingsDestination.responseCustomization.title == "Response Customization")
+        #expect(SettingsDestination.localModels.group == .models)
     }
 
     @Test func titlesAndIconsAreFilled() {

@@ -154,7 +154,7 @@ final class PadLayoutTests: XCTestCase {
         let browse = popover.buttons["Browse models"]
         XCTAssertTrue(browse.waitForExistence(timeout: 5))
         browse.tap()
-        let bar = app.navigationBars["Manage models"]
+        let bar = app.navigationBars["Local Models"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
         XCTAssertLessThan(bar.frame.width, app.windows.firstMatch.frame.width - 40, "inset from the screen edges")
     }

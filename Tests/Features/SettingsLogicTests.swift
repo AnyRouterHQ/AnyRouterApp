@@ -18,6 +18,18 @@ struct SettingsLogicTests {
         #expect(SettingsLogic.parseRepo(input) == nil)
     }
 
+    @Test func localModelsSubtitleSaysHowManyAndHowMuch() {
+        #expect(SettingsLogic.localModelsSubtitle(installedCount: 3, usedBytes: 4_100_000_000) == "3 installed · 4.1 GB")
+        #expect(SettingsLogic.localModelsSubtitle(installedCount: 1, usedBytes: 600_000_000) == "1 installed · 600 MB")
+        #expect(SettingsLogic.localModelsSubtitle(installedCount: 0, usedBytes: 0) == nil)
+    }
+
+    @Test func anyRouterModelsSubtitleLeadsWithTheDefaultThenTheStarredCount() {
+        #expect(SettingsLogic.anyRouterModelsSubtitle(defaultName: "AnyRouter", starredCount: 4) == "Default: AnyRouter")
+        #expect(SettingsLogic.anyRouterModelsSubtitle(defaultName: nil, starredCount: 4) == "4 starred")
+        #expect(SettingsLogic.anyRouterModelsSubtitle(defaultName: nil, starredCount: 0) == nil)
+    }
+
     @Test func licenseListCoversLinkedLibraries() {
         let names = LicenseNotice.all.map(\.name)
         #expect(names.contains("llama.cpp"))
