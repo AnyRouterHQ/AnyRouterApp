@@ -74,7 +74,8 @@ final class PerformanceTests: XCTestCase {
         // Manual start/stop makes XCTCPUMetric fail to harvest on the Simulator (checked in CI), so the whole block is
         // measured: about 3 s of tapping and typing plus the stream. The idle control has the same length.
         measure(metrics: metrics, options: options(iterations: 3)) {
-            if app.buttons["New chat"].exists { app.buttons["New chat"].tap() }
+            let newChat = app.buttons.matching(NSPredicate(format: "label == 'New chat' AND hittable == true")).firstMatch
+            if newChat.exists { newChat.tap() }
             send("Write something long", in: app)
             XCTAssertTrue(app.buttons["Regenerate"].waitForExistence(timeout: 90), "reply did not finish")
         }
@@ -93,30 +94,33 @@ final class PerformanceTests: XCTestCase {
         app.terminate()
     }
 
-    /// M4. Time from the tap until the first row is on screen, plus closing the sheet. The block includes
-    /// XCUITest reading the screen, which grows with the number of rows, so the 6-model control below tells
-    /// how much of the 500-model number is the list itself.
+    /// M4. Time from the tap until the AnyRouter tab shows its first row, then picking that row, which closes the
+    /// sheet. The block includes XCUITest reading the screen, which grows with the number of rows, so the
+    /// 6-model control below tells how much of the 500-model number is the list itself.
     func testPickerOpenWith500Models() {
-        measurePicker(extra: ["-ARDemoManyModels", "500"], firstRow: "Bench model 001")
+        measurePicker(extra: ["-ARDemoManyModels", "500"])
     }
 
     /// M4 control: the same steps with the six demo cloud models.
     func testPickerOpenWith6Models() {
-        measurePicker(extra: [], firstRow: "Claude Sonnet 4.6")
+        measurePicker(extra: [])
     }
 
-    private func measurePicker(extra: [String], firstRow: String) {
+    private func measurePicker(extra: [String]) {
         let app = demoApp(extra)
         app.launch()
         XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 20))
         sleep(2)
-        let row = app.staticTexts[firstRow]
+        let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'model-row.'"))
         // Whole block measured, closing the sheet included: manual start/stop breaks XCTCPUMetric on the Simulator.
         measure(metrics: [XCTClockMetric(), XCTCPUMetric(application: app)], options: options()) {
             app.buttons["Model"].tap()
-            XCTAssertTrue(row.waitForExistence(timeout: 30))
-            if app.buttons["Done"].exists { app.buttons["Done"].tap() } else { app.staticTexts["Choose model"].swipeDown() }
-            XCTAssertTrue(row.waitForNonExistence(timeout: 10), "picker did not close")
+            let tabs = app.segmentedControls.firstMatch
+            XCTAssertTrue(tabs.waitForExistence(timeout: 30))
+            tabs.buttons["AnyRouter"].tap()
+            XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 30))
+            rows.firstMatch.tap()
+            XCTAssertTrue(tabs.waitForNonExistence(timeout: 10), "picker did not close")
         }
         app.terminate()
     }

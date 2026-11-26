@@ -106,7 +106,6 @@ private struct ChatContent: View {
     @FocusState private var composerFocused: Bool
     /// A tapped-in tip that replaces the model subtitle until the chat changes.
     @State private var tip: String?
-    @State private var position = ScrollPosition(edge: .bottom)
     /// The list follows the reply while true (see `ScrollFollow`).
     @State private var following = true
     @State private var nearBottom = true
@@ -190,7 +189,10 @@ private struct ChatContent: View {
         let messages = chat.messages
         let lastID = messages.last?.id
         let switchNotes = SwitchNotes.make(messages)
-        return ScrollView {
+        // ScrollViewReader, not a ScrollPosition binding: the binding is written on every scroll frame, which
+        // re-evaluates the whole list (the perf baseline showed the scroll CPU more than doubling).
+        return ScrollViewReader { proxy in
+        ScrollView {
             LazyVStack(spacing: 20) {
                 ForEach(messages) { message in
                     MessageRow(
@@ -210,13 +212,13 @@ private struct ChatContent: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .accessibilityIdentifier("offline-tool-note")
                 }
+                Color.clear.frame(height: 1).id("bottom")
             }
             // A container of its own, so the UI tests can measure the column.
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("chat.content")
             .padding(.vertical, 12)            .readableWidth()
         }
-        .scrollPosition($position)
         .scrollDismissesKeyboard(.interactively)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .defaultScrollAnchor(.bottom)
@@ -233,15 +235,15 @@ private struct ChatContent: View {
         // A new message is the reader's own send or a regenerate: always show it.
         .onChange(of: messages.count) {
             following = true
-            position.scrollTo(edge: .bottom)
+            proxy.scrollTo("bottom", anchor: .bottom)
         }
-        .onChange(of: messages.last?.toolTraceData) { if following { position.scrollTo(edge: .bottom) } }
-        .onChange(of: messages.last?.content.count) { if following { position.scrollTo(edge: .bottom) } }
+        .onChange(of: messages.last?.toolTraceData) { if following { proxy.scrollTo("bottom", anchor: .bottom) } }
+        .onChange(of: messages.last?.content.count) { if following { proxy.scrollTo("bottom", anchor: .bottom) } }
         .overlay(alignment: .bottom) {
             if !following {
                 Button {
                     following = true
-                    position.scrollTo(edge: .bottom)
+                    proxy.scrollTo("bottom", anchor: .bottom)
                 } label: {
                     Label("Jump to latest", systemImage: "arrow.down").labelStyle(.iconOnly)
                 }
@@ -253,6 +255,7 @@ private struct ChatContent: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: following)
+        }
     }
 }
 
