@@ -20,8 +20,9 @@ enum InboundChatLogic {
     static func composerText(preset: PromptPreset?, text: String?) -> String {
         let body = trimmed(text)
         guard let preset else { return body }
-        if body.isEmpty { return preset.prompt }
-        let lead = preset.prompt.hasSuffix("\n") ? preset.prompt : preset.prompt + "\n\n"
+        let prompt = preset.resolvedPrompt
+        if body.isEmpty { return prompt }
+        let lead = prompt.hasSuffix("\n") ? prompt : prompt + "\n\n"
         return lead + body
     }
 

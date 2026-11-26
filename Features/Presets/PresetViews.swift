@@ -35,7 +35,7 @@ struct PresetSuggestions: View {
         Button { onPick(preset) } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(preset.title).font(.subheadline.weight(.semibold)).lineLimit(1)
-                Text(preset.prompt).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(PresetOptionsLogic.summary(preset)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             .frame(width: chipWidth, alignment: .leading)
         }
@@ -67,7 +67,7 @@ struct PresetSheet: View {
                 Button { onPick(preset); dismiss() } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Label(preset.title, systemImage: preset.symbol).font(.headline)
-                        Text(preset.prompt).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                        Text(PresetOptionsLogic.summary(preset)).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                     }
                 }
                 .foregroundStyle(.primary)

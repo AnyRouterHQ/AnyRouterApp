@@ -211,10 +211,27 @@ final class ChatViewModel {
         return startStream(model: model, thread: thread)
     }
 
-    /// Fills the composer with the preset prompt so the user can edit before sending.
+    /// A preset with pickers (tone, language) waits here for the user's choices. The chat screen shows its sheet.
+    var presetNeedingChoices: PromptPreset?
+
+    /// Fills the composer with the preset prompt so the user can edit before sending. A preset with pickers opens
+    /// its choices first.
     func usePreset(_ preset: PromptPreset) {
+        if preset.hasOptions {
+            presetNeedingChoices = preset
+            return
+        }
         input = preset.prompt
         focusTick += 1
+    }
+
+    /// The choices are made: the prompt for them plus the message goes out as one send.
+    @discardableResult
+    func finishChoices(_ preset: PromptPreset, selection: PresetSelection, message: String) -> Task<Void, Never>? {
+        presetNeedingChoices = nil
+        input = PresetOptionsLogic.composerText(preset, selection: selection, message: message)
+        focusTick += 1
+        return send()
     }
 
     /// A chat opened from outside the app: the composer gets the request's text and preset, and the message goes out
@@ -229,7 +246,7 @@ final class ChatViewModel {
     @discardableResult
     func sendNow(_ preset: PromptPreset) -> Task<Void, Never>? {
         guard phase == .idle else { return nil }
-        input = preset.prompt
+        input = preset.resolvedPrompt
         return send()
     }
 

@@ -28,6 +28,34 @@
     "symbol": "book"
   },
   {
+    "id": "reply-to-this",
+    "title": "Reply to this",
+    "prompt": "Write a reply to the message below. Tone: {tone}. Language: {language}. Give the reply text only, with no introduction and no notes.\n\nMessage:\n",
+    "category": "write",
+    "symbol": "arrowshape.turn.up.left",
+    "options": [
+      {
+        "id": "tone",
+        "title": "Tone",
+        "choices": [
+          { "id": "polite", "title": "Polite", "wording": "polite and respectful" },
+          { "id": "short", "title": "Short", "wording": "short and to the point, one or two sentences" },
+          { "id": "friendly", "title": "Friendly", "wording": "warm and friendly" },
+          { "id": "formal", "title": "Formal", "wording": "formal and professional" }
+        ]
+      },
+      {
+        "id": "language",
+        "title": "Language",
+        "choices": [
+          { "id": "same", "title": "Same", "wording": "the same language as the message" },
+          { "id": "english", "title": "English", "wording": "English" },
+          { "id": "vietnamese", "title": "Vietnamese", "wording": "Vietnamese" }
+        ]
+      }
+    ]
+  },
+  {
     "id": "fix-english",
     "title": "Fix my English",
     "prompt": "Fix the grammar, spelling and wording of the text below. Keep my meaning and tone. Give the corrected text first, then a short list of what you changed.\n\nText:\n",

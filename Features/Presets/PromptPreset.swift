@@ -14,6 +14,21 @@ struct PromptPreset: Identifiable, Codable, Hashable, Sendable {
     var category: Category
     /// SF Symbol name.
     var symbol: String
+    /// Pickers the user fills in before the preset runs ("Tone", "Language"). The prompt names each one as `{id}`.
+    var options: [PresetOption]? = nil
+}
+
+/// One picker of a preset and the words each choice puts into the prompt. The first choice is the default.
+struct PresetOption: Codable, Hashable, Identifiable, Sendable {
+    struct Choice: Codable, Hashable, Identifiable, Sendable {
+        var id: String
+        var title: String
+        var wording: String
+    }
+
+    var id: String
+    var title: String
+    var choices: [Choice]
 }
 
 /// Pure list logic for the presets UI, kept apart from views so it is testable.
@@ -39,13 +54,15 @@ enum PresetLogic {
         return UInt64((parts.year ?? 0) * 10_000 + (parts.month ?? 0) * 100 + (parts.day ?? 0))
     }
 
-    /// Custom presets stay first; the shuffle only reorders the rest.
+    /// Custom presets stay first, then the built-ins with pickers (the helpers, like "Reply to this", must always be one
+    /// tap away); the shuffle only reorders the rest.
     static func featured(_ items: [PromptPreset], customIDs: Set<String>, category: PromptPreset.Category?,
                          seed: UInt64, limit: Int) -> [PromptPreset] {
         let filtered = filter(items, category: category)
         let custom = filtered.filter { customIDs.contains($0.id) }
-        let rest = shuffled(filtered.filter { !customIDs.contains($0.id) }, seed: seed)
-        return Array((custom + rest).prefix(limit))
+        let builtIns = filtered.filter { !customIDs.contains($0.id) }
+        let rest = shuffled(builtIns.filter { !$0.hasOptions }, seed: seed)
+        return Array((custom + builtIns.filter(\.hasOptions) + rest).prefix(limit))
     }
 }
 

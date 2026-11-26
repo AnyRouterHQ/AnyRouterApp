@@ -119,6 +119,12 @@ private struct ChatContent: View {
             Composer(model: chat, hasModel: chat.model != nil, presets: presets, focused: $composerFocused)
         }
         .refreshesMemory(app.memory)
+        // A preset with pickers (Reply to this) asks for its choices before it sends.
+        .sheet(item: $chat.presetNeedingChoices) { preset in
+            PresetOptionsSheet(preset: preset, message: chat.input) { selection, message in
+                chat.finishChoices(preset, selection: selection, message: message)
+            }
+        }
     }
 
     private var emptyState: some View {
