@@ -80,6 +80,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO | tail -n 200
 
       - name: Test
+        timeout-minutes: 15
         run: |
           set -o pipefail
           xcodebuild test-without-building \
@@ -88,7 +89,11 @@ jobs:
             -derivedDataPath DerivedData \
             -resultBundlePath TestResults.xcresult \
             -enableCodeCoverage YES \
-            CODE_SIGNING_ALLOWED=NO | tail -n 200
+            CODE_SIGNING_ALLOWED=NO | tee test.log | tail -n 200
+
+      - name: Last test output
+        if: failure()
+        run: tail -n 80 test.log || true
 
       - name: Coverage gate
         run: scripts/coverage-gate.sh TestResults.xcresult
