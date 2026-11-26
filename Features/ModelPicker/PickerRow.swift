@@ -74,8 +74,8 @@ enum PickerRow {
     static let needsKeyText = "Needs your provider key"
     static let unavailableText = "Unavailable"
     static let idLimit = 34
-    /// Models up to this place in the weekly ranking show their number.
-    static let rankedCount = 20
+    /// Models up to this place in the weekly ranking show their number: the ten the short list shows.
+    static let rankedCount = CloudListLogic.topCount
 
     /// `fitBadge` is the device-fit text for a local model, when the hub has numbers for it.
     /// `usage` is set only when the list is ranked by weekly usage (see `CloudListLogic.rowUsage`).
