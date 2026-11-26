@@ -19,10 +19,21 @@ struct AppShell: View {
         .sheet(isPresented: Bindable(shell).isSettingsPresented) { SettingsScreen().presentationSizing(.form) }
         .sheet(isPresented: Bindable(shell).isHubPresented) { HubSheet().presentationSizing(.page) }
         .sheet(isPresented: Bindable(shell).isDecisionsPresented) { DecisionsSheet().presentationSizing(.page) }
+        // Chat search is its own screen: full screen on iPhone, a page sheet in a regular-width window.
+        .fullScreenCover(isPresented: searchBinding(whenRegular: false)) { ThreadSearchScreen() }
+        .sheet(isPresented: searchBinding(whenRegular: true)) { ThreadSearchScreen().presentationSizing(.page) }
         // Only the iPhone drawer uses `isSidebarOpen`. It starts closed whenever the window becomes compact.
         .onChange(of: isRegular) { shell.isSidebarOpen = false }
         .onAppear { restoreSelection() }
         .onChange(of: shell.selectedThreadID) { _, id in storedThread = id?.uuidString ?? "" }
+    }
+
+    /// One of the two search presentations: the one that fits the window shows, the other stays closed.
+    private func searchBinding(whenRegular: Bool) -> Binding<Bool> {
+        Binding(
+            get: { shell.isSearchPresented && isRegular == whenRegular },
+            set: { if !$0 { shell.isSearchPresented = false } }
+        )
     }
 
     /// Reopens the thread this scene showed before it was closed, if it still exists.
@@ -54,8 +65,6 @@ private struct PadShell: View {
         .onChange(of: isPortrait) { visibility = .automatic }
         // In portrait the sidebar floats over the chat, so picking a chat closes it.
         .onChange(of: shell.selectedThreadID) { if isPortrait { visibility = .detailOnly } }
-        // Find chats (Cmd F) needs the sidebar.
-        .onChange(of: shell.searchRequest) { visibility = .all }
     }
 }
 
@@ -95,8 +104,7 @@ private struct PhoneShell: View {
         .contentShape(Rectangle())
         .simultaneousGesture(drag(width: width))
         .animation(settle, value: shell.isSidebarOpen)
-        // The keyboard belongs to whichever side the user is typing in. Opening the drawer ends the
-        // composer's editing; the search field in the sidebar only takes focus when tapped.
+        // Opening the drawer ends the composer's editing.
         .onChange(of: shell.isSidebarOpen) { _, open in if open { KeyboardDismissal.endEditing() } }
     }
 
@@ -112,8 +120,6 @@ private struct PhoneShell: View {
         Detail()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemBackground))
-            // While the drawer is open the keyboard (the sidebar search) never resizes the chat.
-            .ignoresSafeArea(.keyboard, edges: shell.isSidebarOpen ? .bottom : [])
             .allowsHitTesting(!shell.isSidebarOpen)
             .accessibilityHidden(shell.isSidebarOpen)
             .overlay {

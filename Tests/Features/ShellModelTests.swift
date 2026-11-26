@@ -40,12 +40,21 @@ struct ShellModelTests {
         #expect(!shell.isDecisionsPresented)
     }
 
-    @Test func findCommandOpensTheSidebarAndBumpsTheSearchRequest() {
+    @Test func findCommandPresentsTheSearchScreen() {
         let shell = ShellModel()
-        let before = shell.searchRequest
-        shell.requestSidebarSearch()
-        #expect(shell.isSidebarOpen)
-        #expect(shell.searchRequest == before + 1)
+        shell.presentSearch()
+        #expect(shell.isSearchPresented)
+    }
+
+    @Test func openingAThreadFromSearchClosesTheSearchAndTheDrawer() {
+        let shell = ShellModel()
+        let id = UUID()
+        shell.isSidebarOpen = true
+        shell.presentSearch()
+        shell.openFromSearch(threadID: id)
+        #expect(shell.selectedThreadID == id)
+        #expect(!shell.isSearchPresented)
+        #expect(!shell.isSidebarOpen)
     }
 
     @Test func settingsIsASheetNotARoute() {

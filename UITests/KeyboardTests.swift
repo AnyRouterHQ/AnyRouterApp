@@ -20,7 +20,7 @@ final class KeyboardTests: XCTestCase {
         return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
     }
 
-    func testOpeningTheDrawerHidesTheKeyboardAndSearchTapShowsIt() throws {
+    func testOpeningTheDrawerHidesTheKeyboard() throws {
         let app = launch()
         try XCTSkipIf(!app.buttons["Menu"].waitForExistence(timeout: 10), "iPad layout: the sidebar is a column")
         let input = element(app, "composer.input")
@@ -31,19 +31,6 @@ final class KeyboardTests: XCTestCase {
         app.buttons["Menu"].tap()
         XCTAssertTrue(element(app, "sidebar.header").waitForExistence(timeout: 5))
         XCTAssertTrue(waitForKeyboard(app, present: false), "opening the drawer ends editing")
-
-        let search = app.searchFields.firstMatch
-        XCTAssertTrue(search.waitForExistence(timeout: 5))
-        search.tap()
-        XCTAssertTrue(waitForKeyboard(app, present: true), "tapping search shows the keyboard")
-
-        // The chat keeps the full screen height while the drawer and the keyboard are both up.
-        let main = element(app, "main.container")
-        XCTAssertTrue(main.exists)
-        XCTAssertEqual(main.frame.height, app.windows.firstMatch.frame.height, accuracy: 1)
-
-        element(app, "sidebar.header").tap()
-        XCTAssertTrue(waitForKeyboard(app, present: false), "tapping the header hides the keyboard")
     }
 
     func testTapOutsideTheComposerHidesTheKeyboard() throws {

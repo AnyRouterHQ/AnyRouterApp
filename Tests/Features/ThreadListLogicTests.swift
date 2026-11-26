@@ -27,31 +27,9 @@ struct ThreadListLogicTests {
             thread(c, "old", age: 100), thread(c, "pinned old", pinned: true, age: 500),
             thread(c, "new", age: 10), thread(c, "pinned new", pinned: true, age: 50),
         ]
-        let s = ThreadListLogic.sections(from: all, query: "")
+        let s = ThreadListLogic.sections(from: all)
         #expect(s.pinned.map(\.title) == ["pinned new", "pinned old"])
         #expect(s.recent.map(\.title) == ["new", "old"])
-    }
-
-    @Test func queryMatchesTitleIgnoringCaseAndDiacritics() throws {
-        let c = try makeContext()
-        let all = [thread(c, "Café plans"), thread(c, "Other")]
-        let s = ThreadListLogic.sections(from: all, query: "cafe")
-        #expect(s.recent.map(\.title) == ["Café plans"])
-        #expect(s.pinned.isEmpty)
-    }
-
-    @Test func queryMatchesMessageContent() throws {
-        let c = try makeContext()
-        let all = [thread(c, "Untitled", messages: ["how do actors work in Swift"]),
-                   thread(c, "Other", messages: ["hello"])]
-        #expect(ThreadListLogic.sections(from: all, query: "ACTORS").recent.map(\.title) == ["Untitled"])
-    }
-
-    @Test func blankQueryKeepsEverythingAndNoMatchIsEmpty() throws {
-        let c = try makeContext()
-        let all = [thread(c, "a")]
-        #expect(ThreadListLogic.sections(from: all, query: "  ").recent.count == 1)
-        #expect(ThreadListLogic.sections(from: all, query: "zzz").isEmpty)
     }
 
     @Test func titleFromFirstMessage() {

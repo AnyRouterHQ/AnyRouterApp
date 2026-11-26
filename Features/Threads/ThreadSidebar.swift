@@ -1,24 +1,19 @@
 import SwiftData
 import SwiftUI
 
-/// Sidebar: a stock sidebar `List` with a large title, system search, a settings button and a
+/// Sidebar: a stock sidebar `List` with a search row that opens the full-screen search, a settings button and a
 /// compose button in the bottom bar. On iPhone it fills the drawer, on iPad the split-view column.
 struct ThreadSidebar: View {
     /// True when shown as a drawer over the chat (iPhone). Picking something then closes it.
     let isDrawer: Bool
 
     @Environment(ShellModel.self) private var shell
-    @Environment(\.modelContext) private var context
     @Query(sort: \ThreadRecord.updatedAt, order: .reverse) private var threads: [ThreadRecord]
 
-    @State private var query = ""
-    @State private var isSearching = false
-    @State private var renaming: ThreadRecord?
-    @State private var renameText = ""
-    @State private var deleting: ThreadRecord?
+    @State private var editing = ThreadEditing()
 
     private var sections: ThreadListLogic.Sections {
-        ThreadListLogic.sections(from: threads, query: query)
+        ThreadListLogic.sections(from: threads)
     }
 
     private var selection: Binding<UUID?> {
@@ -35,8 +30,13 @@ struct ThreadSidebar: View {
 
     private var content: some View {
         List(selection: selection) {
+            Button { shell.presentSearch() } label: {
+                Label("Search chats", systemImage: "magnifyingglass").frame(minHeight: 44)
+            }
+            .foregroundStyle(.primary)
+            .accessibilityIdentifier("sidebar.search")
             if sections.isEmpty {
-                Text(query.isEmpty ? "No chats yet" : "No matching chats")
+                Text("No chats yet")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .listRowSeparator(.hidden)
@@ -45,9 +45,7 @@ struct ThreadSidebar: View {
             if !sections.recent.isEmpty { Section("Recents") { rows(sections.recent) } }
         }
         .listStyle(.sidebar)
-        .scrollDismissesKeyboard(.interactively)
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $query, isPresented: $isSearching, prompt: "Search chats")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 // The logo mark alone; the app name is not repeated here.
@@ -74,28 +72,7 @@ struct ThreadSidebar: View {
                 .accessibilityIdentifier("sidebar.compose")
             }
         }
-        .onChange(of: shell.searchRequest) { isSearching = true }
-        .alert("Rename chat", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
-            TextField("Title", text: $renameText)
-            Button("Cancel", role: .cancel) { renaming = nil }
-            Button("Save") {
-                if let thread = renaming { ThreadActions.rename(thread, to: renameText) }
-                renaming = nil
-            }
-        }
-        .confirmationDialog(
-            "Delete this chat?",
-            isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
-            titleVisibility: .visible
-        ) {
-            Button("Delete", role: .destructive) {
-                if let thread = deleting { delete(thread) }
-                deleting = nil
-            }
-            Button("Cancel", role: .cancel) { deleting = nil }
-        } message: {
-            Text("This removes the chat and its messages from this device.")
-        }
+        .threadEditingDialogs($editing)
     }
 
     private func rows(_ items: [ThreadRecord]) -> some View {
@@ -103,31 +80,8 @@ struct ThreadSidebar: View {
             Text(thread.title)
                 .lineLimit(1)
                 .tag(thread.id)
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button(role: .destructive) { deleting = thread } label: { Label("Delete", systemImage: "trash") }
-                    Button { ThreadActions.togglePin(thread) } label: { pinLabel(thread) }.tint(.gray)
-                }
-                .contextMenu {
-                    Button { beginRename(thread) } label: { Label("Rename", systemImage: "pencil") }
-                    Button { ThreadActions.togglePin(thread) } label: { pinLabel(thread) }
-                    Button(role: .destructive) { deleting = thread } label: { Label("Delete", systemImage: "trash") }
-                }
+                .threadActions(thread, editing: $editing)
         }
-    }
-
-    private func pinLabel(_ thread: ThreadRecord) -> some View {
-        Label(thread.isPinned ? "Unpin" : "Pin", systemImage: thread.isPinned ? "pin.slash" : "pin")
-    }
-
-    private func beginRename(_ thread: ThreadRecord) {
-        renameText = thread.title
-        renaming = thread
-    }
-
-    private func delete(_ thread: ThreadRecord) {
-        let id = thread.id
-        ThreadActions.delete(thread, in: context)
-        shell.threadDeleted(id)
     }
 }
 

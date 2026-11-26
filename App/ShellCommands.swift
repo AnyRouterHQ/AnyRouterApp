@@ -16,7 +16,7 @@ struct ShellCommands: Commands {
                 .disabled(shell == nil)
         }
         CommandGroup(after: .textEditing) {
-            Button("Find Chats") { shell?.requestSidebarSearch() }
+            Button("Find Chats") { shell?.presentSearch() }
                 .keyboardShortcut("f")
                 .disabled(shell == nil)
         }

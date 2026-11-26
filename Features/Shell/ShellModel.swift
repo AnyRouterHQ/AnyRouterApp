@@ -15,8 +15,8 @@ final class ShellModel {
     var isHubPresented = false
     var isDecisionsPresented = false
     var isModelPickerPresented = false
-    /// Bumped by the Find command; the sidebar reacts by opening its search field.
-    private(set) var searchRequest = 0
+    /// The full-screen chat search, over the sidebar and the chat.
+    var isSearchPresented = false
     /// The composer takes focus once per launch when the user asked for the keyboard.
     var didFocusComposerOnLaunch = false
 
@@ -51,9 +51,12 @@ final class ShellModel {
         if closeSidebar { isSidebarOpen = false }
     }
 
-    func requestSidebarSearch() {
-        isSidebarOpen = true
-        searchRequest += 1
+    func presentSearch() { isSearchPresented = true }
+
+    /// Opens a thread found in the search, and closes the search and the drawer behind it.
+    func openFromSearch(threadID: UUID) {
+        select(threadID: threadID, closeSidebar: true)
+        isSearchPresented = false
     }
 
     /// Call after a thread is deleted so the chat screen does not point at it.
