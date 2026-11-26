@@ -59,33 +59,12 @@ private struct Detail: View {
     var body: some View {
         Group {
             switch shell.route {
-            case .chat: ChatHomePlaceholder()
+            case .chat: ChatScreen()
             case .hub: HubPlaceholder()
             case .settings: SettingsPlaceholder()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-/// Replaced by the real chat screen in the chat PR.
-private struct ChatHomePlaceholder: View {
-    @Environment(ShellModel.self) private var shell
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                ARIconButton(systemName: "line.3.horizontal", label: "Menu") { shell.toggleSidebar() }
-                Spacer()
-                ARIconButton(systemName: "plus", label: "New chat") { shell.newChat(closeSidebar: false) }
-            }
-            .padding(.horizontal, ARTheme.pagePadding)
-            .padding(.vertical, 8)
-            Spacer()
-            ARLogoMark(size: 48).foregroundStyle(ARColor.foreground)
-            Text("How can I help?").font(.arTitle).foregroundStyle(ARColor.foreground).padding(.top, 12)
-            Spacer()
-        }
     }
 }
 

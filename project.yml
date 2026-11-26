@@ -21,7 +21,10 @@ settings:
       STRIP_INSTALLED_PRODUCT: YES
       ENABLE_TESTABILITY: NO
 # Add SPM packages here (lane B/C). Say so in the PR.
-packages: {}
+packages:
+  MarkdownUI:
+    url: https://github.com/gonzalezreal/swift-markdown-ui
+    from: 2.4.1
 targets:
   AnyRouter:
     type: application
@@ -37,6 +40,9 @@ targets:
         optional: true
     excludes:
       - "**/.gitkeep"
+    dependencies:
+      - package: MarkdownUI
+        product: MarkdownUI
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
