@@ -77,7 +77,7 @@ struct OfflineTests {
 
     @Test func theMessageNamesTheModelToSwitchTo() {
         let withSuggestion = OfflineLogic.modelMessage(for: cloud, suggestion: apple)
-        #expect(withSuggestion == "You are offline. AnyRouter needs a connection. Switch to apple/foundation, which runs on this device.")
+        #expect(withSuggestion == "You are offline. \(cloud.shortName) needs a connection. Switch to \(apple.shortName), which runs on this device.")
         #expect(OfflineLogic.modelMessage(for: cloud, suggestion: nil).hasSuffix("Download a model to chat without internet."))
     }
 

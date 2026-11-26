@@ -2,8 +2,13 @@ import Foundation
 
 /// Text read from a photo or a scan, waiting in a sheet until the user picks what to do with it.
 struct ScannedText: Identifiable, Equatable, Sendable {
-    let id = UUID()
+    let id: UUID
     var text: String
+
+    init(text: String) {
+        id = UUID()
+        self.text = text
+    }
 }
 
 enum OCRLogic {

@@ -27,6 +27,12 @@ struct ReadTextTests {
         #expect(OCRLogic.languages(supported: []).isEmpty)
     }
 
+    @Test func eachScanIsItsOwnItem() {
+        let first = ScannedText(text: "a")
+        #expect(first == first)
+        #expect(first != ScannedText(text: "a"), "two scans of the same text are two sheets")
+    }
+
     @Test func photosAreJoinedAndAScanGoesUnderWhatWasTyped() {
         #expect(OCRLogic.join(["one", "two"]) == "one\n\ntwo")
         #expect(OCRLogic.appended("scan", to: "  ") == "scan")
