@@ -94,7 +94,27 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: AnyRouterTests
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/AnyRouter.app/AnyRouter"
+  AnyRouterUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: AnyRouter
+    settings:
+      base:
+        PRODUCT_NAME: AnyRouterUITests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.anyrouter.app.uitests
+        TEST_TARGET_NAME: AnyRouter
 schemes:
+  AnyRouterScreenshots:
+    build:
+      targets:
+        AnyRouter: all
+        AnyRouterUITests: [test]
+    test:
+      targets:
+        - AnyRouterUITests
   AnyRouter:
     build:
       targets:
