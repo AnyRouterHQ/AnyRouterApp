@@ -17,7 +17,7 @@ RUN=$(gh run list --workflow verify-ui.yml --branch main --limit 1 --json databa
 gh run watch "$RUN" --interval 120 --exit-status
 ```
 
-- `flows` runs the functional UI tests in `UITests/*Tests.swift` (for example `-f flows=KeyboardTests,ThemeTests`, or `all`; ScreenshotTests and PerformanceTests are excluded, they have their own workflows). The same run builds once for both. Nightly (03:17 UTC) it runs journeys and flows on iPhone and iPad. Per-test pass/fail is in `evidence/results-<device>.txt`.
+- `flows` runs the functional UI tests in `UITests/*Tests.swift` (for example `-f flows=KeyboardTests,ThemeTests`, or `all`; ScreenshotTests and PerformanceTests are excluded, they have their own workflows). The same run builds once for both. Nightly (03:17 UTC) it runs journeys and flows on iPhone, iPad Pro 13-inch and iPad mini; with `-f ipad=true` the iPad legs also run `PadLayoutTests`. Per-test pass/fail is in `evidence/results-<device>.txt`.
 - Journey ids: `theme`, `drawer`, `composer`, `model-picker`, `settings`, `hub`, `response-details`. `all` runs every journey.
 - The run builds once (about 8 minutes cold, less with the cache), boots an iPhone 17 Pro class simulator (plus iPad Pro 13-inch with `ipad=true`), and runs each journey in passes: light, dark, and large Dynamic Type (AccessibilityXL). The theme journey runs once because it changes the theme itself.
 - The workflow only runs code that is pushed. Runner budget (AGENTS.md): dispatch on main only, one run at a time, and only when main CI is idle; ask the manager before a heavy run. A local edit is not verified until CI has run it.

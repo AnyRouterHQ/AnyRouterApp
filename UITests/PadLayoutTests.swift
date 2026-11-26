@@ -3,7 +3,7 @@ import XCTest
 
 /// iPad layouts on demo data: the sidebar column, the readable chat width, the model popover, form and page
 /// sheets, rotation, and the compact-width fallback. Skipped on iPhone. Run on an iPad mini and an iPad Pro 13
-/// by .github/workflows/ipad-ui.yml.
+/// by .github/workflows/verify-ui.yml (nightly, and with `-f ipad=true`).
 @MainActor
 final class PadLayoutTests: XCTestCase {
     /// Same as `ARTheme.contentMaxWidth`: the chat column, margins included.

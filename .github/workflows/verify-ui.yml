@@ -15,7 +15,7 @@ on:
         description: "Comma list of UITests classes (for example KeyboardTests,ThemeTests), all, or none"
         default: none
       ipad:
-        description: "Also run on an iPad Pro 13-inch simulator"
+        description: "Also run on iPad Pro 13-inch and iPad mini simulators, with UITests/PadLayoutTests"
         type: boolean
         default: false
   schedule:
@@ -34,7 +34,8 @@ permissions:
 jobs:
   verify:
     runs-on: macos-26
-    timeout-minutes: 60
+    # iPhone leg up to 60 minutes, iPad legs up to 60 more.
+    timeout-minutes: 120
     env:
       JOURNEYS: ${{ inputs.journeys || 'all' }}
       FLOWS: ${{ inputs.flows || (github.event_name == 'schedule' && 'all' || 'none') }}
@@ -85,10 +86,13 @@ jobs:
               raise SystemExit("no simulator for " + prefix)
           iphone = pick("iPhone 1", want_pro=True)
           ipad = pick("iPad Pro 13")
+          mini = pick("iPad mini")
           print("IPHONE_UDID=" + iphone["udid"])
           print("IPHONE_NAME=" + iphone["name"].replace(" ", "-"))
           print("IPAD_UDID=" + ipad["udid"])
           print("IPAD_NAME=" + ipad["name"].replace(" ", "-"))
+          print("IPADMINI_UDID=" + mini["udid"])
+          print("IPADMINI_NAME=" + mini["name"].replace(" ", "-"))
           PY
 
       - name: Build for testing
@@ -132,10 +136,14 @@ jobs:
             *)
               for c in $(echo "$FLOWS" | tr ',' ' '); do only+=("-only-testing:AnyRouterUITests/$c"); done ;;
           esac
-          if [ ${#only[@]} -eq 0 ]; then echo "nothing selected: set journeys or flows"; exit 2; fi
+          if [ ${#only[@]} -eq 0 ] && [ "$WITH_IPAD" != "true" ]; then echo "nothing selected: set journeys or flows"; exit 2; fi
           devices="IPHONE"
-          [ "$WITH_IPAD" = "true" ] && devices="IPHONE IPAD"
+          [ "$WITH_IPAD" = "true" ] && devices="IPHONE IPAD IPADMINI"
           for device in $devices; do
+            # The iPad layout tests run on every iPad leg; an iPhone leg with nothing selected is skipped.
+            extra=()
+            case "$device" in IPAD*) extra=("-only-testing:AnyRouterUITests/PadLayoutTests") ;; esac
+            if [ ${#only[@]} -eq 0 ] && [ ${#extra[@]} -eq 0 ]; then continue; fi
             udid_var="${device}_UDID"; name_var="${device}_NAME"
             udid="${!udid_var}"; name="${!name_var}"
             xcrun simctl bootstatus "$udid" -b
@@ -148,7 +156,7 @@ jobs:
               -test-timeouts-enabled YES \
               -default-test-execution-time-allowance 240 \
               -maximum-test-execution-time-allowance 420 \
-              "${only[@]}" "${skip[@]}" \
+              "${only[@]}" "${extra[@]}" "${skip[@]}" \
               CODE_SIGNING_ALLOWED=NO > "test-$name.log" 2>&1 || echo "FAILED=$name" >> failed.txt
             tail -n 40 "test-$name.log"
             grep -E "Test Case .* (passed|failed)" "test-$name.log" | sed 's/^.*Test Case //' > "evidence/results-$name.txt" || true
