@@ -79,6 +79,14 @@ git push origin HEAD:main            # retry pull --rebase + push if rejected
 - Commits: `type(scope): subject`, simple English. Scopes: `app`, `core`, `design`, `ui`, `auth`, `remote`, `apple`, `local`, `mcp`, `ci`, `docs`.
 - Never force-push `main`. Never rewrite published history.
 
+## Testing rules learned the hard way
+
+- The CI Simulator build is unsigned and has no working Keychain. Tests use the in-memory credential store (InMemoryBacking / a fake store), never the real Keychain.
+- The coverage gate counts each `?? fallback` autoclosure as a line. Rewrite unreachable fallbacks (`if let`, a helper) or test them.
+- Swift file names must be unique across the repo, and no type may be named like a Swift Testing type (`Attachment`, `Test`, `Tag`, `Issue`). `scripts/source-check.sh` checks both on every push.
+- Watch raw strings in fixtures: `#"…"#` ends at the first `"#` inside it. Use `##"…"##`.
+- Never push code that you have not at least type-checked in your head to main as "wip". Red main blocks every lane.
+
 ## Updating PLAN.md (required)
 
 - Tick your own task line and add the short commit SHA: `- [x] A3 CI workflow (a1b2c3d)`.

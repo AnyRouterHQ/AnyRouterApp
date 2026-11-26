@@ -33,6 +33,8 @@ jobs:
           if git grep -n -i -E "${a}ic ?chat|${a}icbot|${a}ic\.chat|${m}${l}"; then
             echo "::error::banned reference name found"; exit 1
           fi
+      - name: Source sanity (duplicate file names, Swift Testing name clashes)
+        run: bash scripts/source-check.sh
       - name: Native-first ratchet
         run: bash scripts/native-ratchet.sh
       - name: Model names carry their logo
