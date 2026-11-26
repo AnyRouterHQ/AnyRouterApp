@@ -151,6 +151,9 @@ final class AppState {
         let reporter = MetricKitReporter(store: diagnostics, telemetry: telemetry)
         reporter.start()
         metricKit = reporter
+        // A downloaded speech engine is built on first use, so registering it costs nothing at launch.
+        voice.register(
+            speechToText: { model, folder in WhisperKitSpeechToText.installed(model: model, folder: folder) }, for: .whisperKit)
         telemetry.track(.appOpen)
     }
 }

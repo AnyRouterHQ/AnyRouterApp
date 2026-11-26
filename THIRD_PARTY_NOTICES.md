@@ -23,3 +23,7 @@ The monochrome provider and model logos in `Design/Assets.xcassets` (`Logo-*`) c
 ## swift-transformers
 
 Tokenizers come from swift-transformers (https://github.com/huggingface/swift-transformers), Apache License 2.0, Copyright Hugging Face.
+
+## WhisperKit
+
+Speech to text with a downloaded Whisper model uses WhisperKit from argmax-oss-swift (https://github.com/argmaxinc/argmax-oss-swift), MIT License, Copyright (c) 2024 argmax, inc. The Whisper models are OpenAI's (https://github.com/openai/whisper), MIT License, converted to Core ML by argmax (https://huggingface.co/argmaxinc/whisperkit-coreml).

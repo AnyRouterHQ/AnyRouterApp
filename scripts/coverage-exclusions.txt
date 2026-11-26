@@ -6,3 +6,4 @@ Engines/AnyRouter/Auth/OAuthClient.swift # ASWebAuthenticationSession presentati
 Engines/AnyRouter/Auth/LoopbackCallback.swift # binds a real loopback network listener used only by the web sign-in session
 Engines/Local/Downloads/DownloadDelegate.swift # background URLSession delegate; callbacks come from the system daemon
 Engines/Local/Downloads/ModelDownloadManager.swift # owns the background URLSession; covered by the model-smoke workflow
+Engines/Voice/Whisper/WhisperKitBackend.swift # loads Core ML models and records from the microphone; neither exists on the Simulator

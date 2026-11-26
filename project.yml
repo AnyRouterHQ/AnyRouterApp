@@ -36,6 +36,10 @@ packages:
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
     from: 9.36.0
+  # Whisper speech to text (MIT, Core ML). Its only package dependency is swift-argument-parser, used by its CLI target, not by the WhisperKit product. It carries its own copy of a tokenizer inside the ArgmaxCore module, so it does not clash with swift-transformers.
+  argmax-oss-swift:
+    url: https://github.com/argmaxinc/argmax-oss-swift
+    exactVersion: 1.1.1
   # Already in the build through swift-transformers. Declared so GGUF models can render their own chat template.
   swift-jinja:
     url: https://github.com/huggingface/swift-jinja
@@ -97,6 +101,8 @@ targets:
         product: Jinja
       - package: Sentry
         product: Sentry
+      - package: argmax-oss-swift
+        product: WhisperKit
       # The Control Center and Lock Screen controls and the share extension, embedded in the app's PlugIns folder.
       - target: AnyRouterControls
       - target: AnyRouterShare
