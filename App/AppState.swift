@@ -14,8 +14,12 @@ final class AppState {
     var hub: any ModelHubService
     /// App memory and the loaded local model, with unload.
     let memory: MemoryMonitor
+    /// Tool servers (AnyRouter MCP and custom ones).
+    let integrations: IntegrationsStore
 
     init() {
+        let tokenStore = KeychainStore()
+        integrations = IntegrationsStore(anyRouterToken: { tokenStore.token() })
         if DemoData.isEnabled {
             let demo = DemoData.install(registry: registry)
             settings = demo.settings
