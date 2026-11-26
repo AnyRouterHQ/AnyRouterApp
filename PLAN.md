@@ -170,7 +170,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] F15 Prompt presets: starter questions on the empty chat (tap fills the composer, long-press sends), composer presets sheet, custom presets in Settings (#28)
 - [x] F8a (#23) Screenshot capture: demo data mode (`-ARDemoData YES`), `AnyRouterUITests`, `screenshots.yml` uploads PNGs for iPhone and iPad, light and dark.
 - [ ] F8b Compare the screenshots against the reference mobile screenshots.
-- [x] F16 Home screen: mesh-gradient empty chat (light and dark palettes, static under Reduce Motion), preset chips above the composer, round "+" menu (photo, camera, file disabled as Coming soon; "Enable thinking" for reasoning models). The thinking flag is stored per thread. (#PR)
+- [x] F16 Home screen: mesh-gradient empty chat (light and dark palettes, static under Reduce Motion), preset chips above the composer, round "+" menu (photo, camera, file disabled as Coming soon; "Enable thinking" for reasoning models). The thinking flag is stored per thread. (#36)
 - [ ] F17 Engines read `ThreadRecord.thinkingEnabled` (Qwen3/Gemma 4 chat template switch, AnyRouter `reasoning` request option); only the flag is persisted today.
 - [x] F9 Real-model smoke in CI: `model-smoke.yml` runs the smallest catalog GGUF through `GGUFEngine` on the Simulator, plus installer, download manager and Apple Foundation Models availability. MLX is device only. (#18)
 - [x] F10 Gemma 4 E2B and E4B (Apache-2.0) in the bundled catalog: GGUF (official QAT Q4_0, llama.cpp b10456 already has the `gemma4` arch) and MLX 4-bit (mlx-swift-lm 3.33 already has `gemma4`). Own Gemma 4 prompt formatter (llama.cpp's template list cannot apply its jinja template), hidden thinking channel, `model_id` input on `model-smoke.yml`, MLX template render check. (#25)
@@ -548,4 +548,4 @@ Reviewer pass over main up to bdf57b4 (2026-11-26). Fixed items are in `fix(...)
 - 2026-11-26 chore: neutral references, reference notes moved to gitignored AGENTS.local.md, CI check for banned names; local checks skipped
 - 2026-11-26 lane-E: switched milestone 1 from ad-hoc to TestFlight: `testflight.yml`, `docs/testflight.md`, ITSAppUsesNonExemptEncryption=NO in project.yml (E1-E2); local checks skipped
 - 2026-11-26 lane-F15: prompt presets (empty-chat starters, composer sheet, custom presets in Settings) (#28); local checks skipped
-- 2026-11-26 lane-F16: home screen redesign, composer layout, thinking flag per thread (#PR); engine wiring pending (F17); local checks skipped
+- 2026-11-26 lane-F16: home screen redesign, composer layout, thinking flag per thread (#36); engine wiring pending (F17); local checks skipped
