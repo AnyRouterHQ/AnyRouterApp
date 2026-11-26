@@ -63,6 +63,7 @@ private struct ChatContent: View {
     @Bindable var chat: ChatViewModel
     let hasModel: Bool
     let presets: PresetStore
+    @FocusState private var composerFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -71,7 +72,7 @@ private struct ChatContent: View {
             } else {
                 messageList
             }
-            Composer(model: chat, hasModel: hasModel, presets: presets)
+            Composer(model: chat, hasModel: hasModel, presets: presets, focused: $composerFocused)
         }
     }
 
@@ -85,6 +86,8 @@ private struct ChatContent: View {
                 .padding(.bottom, 8)
         }
         .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .simultaneousGesture(TapGesture().onEnded { composerFocused = false })
     }
 
     private var messageList: some View {
@@ -109,6 +112,7 @@ private struct ChatContent: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
+            .simultaneousGesture(TapGesture().onEnded { composerFocused = false })
             .defaultScrollAnchor(.bottom)
             .onChange(of: messages.count) { proxy.scrollTo("bottom", anchor: .bottom) }
             .onChange(of: messages.last?.content.count) {
