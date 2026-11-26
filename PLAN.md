@@ -207,6 +207,7 @@ Decision: a small focused client (`Engines/MCP/`) instead of the official MCP Sw
 - [x] F11 (ceb8cfa) Shared model catalog on GitHub: `catalog/models.json` (bundled offline fallback, fetched with ETag at launch and on pull-to-refresh) and `catalog/dev-models.json` (Settings switch), `scripts/catalog-add.sh` / `catalog-check.sh` / `catalog-memory.sh`, `catalog.yml` CI check against Hugging Face, `docs/catalog.md`. In `models.json`: Qwen 3.5 0.8B/2B/4B (0.8B proven by model-smoke on b12603). Staged in dev: LFM2.5 1.2B and VL, LFM2 700M, SmolLM3 3B, Gemma 4 mobile builds, Bonsai 8B (promote to `models.json` after a model-smoke run each).
 - [x] F12 (72e06f6) Fit check and live memory: `FitPlanner` (weights + KV cache + 1 GB overhead against the process limit, mixture-of-experts from mmap, context auto-pick), GGUF header reader (local files and ranged reads of Hub repos), fit badges, "needs ~X GB", download warning, memory menu and unload in the chat header.
 - [ ] F13 Run a 26B looped-core mixture-of-experts GGUF (6.9 GB IQ1_S) on an 8 GB phone: llama.cpp b12603, mmap load, GPU layers tuned to the Metal working set, context auto-picked. Simulator proof through `model-smoke.yml` (`hf_repo` + `hf_file`, or the `SMOKE_HF_*` secrets) still to run.
+- [x] F18 (ad70f7d) Create account and onboarding: Create account opens the sign-up page in the same `ASWebAuthenticationSession` with the authorize URL as `redirect_url`, so a new user comes back signed in (no second login). Welcome page (three sources, Continue with AnyRouter, Create account, Use on-device only), `SignInFlow` state machine, Settings "Verify your email" row from `/me` `email_verified`.
 - [ ] F11 Coverage: unit job gates 100% lines on Core and on logic, stores, view models, AnyRouter engine, catalog, download state machine (exclusions in scripts/coverage-exclusions.txt); XCUITest flows for every screen run in a separate ui-tests job on iPhone and iPad.
 
 ## Local inference roadmap
@@ -424,6 +425,7 @@ Later (each needs its blocker first): M6 neural voices (measure first), M9 stabl
 
 - Q1 Add GitHub secrets: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_BASE64` (API key role App Manager).
 - Q2 Create the app record in App Store Connect (bundle id `dev.anyrouter.app`, name AnyRouter).
+- Q6 Verify-later sign-up is a Clerk dashboard setting (email address, verify at sign-up), not code. Until it is off, new users are verified before the app gets its key and the Settings row never shows. The server also needs `/me` to return `email_verified` (duyet/anyrouter#8468, not merged). The app treats a missing field as verified.
 - Q4 Resolved: icon from the public AnyRouter logo, anyrouter.dev orange accent (#8).
 - Q5 Resolved: a sign-in token calls `tools/list` on `https://anyrouter.dev/api/v1/mcp` (initialize 200, 31 tools, no session id); no extra scope is needed.
 
