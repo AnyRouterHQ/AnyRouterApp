@@ -142,6 +142,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > test.log 2>&1 || echo "some capture tests failed"
           tail -n 60 test.log
           grep -E "Test Case .* (passed|failed)" test.log | sed 's/^.*Test Case //' > results.txt || true
+          grep -E "error: " test.log | sed 's/^.*error: //' | cut -c1-400 | sort -u > failures.txt || true
           # No screenshots means the tests did not run (wrong xctestrun, build problem): fail the shard.
           ls raw/*.png >/dev/null 2>&1 || { grep -E "error:" test.log | head -5; echo "no screenshots captured"; exit 1; }
 
@@ -153,6 +154,7 @@ jobs:
             [ -e "$f" ] && cp "$f" "screenshots/$SIM_NAME-$(basename "$f")"
           done
           cp results.txt "screenshots/$SIM_NAME-results.txt" 2>/dev/null || true
+          cp failures.txt "screenshots/$SIM_NAME-failures.txt" 2>/dev/null || true
           {
             echo "## $SIM_NAME"
             echo "$(ls screenshots/*.png 2>/dev/null | wc -l) screenshots"

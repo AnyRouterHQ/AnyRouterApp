@@ -17,11 +17,12 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
-    private func capture(_ name: String, _ appearance: Appearance) {
+    /// `app` is for landscape: the screen screenshot stays in the device's portrait frame, the app screenshot does not.
+    private func capture(_ name: String, _ appearance: Appearance, app: XCUIApplication? = nil) {
         sleep(1)
         // On a Mac the screen is the whole desktop: capture the app's window.
         let screenshot = ProcessInfo.processInfo.isiOSAppOnMac
-            ? XCUIApplication().windows.firstMatch.screenshot() : XCUIScreen.main.screenshot()
+            ? XCUIApplication().windows.firstMatch.screenshot() : (app?.screenshot() ?? XCUIScreen.main.screenshot())
         let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = "\(appearance.rawValue)-\(name)"
         attachment.lifetime = .keepAlways
@@ -88,7 +89,7 @@ final class ScreenshotTests: XCTestCase {
         forEachAppearance { app, appearance in
             XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
             sleep(1)
-            capture("pad-split-landscape", appearance)
+            capture("pad-split-landscape", appearance, app: app)
         }
         XCUIDevice.shared.orientation = .portrait
     }
