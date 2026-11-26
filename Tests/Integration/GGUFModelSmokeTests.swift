@@ -108,7 +108,7 @@ final class GGUFModelSmokeTests: XCTestCase {
         SmokeReport.record("GGUF raw output", String(text.prefix(300)))
         SmokeReport.record("GGUF tokens", "prompt \(reported.prompt), completion \(reported.completion), finish \(finishReason ?? "nil")")
         SmokeReport.record("GGUF load + first token", firstText.map { String(format: "%.2f s", seconds($0 - start)) } ?? "n/a")
-        SmokeReport.record("GGUF tokens/sec (decode)", String(format: "%.1f", perSecond))
+        if reported.completion >= 8 { SmokeReport.record("GGUF tokens/sec (decode)", String(format: "%.1f", perSecond)) }
     }
 
     func testCancellingMidStreamStopsWithinTwoSeconds() async throws {
@@ -117,7 +117,6 @@ final class GGUFModelSmokeTests: XCTestCase {
         long.temperature = 0.8
         long.maxTokens = 2000
         let messages = [ChatMessage(role: .user, content: "Write a very long story about a dragon.")]
-        let stream = ctx.engine.stream(model: ctx.model, messages: messages, params: long)
 
         // Baseline: how long a one-token chat takes on a warm engine. Cancel latency is whatever comes on top.
         var short = GenerationParams()
@@ -138,14 +137,18 @@ final class GGUFModelSmokeTests: XCTestCase {
         let baseline = seconds(clock.now - baselineStart)
         XCTAssertTrue(baselineDone)
 
-        let reached = AsyncStream<Void>.makeStream()
+        // The stream starts generating as soon as it is created, so create it only after the baseline chat is done.
+        // Timestamps of the first and the 20th text piece give the decode rate.
+        let stream = ctx.engine.stream(model: ctx.model, messages: messages, params: long)
+        let rateMark = 20
+        let reached = AsyncStream<ContinuousClock.Instant>.makeStream()
         let consumer = Task { () -> Int in
             var pieces = 0
             do {
                 for try await delta in stream {
                     if case .text = delta {
                         pieces += 1
-                        if pieces == 5 { reached.continuation.yield() }
+                        if pieces == 1 || pieces == rateMark { reached.continuation.yield(clock.now) }
                     }
                 }
             } catch {}
@@ -153,12 +156,13 @@ final class GGUFModelSmokeTests: XCTestCase {
             return pieces
         }
         var iterator = reached.stream.makeAsyncIterator()
-        await iterator.next()
+        let firstPieceAt = await iterator.next()
+        let markAt = await iterator.next()
 
         let cancelledAt = clock.now
         consumer.cancel()
         let pieces = await consumer.value
-        XCTAssertGreaterThanOrEqual(pieces, 5, "generation must have started before the cancel")
+        XCTAssertGreaterThanOrEqual(pieces, rateMark, "generation must have started before the cancel")
 
         // The engine runs one generation at a time. A new chat only completes if the cancelled one really stopped.
         let sawDone = try await oneTokenChat()
@@ -166,6 +170,9 @@ final class GGUFModelSmokeTests: XCTestCase {
         let latency = max(0, total - baseline)
         XCTAssertTrue(sawDone, "the next chat must complete after the cancel")
         XCTAssertLessThan(latency, 2.0, "cancel must stop generation within 2s, took \(latency)s")
+        if let firstPieceAt, let markAt, markAt > firstPieceAt {
+            SmokeReport.record("GGUF tokens/sec (decode, long story)", String(format: "%.1f (pieces %d to %d)", Double(rateMark - 1) / seconds(markAt - firstPieceAt), 1, rateMark))
+        }
         SmokeReport.record("GGUF cancel", String(format: "stopped %.2f s after cancel (limit 2 s); next chat done %.2f s after cancel, warm baseline %.2f s", latency, total, baseline))
     }
 
