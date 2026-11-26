@@ -19,7 +19,7 @@ struct ToolChain: Equatable {
 
     init(steps: [ToolStep], answerStarted: Bool) {
         rows = steps.map { step in
-            Row(id: step.id, icon: ToolRowLogic.icon(for: step.call.name),
+            Row(id: step.id, icon: ToolRowLogic.icon(for: step.call.name, sourceID: step.sourceID),
                 name: ToolRowLogic.displayName(for: step.call.name), summary: ToolRowLogic.summary(for: step.call),
                 title: ToolRowLogic.title(for: step), status: ToolRowLogic.status(of: step))
         }

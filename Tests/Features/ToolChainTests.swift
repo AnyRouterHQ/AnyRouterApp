@@ -109,4 +109,35 @@ struct ToolChainTests {
         #expect(ToolRowLogic.icon(for: "calculator") == .symbol("plusminus"))
         #expect(ToolRowLogic.icon(for: "deploy") == .symbol("wrench.and.screwdriver"))
     }
+
+    private func sourcedStep(_ name: String, source: String?) -> ToolStep {
+        ToolStep(call: ToolCall(id: "1", name: name, argumentsJSON: "{}"), result: nil, sourceID: source)
+    }
+
+    @Test func theSourceNotedAtCallTimeDecidesTheIcon() {
+        func icon(_ name: String, _ source: String?) -> ToolSource.Icon {
+            ToolChain(steps: [sourcedStep(name, source: source)], answerStarted: false).rows[0].icon
+        }
+        // AnyRouter tools show the AnyRouter mark, whatever they are called.
+        #expect(icon("get_credits", ToolSourceCatalog.anyRouter.id) == ToolSourceCatalog.anyRouter.icon)
+        // A custom server shows the server icon, whatever its tool is called.
+        #expect(icon("web_search_exa", "my-server") == ToolSourceCatalog.customIcon)
+        #expect(icon("calendar_lookup", "my-server") == .symbol("server.rack"))
+        // A public service shows its logo.
+        #expect(icon("anything", ToolSourceCatalog.exa.id) == ToolSourceCatalog.exa.icon)
+        // The app's own tools keep their own symbols.
+        #expect(icon("calculator", ToolSourceCatalog.device.id) == .symbol("plusminus"))
+        // An older saved reply has no source: the name decides, as before.
+        #expect(icon("web_search_exa", nil) == ToolSourceCatalog.exa.icon)
+        #expect(icon("deploy", nil) == .symbol("wrench.and.screwdriver"))
+    }
+
+    @Test func aStepSavedWithoutASourceStillDecodes() throws {
+        let old = #"{"call":{"id":"1","name":"calculator","argumentsJSON":"{}"}}"#
+        let decoded = try JSONDecoder().decode(ToolStep.self, from: Data(old.utf8))
+        #expect(decoded.sourceID == nil)
+        let withSource = ToolStep(call: decoded.call, result: nil, sourceID: "exa")
+        let again = try JSONDecoder().decode(ToolStep.self, from: JSONEncoder().encode(withSource))
+        #expect(again.sourceID == "exa")
+    }
 }

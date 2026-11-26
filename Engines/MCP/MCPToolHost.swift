@@ -119,6 +119,8 @@ struct MCPToolHost: ToolHost {
         self.permissions = permissions
     }
 
+    func sourceID(forTool name: String) -> String? { entries[name]?.server.id }
+
     func execute(_ call: ToolCall) async -> ToolResult {
         func failure(_ text: String) -> ToolResult {
             ToolResult(callID: call.id, name: call.name, text: text, isError: true)

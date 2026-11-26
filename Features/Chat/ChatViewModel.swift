@@ -560,7 +560,8 @@ final class ChatViewModel {
                             telemetry.track(.firstTokenMs(TelemetryEvent.milliseconds(ContinuousClock.now - started), source: source))
                         }
                         if let text = pending.add(piece, now: clock()) { assistant.content += text }
-                    case .toolCall(let call): assistant.toolSteps.append(ToolStep(call: call, result: nil))
+                    case .toolCall(let call):
+                        assistant.toolSteps.append(ToolStep(call: call, result: nil, sourceID: tools?.sourceID(forTool: call.name)))
                     case .toolResult(let result): Self.fill(result, in: assistant)
                     case .usage(let prompt, let completion): tokens = (prompt, completion)
                     case .metadata(let metadata): reported = metadata
@@ -637,7 +638,7 @@ final class ChatViewModel {
         let call = ToolCall(
             id: UUID().uuidString, name: WebSearchBinding.name,
             argumentsJSON: JSONValue.object(["query": .string(query)]).jsonString())
-        assistant.toolSteps.append(ToolStep(call: call, result: nil))
+        assistant.toolSteps.append(ToolStep(call: call, result: nil, sourceID: ToolSourceCatalog.anyRouter.id))
         guard let answer = await webSearch.search(query, context) else {
             assistant.toolSteps.removeAll { $0.call.id == call.id }
             return history

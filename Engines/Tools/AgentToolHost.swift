@@ -53,6 +53,12 @@ struct AgentToolHost: ToolHost {
         return names
     }
 
+    func sourceID(forTool name: String) -> String? {
+        if builtIns[name] != nil { return ToolSourceCatalog.device.id }
+        if search != nil, name == WebSearchBinding.name { return ToolSourceCatalog.anyRouter.id }
+        return mcp?.sourceID(forTool: name)
+    }
+
     func execute(_ call: ToolCall) async -> ToolResult {
         if let request = approvalRequest(for: call) {
             guard let approver, await approver.decide(request) != .deny else {

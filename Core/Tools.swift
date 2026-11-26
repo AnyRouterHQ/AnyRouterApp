@@ -39,6 +39,13 @@ protocol ToolHost: Sendable {
     /// Runs one call, asking the user first when the tool needs approval. It never throws: a denial,
     /// a server failure or a cancelled call comes back as a result with `isError` set.
     func execute(_ call: ToolCall) async -> ToolResult
+    /// The id of the source a tool comes from (the app's own tools, a public service, AnyRouter, a custom server), so
+    /// a reply can show that source's icon. Nil when the host cannot say.
+    func sourceID(forTool name: String) -> String?
+}
+
+extension ToolHost {
+    func sourceID(forTool name: String) -> String? { nil }
 }
 
 /// One call and its outcome, as shown in a message and kept with the assistant reply.
@@ -46,6 +53,8 @@ struct ToolStep: Identifiable, Hashable, Codable, Sendable {
     var call: ToolCall
     /// Nil while the call is still running.
     var result: ToolResult?
+    /// The source that ran the call, noted when the call was made. Nil for replies saved before this existed.
+    var sourceID: String?
 
     var id: String { call.id }
 }

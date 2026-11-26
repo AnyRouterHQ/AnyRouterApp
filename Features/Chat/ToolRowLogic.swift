@@ -70,8 +70,16 @@ enum ToolRowLogic {
 
     /// The icon of the tool's source, the same one Settings > Integrations and the @ list show (the Exa logo for
     /// `web_search_exa`). Tools the app does not list get an SF Symbol from `symbol(for:)`.
-    static func icon(for toolName: String) -> ToolSource.Icon {
-        pinned(toolName)?.source.icon ?? .symbol(symbol(for: toolName))
+    /// `sourceID` is the source the tool host named when the call was made: the AnyRouter mark for AnyRouter tools, a
+    /// public service's logo, the server icon for a custom server. Without it (replies saved earlier) the tool's name decides.
+    static func icon(for toolName: String, sourceID: String? = nil) -> ToolSource.Icon {
+        if let sourceID {
+            if sourceID == ToolSourceCatalog.anyRouter.id { return ToolSourceCatalog.anyRouter.icon }
+            if let source = ToolSourceCatalog.publicSources.first(where: { $0.id == sourceID }) { return source.icon }
+            // The app's own tools keep the symbol that says what each one does; any other id is a custom server.
+            if sourceID != ToolSourceCatalog.device.id { return ToolSourceCatalog.customIcon }
+        }
+        return pinned(toolName)?.source.icon ?? .symbol(symbol(for: toolName))
     }
 
     /// The tool's name as a person reads it: "Web search", "Read page"; a listed tool uses its title; others get

@@ -49,6 +49,13 @@ final class MCPToolHostTests: XCTestCase {
         ToolCall(id: "call_1", name: name, argumentsJSON: arguments)
     }
 
+    func testTheHostNamesTheServerEachToolComesFrom() {
+        let host = makeHost().host
+        XCTAssertEqual(host.sourceID(forTool: "get_credits"), "alpha")
+        XCTAssertEqual(host.sourceID(forTool: "create_key"), "alpha")
+        XCTAssertNil(host.sourceID(forTool: "nope"))
+    }
+
     func testSpecsCarrySchemaReadOnlyFlagAndTitle() {
         let specs = makeHost(auth: .anyRouterSignIn).host.specs
         XCTAssertEqual(specs.map(\.name), ["get_credits", "create_key"])

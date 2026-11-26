@@ -78,6 +78,12 @@ final class AgentToolHostTests: XCTestCase {
         AgentToolHost(builtIns: tools, search: nil, mcp: nil, builtInTimeout: timeout)
     }
 
+    func testTheHostNamesTheSourceOfEachTool() {
+        let host = host([Echo(name: "echo")])
+        XCTAssertEqual(host.sourceID(forTool: "echo"), ToolSourceCatalog.device.id)
+        XCTAssertNil(host.sourceID(forTool: "unknown"))
+    }
+
     func testBuiltInsAreListedAsReadOnlySpecsAndRun() async {
         let host = host([Echo(name: "echo")])
         XCTAssertEqual(host.specs.map(\.name), ["echo"])

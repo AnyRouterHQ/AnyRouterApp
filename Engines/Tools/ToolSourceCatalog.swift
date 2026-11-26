@@ -178,11 +178,14 @@ enum ToolSourceCatalog {
     /// Public services that need no account and no key. The app talks to them without a token.
     static let publicSources: [ToolSource] = [exa, deepWiki, microsoftLearn]
 
+    /// The icon of every server the user added.
+    static let customIcon: ToolSource.Icon = .symbol("server.rack")
+
     /// A server the user added.
     static func custom(_ server: MCPServer) -> ToolSource {
         ToolSource(
             id: server.id, group: .custom, title: server.name, subtitle: server.url.host() ?? server.url.absoluteString,
-            icon: .symbol("server.rack"), auth: server.auth, defaultState: .on, recipient: nil, server: server)
+            icon: customIcon, auth: server.auth, defaultState: .on, recipient: nil, server: server)
     }
 
     // MARK: Lookups
