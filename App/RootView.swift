@@ -10,6 +10,8 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     /// This window's id for the memory monitor, which unloads only when every window is in the background.
     @State private var sceneID = UUID()
+    /// The cold-launch check has run. Until then the first "active" is the launch itself, not a return.
+    @State private var launchHandled = false
 
     var body: some View {
         AppShell()
@@ -23,6 +25,8 @@ struct RootView: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 appState.memory.scene(sceneID, inBackground: phase == .background)
+                if phase == .background { appState.settings.lastBackgroundedAt = .now }
+                if phase == .active, launchHandled { openNewChatAfterTimeAway() }
                 // A scene connected after launch has no override or tap recognizer yet.
                 if phase == .active {
                     WindowAppearance.apply(appState.settings.appearance)
@@ -68,6 +72,9 @@ struct RootView: View {
                 Text("Share anonymous crash reports and timings. No messages, keys or emails.")
             }
             .task {
+                // After the saved chat is restored: a quit and relaunch counts as time away too.
+                openNewChatAfterTimeAway()
+                launchHandled = true
                 if !DemoData.isEnabled { appState.network.start() }
                 let watchdog = MainThreadWatchdog.shared
                 watchdog.mark("launch: local models")
@@ -84,6 +91,13 @@ struct RootView: View {
 }
 
 extension RootView {
+    /// Back from the background: after "Start a new chat after" has passed the window opens on an empty chat.
+    private func openNewChatAfterTimeAway() {
+        let settings = appState.settings
+        shell.returned(backgroundedAt: settings.lastBackgroundedAt, now: .now, delay: settings.newChatDelay)
+        settings.lastBackgroundedAt = nil
+    }
+
     /// A share the extension left in the App Group opens a fresh chat. Builds without the App Group have no inbox.
     private func pickUpShare() {
         guard !DemoData.isEnabled, let inbox = ShareInbox.appGroup() else { return }

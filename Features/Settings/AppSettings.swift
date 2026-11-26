@@ -30,6 +30,8 @@ final class AppSettings {
         static let shareDiagnostics = "settings.shareDiagnostics"
         static let diagnosticsAsked = "settings.diagnosticsAsked"
         static let showResponseDetails = "settings.showResponseDetails"
+        static let newChatDelay = "settings.newChatDelay"
+        static let backgroundedAt = "settings.backgroundedAt"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -115,6 +117,21 @@ final class AppSettings {
     var showResponseDetails: Bool {
         get { access(keyPath: \.showResponseDetails); return defaults.object(forKey: Key.showResponseDetails) as? Bool ?? true }
         set { withMutation(keyPath: \.showResponseDetails) { defaults.set(newValue, forKey: Key.showResponseDetails) } }
+    }
+
+    /// How long the app can stay in the background before it opens on a new chat. One minute by default.
+    var newChatDelay: NewChatDelay {
+        get {
+            access(keyPath: \.newChatDelay)
+            return defaults.string(forKey: Key.newChatDelay).flatMap(NewChatDelay.init(rawValue:)) ?? .standard
+        }
+        set { withMutation(keyPath: \.newChatDelay) { defaults.set(newValue.rawValue, forKey: Key.newChatDelay) } }
+    }
+
+    /// When the app last went to the background. Kept on disk so a quit and relaunch counts as time away too.
+    var lastBackgroundedAt: Date? {
+        get { access(keyPath: \.lastBackgroundedAt); return defaults.object(forKey: Key.backgroundedAt) as? Date }
+        set { withMutation(keyPath: \.lastBackgroundedAt) { defaults.set(newValue, forKey: Key.backgroundedAt) } }
     }
 
     var generationParams: GenerationParams {

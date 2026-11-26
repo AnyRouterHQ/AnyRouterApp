@@ -17,6 +17,8 @@ final class ShellModel {
     var isModelPickerPresented = false
     /// The full-screen chat search, over the sidebar and the chat.
     var isSearchPresented = false
+    /// A reply is streaming in this window. Coming back to the app never takes it off screen.
+    var isReplyStreaming = false
     /// The composer takes focus once per launch when the user asked for the keyboard.
     var didFocusComposerOnLaunch = false
     /// An outside request (Siri, Shortcuts, a control) waiting for the chat screen to pick it up.
@@ -32,6 +34,16 @@ final class ShellModel {
     }
 
     func toggleSidebar() { isSidebarOpen.toggle() }
+
+    /// The app became active again. After a long enough time away the window opens on a new chat.
+    /// Returns true when it did, so the caller can forget the time away.
+    @discardableResult
+    func returned(backgroundedAt: Date?, now: Date, delay: NewChatDelay) -> Bool {
+        let decision = ResumeLogic.decide(backgroundedAt: backgroundedAt, now: now, delay: delay, isStreaming: isReplyStreaming)
+        guard decision == .fresh else { return false }
+        newChat(closeSidebar: true)
+        return true
+    }
 
     func newChat(closeSidebar: Bool) {
         selectedThreadID = nil

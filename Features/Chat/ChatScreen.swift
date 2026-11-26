@@ -99,6 +99,7 @@ struct ChatScreen: View {
 
 private struct ChatContent: View {
     @Environment(AppState.self) private var app
+    @Environment(ShellModel.self) private var shell
     @Bindable var chat: ChatViewModel
     let presets: PresetStore
     let subtitle: String
@@ -130,6 +131,7 @@ private struct ChatContent: View {
         // A new reply cuts off the voice of the last one; "Read replies aloud" then follows the new reply as it arrives.
         .onChange(of: chat.isStreaming) { _, streaming in
             if streaming { app.speaker.stop() }
+            shell.isReplyStreaming = streaming
             followReply()
         }
         .onChange(of: chat.messages.last?.content.count) { followReply() }

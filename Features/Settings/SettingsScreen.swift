@@ -51,12 +51,19 @@ private struct SettingsList: View {
                         Toggle(isOn: $settings.showKeyboardOnLaunch) {
                             Label("Show keyboard on launch", systemImage: "keyboard")
                         }
-                        .accessibilityIdentifier("settings-show-keyboard")                    }
+                        .accessibilityIdentifier("settings-show-keyboard")
+                        Picker(selection: $settings.newChatDelay) {
+                            ForEach(NewChatDelay.allCases) { Text($0.title).tag($0) }
+                        } label: {
+                            Label("Start a new chat after", systemImage: "clock.arrow.circlepath")
+                        }
+                        .accessibilityIdentifier("settings-new-chat-after")                    }
                     if group == .about { versionRow }
                 } header: {
                     Text(group.title)
                 } footer: {
                     if group == .models, let note = models.defaultNote { Text(note) }
+                    if group == .chat { Text("Leave the app for this long and it opens on a new chat. A shorter break keeps your conversation.") }
                 }
             }
         }
