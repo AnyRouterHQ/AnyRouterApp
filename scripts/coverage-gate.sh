@@ -101,18 +101,19 @@ if failures:
     lines += ["| File | Covered | Lines | Uncovered lines |", "|---|---:|---:|---|"]
     for rel, c, e in failures:
         uncovered = []
-        out = subprocess.run(["xcrun", "xccov", "view", "--report", "--json", "--functions-for-file",
-                              os.path.join(root, rel), result], capture_output=True, text=True).stdout
+        note = ""
+        proc = subprocess.run(["xcrun", "xccov", "view", "--report", "--json", "--functions-for-file",
+                               os.path.join(root, rel), result], capture_output=True, text=True)
         try:
-            for t in json.loads(out):
+            for t in json.loads(proc.stdout):
                 for fl in t.get("files", []):
                     for fn in fl.get("functions", []):
                         if fn["coveredLines"] < fn["executableLines"]:
                             name = fn["name"].replace("|", "/")
                             uncovered.append(f"{name} (line {fn['lineNumber']}, {fn['coveredLines']}/{fn['executableLines']})")
         except (ValueError, TypeError, KeyError):
-            pass
-        lines.append(f"| {rel} | {c} | {e} | {'; '.join(uncovered) or 'no data'} |")
+            note = (proc.stderr or proc.stdout).strip().replace("|", "/").replace("\n", " ")[:160]
+        lines.append(f"| {rel} | {c} | {e} | {'; '.join(uncovered) or note or 'no data'} |")
 else:
     lines.append("All gated files are at 100% of lines.")
 
