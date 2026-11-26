@@ -2,7 +2,8 @@ import Foundation
 
 /// Reads one web page as text. https only, no local network, capped in time and size.
 struct FetchURLTool: BuiltInTool {
-    let name = "fetch_url"
+    static let toolName = "fetch_url"
+    let name = FetchURLTool.toolName
     let title = "Read a web page"
     let summary = "Fetch a page and read its text (https only)"
     let description = "Fetch a web page over https and return its readable text. Use it to read a link the user gave you or a search result."

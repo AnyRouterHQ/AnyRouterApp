@@ -133,6 +133,18 @@ extension StubResponse {
     }
 }
 
+private final class MCPFixtureAnchor {}
+
+extension MCPFixtures {
+    /// A real `tools/list` answer of AnyRouter's MCP server for a sign-in token: 31 tools, 26 of them Firecrawl.
+    static var anyRouterToolsList: String {
+        guard let url = Bundle(for: MCPFixtureAnchor.self).url(forResource: "anyrouter-tools-list", withExtension: "json"),
+            let text = try? String(contentsOf: url, encoding: .utf8)
+        else { fatalError("Missing the anyrouter-tools-list.json fixture in the test bundle") }
+        return text
+    }
+}
+
 /// Recorded-shape fixtures. The tool names and fields follow AnyRouter's MCP reference.
 enum MCPFixtures {
     /// Answers `request` with `body`, rewriting the JSON-RPC id so tests do not depend on call order.

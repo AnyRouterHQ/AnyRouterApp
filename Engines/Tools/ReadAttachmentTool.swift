@@ -7,6 +7,25 @@ protocol AttachmentTextProviding: Sendable {
     func text(named name: String) async -> String?
 }
 
+/// The files attached in one chat, as the tool reads them.
+struct ThreadAttachments: AttachmentTextProviding {
+    let attachments: [Attachment]
+
+    func attachmentNames() async -> [String] { attachments.map(\.filename) }
+
+    func text(named name: String) async -> String? {
+        guard let found = attachments.first(where: { $0.filename.caseInsensitiveCompare(name) == .orderedSame }) else { return nil }
+        if let text = found.extractedText, !text.isEmpty { return text }
+        return "This attachment has no readable text (\(found.kind.rawValue))."
+    }
+}
+
+/// Stands in where only the tool's description is needed, such as the list in Settings.
+struct NoAttachments: AttachmentTextProviding {
+    func attachmentNames() async -> [String] { [] }
+    func text(named name: String) async -> String? { nil }
+}
+
 struct ReadAttachmentTool: BuiltInTool {
     let name = "read_attachment"
     let title = "Read attachments"

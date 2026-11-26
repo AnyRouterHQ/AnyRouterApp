@@ -36,13 +36,14 @@ final class ChatViewModel {
     @ObservationIgnored private let save: (ModelContext) throws -> Void
     /// Seconds from any steady clock. Injected so timings are testable.
     @ObservationIgnored private let now: () -> TimeInterval
-    @ObservationIgnored private let toolHost: @MainActor () -> (any ToolHost)?
+    /// Builds the tools for one request from the files attached anywhere in the chat.
+    @ObservationIgnored private let toolHost: @MainActor ([Attachment]) -> (any ToolHost)?
     @ObservationIgnored let attachmentStore: AttachmentStore
     @ObservationIgnored private var task: Task<Void, Never>?
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
          settings: AppSettings, models: ModelStore,
-         toolHost: @escaping @MainActor () -> (any ToolHost)? = { nil },
+         toolHost: @escaping @MainActor ([Attachment]) -> (any ToolHost)? = { _ in nil },
          attachments: AttachmentStore = .shared,
          save: @escaping (ModelContext) throws -> Void = { try $0.save() },
          now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
@@ -257,7 +258,7 @@ final class ChatViewModel {
         context.insert(assistant)
         assistant.thread = thread
         let params = settings.generationParams
-        let host = toolsEnabled && model.capabilities.contains("tools") ? toolHost() : nil
+        let host = toolsEnabled && model.capabilities.contains("tools") ? toolHost(thread.messages.flatMap { $0.attachments }) : nil
         let stream = registry.engine(for: model).stream(
             model: model, messages: history, params: params,
             tools: host?.specs.isEmpty == false ? host : nil)

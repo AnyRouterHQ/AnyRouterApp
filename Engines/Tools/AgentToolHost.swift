@@ -7,6 +7,8 @@ struct AgentToolHost: ToolHost {
     let specs: [ToolSpec]
     private let builtIns: [String: any BuiltInTool]
     private let search: (match: WebSearchBinding.Match, client: MCPClient)?
+    /// When set, `fetch_url` tries the AnyRouter scrape tool first and falls back to the on-device fetch.
+    private let fetch: (match: WebSearchBinding.Match, client: MCPClient)?
     private let mcp: MCPToolHost?
     private let builtInTimeout: Double
     private let searchTimeout: Double
@@ -15,12 +17,14 @@ struct AgentToolHost: ToolHost {
         builtIns: [any BuiltInTool],
         search: (match: WebSearchBinding.Match, client: MCPClient)?,
         mcp: MCPToolHost?,
+        fetch: (match: WebSearchBinding.Match, client: MCPClient)? = nil,
         builtInTimeout: Double = AgentToolHost.builtInTimeout,
         searchTimeout: Double = 45
     ) {
         self.builtIns = Dictionary(builtIns.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
         self.search = search
         self.mcp = mcp
+        self.fetch = fetch
         self.builtInTimeout = builtInTimeout
         self.searchTimeout = searchTimeout
         var specs = builtIns.map { $0.spec }
@@ -39,6 +43,19 @@ struct AgentToolHost: ToolHost {
     func execute(_ call: ToolCall) async -> ToolResult {
         func result(_ text: String, error: Bool) -> ToolResult {
             ToolResult(callID: call.id, name: call.name, text: text, isError: error)
+        }
+        if call.name == FetchURLTool.toolName, let fetch,
+            let url = MCPToolHost.arguments(from: call.argumentsJSON)?["url"]?.string, !url.isEmpty {
+            var forwarded = fetch.match.extra
+            forwarded[fetch.match.queryKey] = .string(url)
+            let client = fetch.client
+            let toolName = fetch.match.tool.name
+            let arguments: JSONValue = .object(forwarded)
+            let timeout = searchTimeout
+            let answer = try? await withDeadline(timeout) { try await client.callTool(name: toolName, arguments: arguments) }
+            if Task.isCancelled { return result("The tool call was cancelled.", error: true) }
+            if let answer, !answer.isError, !answer.text.isEmpty { return result(MCPToolHost.clip(answer.text), error: false) }
+            // The scrape failed or came back empty: read the page on the device instead.
         }
         if let tool = builtIns[call.name] {
             guard let arguments = MCPToolHost.arguments(from: call.argumentsJSON) else {

@@ -178,6 +178,7 @@ Decision: a small focused client (`Engines/MCP/`) instead of the official MCP Sw
 - [x] T6 Apple Foundation Models (019dd28): wrap enabled tools as `Tool` conformances with a dynamic `GenerationSchema` (`Tool.Arguments = GeneratedContent` works, verified in Apple docs; first 8 tools, results capped at 6000 chars for the 4k context)
 - [x] T8 MCP on sign-in: signing in connects the AnyRouter server with the same Keychain token, signing out disconnects it and clears its tools at once; a custom server's read-only hint no longer waives approval; MCP answers capped at 4 MB; a Keychain write failure no longer lists a custom server without its token
 - [x] T9 Agent mode UI (9f3cc2c, 027ce22, 235ff42, fc8627a, 5dc89b2): tools on per thread by default (`ThreadRecord.toolsDisabled`, composer "+" Tools switch), stock Form for Settings › Integrations (AnyRouter, built-in tool switches, custom servers with swipe to remove, per-server tool list), tool rows with readable titles that expand to arguments and result, approval as a confirmation dialog, UI test for the tool row
+- [x] T10 Live tool list (31 tools, 26 Firecrawl) as a test fixture; AnyRouter tools judged read-only by annotation or name, only those start on, the rest ask each time; `fetch_url` prefers the Firecrawl scrape tool and falls back to the device; `read_attachment` reads the attachments of the current chat
 - [ ] T7 Local GGUF and MLX tool calling (Later): needs chat-template tool rendering and parsing of the model's tool-call tokens per model family
 
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
@@ -417,7 +418,7 @@ Later (each needs its blocker first): M6 neural voices (measure first), M9 stabl
 - Q1 Add GitHub secrets: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_BASE64` (API key role App Manager).
 - Q2 Create the app record in App Store Connect (bundle id `dev.anyrouter.app`, name AnyRouter).
 - Q4 Resolved: icon from the public AnyRouter logo, anyrouter.dev orange accent (#8).
-- Q5 AnyRouter MCP with the sign-in token: the docs say the token (scopes `inference read:profile`, no others possible) works on `https://anyrouter.dev/api/v1/mcp`. A live `tools/list` with a sign-in token has not been run (no test key reachable from the agent environment). Operator: run `MCPLiveTests` with `ANYROUTER_E2E_API_KEY` set to a sign-in token, or tell us if the call returns 403.
+- Q5 Resolved: a sign-in token calls `tools/list` on `https://anyrouter.dev/api/v1/mcp` (initialize 200, 31 tools, no session id); no extra scope is needed.
 
 ## Native UX & performance
 

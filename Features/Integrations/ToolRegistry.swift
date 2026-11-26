@@ -28,8 +28,6 @@ final class ToolRegistry {
     private let builtIns: [any BuiltInTool]
     @ObservationIgnored private let defaults: UserDefaults
     private(set) var disabledBuiltIns: Set<String>
-    /// Set by the attachments feature. Without it `read_attachment` does not exist.
-    @ObservationIgnored var attachments: (any AttachmentTextProviding)?
 
     init(
         integrations: IntegrationsStore,
@@ -57,14 +55,15 @@ final class ToolRegistry {
 
     // MARK: Listing
 
-    /// The built-in tools that exist right now: `web_search` only while a search tool is connected, `read_attachment` only with attachments.
-    var availableBuiltIns: [any BuiltInTool] {
-        var all = builtIns
-        if let attachments { all.append(ReadAttachmentTool(provider: attachments)) }
-        return all
-    }
+    /// Every built-in tool Settings lists. `read_attachment` is listed always but only offered to a model in a chat with attachments.
+    var listedBuiltIns: [any BuiltInTool] { builtIns + [ReadAttachmentTool(provider: NoAttachments())] }
 
     var searchMatch: WebSearchBinding.Match? { WebSearchBinding.find(in: integrations.enabledTools) }
+
+    /// The AnyRouter scrape tool `fetch_url` prefers while signed in. Only while `fetch_url` itself is on.
+    var scrapeMatch: WebSearchBinding.Match? {
+        isBuiltInEnabled(FetchURLTool.toolName) ? WebSearchBinding.findScrape(in: integrations.enabledTools) : nil
+    }
 
     /// Everything Settings lists, with its switch state. MCP tools of servers that are not connected are not listed.
     var tools: [RegisteredTool] {
@@ -76,7 +75,7 @@ final class ToolRegistry {
                 inputSchemaJSON: WebSearchBinding.inputSchemaJSON, needsApproval: false,
                 enabled: isBuiltInEnabled(WebSearchBinding.name)))
         }
-        for tool in availableBuiltIns {
+        for tool in listedBuiltIns {
             list.append(RegisteredTool(
                 id: "builtin/\(tool.name)", source: .builtIn, name: tool.name, title: tool.title,
                 description: tool.description, inputSchemaJSON: tool.inputSchemaJSON, needsApproval: false,
@@ -91,7 +90,7 @@ final class ToolRegistry {
                     source: .mcp(serverID: server.id, serverName: server.name),
                     name: tool.name, title: tool.displayName, description: tool.description ?? tool.displayName,
                     inputSchemaJSON: tool.inputSchema.jsonString(),
-                    needsApproval: !(tool.isReadOnly && server.isTrusted),
+                    needsApproval: !server.skipsApproval(tool),
                     enabled: integrations.isEnabled(tool, on: server)))
             }
         }
@@ -101,19 +100,27 @@ final class ToolRegistry {
     // MARK: Host
 
     /// The tools for one chat request, or nil when none is on.
-    func makeHost(approver: any ToolApproving) -> AgentToolHost? {
+    func makeHost(approver: any ToolApproving, attachments: [Attachment] = []) -> AgentToolHost? {
         var mcpTools = integrations.enabledTools
         let match = searchMatch.flatMap { isBuiltInEnabled(WebSearchBinding.name) ? $0 : nil }
         if let match {
             // The model sees `web_search`, not the tool behind it twice.
             mcpTools.removeAll { $0.server.id == match.server.id && $0.tool.name == match.tool.name }
         }
-        let builtIns = availableBuiltIns.filter { isBuiltInEnabled($0.name) }
+        let scrape = scrapeMatch
+        if let scrape {
+            mcpTools.removeAll { $0.server.id == scrape.server.id && $0.tool.name == scrape.tool.name }
+        }
+        var builtIns = self.builtIns.filter { isBuiltInEnabled($0.name) }
+        if !attachments.isEmpty, isBuiltInEnabled("read_attachment") {
+            builtIns.append(ReadAttachmentTool(provider: ThreadAttachments(attachments: attachments)))
+        }
         guard match != nil || !builtIns.isEmpty || !mcpTools.isEmpty else { return nil }
 
         let reserved = AgentToolHost.reservedNames(builtIns: builtIns, hasSearch: match != nil)
         let mcpHost = mcpTools.isEmpty ? nil : integrations.makeToolHost(enabled: mcpTools, approver: approver, reserved: reserved)
         let search = match.map { (match: $0, client: integrations.client(for: $0.server)) }
-        return AgentToolHost(builtIns: builtIns, search: search, mcp: mcpHost)
+        let fetch = scrape.map { (match: $0, client: integrations.client(for: $0.server)) }
+        return AgentToolHost(builtIns: builtIns, search: search, mcp: mcpHost, fetch: fetch)
     }
 }

@@ -175,12 +175,13 @@ final class IntegrationsStore {
     // MARK: Tool switches
 
     func isEnabled(_ tool: MCPTool, on server: MCPServer) -> Bool {
-        overrides[IntegrationsLogic.toolKey(serverID: server.id, toolName: tool.name)] ?? true
+        overrides[IntegrationsLogic.toolKey(serverID: server.id, toolName: tool.name)] ?? server.enabledByDefault(tool)
     }
 
     func setEnabled(_ enabled: Bool, tool: MCPTool, on server: MCPServer) {
         let key = IntegrationsLogic.toolKey(serverID: server.id, toolName: tool.name)
-        if enabled { overrides[key] = nil } else { overrides[key] = false }
+        // Only a choice that differs from the default is stored.
+        overrides[key] = enabled == server.enabledByDefault(tool) ? nil : enabled
         persistOverrides()
     }
 

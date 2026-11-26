@@ -111,7 +111,7 @@ struct ToolTraceTests {
         await models.refresh()
         let settings = AppSettings(defaults: testDefaults())
         let vm = ChatViewModel(thread: nil, context: context, registry: registry, settings: settings,
-                               models: models, toolHost: { host })
+                               models: models, toolHost: { _ in host })
         return Rig(vm: vm, engine: engine, settings: settings)
     }
 
@@ -186,7 +186,7 @@ struct ToolTraceTests {
         func makeVM(_ thread: ThreadRecord?) -> ChatViewModel {
             ChatViewModel(thread: thread, context: context, registry: registry,
                           settings: AppSettings(defaults: testDefaults()), models: models,
-                          toolHost: { StubToolHost() })
+                          toolHost: { _ in StubToolHost() })
         }
 
         // Off before the first send: the new thread keeps the choice.

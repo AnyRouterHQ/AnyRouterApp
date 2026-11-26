@@ -190,7 +190,8 @@ final class AnyRouterSignInConnectTests: XCTestCase {
         await store.accountChanged(signedIn: true)?.value
         XCTAssertEqual(store.state(for: .anyRouter).status, .connected)
         XCTAssertEqual(store.state(for: .anyRouter).tools.count, 5)
-        XCTAssertEqual(store.enabledTools.count, 5)
+        // create_key does not read, so AnyRouter's own server starts with it off.
+        XCTAssertEqual(store.enabledTools.count, 4)
         let seen = MCPStubProtocol.requests(for: MCPServer.anyRouter.url)
         XCTAssertEqual(seen.first?.header("Authorization"), "Bearer sk-ar-live")
 
