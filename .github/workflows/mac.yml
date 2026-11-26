@@ -47,8 +47,9 @@ jobs:
       - name: Generate project
         run: xcodegen generate
 
-      # An iOS app on a Mac needs at least an ad-hoc signature to launch. The increased-memory-limit entitlement is
-      # restricted and has no meaning on a Mac, so the build drops the entitlements file.
+      # The Mac destination builds with the iOS SDK, which refuses ad-hoc signing at build time (run 45895599005).
+      # So: build unsigned, then ad-hoc sign the products here. A Mac needs at least that to launch an iOS app.
+      # An unsigned build also carries no entitlements, which is right: the memory entitlement means nothing on a Mac.
       - name: Build for testing
         run: |
           set -o pipefail
@@ -57,13 +58,19 @@ jobs:
             -destination "platform=macOS,variant=Designed for iPad" \
             -derivedDataPath DerivedData \
             -clonedSourcePackagesDirPath SourcePackages \
-            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_ENTITLEMENTS= \
-            | tee build.log | tail -n 100
+            CODE_SIGNING_ALLOWED=NO | tee build.log | tail -n 100
 
       - name: Build errors
         if: failure()
         run: |
           grep -n -E "error:" build.log | sort -u -t: -k2 | cut -c1-500 | head -60 || true
+
+      - name: Ad-hoc sign the products
+        run: |
+          find DerivedData/Build/Products -maxdepth 2 -name '*.app' -print
+          for app in DerivedData/Build/Products/*/*.app; do
+            codesign --force --deep --sign - "$app"
+          done
 
       - name: Capture five screens
         run: |
@@ -81,7 +88,7 @@ jobs:
             -default-test-execution-time-allowance 180 \
             -maximum-test-execution-time-allowance 300 \
             -resultBundlePath TestResults.xcresult \
-            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_ENTITLEMENTS= \
+            CODE_SIGNING_ALLOWED=NO \
             > test.log 2>&1
           tail -n 60 test.log
           grep -E "Test Case .* (passed|failed)" test.log | sed 's/^.*Test Case //' > results.txt || true
