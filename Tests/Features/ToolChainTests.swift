@@ -60,7 +60,7 @@ struct ToolChainTests {
         let row = ToolChain(steps: [search], answerStarted: false).rows[0]
         #expect(row.name == "Web search")
         #expect(row.summary == "swift 7")
-        #expect(row.symbol == "magnifyingglass")
+        #expect(row.icon == .symbol("magnifyingglass"))
         #expect(row.title == "Searching the web for “swift 7”")
     }
 
@@ -87,5 +87,26 @@ struct ToolChainTests {
         #expect(ToolRowLogic.exceedsPreview(String(repeating: "x", count: 401)))
         #expect(ToolRowLogic.exceedsPreview("1\n2\n3\n4\n5\n6\n7"))
         #expect(!ToolRowLogic.exceedsPreview("1\n2\n3\n4\n5\n6"))
+    }
+
+    /// Same icon as Settings > Integrations and the @ list: the source's logo for a tool it lists.
+    @Test func aListedToolShowsItsSourcesLogoAndTitle() {
+        let row = ToolChain(steps: [makeStep("1", "web_search_exa", args: #"{"query":"actors"}"#)], answerStarted: false).rows[0]
+        #expect(row.icon == ToolSourceCatalog.exa.icon)
+        #expect(row.icon == .asset("Logo-exa"))
+        #expect(row.name == "Search the web")
+        #expect(row.summary == "actors")
+    }
+
+    @Test func everyListedToolOfAPublicSourceMapsToItsSourceIcon() {
+        for source in ToolSourceCatalog.publicSources {
+            for tool in source.tools { #expect(ToolRowLogic.icon(for: tool.name) == source.icon, "\(tool.name)") }
+        }
+    }
+
+    @Test func aToolWithoutALogoGetsASymbolFromItsNameAndBuiltInsKeepTheirOwn() {
+        #expect(ToolRowLogic.icon(for: "crawl_site") == .symbol("point.3.connected.trianglepath.dotted"))
+        #expect(ToolRowLogic.icon(for: "calculator") == .symbol("plusminus"))
+        #expect(ToolRowLogic.icon(for: "deploy") == .symbol("wrench.and.screwdriver"))
     }
 }

@@ -57,7 +57,7 @@ struct ToolStepRow: View {
                         }
                     }
                 } icon: {
-                    Image(systemName: row.symbol)
+                    ToolSourceIcon(icon: row.icon)
                 }
                 Spacer(minLength: 8)
                 status

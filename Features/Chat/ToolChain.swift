@@ -5,7 +5,7 @@ import Foundation
 struct ToolChain: Equatable {
     struct Row: Equatable, Identifiable {
         let id: String
-        let symbol: String
+        let icon: ToolSource.Icon
         let name: String
         let summary: String?
         /// The full sentence ("Searched the web for “swift 7”"), read by VoiceOver.
@@ -19,7 +19,7 @@ struct ToolChain: Equatable {
 
     init(steps: [ToolStep], answerStarted: Bool) {
         rows = steps.map { step in
-            Row(id: step.id, symbol: ToolRowLogic.symbol(for: step.call.name),
+            Row(id: step.id, icon: ToolRowLogic.icon(for: step.call.name),
                 name: ToolRowLogic.displayName(for: step.call.name), summary: ToolRowLogic.summary(for: step.call),
                 title: ToolRowLogic.title(for: step), status: ToolRowLogic.status(of: step))
         }

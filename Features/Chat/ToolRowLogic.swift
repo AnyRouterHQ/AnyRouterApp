@@ -60,8 +60,24 @@ enum ToolRowLogic {
         }
     }
 
-    /// The tool's name as a person reads it: "Web search", "Read page"; others get their id spelled out.
+    /// The tool the app lists itself (a public web service), with the source it belongs to.
+    private static func pinned(_ toolName: String) -> (source: ToolSource, tool: PinnedTool)? {
+        for source in ToolSourceCatalog.publicSources {
+            if let tool = source.tools.first(where: { $0.name == toolName }) { return (source, tool) }
+        }
+        return nil
+    }
+
+    /// The icon of the tool's source, the same one Settings > Integrations and the @ list show (the Exa logo for
+    /// `web_search_exa`). Tools the app does not list get an SF Symbol from `symbol(for:)`.
+    static func icon(for toolName: String) -> ToolSource.Icon {
+        pinned(toolName)?.source.icon ?? .symbol(symbol(for: toolName))
+    }
+
+    /// The tool's name as a person reads it: "Web search", "Read page"; a listed tool uses its title; others get
+    /// their id spelled out.
     static func displayName(for toolName: String) -> String {
+        if let pin = pinned(toolName) { return pin.tool.title }
         switch toolName.lowercased() {
         case "web_search": return "Web search"
         case "fetch_url": return "Read page"
@@ -74,7 +90,7 @@ enum ToolRowLogic {
         }
     }
 
-    /// An SF Symbol for the tool. A tool with its own logo can replace it later; unknown tools get a wrench.
+    /// An SF Symbol for a tool without a logo: our own built-ins first, then the words in its name.
     static func symbol(for toolName: String) -> String {
         switch toolName.lowercased() {
         case "web_search": return "magnifyingglass"
@@ -82,7 +98,7 @@ enum ToolRowLogic {
         case "calculator": return "plusminus"
         case "current_date_time": return "clock"
         case "read_attachment": return "paperclip"
-        default: return toolName.lowercased().contains("search") ? "magnifyingglass" : "wrench.and.screwdriver"
+        default: return ToolSourceCatalog.symbol(forTool: toolName)
         }
     }
 
