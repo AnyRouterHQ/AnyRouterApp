@@ -154,6 +154,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] D7 (#13) Onboarding: first launch → pick Apple / download small local / sign in
 - [x] D8 (#29) Default model and picker: signed-in default is the auto router (shown as "AnyRouter"), BYOK hidden but searchable, routers then providers, per-thread model with notice, model name under replies
 - [x] D9 (a1b5e2c) Native model picker: sheet with Local | AnyRouter tabs, search, sort menu, Top picks (bundled top-picks.json plus the 6 hour cached usage order), two-line rows with logo, price, context and upstreams, needs-key rows with the BYOK explainer, router detail (routing-preview). ModelBrand and ModelLabel with bundled mono logos (lobe-icons, MIT), `scripts/model-name-check.sh` keeps names and logos together
+- [x] D11 (afe0269) Logo for every model owner: `Design/model-brands.json` is the one brand table (ModelBrand and `scripts/logo-coverage.py` read it), 28 more lobe-icons marks via `scripts/logo-add.py`, letter monogram for owners with no public mark (`noMark` list, checked by a fixture test), 55/103 live owners have a mark (was 25)
 - [x] D10 (9e75d3a) Response details under each reply: served model ("AnyRouter → X"), cost, first token, total, tok/s, tokens, request id; "Switched to X" note; setting "Show response details"
 
 ### Lane E — TestFlight (model: sonnet-low; blocked on operator secrets)
