@@ -143,6 +143,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] C6 (a17003a) Two-level model browser, data and logic: catalog schema v2 with families and sizes, `status` current/deprecated with `replacedBy`, `FamilyLogic` (grouping, fit summary, recommended size per device, sorts, filters). The views are lane D (6bf4b88).
 - [x] C7 (51f1f39) Fit check that matches llama.cpp: embedding tables that mmap keeps out of RAM are not counted (Gemma 4 E2B needs ~2.5 GB, not 4.4 GB), the standard-limit note, Settings > Diagnostics memory and stall rows, main-thread watchdog and hang-guard test, batched text updates, "Loading <model>" in chat, warm-load after the first frame.
 - [ ] C8 Jinja chat templates for GGUF models whose template llama.cpp cannot apply (needed by the 26B looped-core model): pushed, not yet proven by a smoke run because main's test target does not compile (Swift Testing `Attachment` clash in the attachment tests).
+- [x] C9 (0a74090) Device classes (4, 6, 8, 12, 16 GB) with standard and increased memory budgets, the "Recommended for this iPhone" list from FitPlanner over them, the `mobile` tag checked by a test, `DeviceFit` deleted. A catalog edit that breaks a class fails `DeviceClassTests`.
 
 ### Lane D — UI clone of the reference mobile design (model: sonnet-medium; starts after A merges)
 - [x] D1 (#8) `Design/`: color tokens (light/dark → `Color`), radius 10pt, fonts, spacing; AnyRouter brand accent
