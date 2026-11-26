@@ -161,7 +161,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 
 ## Lane H: diagnostics
 
-- [ ] H1 `Telemetry` boundary in Core/ (events, no-op, logging), MetricKit crash/hang/metric store (newest 20) with Settings, Diagnostics, optional Sentry behind `SENTRY_DSN`, Settings, Privacy opt-out, `docs/privacy.md` (SHA pending)
+- [x] H1 `Telemetry` boundary in Core/ (events, no-op, logging), MetricKit crash/hang/metric store (newest 20) with Settings, Diagnostics, optional Sentry behind `SENTRY_DSN`, Settings, Privacy opt-out, `docs/privacy.md` (9707f88)
 
 ## Tools & integrations (MCP)
 
