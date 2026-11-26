@@ -50,19 +50,18 @@ struct ChatScreen: View {
             }
             // The title floats on the content; the system must not wrap it in a glass capsule like the two buttons.
             .sharedBackgroundVisibility(.hidden)
-            ToolbarItem(placement: .topBarTrailing) {
+            // One group, so iOS 26 draws New chat and More in a single shared glass capsule.
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "square.and.pencil") }
+                    .accessibilityLabel("New chat")
                 Menu {
                     Button("Instructions for this chat", systemImage: "text.badge.star") { showsInstructions = true }
                         .accessibilityIdentifier("chat.instructions")
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "ellipsis")
                 }
                 .accessibilityLabel("More")
                 .accessibilityIdentifier("chat.more")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "square.and.pencil") }
-                    .accessibilityLabel("New chat")
             }
         }
         .navigationBarTitleDisplayMode(.inline)
