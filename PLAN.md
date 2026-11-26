@@ -39,6 +39,7 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that follows a reference 
 | D15 | UI boundary: native SwiftUI containers and behaviors skinned with the reference design's tokens (colors, radii, spacing, type scale). Per-screen deviations are listed in § Native UX & performance. | The reference is a web app; native containers give edge-swipe back, restoration, Liquid Glass, Dynamic Type, keyboard and pointer support that custom views cannot. |
 | D16 | Chat stays one `ChatEngine`; images, video frames and audio ride on `ChatMessage.parts`. Image generation, speech-to-text and text-to-speech are separate protocols (`ImageGenerationEngine`, `SpeechRecognizer`, `SpeechSynthesizer`) behind the same registry. | Their input and output are progress, previews and audio streams, not text deltas. Overloading `ChatDelta` would make every chat engine handle them. |
 | D17 | Speech uses system frameworks first (`SpeechTranscriber`, `AVSpeechSynthesizer`). Open speech models are opt-in extras later. | No download, no model upkeep, no app-size cost. |
+| D18 | Voice is two seams, `SpeechToText` and `TextToSpeech`, each with a System engine that is always there and downloaded engines the user picks in Settings. A downloaded engine runs only when installed and selected, and only for languages it lists; any other language uses the System engine. STT downloads: WhisperKit (MIT, Core ML). TTS downloads: Moonshine Voice (MIT, ONNX). | The user wants local voice models, but Vietnamese is the language the open models cover worst, so the fallback is decided per language, not per app. See the Voice roadmap. |
 
 ## Out of scope for v1
 
@@ -459,6 +460,68 @@ Starts after S2 (Core types). Docs-only PRs skip the macOS build.
 - [ ] R8 **M8** `ImageGenerationEngine` plus `CoreMLDiffusionEngine` (`StableDiffusionPipeline`, `reduceMemory` on), an Images screen with progress and a gallery, SD 2.1 base palettized as the first model. Acceptance: fake-engine tests in CI; device benchmark (seconds per image, peak memory, 512x512, fixed seed) recorded here.
 
 Later (each needs its blocker first): M6 neural voices (measure first), M9 stable-diffusion.cpp or MLX image models (own xcframework), WhisperKit fallback, MLX audio input. Not planned: M10, M11.
+
+## Voice roadmap
+
+Research date 2026-11-27. Scope: iOS 26 on device, speech to text (STT) with language detection for English, Vietnamese and others, and text to speech (TTS). Licences are checked for shipping in an App Store app.
+
+### Findings
+
+**STT, system.**
+- `SpeechTranscriber` (iOS 26.0+) takes one locale per instance and has no language detection. "Automatic language management" in the WWDC25 session means model assets, not audio language identification. [WWDC25 277](https://developer.apple.com/videos/play/wwdc2025/277/), [fmasi/parley#147](https://github.com/fmasi/parley/issues/147).
+- Vietnamese is reported in the locale list of later iOS 26 builds (42 locales, 22 languages, as of August 2026) but not in the launch list, and Apple publishes no list. Treat it as a runtime question: ask `SpeechTranscriber.supportedLocales` and `installedLocales`, then `DictationTranscriber.supportedLocales` (same models as keyboard dictation, more locales, less accuracy), then `SFSpeechRecognizer(locale:).supportsOnDeviceRecognition`. [LoroNote](https://loronote.com/en/blog/apple-speechanalyzer-vs-whisper), [Addpipe](https://blog.addpipe.com/apple-speechanalyzer-api/), [DictationTranscriber](https://developer.apple.com/documentation/speech/dictationtranscriber).
+- Confidence is only on final results, not volatile ones (one report), so it cannot drive a live language switch by itself.
+
+**STT, downloads.**
+
+| Engine | Languages | Language detection | Licence | Size | Verdict |
+|---|---|---|---|---|---|
+| WhisperKit (Core ML) tiny / base / small / large-v3 turbo compressed | about 99 incl. Vietnamese | yes, from audio | MIT code, MIT weights | 77 MB / 147 MB / 217 MB / 627 MB (HF folder sums, 2026-11-27) | **Chosen.** iOS 16+, no other package dependency (the package pulls only swift-argument-parser), so it cannot clash with the swift-transformers pin. Small Whisper is weak in Vietnamese: the Moonshine paper reports 91.9% word error for Whisper Tiny on FLEURS vi, so Vietnamese needs small or larger. |
+| whisper.cpp | same | yes | MIT | same weights | Needs our own xcframework (F4 job). WhisperKit covers the same model on Core ML. |
+| Moonshine Voice streaming | English, Spanish, German, Arabic, Japanese, Mandarin, Tagalog, **Vietnamese (Tiny Streaming 34M, 9.4% WER)** | no: one model per language | MIT (streaming models); the legacy non-streaming non-English models are non-commercial | 34M to 245M params | **Later.** Best live Vietnamese and English at tiny size, but needs the language first. Pair with WhisperKit detection or the user's pick. Binary xcframework, assets from the vendor CDN. |
+| Parakeet TDT v3 (FluidAudio, Core ML) | 25 European languages, no Vietnamese | yes | CC-BY-4.0 weights, Apache-2.0 SDK | about 0.6B | Not chosen: no Vietnamese. |
+
+Sources: [argmax-oss-swift](https://github.com/argmaxinc/argmax-oss-swift) (Package.swift, README), [whisperkit-coreml](https://huggingface.co/argmaxinc/whisperkit-coreml), [Moonshine models and licence](https://github.com/moonshine-ai/moonshine/blob/main/docs/models/available-models.md), [Moonshine licence](https://github.com/moonshine-ai/moonshine/blob/main/docs/license.md), [Parakeet v3 Core ML](https://huggingface.co/FluidInference/parakeet-tdt-0.6b-v3-coreml).
+
+**TTS, system.** `AVSpeechSynthesizer` voices come from `AVSpeechSynthesisVoice.speechVoices()`; there is no API that lists voices not yet downloaded in Settings, so the app can only offer a "get a better voice" link when the best installed voice for a language is `default` quality. Which Vietnamese voices exist (and their quality tier) is a device check.
+
+**TTS, downloads.**
+
+| Engine | Languages | Licence | Runtime on iOS | Verdict |
+|---|---|---|---|---|
+| Moonshine Voice TTS (Piper and Kokoro voices, own G2P) | 20 locales incl. **vi-vn**, en-us, en-gb, es, fr, de, it, pt, ja, ko, zh-hans, ar, hi, ru, tr, uk, nl | Library MIT; voice and lexicon data per language README, so each voice is checked before it enters the catalog | Swift package `moonshine-swift` (static xcframework, iOS 15+), `TextToSpeech().language().modelsFrom(dir).onProgress().load()` then `synthesize` | **Chosen**, the only open runtime found with a Vietnamese voice and no GPL phonemizer at run time. |
+| Kokoro-82M | en-US, en-GB, es, fr, hi, it, ja, pt-BR, zh. **No Vietnamese** | Apache-2.0 | MLX (mlx-audio-swift, MIT, but pulls its own mlx-swift pin), or through Moonshine | Through Moonshine only. |
+| Piper vi_VN (vais1000 medium, 63 MB; training corpus CC BY 4.0, base Hi-Fi TTS 92) | Vietnamese | CC BY 4.0 data | sherpa-onnx or Piper: both phonemize with espeak-ng (GPL-3.0) | Not chosen directly: a GPL phonemizer inside an App Store build is unresolved. |
+| MMS-TTS vie (VITS) | Vietnamese | CC-BY-NC 4.0 | any | **Refused**: non-commercial. |
+| VieNeu-TTS 0.3B (Qwen3 GGUF plus a neural codec) | Vietnamese | Apache-2.0 | llama.cpp for the LM, codec needs ONNX or Core ML conversion | Later: llama.cpp is already linked, the codec is the work. |
+| TTSKit Qwen3-TTS (Core ML, argmax) | 10 languages, no Vietnamese | Apache-2.0 upstream | in WhisperKit's package | Not chosen: about 1 GB of components and no Vietnamese. |
+
+Sources: [Moonshine TTS](https://github.com/moonshine-ai/moonshine/blob/main/docs/using/text-to-speech.md), [moonshine-swift](https://github.com/moonshine-ai/moonshine-swift), [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M), [Piper vi_VN vais1000 model card](https://huggingface.co/rhasspy/piper-voices/blob/main/vi/vi_VN/vais1000/medium/MODEL_CARD), [VieNeu-TTS-0.3B](https://huggingface.co/pnnbao-ump/VieNeu-TTS-0.3B), [TTSKit](https://github.com/argmaxinc/argmax-oss-swift#ttskit).
+
+### Decisions
+
+1. **Default per device class** (`DeviceClass`, from `FitPlanner`): STT default is the System engine on every class. Offered Whisper models: 4 GB tiny and base; 6 GB base and small; 8 GB and up small and large-v3 turbo compressed (recommended). Whisper tiny is offered as a language detector only, never as the dictation engine for Vietnamese. A model is "fits" when its resident estimate (about 2.2 times the download for Core ML models, measured later) is under the device budget with 25% headroom.
+2. **Language detection.** With Whisper installed and selected, Whisper detects the language from the first second or two of audio and reports it. Without it, the System engine runs the user's candidate locales in parallel (device languages, English, and any the user pinned, at most two) for the first seconds and keeps the one whose text a language recognizer agrees with and whose final confidence is higher. This is a heuristic: its accuracy is an on-device eval item (below). The badge in the composer shows the result and a tap forces a language.
+3. **Fallback rule.** System engine always works. A downloaded engine is used only when installed, selected and its `languages` contain the request (STT: the forced or detected language; TTS: the language of each sentence). Otherwise the System engine speaks or listens. The Settings row says "Uses the system voice for Vietnamese" when a TTS model lacks a language the user's device language needs.
+4. **Downloads.** Voice models are small multi-file folders from Hugging Face or the vendor CDN, not GGUF or MLX repos, so they use `VoiceModelDownloader`: the same `ModelDownloadState` machine and progress tracker as the LLM downloads, a foreground session, per-file resume, sha256 and size checks, installed under `Application Support/Voice` and excluded from backup.
+5. **Permissions.** Microphone and speech recognition are asked at first use only, after a pre-prompt sheet that says audio is processed on the device. `NSMicrophoneUsageDescription` and `NSSpeechRecognitionUsageDescription` are in `project.yml`.
+
+### On-device eval list (the CI simulator has no microphone)
+
+- STT: word error and real-time factor on a fixed 30 s English clip and a fixed 30 s Vietnamese clip for the System engine, Whisper base, small and large-v3 turbo compressed, per device class, with thermal state.
+- Language detection: 20 short clips (10 English, 10 Vietnamese, 5 mixed) through both detectors; count wrong picks and the seconds until the badge settles.
+- TTS: time to first audio and real-time factor for one English and one Vietnamese sentence per engine; whether the best Vietnamese system voice is `default`, `enhanced` or `premium` quality on a clean install.
+- Memory: peak footprint with a Whisper model loaded next to a 3B chat model on a 6 GB device.
+
+### Sequence
+
+- [ ] V1 Voice seam: `SpeechToText`, `TextToSpeech`, System engines, sentence chunker, language arbiter, `VoiceModel` catalog and fit, fallback resolver, tests.
+- [ ] V2 Dictation in the composer: mic button, live partial text, level meter, language badge, permissions sheet, Info.plist strings.
+- [ ] V3 Spoken replies: speaker button, "Read replies aloud", sentence streaming, stop on new input.
+- [ ] V4 Settings › Local Models › Voice: Speech to text and Text to speech sections, Get and Delete, default, Test voice.
+- [ ] V5 `WhisperKit` STT engine and catalog entries (tiny, base, small, large-v3 turbo compressed).
+- [ ] V6 `Moonshine` TTS engine and catalog entries after each voice's licence is checked.
+- [ ] V7 (Later) Moonshine streaming STT for Vietnamese and English after the language is known; VieNeu-TTS through llama.cpp.
 
 ## Open questions (operator)
 
