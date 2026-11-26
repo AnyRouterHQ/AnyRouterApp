@@ -48,7 +48,7 @@ struct AnyRouterEngineModelsTests {
         let engine = AnyRouterEngine(tokens: FakeTokens("sk-ar-1"), config: api.config, session: api.session)
         let models = try await engine.availableModels()
         #expect(models.map(\.id) == ["anyrouter/openai/mini"])
-        #expect(models.allSatisfy(\.isInstalled))
+        #expect(models.allSatisfy { $0.isInstalled })
         #expect(seen.value)
     }
 
