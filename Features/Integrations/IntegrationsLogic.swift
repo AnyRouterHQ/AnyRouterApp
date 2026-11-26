@@ -6,6 +6,8 @@ enum IntegrationsLogic {
         case notHTTPS
         case invalid
         case duplicate
+        /// Not a URL problem, but it ends the same "could not add this server" path.
+        case keychain
 
         var errorDescription: String? {
             switch self {
@@ -13,6 +15,7 @@ enum IntegrationsLogic {
             case .notHTTPS: return "Use an https:// URL. Plain http is only allowed for localhost."
             case .invalid: return "That is not a valid server URL."
             case .duplicate: return "This server is already added."
+            case .keychain: return "The token could not be saved in the Keychain. The server was not added."
             }
         }
     }

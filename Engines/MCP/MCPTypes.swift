@@ -16,11 +16,15 @@ struct MCPServer: Identifiable, Hashable, Codable, Sendable {
     var url: URL
     var auth: Auth
 
+    /// The app's own server: the user signed in to it, so its read-only hints are trusted.
+    /// A custom server decides nothing about approval; only the user's "always allow" does.
+    var isTrusted: Bool { auth == .anyRouterSignIn }
+
     /// AnyRouter's own server. The sign-in token works against it.
     static let anyRouter = MCPServer(
         id: "anyrouter",
         name: "AnyRouter",
-        url: URL(string: "https://mcp.anyrouter.dev/api/v1/mcp")!,
+        url: URL(string: "https://anyrouter.dev/api/v1/mcp")!,
         auth: .anyRouterSignIn
     )
 }

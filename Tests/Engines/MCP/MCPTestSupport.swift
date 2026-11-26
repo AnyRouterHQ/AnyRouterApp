@@ -48,6 +48,14 @@ final class MCPStubProtocol: URLProtocol, @unchecked Sendable {
         return URL(string: "https://\(host)/mcp")!
     }
 
+    /// Registers a handler for an existing host, such as AnyRouter's own server URL. Tests that do this run one at a time.
+    static func register(host: String, _ handler: @escaping @Sendable (RecordedRequest) -> StubResponse) {
+        lock.withLock {
+            handlers[host] = handler
+            recorded[host] = []
+        }
+    }
+
     static func requests(for url: URL) -> [RecordedRequest] {
         lock.withLock { recorded[url.host() ?? ""] ?? [] }
     }
@@ -103,8 +111,26 @@ final class FakeCredentialStore: MCPCredentialStoring, @unchecked Sendable {
     private var tokens: [String: String] = [:]
 
     func token(for serverID: String) -> String? { lock.withLock { tokens[serverID] } }
-    func save(token: String, for serverID: String) { lock.withLock { tokens[serverID] = token } }
+    /// When set, `save` fails like a locked Keychain.
+    var failsSaves = false
+
+    func save(token: String, for serverID: String) -> Bool {
+        lock.withLock {
+            if failsSaves { return false }
+            tokens[serverID] = token
+            return true
+        }
+    }
     func remove(for serverID: String) { lock.withLock { tokens[serverID] = nil } }
+}
+
+extension StubResponse {
+    /// The same JSON with trailing spaces, so a size cap has something to refuse.
+    func withPadding(_ bytes: Int) -> StubResponse {
+        var copy = self
+        copy.body.append(Data(repeating: 0x20, count: bytes))
+        return copy
+    }
 }
 
 /// Recorded-shape fixtures. The tool names and fields follow AnyRouter's MCP reference.

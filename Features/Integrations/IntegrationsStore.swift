@@ -89,6 +89,19 @@ final class IntegrationsStore {
         }
     }
 
+    /// Sign-in connects the built-in AnyRouter server with the same token; sign-out disconnects it at once and
+    /// forgets its tools. The task is returned so tests can wait for the connection.
+    @discardableResult
+    func accountChanged(signedIn: Bool) -> Task<Void, Never>? {
+        let server = MCPServer.anyRouter
+        guard signedIn else {
+            clients[server.id] = nil
+            states[server.id] = ServerState(status: .needsSignIn)
+            return nil
+        }
+        return Task { await refresh(server) }
+    }
+
     func refreshAll() async {
         for server in servers { await refresh(server) }
     }
@@ -139,7 +152,9 @@ final class IntegrationsStore {
             url: url,
             auth: trimmedToken.isEmpty ? .none : .bearerToken
         )
-        if !trimmedToken.isEmpty { credentials.save(token: trimmedToken, for: server.id) }
+        if !trimmedToken.isEmpty, !credentials.save(token: trimmedToken, for: server.id) {
+            throw IntegrationsLogic.URLProblem.keychain
+        }
         customServers.append(server)
         persistServers()
         return server

@@ -22,6 +22,8 @@ final class AnyRouterAuth {
 
     let store: KeychainStore
     private let client: any OAuthSigning
+    /// Called when the user becomes signed in or signed out (also on a 401 or an expired key).
+    @ObservationIgnored var onSignedInChange: (@MainActor (Bool) -> Void)?
 
     init(store: KeychainStore = KeychainStore(), client: (any OAuthSigning)? = nil) {
         self.store = store
@@ -36,7 +38,9 @@ final class AnyRouterAuth {
 
     /// Re-reads the Keychain: a stored token past its expiry counts as signed out.
     func refresh() {
+        let was = isSignedIn
         state = store.token() != nil ? .signedIn(expiresAt: store.expiresAt()) : .signedOut
+        if was != isSignedIn { onSignedInChange?(isSignedIn) }
     }
 
     func signIn() async {

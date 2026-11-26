@@ -23,10 +23,22 @@ final class IntegrationsStoreTests: XCTestCase {
         return try store.addServer(name: "", urlString: url.absoluteString, token: token)
     }
 
+    func testKeychainFailureMeansTheServerIsNotAddedWithoutItsToken() {
+        let credentials = FakeCredentialStore()
+        credentials.failsSaves = true
+        let store = makeStore(credentials: credentials)
+        XCTAssertThrowsError(try store.addServer(name: "x", urlString: "https://example.com/mcp", token: "secret")) {
+            XCTAssertEqual($0 as? IntegrationsLogic.URLProblem, .keychain)
+        }
+        XCTAssertTrue(store.customServers.isEmpty)
+        // A server without a token needs no Keychain write.
+        XCTAssertNoThrow(try store.addServer(name: "open", urlString: "https://open.example.com/mcp", token: ""))
+    }
+
     func testAnyRouterIsListedFirstAndNeedsSignInWithoutAToken() async {
         let store = makeStore(token: nil)
         XCTAssertEqual(store.servers.first, .anyRouter)
-        XCTAssertEqual(MCPServer.anyRouter.url.absoluteString, "https://mcp.anyrouter.dev/api/v1/mcp")
+        XCTAssertEqual(MCPServer.anyRouter.url.absoluteString, "https://anyrouter.dev/api/v1/mcp")
         await store.refresh(.anyRouter)
         XCTAssertEqual(store.state(for: .anyRouter).status, .needsSignIn)
         XCTAssertTrue(store.state(for: .anyRouter).tools.isEmpty)
@@ -138,6 +150,101 @@ final class IntegrationsStoreTests: XCTestCase {
         case .failure(let error): XCTAssertNotNil(error as? IntegrationsLogic.URLProblem)
         }
     }
+}
+
+/// Mutable token the store reads, like the Keychain.
+private final class TokenBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var current: String?
+    var token: String? {
+        get { lock.withLock { current } }
+        set { lock.withLock { current = newValue } }
+    }
+}
+
+@MainActor
+private struct ImmediateSigner: OAuthSigning {
+    func signIn() async throws -> IssuedToken { IssuedToken(accessToken: "sk-ar-live", expiresAt: nil) }
+}
+
+@MainActor
+final class AnyRouterSignInConnectTests: XCTestCase {
+    private func makeStore(_ box: TokenBox) -> IntegrationsStore {
+        IntegrationsStore(
+            defaults: testDefaults(), credentials: FakeCredentialStore(),
+            anyRouterToken: { box.token }, session: MCPStubProtocol.session()
+        )
+    }
+
+    private func serveAnyRouter() {
+        MCPStubProtocol.register(host: MCPServer.anyRouter.url.host()!, standardMCPHandler())
+    }
+
+    func testSignInConnectsWithTheSameTokenAndSignOutDisconnects() async throws {
+        serveAnyRouter()
+        let box = TokenBox()
+        let store = makeStore(box)
+        XCTAssertEqual(store.state(for: .anyRouter).status, .idle)
+
+        box.token = "sk-ar-live"
+        await store.accountChanged(signedIn: true)?.value
+        XCTAssertEqual(store.state(for: .anyRouter).status, .connected)
+        XCTAssertEqual(store.state(for: .anyRouter).tools.count, 5)
+        XCTAssertEqual(store.enabledTools.count, 5)
+        let seen = MCPStubProtocol.requests(for: MCPServer.anyRouter.url)
+        XCTAssertEqual(seen.first?.header("Authorization"), "Bearer sk-ar-live")
+
+        box.token = nil
+        store.accountChanged(signedIn: false)
+        XCTAssertEqual(store.state(for: .anyRouter).status, .needsSignIn)
+        XCTAssertTrue(store.state(for: .anyRouter).tools.isEmpty)
+        XCTAssertTrue(store.enabledTools.isEmpty)
+        XCTAssertNil(store.makeToolHost(approver: NeverAsked()))
+    }
+
+    func testSignedInStateFlowsFromTheAuthToTheStore() async throws {
+        serveAnyRouter()
+        let keychain = KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)")
+        defer { keychain.clear() }
+        let store = IntegrationsStore(
+            defaults: testDefaults(), credentials: FakeCredentialStore(),
+            anyRouterToken: { keychain.token() }, session: MCPStubProtocol.session()
+        )
+        let auth = AnyRouterAuth(store: keychain, client: ImmediateSigner())
+        auth.onSignedInChange = { _ = store.accountChanged(signedIn: $0) }
+
+        await auth.signIn()
+        let connected = await waitUntil { store.state(for: .anyRouter).status == .connected }
+        XCTAssertTrue(connected)
+        XCTAssertEqual(store.state(for: .anyRouter).tools.count, 5)
+
+        auth.signOut()
+        XCTAssertEqual(store.state(for: .anyRouter).status, .needsSignIn)
+        XCTAssertTrue(store.state(for: .anyRouter).tools.isEmpty)
+
+        // A server that turns the token down (revoked key) also ends as signed out.
+        MCPStubProtocol.register(host: MCPServer.anyRouter.url.host()!) { _ in StubResponse(status: 401, body: "{}") }
+        keychain.save(token: "sk-ar-revoked", expiresAt: nil)
+        await store.refresh(.anyRouter)
+        XCTAssertEqual(store.state(for: .anyRouter).status, .needsSignIn)
+    }
+
+    func testAuthReportsOnlyRealChanges() async {
+        let keychain = KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)")
+        defer { keychain.clear() }
+        let auth = AnyRouterAuth(store: keychain, client: ImmediateSigner())
+        var changes: [Bool] = []
+        auth.onSignedInChange = { changes.append($0) }
+        auth.refresh()
+        await auth.signIn()
+        auth.refresh()
+        auth.handleUnauthorized()
+        XCTAssertEqual(changes, [true, false])
+    }
+}
+
+private struct NeverAsked: ToolApproving {
+    func decide(_ request: ToolApprovalRequest) async -> ToolDecision { .deny }
 }
 
 final class IntegrationsLogicTests: XCTestCase {

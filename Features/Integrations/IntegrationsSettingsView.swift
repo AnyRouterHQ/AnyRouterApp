@@ -36,9 +36,6 @@ struct IntegrationsSettingsView: View {
         }
         .sheet(isPresented: $showsAdd) { AddMCPServerSheet() }
         .task { await store.refreshAll() }
-        .onChange(of: app.account.state) {
-            Task { await store.refresh(.anyRouter) }
-        }
     }
 }
 

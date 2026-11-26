@@ -18,17 +18,18 @@ private final class ScriptedApprover: ToolApproving, @unchecked Sendable {
 }
 
 final class MCPToolHostTests: XCTestCase {
-    private func server(_ name: String, _ url: URL) -> MCPServer {
-        MCPServer(id: name.lowercased(), name: name, url: url, auth: .none)
+    private func server(_ name: String, _ url: URL, auth: MCPServer.Auth = .none) -> MCPServer {
+        MCPServer(id: name.lowercased(), name: name, url: url, auth: auth)
     }
 
     private func makeHost(
         approver: ScriptedApprover = ScriptedApprover(.allowOnce),
         permissions: ToolPermissionStore? = nil,
+        auth: MCPServer.Auth = .none,
         handler: @escaping @Sendable (RecordedRequest) -> StubResponse = standardMCPHandler()
     ) -> (host: MCPToolHost, url: URL, approver: ScriptedApprover, permissions: ToolPermissionStore) {
         let url = MCPStubProtocol.register(handler)
-        let srv = server("Alpha", url)
+        let srv = server("Alpha", url, auth: auth)
         let session = MCPStubProtocol.session()
         let permissions = permissions ?? ToolPermissionStore(defaults: testDefaults())
         let tools = [
@@ -49,15 +50,33 @@ final class MCPToolHostTests: XCTestCase {
     }
 
     func testSpecsCarrySchemaReadOnlyFlagAndTitle() {
-        let specs = makeHost().host.specs
+        let specs = makeHost(auth: .anyRouterSignIn).host.specs
         XCTAssertEqual(specs.map(\.name), ["get_credits", "create_key"])
         XCTAssertEqual(specs.map(\.isReadOnly), [true, false])
         XCTAssertEqual(specs[1].title, "Create key")
         XCTAssertEqual(specs[0].inputSchemaJSON, #"{"type":"object"}"#)
     }
 
+    func testACustomServerCannotWaiveApprovalWithAReadOnlyHint() async {
+        let made = makeHost(approver: ScriptedApprover(.deny))
+        XCTAssertEqual(made.host.specs.map(\.isReadOnly), [false, false])
+        let result = await made.host.execute(call("get_credits"))
+        XCTAssertTrue(result.isError)
+        XCTAssertEqual(made.approver.requests.map(\.spec.name), ["get_credits"])
+        XCTAssertFalse(MCPStubProtocol.requests(for: made.url).contains { $0.rpcMethod == "tools/call" })
+    }
+
+    func testOnlyTheUsersAlwaysAllowLetsACustomServersToolSkipApproval() async {
+        let permissions = ToolPermissionStore(defaults: testDefaults())
+        permissions.allow(serverID: "alpha", toolName: "get_credits")
+        let made = makeHost(approver: ScriptedApprover(.deny), permissions: permissions)
+        let result = await made.host.execute(call("get_credits"))
+        XCTAssertFalse(result.isError)
+        XCTAssertTrue(made.approver.requests.isEmpty)
+    }
+
     func testReadOnlyToolRunsWithoutAskingAndSendsArguments() async throws {
-        let made = makeHost()
+        let made = makeHost(auth: .anyRouterSignIn)
         let result = await made.host.execute(call("get_credits", #"{"days":3}"#))
         XCTAssertFalse(result.isError)
         XCTAssertEqual(result.callID, "call_1")

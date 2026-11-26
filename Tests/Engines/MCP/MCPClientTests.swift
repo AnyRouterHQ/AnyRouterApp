@@ -12,6 +12,32 @@ final class MCPClientTests: XCTestCase {
         return MCPClient(server: server, token: { token }, session: MCPStubProtocol.session())
     }
 
+    func testAnAnswerLargerThanTheCapIsRefused() async throws {
+        let url = MCPStubProtocol.register { request in
+            MCPFixtures.reply(MCPFixtures.toolsList, to: request).withPadding(8 * 1024)
+        }
+        let client = MCPClient(
+            server: MCPServer(id: "t", name: "T", url: url, auth: .none),
+            token: { nil }, session: MCPStubProtocol.session(), maxResponseBytes: 2 * 1024
+        )
+        do {
+            _ = try await client.connect()
+            XCTFail("expected an error")
+        } catch {
+            XCTAssertEqual(error as? MCPError, .invalidResponse("The answer is larger than 2 KB."))
+        }
+    }
+
+    func testAnAnswerUnderTheCapIsRead() async throws {
+        let url = MCPStubProtocol.register(standardMCPHandler())
+        let client = MCPClient(
+            server: MCPServer(id: "t", name: "T", url: url, auth: .none),
+            token: { nil }, session: MCPStubProtocol.session(), maxResponseBytes: 64 * 1024
+        )
+        let tools = try await client.listTools()
+        XCTAssertEqual(tools.count, 5)
+    }
+
     func testHandshakeSendsInitializeThenInitializedAndKeepsSession() async throws {
         let url = MCPStubProtocol.register(standardMCPHandler())
         let client = makeClient(url: url)

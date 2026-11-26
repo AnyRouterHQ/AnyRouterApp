@@ -4,7 +4,8 @@ import Security
 /// Bearer tokens for custom MCP servers. Keychain only: never UserDefaults, never a log line.
 protocol MCPCredentialStoring: Sendable {
     func token(for serverID: String) -> String?
-    func save(token: String, for serverID: String)
+    /// False when the token could not be stored (for example a locked or full Keychain).
+    func save(token: String, for serverID: String) -> Bool
     func remove(for serverID: String)
 }
 
@@ -27,12 +28,12 @@ struct MCPKeychainCredentialStore: MCPCredentialStoring {
         return value
     }
 
-    func save(token: String, for serverID: String) {
+    func save(token: String, for serverID: String) -> Bool {
         remove(for: serverID)
         var insert = baseQuery(serverID)
         insert[kSecValueData as String] = Data(token.utf8)
         insert[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        SecItemAdd(insert as CFDictionary, nil)
+        return SecItemAdd(insert as CFDictionary, nil) == errSecSuccess
     }
 
     func remove(for serverID: String) {

@@ -78,7 +78,8 @@ struct MCPToolHost: ToolHost {
                 title: item.tool.title ?? item.tool.annotations?.title,
                 description: item.tool.description ?? item.tool.displayName,
                 inputSchemaJSON: item.tool.inputSchema.jsonString(),
-                isReadOnly: item.tool.isReadOnly
+                // A custom server's read-only hint is only a hint: it must not skip the user's approval.
+                isReadOnly: item.tool.isReadOnly && item.server.isTrusted
             )
             specs.append(spec)
             entries[spec.name] = Entry(server: item.server, tool: item.tool, spec: spec, client: client(item.server))
@@ -98,7 +99,7 @@ struct MCPToolHost: ToolHost {
             return failure("The arguments are not a JSON object.")
         }
 
-        if !entry.tool.isReadOnly,
+        if !entry.spec.isReadOnly,
             !permissions.isAlwaysAllowed(serverID: entry.server.id, toolName: entry.tool.name) {
             let request = ToolApprovalRequest(serverName: entry.server.name, spec: entry.spec, call: call)
             switch await approver.decide(request) {

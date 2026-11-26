@@ -73,6 +73,9 @@ final class AppState {
                 await mlx.unload()
             })
         let auth = AnyRouterAuth()
+        // Signing in connects the AnyRouter MCP server with the same token; signing out disconnects it.
+        auth.onSignedInChange = { [integrations] in _ = integrations.accountChanged(signedIn: $0) }
+        if auth.isSignedIn { _ = integrations.accountChanged(signedIn: true) }
         let anyRouter = auth.makeEngine()
         registry.register(anyRouter)
         decisions = DecisionsStore(service: AnyRouterDecisionsAdapter(engine: anyRouter))

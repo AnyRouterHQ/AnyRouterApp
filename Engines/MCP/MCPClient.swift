@@ -13,12 +13,15 @@ actor MCPClient {
     }
 
     static let requestedProtocolVersion = "2025-06-18"
+    /// A server answer larger than this is refused instead of read whole into memory.
+    static let defaultMaxResponseBytes = 4 * 1024 * 1024
 
     private let server: MCPServer
     private let token: @Sendable () -> String?
     private let session: URLSession
     private let clientName: String
     private let clientVersion: String
+    private let maxResponseBytes: Int
 
     private var sessionID: String?
     private var protocolVersion: String?
@@ -31,8 +34,10 @@ actor MCPClient {
         token: @escaping @Sendable () -> String?,
         session: URLSession = .shared,
         clientName: String = "AnyRouter for iOS",
-        clientVersion: String = "1"
+        clientVersion: String = "1",
+        maxResponseBytes: Int = MCPClient.defaultMaxResponseBytes
     ) {
+        self.maxResponseBytes = maxResponseBytes
         self.server = server
         self.token = token
         self.session = session
@@ -159,24 +164,39 @@ actor MCPClient {
         if let protocolVersion { request.setValue(protocolVersion, forHTTPHeaderField: "MCP-Protocol-Version") }
         if let sessionID { request.setValue(sessionID, forHTTPHeaderField: "Mcp-Session-Id") }
 
-        let fetched: (Data, URLResponse)
         do {
-            fetched = try await session.data(for: request)
+            let (bytes, response) = try await session.bytes(for: request)
+            guard let http = response as? HTTPURLResponse else { throw MCPError.invalidResponse("Not an HTTP response.") }
+            if let id = http.value(forHTTPHeaderField: "Mcp-Session-Id"), !id.isEmpty { sessionID = id }
+            switch http.statusCode {
+            case 200..<300:
+                return (try await Self.read(bytes, limit: maxResponseBytes), http)
+            case 401:
+                throw MCPError.unauthorized
+            case 404 where sessionID != nil:
+                throw MCPError.sessionExpired
+            default:
+                // Only the start of an error body is needed for its message.
+                let body = (try? await Self.read(bytes, limit: 16 * 1024)) ?? Data()
+                throw MCPError.http(status: http.statusCode, message: AnyRouterError.message(from: body, status: http.statusCode))
+            }
         } catch let error as URLError where error.code == .cancelled {
             throw CancellationError()
         } catch let error as URLError {
             throw MCPError.from(urlError: error)
         }
-        let (data, response) = fetched
-        guard let http = response as? HTTPURLResponse else { throw MCPError.invalidResponse("Not an HTTP response.") }
-        if let id = http.value(forHTTPHeaderField: "Mcp-Session-Id"), !id.isEmpty { sessionID = id }
-        switch http.statusCode {
-        case 200..<300: return (data, http)
-        case 401: throw MCPError.unauthorized
-        case 404 where sessionID != nil: throw MCPError.sessionExpired
-        default:
-            throw MCPError.http(status: http.statusCode, message: AnyRouterError.message(from: data, status: http.statusCode))
+    }
+
+    /// Reads a body, failing as soon as it passes `limit` so a hostile server cannot fill memory.
+    static func read(_ bytes: URLSession.AsyncBytes, limit: Int) async throws -> Data {
+        var data = Data()
+        for try await byte in bytes {
+            data.append(byte)
+            if data.count > limit {
+                throw MCPError.invalidResponse("The answer is larger than \(limit / 1024) KB.")
+            }
         }
+        return data
     }
 
     private func reset() {
