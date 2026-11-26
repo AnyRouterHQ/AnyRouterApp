@@ -1,0 +1,148 @@
+name: Perf baseline
+
+# Records the numbers from PLAN.md § Native UX & performance in the job summary. Baseline only, no gate.
+# Simulator numbers rank changes against each other; they are not device numbers.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Features/**"
+      - "Design/**"
+      - "App/**"
+      - "Core/**"
+      - "UITests/PerformanceTests.swift"
+      - "scripts/perf-summary.py"
+      - ".github/workflows/perf.yml"
+
+concurrency:
+  group: perf-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  perf:
+    runs-on: macos-26
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then echo "No Xcode 26 on this runner"; ls /Applications | grep -i xcode; exit 1; fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Cache SwiftPM and DerivedData
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            .build
+            SourcePackages
+            DerivedData
+          key: perf-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            perf-${{ runner.os }}-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Pick an iPhone simulator
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json, subprocess
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))["devices"]
+          for runtime in sorted(data, reverse=True):
+              if "iOS" not in runtime:
+                  continue
+              names = [d for d in data[runtime] if d["isAvailable"] and d["name"].startswith("iPhone 1")
+                       and "Pro" in d["name"] and "Max" not in d["name"]]
+              names.sort(key=lambda d: d["name"], reverse=True)
+              if names:
+                  print("IPHONE_UDID=" + names[0]["udid"])
+                  print("IPHONE_NAME=" + names[0]["name"])
+                  raise SystemExit(0)
+          raise SystemExit("no iPhone simulator")
+          PY
+          grep IPHONE "$GITHUB_ENV"
+
+      - name: Build for testing (Release)
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots -configuration Release \
+            -destination "platform=iOS Simulator,id=$IPHONE_UDID" \
+            -derivedDataPath DerivedData \
+            -clonedSourcePackagesDirPath SourcePackages \
+            CODE_SIGNING_ALLOWED=NO | tail -n 100
+
+      - name: Warm up (result discarded)
+        run: |
+          xcrun simctl boot "$IPHONE_UDID" || true
+          xcodebuild test-without-building \
+            -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots -configuration Release \
+            -destination "platform=iOS Simulator,id=$IPHONE_UDID" \
+            -derivedDataPath DerivedData \
+            -only-testing:AnyRouterUITests/PerformanceTests/testColdLaunch \
+            CODE_SIGNING_ALLOWED=NO > warmup.log 2>&1 || true
+          tail -n 3 warmup.log
+
+      - name: Run the perf tests three times
+        run: |
+          set -o pipefail
+          xcrun simctl boot "$IPHONE_UDID" || true
+          mkdir -p perf
+          for run in 1 2 3; do
+            xcodebuild test-without-building \
+              -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots -configuration Release \
+              -destination "platform=iOS Simulator,id=$IPHONE_UDID" \
+              -derivedDataPath DerivedData \
+              -only-testing:AnyRouterUITests/PerformanceTests \
+              -resultBundlePath "perf/run-$run.xcresult" \
+              CODE_SIGNING_ALLOWED=NO 2>&1 | tee "perf/run-$run.log" | grep -E "measured \[|Test Case .*(passed|failed)|error:" || true
+          done
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Perf baseline"
+            echo
+            echo "Device: $IPHONE_NAME (Simulator, Release build). Three runs; five iterations per test, three for the 20 s streaming windows."
+            echo "A warm-up launch ran first and is discarded. Spread across runs is the noise floor: a change smaller than twice that is not a result."
+            echo
+            python3 -I scripts/perf-summary.py perf/summary.json perf/run-1.log perf/run-2.log perf/run-3.log
+            echo
+            echo "Failed or skipped tests:"
+            echo '```'
+            grep -hE "Test Case .*failed|error:" perf/run-*.log | sort -u | head -n 30 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: perf
+          path: |
+            perf/summary.json
+            perf/run-*.log
+          retention-days: 30
+
+      - name: Fail when nothing was measured or a test failed
+        run: |
+          python3 -I -c "import json,sys; sys.exit(0 if json.load(open('perf/summary.json')) else 1)"
+          if grep -qE "Test Case .*failed" perf/run-*.log; then echo "a perf test failed, see the summary"; exit 1; fi
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: perf-results
+          path: perf/*.xcresult
+          retention-days: 7

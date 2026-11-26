@@ -3,7 +3,7 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppState.self) private var appState
-    @State private var shell = ShellModel()
+    @State private var shell = ShellModel(selectedThreadID: DemoData.initialThreadID)
     @State private var showsOnboarding = false
     @Environment(\.scenePhase) private var scenePhase
 

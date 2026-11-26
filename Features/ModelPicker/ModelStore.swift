@@ -32,6 +32,7 @@ final class ModelStore {
         self.usageCache = UsageOrderCache(defaults: defaults)
         self.usageOrder = usageCache.load()
         self.selectedID = defaults.string(forKey: Self.selectedKey)
+        Perf.beginModels()
     }
 
     /// The model for a chat that has no pick of its own. `preferredUnavailable` is set when a
@@ -60,6 +61,7 @@ final class ModelStore {
         models = await registry.allModels()
         isLoading = false
         hasLoaded = true
+        if models.contains(where: \.isInstalled) { Perf.endModels() }
         await refreshUsageOrder()
     }
 

@@ -474,7 +474,7 @@ The reference design is a web app. "Match it 100%" cannot mean pixel-copying web
 
 - P1 One SwiftData mutation per token on the main actor: assistant.content += piece (Features/Chat/ChatViewModel.swift:112). Each one is a change plus an Observation invalidation (inference: autosave work too).
 - P2 The list body re-runs per token because onChange(of: messages.last?.content.count) is evaluated in body (ChatScreen.swift:110). messages sorts the whole relationship on every access (ChatViewModel.swift:33-35), called again by canRegenerate (:44-46). O(n log n) per token at n = 200.
-- P3 MessageRow cannot be skipped: it takes a reference model and a fresh closure per body (ChatScreen.swift:93-98, MessageViews.swift:5-9). Every realized assistant row re-parses Markdown(message.content) (MessageViews.swift:38) and rebuilds the Theme (MarkdownTheme.swift:7, MessageViews.swift:39). The streaming row re-parses and re-lays out the whole reply per token, O(n) per token and O(n^2) per reply (inference from how MarkdownUI works).
+- P3 MessageRow cannot be skipped: it takes a reference model and a fresh closure per body (ChatScreen.swift:93-98, MessageViews.swift:5-9). Every realized row rebuilds the Theme (MarkdownTheme.swift:7, MessageViews.swift:39) and recreates Markdown(message.content) (MessageViews.swift:38). Measured (baseline): the row body takes about 60 microseconds, so building the view is not the cost. The app burns about one full core for the whole 1,000-token stream, so the cost sits in the MarkdownUI subtree (parse and layout of the whole reply on each update), which the row.assistant signpost cannot see.
 - P4 scrollTo("bottom") on every content change (ChatScreen.swift:109-112): forces layout per token and drags the reader down while they read earlier text. No jump-to-latest control.
 - P5 The reply is saved only at the end (ChatViewModel.swift:125-136). Killing the app mid-reply loses it.
 - P6 The model list waits for the slowest engine: allModels awaits each engine in turn (Core/EngineRegistry.swift:15-22) and the cloud request uses the default 60 s timeout (Engines/AnyRouter/AnyRouterEngine.swift:32-34). Until it returns, selected is nil (Features/ModelPicker/ModelStore.swift:23-26), the composer says "Choose a model to start" (Composer.swift:15) and send is refused (ChatViewModel.swift:55-58). On a bad network Apple and local models are unusable for up to a minute. There is no cached list. hub.reload then models.refresh also run in series (RootView.swift:27-30).
@@ -493,26 +493,52 @@ All numbers are Simulator numbers from a shared macOS runner. They rank changes 
 
 | ID | Metric | How CI measures it | Caveat | Target (proposal) |
 |---|---|---|---|---|
-| M1 | Cold launch | XCTApplicationLaunchMetric(waitUntilResponsive: true), 5 iterations, Release build; signposts split it into container, app state, first body | Includes dyld, SwiftData open, first SwiftUI body. Not the same as the system-measured launch on device | -30% after U8; device first frame under about 400 ms (Apple guidance) |
-| M2 | Chat scroll | XCTHitchMetric and XCTOSSignpostMetric.scrollDecelerationMetric on a 200-message thread (-ARDemoLongThread 200) | Simulator frame pacing. Compare runs only | device hitch ratio under 5 ms/s (Apple "good") |
-| M3 | Streaming cost | Demo engine, 1,000 tokens at 50 tok/s (20 s), fresh launch per iteration. XCTCPUMetric and XCTMemoryMetric around the window, minus an idle control run of the same length; XCTHitchMetric; signpost row.assistant (assistant row body time, markdown parse included, layout excluded) | CPU is the whole app process, so engine cost is zero here (fake engine) and render cost is included | -50% CPU per stream after U3 and U4; flushes at most 30 per second; row.assistant per reply flat instead of growing |
-| M4 | Picker open | -ARDemoManyModels 500; XCTClockMetric and CPU from the tap until the first row is on screen (no in-app signpost, to keep the Features files free) | onAppear can fire before the last row is laid out; the clock metric includes XCUITest idle waits | -70% after U9 |
-| M5 | First usable model | -ARDemoCloudDelay 5; signpost models.firstUsable from ModelStore init | Shows the P6 bug directly: baseline is about the 5 s delay | under 300 ms after U7, independent of the delay |
+| M1 | Cold launch | XCTApplicationLaunchMetric(waitUntilResponsive: true), 5 iterations, Release build, after a discarded warm-up; signposts split out container, engines, auth, hub | Simulator process start and the XCUITest responsiveness wait dominate. Not the system-measured launch on device | Our signposts are about 6% of it, so no target on the total; device first frame under about 400 ms (Apple guidance) |
+| M2 | Chat scroll | XCTCPUMetric (app CPU time) for 4 fast swipes down and 4 up on a 200-message thread (-ARDemoLongThread 200). XCTHitchMetric was tried: it reports nothing on the Simulator | CPU time, not frame pacing. Includes gesture handling | CPU time down after U3 to U6; device hitch ratio under 5 ms/s (Apple "good"), measured by hand |
+| M3 | Streaming cost | Demo engine, 1,000 tokens at 50 tok/s (about 23 s with typing), new chat per iteration. XCTCPUMetric and XCTMemoryMetric around the whole block, minus an idle control of 20 s; signpost row.assistant (row body time, MarkdownUI subtree excluded) | CPU is the whole app process, so engine cost is zero here (fake engine) and render cost is included. Manual start and stop made XCTCPUMetric fail on the Simulator, so the typing seconds are in the block | -50% CPU per stream after U3 and U5, from the baseline below |
+| M4 | Picker open | -ARDemoManyModels 500; XCTClockMetric and CPU from the tap until the first row is on screen, plus closing the sheet, with a 6-model control (no in-app signpost, to keep the Features files free) | The block includes XCUITest reading the screen, which grows with the row count. The control separates it | 500 models within 2x of the 6-model control after U9 |
+| M5 | First usable model | -ARDemoCloudDelay 5; signpost models.firstUsable from ModelStore init | Shows the P6 bug directly: baseline is the 5 s delay plus about 1.5 s to the first body | under 2 s after U7, independent of the delay |
 
 Noise rule: run the perf class 3 times (3 separate xcodebuild invocations, 5 iterations each). Report per run average and relative standard deviation, plus the spread of the three run averages. A change counts only when it moves the mean by more than twice the spread across runs. No gate until we have a few baselines.
+
+### Baseline (U1, 2026-11-26)
+
+CI run [45806661476](https://github.com/AnyRouterHQ/AnyRouterApp/actions/runs/45806661476), iPhone Simulator (macOS runner), Release build, one discarded warm-up, then three runs. Means of the three run averages, with the spread across the run averages (max minus min over the mean). Raw lines and JSON are in the run's `perf` artifact.
+
+| Metric | Mean of runs | Run averages | Spread | Reading |
+|---|---|---|---|---|
+| M1 cold launch to responsive | 4.37 s | 4.99, 4.05, 4.08 | 21% | Run 1 is slower every time (first run on a fresh Simulator). Our own code is small, see below |
+| launch.container (SwiftData open) | 0.10 s | 0.12, 0.10, 0.08 | 35% | |
+| launch.engines | 0.012 s | 0.020, 0.008, 0.007 | 110% | |
+| launch.auth (Keychain) | 0.059 s | 0.110, 0.025, 0.041 | 145% | One cold iteration reached 0.66 s in an earlier run |
+| launch.hub (background URLSession) | 0.11 s | 0.25, 0.054, 0.030 | 199% | Same cold-first pattern |
+| M5 models.firstUsable, cloud list delayed 5 s | 8.0 s | 10, 7.2, 6.7 | 44% | Runs 2 and 3 agree: 5 s delay plus about 1.5 s. Apple and local models were usable at launch but stayed unusable until the slow list returned (P6) |
+| M3 stream, app CPU over about 23 s | 24.6 s | 24.5, 26.1, 23.3 | 11% | Idle control over 20 s: 0.004 s. One full core is busy for the whole stream |
+| M3 stream, peak memory | 89 MB | 90.3, 89.1, 87.8 | 3% | Idle control 57 MB |
+| M3 row.assistant body time | 63 microseconds | 71, 15, 103 | 139% | Tiny and noisy. Building the row is not the cost (P3) |
+| M4 picker with 500 models, tap to first row | 12.0 s clock, 9.1 s CPU | clock 13.5, 12.3, 10 | 26% | 6-model control: 4.1 s clock, 0.79 s CPU. The list itself adds about 8 s of app CPU |
+| M2 scroll, app CPU for 8 fast swipes | 4.1 s | 3.3, 6.0, 2.8 | 78% | Too noisy to rank anything under about 2x. Needs more iterations or a quieter runner before it can judge U3 to U6 |
+
+What this changes:
+
+- Streaming is the biggest problem: one core for the whole reply on the Simulator. U3, U4 and U5 stay first. U4 is demoted to a follow-up because row bodies are cheap.
+- Launch is mostly the Simulator and XCUITest. Our four signposts add up to about 0.3 s of 4.4 s, so U8 leaves the top 10.
+- P6 is real and reproducible: usable local models wait for the slowest cloud call. U7 is a cheap, certain win.
+- The 500-model picker is slow in the app, not only in the test: 8 s more CPU than the control. U9 stays.
+- Not measured: hitches (no output on the Simulator), device numbers, iPad. Spread over 50% means the number cannot rank changes yet.
 
 ### Checklist (small PRs, in this order)
 
 Size S under 1 day, M 1-3 days, L more. "After" names open work in the same files; rebase on it, do not edit it.
 
-- [ ] U1 (S, after #23) Perf baseline: signposts (launch.container, launch.engines, launch.auth, launch.hub, models.firstUsable, row.assistant), PerformanceTests in the UI test target, demo flags (-ARDemoLongThread, -ARDemoManyModels, -ARDemoStream, -ARDemoCloudDelay), `perf.yml` job summary with 3 runs. Baseline only.
+- [x] U1 (#38) Perf baseline (numbers in § Baseline): signposts (launch.container, launch.engines, launch.auth, launch.hub, models.firstUsable, row.assistant), PerformanceTests in the UI test target, demo flags (-ARDemoLongThread, -ARDemoManyModels, -ARDemoStream, -ARDemoCloudDelay), `perf.yml` job summary with 3 runs. Baseline only.
 - [ ] U2 (S) Dynamic Type: map ARTheme tokens to text styles (ARTheme.swift:18-24), replace the 19 inline sizes, @ScaledMetric for icon frames and controlSize, scaled MarkdownUI size via a cached theme. Fix the comment at ARTheme.swift:17. Effect: text follows the system size, including accessibility sizes. Metric: UI test at the largest accessibility size on all screens, no truncated primary control; the accessibility audit reports no Dynamic Type issues.
 - [ ] U3 (M, after #24, #28) Streaming path: keep streaming text in the view model and flush at most 30 Hz; write the record on finish and every 2 s as a checkpoint (P1, P5); stop reading content in the list body (P2). Effect: smooth typing, no lost replies. Metric: M3.
-- [ ] U4 (S, after U3) Row identity: Equatable MessageRowModel value, actions through the environment, one cached Theme, ordered array kept in the view model instead of sorting per access (P2, P3). Effect: finished rows never re-render during a stream. Metric: M3 CPU, plus 0 body updates for non-streaming rows (debug counter).
+- [ ] U4 (S, after U3) Row identity: Equatable MessageRowModel value, actions through the environment, one cached Theme, ordered array kept in the view model instead of sorting per access (P2, P3). Effect: finished rows never re-render during a stream. Row bodies are cheap (P3), so the gain is skipping their subtree work; do it after U3 and judge it by M3 CPU, with 0 body updates for non-streaming rows (debug counter).
 - [ ] U5 (M, after U4) Stable-prefix markdown: render completed blocks with Markdown and the live tail as plain Text (break at the last blank line outside a code fence). Effect: no reflow jump at the end, flat per-token cost. Metric: M3 row.assistant per reply flat instead of growing.
 - [ ] U6 (S, after U3) Scroll follow: pinned-to-bottom state from onScrollGeometryChange, scroll only when pinned, jump-to-latest button, defaultScrollAnchor(.bottom, for: .sizeChanges) instead of per-token scrollTo (P4). Effect: you can read while it streams. Metric: M2 and a UI test that scrolls up during a stream and stays put.
 - [ ] U7 (S) Model list: per-engine tasks with incremental publish, 8 s timeout on the cloud request, last list cached on disk, hub.reload and models.refresh in parallel (P6). Effect: Apple and local models usable at once, offline or on a bad network. Metric: M5. Check the `fix/anyrouter-default-model` branch first, it may touch the same store.
-- [ ] U8 (M, after U1) Launch path: container, Keychain reads, URLSession creation and hub.reload off the first-frame path; create the background session in the delegate callback too (P7). Effect: faster first frame. Metric: M1 and its three signposts. Decide order from the U1 numbers, not from this list.
+- [ ] U8 (M, after U1) Launch path: container, Keychain reads, URLSession creation and hub.reload off the first-frame path; create the background session in the delegate callback too (P7). Effect: only the cold Keychain and session outliers (first iteration up to 0.7 s) go away; the rest is under 0.3 s of a 4 s Simulator launch (§ Baseline). Low priority. Metric: M1 signposts.
 - [ ] U9 (S) Picker and Hub lists: lazy containers, sections cached in ModelStore, one ByteCountFormatter, 150 ms search debounce, per-card progress observation so a tick redraws one card (P8, P9). Effect: instant open with hundreds of models. Metric: M4.
 - [x] U10a (L, after #23, #28) Shell: NavigationSplitView, sidebar List(selection:) with Button rows, toolbar items, ShellModel.sheet for settings, hub and picker, SceneStorage for the selected thread, UITests selectors updated in the same PR (N1-N4, N7). Effect: edge-swipe back, iPad sidebar toggle, state restored after relaunch. Metric: UI tests for swipe-back and relaunch restore; navigation transition hitches via XCTOSSignpostMetric.navigationTransitionMetric. Done in b8cbfb1, e7589eb: iPhone keeps the drawer (D19), toolbar top bar, SceneStorage restore, hub is a sheet. Left: UI test selectors, List(selection:) sidebar rows, ShellModel.sheet enum.
 - [x] U10b (S, after U10a) Settings as Form in a sheet (F4). U10c (S, after U10a) Hub as sheet with .searchable and .refreshable (F5). U10d (S, after U10a) Picker as List with .searchable and its own NavigationStack so "Browse more models" pushes (F3, N3). Done in d4a5990 (grouped List in a sheet, not Form) and e7589eb (hub sheet with searchable and refreshable).
@@ -525,7 +551,7 @@ Size S under 1 day, M 1-3 days, L more. "After" names open work in the same file
 - [ ] U17 (L, low) Deep links, App Intents (new chat, ask), opt-in Spotlight of chat titles (N5). Chat titles are private, so Spotlight is off by default.
 - [ ] U18 (S, only if M3 on the real SSE path shows it) Chunked SSE read instead of per-byte (P12), with the blank-line rule kept.
 
-Top 10 for the next lanes, by user-visible effect per day of work: U1, U3 with U4, U7, U10a, U2, U11, U13, U6, U8, U9.
+Top 10 for the next lanes, by user-visible effect per day of work: U1 (done), U3 with U4, U7, U10a, U2, U11, U13, U6, U9, U5. U8 dropped out after the baseline.
 
 Not doing: a custom navigation container, per-token haptics, pull-to-refresh on the thread list (local data, nothing to refresh), UIKit views, replacing MarkdownUI before U5 is measured.
 
@@ -551,6 +577,7 @@ Reviewer passes over main up to 66ef975 (2026-11-26). Fixed items are in `fix(..
 
 ## Status log
 
+- 2026-11-26 lane-ux: perf baseline (U1): signposts, performance UI tests, perf.yml with 3 runs; stream saturates one core, 500-model picker +8 s CPU, usable models wait for the cloud list (#38); local checks skipped
 - 2026-11-26 lane-ux: native UX and performance audit, boundary decision D15, plan U1-U18 and measurement plan; docs only, local checks skipped
 - 2026-11-26 lane-mcp: MCP client, typed tool models, Settings › Integrations with per-tool switches (T1-T2) (#33); local checks skipped
 

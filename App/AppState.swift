@@ -55,11 +55,13 @@ final class AppState {
         self.telemetry = telemetry
         settings = AppSettings()
         models = ModelStore(registry: registry, telemetry: telemetry, usage: AnyRouterUsageOrder())
+        let enginesSignpost = Perf.signposter.beginInterval("launch.engines")
         let gguf = GGUFEngine(telemetry: telemetry)
         let mlx = MLXEngine(telemetry: telemetry)
         registry.register(AppleFoundationEngine())
         registry.register(gguf)
         registry.register(mlx)
+        Perf.signposter.endInterval("launch.engines", enginesSignpost)
         // A loaded model is several GB; hand it back when the system is short on memory.
         // A running generation keeps its own reference, so this never cuts a reply short.
         _ = NotificationCenter.default.addObserver(
@@ -93,7 +95,9 @@ final class AppState {
                     physicalBytes: snapshot.physicalBytes, budgetBytes: snapshot.deviceMemory.budgetBytes,
                     limitBytes: snapshot.processLimitBytes, entitlementSigned: MemoryEntitlement.isSignedForThisApp())
             })
+        let authSignpost = Perf.signposter.beginInterval("launch.auth")
         let auth = AnyRouterAuth()
+        Perf.signposter.endInterval("launch.auth", authSignpost)
         // Signing in connects the AnyRouter MCP server with the same token; signing out disconnects it.
         auth.onSignedInChange = { [integrations] in _ = integrations.accountChanged(signedIn: $0) }
         if auth.isSignedIn { _ = integrations.accountChanged(signedIn: true) }
@@ -101,6 +105,8 @@ final class AppState {
         registry.register(anyRouter)
         decisions = DecisionsStore(service: AnyRouterDecisionsAdapter(engine: anyRouter))
         account = AnyRouterAccountAdapter(auth: auth, telemetry: telemetry)
+        let hubSignpost = Perf.signposter.beginInterval("launch.hub")
+        defer { Perf.signposter.endInterval("launch.hub", hubSignpost) }
         hub = LocalModelHub(
             downloads: ModelDownloadManager(telemetry: telemetry),
             unloadModel: { id in
