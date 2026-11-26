@@ -67,12 +67,13 @@ gh pr checks --watch              # CI must be green
 
 ## Updating PLAN.md (required)
 
-PLAN.md is how lanes and humans see progress. In the same PR as the work:
+PLAN.md is how lanes and humans see progress. Every PR edits it, so keep edits to lines nobody else touches:
 
-- Tick the task box `- [x]` and add the PR number: `- [x] A3 CI workflow (#4)`.
-- Add one line to § Status log: `2026-11-26 lane-B: OAuth sign-in works in simulator CI test (#7)`.
-- New finding, blocker, or decision → § Open questions or § Decisions. Do not bury it in a PR.
-- Only touch your lane's section plus the log, questions, and decisions sections, so PLAN.md merges cleanly.
+- Tick your own task box and add the PR number on that same line: `- [x] A3 CI workflow (#4)`.
+- New finding, blocker, or decision → add one line to § Open questions or § Decisions.
+- **Do not append to § Status log in feature PRs.** Every PR appending at the same spot made each merge conflict with every open PR and cost a full macOS rebuild. The manager writes the status log in a batch, docs-only PR from the merged PR list.
+- Docs-only PRs (`*.md`, `docs/**`) skip the macOS build, so put long plans and logs there.
+- Rebase on `origin/main` right before you push, and push once per CI run: each push restarts the macOS queue.
 
 ## Definition of done for a task
 
