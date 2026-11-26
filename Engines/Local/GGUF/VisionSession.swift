@@ -7,8 +7,9 @@ final class PreparedVision: @unchecked Sendable {
     private let session: VisionSession
     private let chunks: OpaquePointer
     private let bitmaps: [OpaquePointer]
-    /// Positions the prompt takes in the context: text tokens plus what the photos encode to.
-    let positionCount: Int
+    /// Tokens the prompt puts in the context: text tokens plus what the photos encode to. Not the position count: models
+    /// with M-RoPE (Qwen) give a photo far fewer positions than tokens, and the KV cache needs a cell per token.
+    let tokenCount: Int
     /// The largest context that leaves room for the image reader, nil when nothing limits it.
     let contextCap: Int?
 
@@ -17,7 +18,7 @@ final class PreparedVision: @unchecked Sendable {
         self.chunks = chunks
         self.bitmaps = bitmaps
         self.contextCap = contextCap
-        self.positionCount = Int(mtmd_helper_get_n_pos(chunks))
+        self.tokenCount = Int(mtmd_helper_get_n_tokens(chunks))
     }
 
     deinit {

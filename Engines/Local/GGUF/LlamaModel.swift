@@ -257,7 +257,7 @@ final class LlamaModel: @unchecked Sendable {
     ) throws -> LlamaResult {
         // A photo is read in one piece (up to a few hundred tokens), so the batch must hold it.
         try generate(
-            promptSize: prompt.positionCount, batch: 1024, contextCap: prompt.contextCap, params: params,
+            promptSize: prompt.tokenCount, batch: 1024, contextCap: prompt.contextCap, params: params,
             isCancelled: isCancelled, emit: emit
         ) { context, batchSize in
             try prompt.evaluate(context: context, batchSize: batchSize)
