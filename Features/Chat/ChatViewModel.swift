@@ -10,6 +10,9 @@ final class ChatViewModel {
     var input = ""
     private(set) var phase: Phase = .idle
     private(set) var errorMessage: String?
+    /// Name of the local model that is loading or reading the prompt, until its first token arrives. Nil otherwise.
+    /// The UI shows "Loading <name>…" and stays usable; Stop cancels.
+    private(set) var loadingModelName: String?
     private(set) var thread: ThreadRecord?
     /// Bumps when the composer should take focus (after a preset fills it).
     private(set) var focusTick = 0
@@ -246,6 +249,7 @@ final class ChatViewModel {
     private func startStream(model: ModelDescriptor, thread: ThreadRecord) -> Task<Void, Never> {
         phase = .streaming
         errorMessage = nil
+        loadingModelName = (model.source == .gguf || model.source == .mlx) ? model.shortName : nil
         thread.modelID = model.id
         preferredModelID = model.id
         let assistant = MessageRecord(role: .assistant, content: "", modelName: model.shortName, modelID: model.id)
@@ -270,18 +274,22 @@ final class ChatViewModel {
             var reported: ResponseMetadata?
             var tokens: (prompt: Int, completion: Int)?
             var ttftMs: Int?
+            // A fast local model makes 50 tokens a second; the screen takes them 20 times a second.
+            var pending = TextCoalescer(interval: Self.textInterval)
             do {
                 for try await delta in stream {
                     // A chunk that was already buffered when the user pressed stop is dropped.
                     if Task.isCancelled { continue }
+                    if case .text = delta {} else if let held = pending.flush() { assistant.content += held }
                     switch delta {
                     case .text(let piece):
                         if !firstTokenSeen {
                             firstTokenSeen = true
+                            self?.loadingModelName = nil
                             ttftMs = Self.milliseconds(clock() - startedAt)
                             telemetry.track(.firstTokenMs(TelemetryEvent.milliseconds(ContinuousClock.now - started), source: source))
                         }
-                        assistant.content += piece
+                        if let text = pending.add(piece, now: clock()) { assistant.content += text }
                     case .toolCall(let call): assistant.toolSteps.append(ToolStep(call: call, result: nil))
                     case .toolResult(let result): Self.fill(result, in: assistant)
                     case .usage(let prompt, let completion): tokens = (prompt, completion)
@@ -294,6 +302,7 @@ final class ChatViewModel {
             } catch {
                 failure = error.localizedDescription
             }
+            if let held = pending.flush() { assistant.content += held }
             if !assistant.content.isEmpty || !assistant.toolSteps.isEmpty {
                 assistant.metadata = Self.finalMetadata(
                     reported, tokens: tokens, model: model, ttftMs: ttftMs,
@@ -305,6 +314,9 @@ final class ChatViewModel {
         self.task = task
         return task
     }
+
+    /// Seconds between screen updates while text streams in.
+    static let textInterval: TimeInterval = 0.05
 
     static func milliseconds(_ seconds: TimeInterval) -> Int { max(0, Int((seconds * 1000).rounded())) }
 
@@ -353,6 +365,7 @@ final class ChatViewModel {
         thread.updatedAt = Date()
         phase = .idle
         task = nil
+        loadingModelName = nil
         errorMessage = failure
         do {
             try save(context)

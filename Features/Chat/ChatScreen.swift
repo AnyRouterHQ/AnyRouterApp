@@ -140,7 +140,8 @@ private struct ChatContent: View {
                             showsRegenerate: message.id == lastID && chat.canRegenerate,
                             onRegenerate: { chat.regenerate() },
                             switchNote: switchNotes[message.id],
-                            showsDetails: showsDetails
+                            showsDetails: showsDetails,
+                            loadingModelName: message.id == lastID ? chat.loadingModelName : nil
                         )
                     }
                     Color.clear.frame(height: 1).id("bottom")

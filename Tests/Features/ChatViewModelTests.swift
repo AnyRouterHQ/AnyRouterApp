@@ -205,6 +205,48 @@ struct ChatViewModelTests {
         #expect(r.vm.messages.last?.modelName == "b")
     }
 
+    // MARK: - Loading state and update batching
+
+    @Test func textHeldForBatchingIsKeptWholeAndInOrderWhenAToolCallArrives() async throws {
+        let call = ToolCall(id: "c", name: "web_search", argumentsJSON: "{}")
+        let r = try await rig(ScriptedEngine(chunks: ["a", "b", "c"], deltas: [.toolCall(call)]))
+        r.vm.input = "hi"
+        await r.vm.send()?.value
+        #expect(r.vm.messages.last?.content == "abc")
+        #expect(r.vm.messages.last?.toolSteps.count == 1)
+    }
+
+    @Test func aLocalModelShowsLoadingUntilItsFirstTokenArrives() async throws {
+        let local = testModel(id: "gguf/org/m/m.gguf", source: .gguf)
+        let r = try await rig(ScriptedEngine(source: .gguf, models: [local], hangs: true))
+        r.vm.input = "hi"
+        let task = r.vm.send()
+        #expect(r.vm.loadingModelName == local.shortName)
+        r.vm.stop()
+        await task?.value
+        #expect(r.vm.loadingModelName == nil, "nothing is loading once the reply has ended")
+    }
+
+    @Test func theLoadingStateEndsWithTheFirstToken() async throws {
+        let local = testModel(id: "gguf/org/m/m.gguf", source: .gguf)
+        let r = try await rig(ScriptedEngine(source: .gguf, models: [local], chunks: ["x"], hangs: true))
+        r.vm.input = "hi"
+        let task = r.vm.send()
+        #expect(await waitUntil { r.vm.messages.last?.content == "x" })
+        #expect(r.vm.loadingModelName == nil)
+        r.vm.stop()
+        await task?.value
+    }
+
+    @Test func aModelThatIsNotLocalNeverShowsLoading() async throws {
+        let r = try await rig(ScriptedEngine(chunks: [], hangs: true))
+        r.vm.input = "hi"
+        let task = r.vm.send()
+        #expect(r.vm.loadingModelName == nil)
+        r.vm.stop()
+        await task?.value
+    }
+
     // MARK: - Fallback notice
 
     private func threadWithModel(_ id: String, in r: Rig) -> ChatViewModel {

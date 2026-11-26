@@ -11,9 +11,13 @@ struct MessageRow: View {
     var switchNote: String?
     /// Setting "Show response details": cost and speed under the reply.
     var showsDetails: Bool
+    /// A local model that is loading: shown instead of the typing dots until its first token.
+    var loadingModelName: String?
 
     init(message: MessageRecord, isStreamingThis: Bool, showsRegenerate: Bool,
-         onRegenerate: @escaping () -> Void, switchNote: String? = nil, showsDetails: Bool = true) {
+         onRegenerate: @escaping () -> Void, switchNote: String? = nil, showsDetails: Bool = true,
+         loadingModelName: String? = nil) {
+        self.loadingModelName = loadingModelName
         self.showsDetails = showsDetails
         self.message = message
         self.isStreamingThis = isStreamingThis
@@ -61,8 +65,18 @@ struct MessageRow: View {
             }
             ForEach(steps) { ToolStepRow(step: $0) }
             if message.content.isEmpty && isStreamingThis && !steps.contains(where: { $0.result == nil }) {
-                TypingDots()
+                if let loadingModelName {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Loading \(loadingModelName)…").font(.footnote).foregroundStyle(.secondary)
+                    }
                     .padding(.vertical, 8)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("model-loading")
+                } else {
+                    TypingDots()
+                        .padding(.vertical, 8)
+                }
             } else if !message.content.isEmpty {
                 Markdown(message.content)
                     .markdownTheme(.anyRouter)
