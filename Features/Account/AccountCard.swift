@@ -69,10 +69,10 @@ struct AccountCard: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
             .accessibilityElement(children: .combine)
-            Link("Open anyrouter.dev", destination: Self.emailSettingsURL)
+            ExternalLinkRow(title: "Verify on anyrouter.dev", systemImage: "envelope", destination: Self.emailSettingsURL)
         }
         if let line = summary?.usageLine { Text(line) }
-        Link("Manage on anyrouter.dev", destination: Self.manageURL)
+        ExternalLinkRow(title: "Manage on anyrouter.dev", systemImage: "person.crop.circle", destination: Self.manageURL)
         Button("Sign out", role: .destructive) {
             Task { await app.account.signOut(); await models.refresh() }
         }
