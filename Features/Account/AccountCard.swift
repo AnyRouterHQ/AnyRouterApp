@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Top card of Settings: signed-in profile and spend, or the sign-in prompt.
+/// Account rows at the top of Settings: signed-in profile and spend, or the sign-in prompt.
+/// Standard list rows; the caller puts them in a `Section`.
 struct AccountCard: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models
@@ -9,58 +10,54 @@ struct AccountCard: View {
     private static let manageURL = URL(string: "https://anyrouter.dev/dashboard")!
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        Group {
             switch app.account.state {
             case .signedOut: signedOut
             case .signingIn:
-                HStack(spacing: 10) { ProgressView(); Text("Signing in…").foregroundStyle(.secondary) }
+                HStack(spacing: 12) { ProgressView(); Text("Signing in…").foregroundStyle(.secondary) }
             case .signedIn: signedIn
             }
         }
-        .padding(.vertical, 6)
         .task(id: app.account.state) { await app.account.refreshSummary() }
     }
 
+    @ViewBuilder
     private var signedOut: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                ARLogoMark(size: 36).foregroundStyle(ARColor.foreground)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("AnyRouter").font(.headline)
-                    Text("Sign in to use cloud models.").font(.subheadline).foregroundStyle(.secondary)
-                }
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("AnyRouter").font(.headline)
+                Text("Sign in to use cloud models.").font(.subheadline).foregroundStyle(.secondary)
             }
-            Button("Sign in with AnyRouter") { signIn() }.buttonStyle(.arFilled)
-            if let signInError { Text(signInError).font(.footnote).foregroundStyle(ARColor.destructive) }
+        } icon: {
+            ARLogoMark(size: 32).foregroundStyle(.primary)
+        }
+        Button("Sign in with AnyRouter") { signIn() }
+        if let signInError {
+            // Plain, neutral text: server details are not shown to the user.
+            Text(signInError).font(.footnote).foregroundStyle(.secondary)
+            Button("Try again") { signIn() }
         }
     }
 
+    @ViewBuilder
     private var signedIn: some View {
         let summary = app.account.summary
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Avatar(url: summary?.avatarURL, initials: summary?.initials ?? "A")
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(summary?.title ?? "AnyRouter account").font(.headline).lineLimit(1)
-                    if let email = summary?.email, email != summary?.title {
-                        Text(email).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                    }
-                    if let plan = summary?.plan {
-                        Text("\(plan) plan").font(.subheadline).foregroundStyle(.secondary)
-                    }
+        HStack(spacing: 12) {
+            Avatar(url: summary?.avatarURL, initials: summary?.initials ?? "A")
+            VStack(alignment: .leading, spacing: 2) {
+                Text(summary?.title ?? "AnyRouter account").font(.headline).lineLimit(1)
+                if let email = summary?.email, email != summary?.title {
+                    Text(email).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 }
-                Spacer(minLength: 0)
-                ARLogoMark(size: 22).foregroundStyle(ARColor.mutedForeground)
-            }
-            if let line = summary?.usageLine { Text(line).font(.subheadline) }
-            HStack {
-                Link("Manage on anyrouter.dev", destination: Self.manageURL).font(.subheadline)
-                Spacer()
-                Button("Sign out", role: .destructive) {
-                    Task { await app.account.signOut(); await models.refresh() }
+                if let plan = summary?.plan {
+                    Text("\(plan) plan").font(.subheadline).foregroundStyle(.secondary)
                 }
-                .font(.subheadline)
             }
+        }
+        if let line = summary?.usageLine { Text(line) }
+        Link("Manage on anyrouter.dev", destination: Self.manageURL)
+        Button("Sign out", role: .destructive) {
+            Task { await app.account.signOut(); await models.refresh() }
         }
     }
 
@@ -69,6 +66,7 @@ struct AccountCard: View {
         Task {
             do {
                 try await app.account.signIn()
+                signInError = nil
                 await models.refresh()
             } catch {
                 signInError = error.localizedDescription
@@ -86,9 +84,9 @@ private struct Avatar: View {
             if let image = phase.image {
                 image.resizable().scaledToFill()
             } else {
-                Text(initials).font(.system(size: 18, weight: .semibold)).foregroundStyle(ARColor.accentForeground)
+                Text(initials).font(.headline).foregroundStyle(.white)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(ARColor.accent)
+                    .background(Color.accentColor)
             }
         }
         .frame(width: 48, height: 48)

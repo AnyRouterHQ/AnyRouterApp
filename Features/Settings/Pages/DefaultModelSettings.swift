@@ -21,7 +21,7 @@ struct DefaultModelSettings: View {
                                 }
                                 Spacer()
                                 if models.selected?.id == model.id {
-                                    Image(systemName: "checkmark").foregroundStyle(ARColor.accent)
+                                    Image(systemName: "checkmark")
                                 }
                             }
                         }

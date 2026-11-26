@@ -15,66 +15,54 @@ struct CatalogSourcesSheet: View {
     private var userModels: [LocalModelEntry] { hub.catalog.filter(\.isUserAdded) }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 20) {
-                    if let message {
-                        if isError { ErrorBanner(text: message) { self.message = nil } }
-                        else { SettingsText(message) }
-                    }
-                    SettingsGroup("Add a Hugging Face repo") {
-                        TextField("org/name or huggingface.co URL", text: $repoText)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .padding(10)
-                            .background(ARColor.input.opacity(0.5), in: RoundedRectangle(cornerRadius: ARTheme.radius, style: .continuous))
-                        Picker("Format", selection: $format) {
-                            Text("GGUF").tag(ModelSource.gguf)
-                            Text("MLX").tag(ModelSource.mlx)
-                        }
-                        .pickerStyle(.segmented)
-                        Button(isBusy ? "Adding…" : "Add repo") { addRepo() }
-                            .buttonStyle(.arFilled)
-                            .disabled(isBusy || SettingsLogic.parseRepo(repoText) == nil)
-                    }
-                    SettingsGroup("Catalog source") {
-                        TextField("Default: the AnyRouter catalog on GitHub", text: $remoteText)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .keyboardType(.URL)
-                            .padding(10)
-                            .background(ARColor.input.opacity(0.5), in: RoundedRectangle(cornerRadius: ARTheme.radius, style: .continuous))
-                        SettingsText("The list is fetched at launch and when you pull to refresh. Leave empty to use the AnyRouter catalog on GitHub. The built-in list is the offline fallback.")
-                        Toggle("Use the development catalog", isOn: Binding(
-                            get: { hub.usesDevelopmentCatalog },
-                            set: { on in Task { await hub.setUsesDevelopmentCatalog(on) } }))
-                            .font(.arBase)
-                            .tint(ARColor.accent)
-                        Button(isBusy ? "Saving…" : "Save") { saveRemote() }
-                            .buttonStyle(.arSecondary)
-                            .disabled(isBusy)
-                    }
-                    SettingsGroup("Your models") {
-                        if userModels.isEmpty {
-                            SettingsText("Nothing added yet.")
-                        }
-                        ForEach(userModels) { entry in
-                            HStack {
-                                Text(entry.descriptor.displayName).font(.arBase).foregroundStyle(ARColor.foreground).lineLimit(1)
-                                Spacer()
-                                Button(role: .destructive) {
-                                    Task { await hub.removeUserModel(modelID: entry.id) }
-                                } label: { Image(systemName: "trash") }
-                                .accessibilityLabel("Remove \(entry.descriptor.displayName)")
-                            }
-                        }
-                    }
+        Form {
+            if let message {
+                Section {
+                    Text(message).foregroundStyle(isError ? Color.red : Color.secondary)
                 }
-                .padding(.horizontal, ARTheme.pagePadding)
-                .padding(.bottom, 24)
+            }
+            Section("Add a Hugging Face repo") {
+                TextField("org/name or huggingface.co URL", text: $repoText)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Picker("Format", selection: $format) {
+                    Text("GGUF").tag(ModelSource.gguf)
+                    Text("MLX").tag(ModelSource.mlx)
+                }
+                .pickerStyle(.segmented)
+                Button(isBusy ? "Adding…" : "Add repo") { addRepo() }
+                    .disabled(isBusy || SettingsLogic.parseRepo(repoText) == nil)
+            }
+            Section {
+                TextField("Default: the AnyRouter catalog on GitHub", text: $remoteText)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                Toggle("Use the development catalog", isOn: Binding(
+                    get: { hub.usesDevelopmentCatalog },
+                    set: { on in Task { await hub.setUsesDevelopmentCatalog(on) } }))
+                Button(isBusy ? "Saving…" : "Save") { saveRemote() }
+                    .disabled(isBusy)
+            } header: {
+                Text("Catalog source")
+            } footer: {
+                Text("The list is fetched at launch and when you pull to refresh. Leave empty to use the AnyRouter catalog on GitHub. The built-in list is the offline fallback.")
+            }
+            Section("Your models") {
+                if userModels.isEmpty {
+                    Text("Nothing added yet.").foregroundStyle(.secondary)
+                }
+                ForEach(userModels) { entry in
+                    Text(entry.descriptor.displayName)
+                        .lineLimit(1)
+                        .swipeActions {
+                            Button(role: .destructive) {
+                                Task { await hub.removeUserModel(modelID: entry.id) }
+                            } label: { Label("Remove", systemImage: "trash") }
+                        }
+                }
             }
         }
-        .background(ARColor.background.ignoresSafeArea())
         .onAppear { remoteText = hub.remoteCatalogURL }
     }
 

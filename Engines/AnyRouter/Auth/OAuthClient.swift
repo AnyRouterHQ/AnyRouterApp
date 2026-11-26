@@ -18,11 +18,14 @@ final class OAuthClient: NSObject, OAuthSigning, ASWebAuthenticationPresentation
     enum Failure: LocalizedError {
         case message(String)
         case cancelled
+        /// The server answered 5xx. Shown as a neutral "try again", not as the raw server text.
+        case busy
 
         var errorDescription: String? {
             switch self {
             case .message(let text): return text
             case .cancelled: return "Sign-in was cancelled."
+            case .busy: return "AnyRouter is busy. Try again."
             }
         }
     }
@@ -84,8 +87,9 @@ final class OAuthClient: NSObject, OAuthSigning, ASWebAuthenticationPresentation
 
     // MARK: Endpoints
 
-    private func register(redirect: String) async throws -> String {
-        let json = try await post("mcp/oauth/register", [
+    func register(redirect: String) async throws -> String {
+        // Registration has no side effect, so one retry after a 5xx is safe.
+        let json = try await post("mcp/oauth/register", retryOnServerError: true, [
             "client_name": config.clientName,
             "redirect_uris": [redirect],
             "app_type": "signin",
@@ -100,8 +104,10 @@ final class OAuthClient: NSObject, OAuthSigning, ASWebAuthenticationPresentation
         return clientID
     }
 
-    private func exchange(code: String, verifier: String, clientID: String, redirect: String) async throws -> IssuedToken {
-        let json = try await post("mcp/oauth/token", [
+    func exchange(code: String, verifier: String, clientID: String, redirect: String) async throws -> IssuedToken {
+        // The server spends the one-time code before it can answer 5xx, so this POST is never retried.
+        // The caller restarts the whole sign-in instead.
+        let json = try await post("mcp/oauth/token", retryOnServerError: false, [
             "grant_type": "authorization_code",
             "code": code,
             "redirect_uri": redirect,
@@ -115,17 +121,33 @@ final class OAuthClient: NSObject, OAuthSigning, ASWebAuthenticationPresentation
         return IssuedToken(accessToken: token, expiresAt: seconds.map { Date().addingTimeInterval($0) })
     }
 
-    private func post(_ path: String, _ body: [String: Any]) async throws -> [String: Any] {
+    private func post(_ path: String, retryOnServerError: Bool, _ body: [String: Any]) async throws -> [String: Any] {
         var request = URLRequest(url: config.baseURL.appending(path: path))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, response) = try await urlSession.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status), let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw Failure.message(AnyRouterError.message(from: data, status: status))
+        var retried = false
+        while true {
+            let (data, response) = try await urlSession.data(for: request)
+            let http = response as? HTTPURLResponse
+            let status = http?.statusCode ?? 0
+            if (500..<600).contains(status) {
+                guard retryOnServerError, !retried else { throw Failure.busy }
+                retried = true
+                try await Task.sleep(for: .seconds(Self.retryDelay(http?.value(forHTTPHeaderField: "Retry-After"))))
+                continue
+            }
+            guard (200..<300).contains(status), let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw Failure.message(AnyRouterError.message(from: data, status: status))
+            }
+            return json
         }
-        return json
+    }
+
+    /// Seconds to wait before the single retry: the server's `Retry-After`, at most 3, default 1.
+    nonisolated static func retryDelay(_ header: String?) -> Double {
+        guard let header, let seconds = Double(header), seconds >= 0 else { return 1 }
+        return min(seconds, 3)
     }
 
     // MARK: Web session

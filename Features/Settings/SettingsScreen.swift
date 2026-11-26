@@ -13,16 +13,14 @@ struct SettingsScreen: View {
                 .navigationTitle("Settings")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button { dismiss() } label: { Image(systemName: "xmark") }
-                            .accessibilityLabel("Close")
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(role: .close) { dismiss() }
                     }
                 }
                 .navigationDestination(for: SettingsDestination.self) { destination in
                     SettingsDestinationView(destination: destination)
                 }
         }
-        .tint(ARColor.accent)
     }
 }
 

@@ -13,7 +13,6 @@ struct RootView: View {
             .focusedSceneValue(\.shell, shell)
             .environment(appState.settings)
             .environment(appState.models)
-            .tint(ARColor.accent)
             .onChange(of: appState.settings.appearance, initial: true) { _, appearance in
                 WindowAppearance.apply(appearance)
             }
@@ -28,7 +27,6 @@ struct RootView: View {
                 }
                 .environment(appState)
                 .environment(appState.models)
-                .tint(ARColor.accent)
             }
             .onAppear { showsOnboarding = !appState.settings.hasOnboarded }
             .task {
