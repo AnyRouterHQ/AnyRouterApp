@@ -163,8 +163,17 @@ final class DemoAccount: AccountService {
 
     init(state: AccountState) { self.state = state }
 
+    var summary: AccountSummary? {
+        guard state.isSignedIn else { return nil }
+        return AccountSummary.parse(
+            me: Data(#"{"data":{"name":"Ada Lovelace","email":"you@example.com","plan":"pro"}}"#.utf8),
+            credits: Data(#"{"balance":12.5,"used":3.25,"free_requests":{"remaining":4,"limit":5}}"#.utf8),
+            key: nil)
+    }
+
     func signIn() async throws { state = .signedIn(label: "you@example.com") }
     func signOut() async { state = .signedOut }
+    func refreshSummary() async {}
 }
 
 /// Fixed catalog: two installed, one downloading at 42%, two not installed.
