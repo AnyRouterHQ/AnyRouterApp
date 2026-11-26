@@ -4,8 +4,9 @@ import XCTest
 
 private final class EvalFixtureAnchor {}
 
-/// Prompts a person can run on a device to see whether the on-device model uses the built-in tools well. The CI Simulator has no
-/// model, so the test skips there and says why; a device or verify run executes it. Cases live in `Fixtures/apple-tool-evals.json`.
+/// Prompts a person can run on a device to see whether the on-device model uses the built-in tools well. The model run is
+/// opt-in (`RUN_DEVICE_EVALS=1`) and skips everywhere else with a message that says so; the fixture checks always run.
+/// Cases live in `Fixtures/apple-tool-evals.json`.
 final class AppleToolEvalTests: XCTestCase {
     struct Case: Decodable {
         var id: String
@@ -60,7 +61,13 @@ final class AppleToolEvalTests: XCTestCase {
 
     // MARK: On a device
 
+    /// Opt in with `RUN_DEVICE_EVALS=1` in the test process (for `xcodebuild`: `TEST_RUNNER_RUN_DEVICE_EVALS=1`, or the scheme's
+    /// environment variables in Xcode). The model can report itself available on a CI host and still not answer like it does on a
+    /// phone, so availability alone never starts the evals.
     func testOnDeviceModelUsesTheToolsAndAnswersFromThem() async throws {
+        try XCTSkipUnless(
+            ProcessInfo.processInfo.environment["RUN_DEVICE_EVALS"] == "1",
+            "On-device evals are opt-in: set RUN_DEVICE_EVALS=1 and run on a device with Apple Intelligence.")
         if let note = AppleFoundationEngine.unavailabilityNote() {
             throw XCTSkip("Apple Foundation Models is unavailable on this host (\(note)). Run the evals on a device with Apple Intelligence.")
         }
