@@ -11,13 +11,12 @@ struct AnyRouterUsageOrder: UsageOrderSource {
     }
 
     func fetchUsageOrder() async throws -> [String] {
-        var components = URLComponents(url: config.baseURL.appending(path: "models"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "sort", value: "usage")]
-        guard let url = components?.url else { throw AnyRouterError.badResponse }
-        var request = URLRequest(url: url)
+        var components = URLComponents(url: config.baseURL.appending(path: "models"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "sort", value: "usage")]
+        var request = URLRequest(url: components.url!)
         request.setValue(config.clientName, forHTTPHeaderField: "X-AnyRouter-Title")
         let (data, response) = try await session.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let status = AnyRouterError.status(of: response)
         guard (200..<300).contains(status) else {
             throw AnyRouterError.http(status: status, message: AnyRouterError.message(from: data, status: status))
         }

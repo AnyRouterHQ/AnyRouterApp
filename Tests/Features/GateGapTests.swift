@@ -47,17 +47,17 @@ struct IntegrationsStoreGapTests {
         return try store.addServer(name: "Tools", urlString: url.absoluteString, token: "")
     }
 
-    @Test func anyRouterServerUsesTheSignInTokenAndAsksToSignInAgainWhenItIsRejected() async {
+    @Test func aSignInServerUsesTheSignInTokenAndAsksToSignInAgainWhenItIsRejected() async {
         let store = makeStore(token: "tok")
-        MCPStubProtocol.register(host: "mcp.anyrouter.dev") { _ in StubResponse(status: 401, body: "{}") }
-        await store.refresh(.anyRouter)
-        #expect(store.state(for: .anyRouter).status == .needsSignIn)
+        let rejected = MCPServer(id: "ar", name: "AR", url: MCPStubProtocol.register { _ in StubResponse(status: 401, body: "{}") },
+                                 auth: .anyRouterSignIn)
+        await store.refresh(rejected)
+        #expect(store.state(for: rejected).status == .needsSignIn)
 
-        MCPStubProtocol.register(host: "mcp.anyrouter.dev", standardMCPHandler())
-        await store.refresh(.anyRouter)
-        #expect(store.state(for: .anyRouter).status == .connected)
-        let sent = MCPStubProtocol.requests(for: MCPServer.anyRouter.url).last?.header("Authorization")
-        #expect(sent == "Bearer tok")
+        let accepted = MCPServer(id: "ar2", name: "AR", url: MCPStubProtocol.register(standardMCPHandler()), auth: .anyRouterSignIn)
+        await store.refresh(accepted)
+        #expect(store.state(for: accepted).status == .connected)
+        #expect(MCPStubProtocol.requests(for: accepted.url).last?.header("Authorization") == "Bearer tok")
     }
 
     @Test func refreshAllVisitsEveryServer() async throws {

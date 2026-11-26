@@ -53,7 +53,7 @@ struct AnyRouterRoutingPreview: RoutingPreviewSource {
         var request = URLRequest(url: config.baseURL.appending(path: "models/\(wireID)/routing-preview"))
         request.setValue(config.clientName, forHTTPHeaderField: "X-AnyRouter-Title")
         let (data, response) = try await session.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let status = AnyRouterError.status(of: response)
         guard (200..<300).contains(status) else {
             throw AnyRouterError.http(status: status, message: AnyRouterError.message(from: data, status: status))
         }

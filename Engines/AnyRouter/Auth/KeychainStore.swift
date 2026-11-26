@@ -30,8 +30,7 @@ struct SystemKeychain: SecretBacking {
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess else { return nil }
-        return Self.string(from: item)
+        return SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess ? Self.string(from: item) : nil
     }
 
     static func string(from item: CFTypeRef?) -> String? {
