@@ -5,6 +5,7 @@ import Observation
 final class AppState {
     let registry = EngineRegistry()
     let settings = AppSettings()
+    let presets = PresetStore()
     let models: ModelStore
     /// Sign-in state for AnyRouter cloud models.
     var account: any AccountService = UnavailableAccountService()

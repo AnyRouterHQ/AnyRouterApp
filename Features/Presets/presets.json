@@ -1,0 +1,114 @@
+[
+  {
+    "id": "spanish-week",
+    "title": "Weekly Spanish plan",
+    "prompt": "I am a beginner learning Spanish and can study 30 minutes a day. Build me a 7-day plan. For each day give: (1) a theme, (2) 8 new words with example sentences, (3) one short grammar point with two examples, (4) a 5-minute speaking or writing exercise. End with a quiz of 10 questions that mixes all days, and put the answers at the very bottom.",
+    "category": "learn",
+    "symbol": "graduationcap"
+  },
+  {
+    "id": "explain-simply",
+    "title": "Explain like I am new",
+    "prompt": "Explain how vaccines train the immune system. Start with a one-sentence summary, then a simple analogy, then a short step-by-step explanation, then three common misunderstandings.",
+    "category": "learn",
+    "symbol": "lightbulb"
+  },
+  {
+    "id": "quiz-me",
+    "title": "Quiz me",
+    "prompt": "Quiz me on world geography. Ask one question at a time, wait for my answer, tell me if I was right, and raise the difficulty after every two correct answers.",
+    "category": "learn",
+    "symbol": "questionmark.bubble"
+  },
+  {
+    "id": "study-plan",
+    "title": "Exam study plan",
+    "prompt": "I have an exam in 3 weeks and 1 hour per weekday to study. Ask me for the subject and my weak topics first, then build a week-by-week plan with review sessions and a final mock test.",
+    "category": "learn",
+    "symbol": "book"
+  },
+  {
+    "id": "polish-email",
+    "title": "Polish my email",
+    "prompt": "Rewrite the email below so it is clear, polite and under 120 words. Keep my meaning. Give two versions: one formal, one friendly.\n\nEmail:\n",
+    "category": "write",
+    "symbol": "envelope"
+  },
+  {
+    "id": "cover-letter",
+    "title": "Cover letter",
+    "prompt": "Help me write a one-page cover letter. Ask me five short questions about the role and my background, then write the letter in a warm, direct tone without clichés.",
+    "category": "write",
+    "symbol": "briefcase"
+  },
+  {
+    "id": "story-start",
+    "title": "Short story",
+    "prompt": "Write a 400-word short story about a lighthouse keeper who finds a message in a bottle. Give it a twist ending and a title.",
+    "category": "write",
+    "symbol": "text.quote"
+  },
+  {
+    "id": "summarize",
+    "title": "Summarize text",
+    "prompt": "Summarize the text below in three bullet points, then in one sentence, then list any open questions it leaves.\n\nText:\n",
+    "category": "write",
+    "symbol": "list.bullet.clipboard"
+  },
+  {
+    "id": "weekly-plan",
+    "title": "Plan my week",
+    "prompt": "Help me plan my week. Ask me about my fixed commitments, goals and energy levels, then propose a day-by-day schedule with focus blocks, breaks and one buffer slot per day.",
+    "category": "plan",
+    "symbol": "calendar"
+  },
+  {
+    "id": "trip-plan",
+    "title": "3-day trip",
+    "prompt": "Plan a relaxed 3-day city trip for two people on a mid-range budget. Ask me for the city and interests first, then give a morning, afternoon and evening plan per day with rough costs.",
+    "category": "plan",
+    "symbol": "map"
+  },
+  {
+    "id": "meal-prep",
+    "title": "Meal prep",
+    "prompt": "Create a 5-day vegetarian meal prep plan with about 100 g of protein per day. Include a shopping list grouped by aisle and simple reheating instructions.",
+    "category": "plan",
+    "symbol": "fork.knife"
+  },
+  {
+    "id": "decide",
+    "title": "Weigh a decision",
+    "prompt": "Help me decide between two options. Ask me what they are and what matters most, then make a pros and cons table, score each option, and give a recommendation with the main risk.",
+    "category": "plan",
+    "symbol": "scalemass"
+  },
+  {
+    "id": "explain-code",
+    "title": "Explain this code",
+    "prompt": "Explain what the code below does, line by line in plain language, then point out any bugs or edge cases.\n\nCode:\n",
+    "category": "code",
+    "symbol": "chevron.left.forwardslash.chevron.right"
+  },
+  {
+    "id": "debug",
+    "title": "Debug with me",
+    "prompt": "I have a bug. Ask me for the error message, the code and what I expected, then walk me through likely causes from most to least probable and how to check each one.",
+    "category": "code",
+    "symbol": "ladybug"
+  },
+  {
+    "id": "regex",
+    "title": "Write a regex",
+    "prompt": "Write a regular expression that matches valid 24-hour times like 07:45 and 23:59. Explain each part and give five matching and five non-matching examples.",
+    "category": "code",
+    "symbol": "character.bubble"
+  },
+  {
+    "id": "brainstorm",
+    "title": "Brainstorm ideas",
+    "prompt": "Brainstorm 10 side project ideas that a single developer can ship in a weekend. For each, give a one-line pitch and the hardest part.",
+    "category": "explore",
+    "symbol": "sparkles"
+  }
+]

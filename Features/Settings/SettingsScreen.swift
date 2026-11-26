@@ -10,6 +10,7 @@ struct SettingsScreen: View {
     @State private var signInError: String?
     @State private var showsCatalog = false
     @State private var showsLicenses = false
+    @State private var showsPresets = false
 
     private var appleAvailable: Bool { models.models.contains { $0.source == .apple && $0.isInstalled } }
     private var localInstalled: Int { models.models.filter { ($0.source == .gguf || $0.source == .mlx) && $0.isInstalled }.count }
@@ -26,6 +27,7 @@ struct SettingsScreen: View {
                     accountSection
                     providersSection
                     catalogSection
+                    presetsSection
                     generationSection(settings: $settings)
                     appearanceSection(settings: $settings)
                     aboutSection
@@ -38,6 +40,7 @@ struct SettingsScreen: View {
         }
         .sheet(isPresented: $showsCatalog) { CatalogSourcesSheet() }
         .sheet(isPresented: $showsLicenses) { LicensesSheet() }
+        .sheet(isPresented: $showsPresets) { PresetsSettingsSheet(store: app.presets) }
     }
 
     // MARK: Sections
@@ -73,6 +76,13 @@ struct SettingsScreen: View {
         SettingsGroup("Model catalog") {
             SettingsText("Add Hugging Face repos or a remote catalog to the Browse Models list.")
             Button("Catalog sources") { showsCatalog = true }.buttonStyle(.arSecondary)
+        }
+    }
+
+    private var presetsSection: some View {
+        SettingsGroup("Presets") {
+            SettingsText("Starter questions on the empty chat. Add your own or hide the built-in ones.")
+            Button("Manage presets") { showsPresets = true }.buttonStyle(.arSecondary)
         }
     }
 

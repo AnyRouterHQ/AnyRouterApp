@@ -11,6 +11,8 @@ final class ChatViewModel {
     private(set) var phase: Phase = .idle
     private(set) var errorMessage: String?
     private(set) var thread: ThreadRecord?
+    /// Bumps when the composer should take focus (after a preset fills it).
+    private(set) var focusTick = 0
 
     /// Called once when the first send creates the thread.
     @ObservationIgnored var onThreadCreated: (@MainActor (UUID) -> Void)?
@@ -62,6 +64,19 @@ final class ChatViewModel {
         user.thread = thread
         input = ""
         return startStream(model: model, thread: thread)
+    }
+
+    /// Fills the composer with the preset prompt so the user can edit before sending.
+    func usePreset(_ preset: PromptPreset) {
+        input = preset.prompt
+        focusTick += 1
+    }
+
+    @discardableResult
+    func sendNow(_ preset: PromptPreset) -> Task<Void, Never>? {
+        guard phase == .idle else { return nil }
+        input = preset.prompt
+        return send()
     }
 
     func stop() {
