@@ -61,20 +61,9 @@ private struct Detail: View {
             switch shell.route {
             case .chat: ChatScreen()
             case .hub: HubScreen()
-            case .settings: SettingsPlaceholder()
+            case .settings: SettingsScreen()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-private struct SettingsPlaceholder: View {
-    @Environment(ShellModel.self) private var shell
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ARPageHeader(title: "Settings") { shell.open(.chat, closeSidebar: false) }
-            ARComingSoon(title: "Settings", systemImage: "gearshape")
-        }
     }
 }
