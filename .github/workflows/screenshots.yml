@@ -1,6 +1,8 @@
 name: Screenshots
 
-# Runs the UI tests on demo data and uploads a PNG of every main screen for iPhone and iPad.
+# Captures every main screen (UITests/ScreenshotTests.swift) on demo data, light and dark, per device.
+# One build job, then one capture job per device that reuses the build. Whatever was captured is uploaded
+# even when some tests fail. Functional UI tests do not run here: see verify-ui.yml and ci.yml.
 on:
   workflow_dispatch:
   schedule:
@@ -15,9 +17,9 @@ permissions:
   contents: read
 
 jobs:
-  screenshots:
+  build:
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -46,80 +48,139 @@ jobs:
       - name: Generate project
         run: xcodegen generate
 
-      - name: Pick simulators
-        run: |
-          python3 - <<'PY' >> "$GITHUB_ENV"
-          import json, subprocess
-          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))["devices"]
-          def pick(prefix, want_pro=False):
-              for runtime in sorted(data, reverse=True):
-                  if "iOS" not in runtime:
-                      continue
-                  names = [d for d in data[runtime] if d["isAvailable"] and d["name"].startswith(prefix)]
-                  if want_pro:
-                      names = [d for d in names if "Pro" in d["name"] and "Max" not in d["name"]]
-                  names.sort(key=lambda d: d["name"], reverse=True)
-                  if names:
-                      return names[0]
-              raise SystemExit("no simulator for " + prefix)
-          iphone = pick("iPhone 1", want_pro=True)
-          ipad = pick("iPad Pro 13")
-          print("IPHONE_UDID=" + iphone["udid"])
-          print("IPHONE_NAME=" + iphone["name"].replace(" ", "-"))
-          print("IPAD_UDID=" + ipad["udid"])
-          print("IPAD_NAME=" + ipad["name"].replace(" ", "-"))
-          PY
-          cat "$GITHUB_ENV" | grep -E 'IPHONE|IPAD'
-
       - name: Build for testing
         run: |
           set -o pipefail
           xcodebuild build-for-testing \
             -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots \
-            -destination "platform=iOS Simulator,id=$IPHONE_UDID" \
+            -destination "generic/platform=iOS Simulator" \
             -derivedDataPath DerivedData \
             -clonedSourcePackagesDirPath SourcePackages \
-            CODE_SIGNING_ALLOWED=NO | tail -n 100
+            CODE_SIGNING_ALLOWED=NO | tee build.log | tail -n 100
 
-      - name: Run UI tests
+      - name: Build errors
+        if: failure()
+        run: grep -n -E "error:" build.log | sort -u -t: -k2 | cut -c1-500 | head -60 || true
+
+      - name: Package build products
+        run: tar -C DerivedData/Build -cf build-products.tar Products
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: screenshots-build
+          path: build-products.tar
+          retention-days: 1
+          compression-level: 0
+
+  capture:
+    needs: build
+    runs-on: macos-26
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - { device: iphone, prefix: "iPhone 1", pro: true }
+          - { device: ipad-pro, prefix: "iPad Pro 13", pro: false }
+          - { device: ipad-mini, prefix: "iPad mini", pro: false }
+    steps:
+      - name: Select Xcode 26
         run: |
-          set -o pipefail
-          mkdir -p raw screenshots
-          for device in IPHONE IPAD; do
-            udid_var="${device}_UDID"; name_var="${device}_NAME"
-            udid="${!udid_var}"; name="${!name_var}"
-            xcrun simctl boot "$udid" || true
-            TEST_RUNNER_SCREENSHOT_DIR="$PWD/raw/$name" \
-            xcodebuild test-without-building \
-              -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots \
-              -destination "platform=iOS Simulator,id=$udid" \
-              -derivedDataPath DerivedData \
-              -resultBundlePath "TestResults-$name.xcresult" \
-              CODE_SIGNING_ALLOWED=NO | tail -n 100 || echo "FAILED=$name" >> failed.txt
-            for f in raw/$name/*.png; do
-              [ -e "$f" ] && cp "$f" "screenshots/$name-$(basename "$f")"
-            done
-          done
-          test ! -e failed.txt || { cat failed.txt; exit 1; }
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE/Contents/Developer"
 
-      - name: Summary
+      - uses: actions/download-artifact@v8
+        with:
+          name: screenshots-build
+
+      - name: Unpack build products
+        run: mkdir -p DerivedData/Build && tar -C DerivedData/Build -xf build-products.tar
+
+      - name: Pick the simulator
+        env:
+          PREFIX: ${{ matrix.prefix }}
+          PRO: ${{ matrix.pro }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json, os, subprocess
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))["devices"]
+          prefix, pro = os.environ["PREFIX"], os.environ["PRO"] == "true"
+          for runtime in sorted(data, reverse=True):
+              if "iOS" not in runtime:
+                  continue
+              names = [d for d in data[runtime] if d["isAvailable"] and d["name"].startswith(prefix)]
+              if pro:
+                  names = [d for d in names if "Pro" in d["name"] and "Max" not in d["name"]]
+              names.sort(key=lambda d: d["name"], reverse=True)
+              if names:
+                  print("SIM_UDID=" + names[0]["udid"])
+                  print("SIM_NAME=" + names[0]["name"].replace(" ", "-"))
+                  raise SystemExit(0)
+          raise SystemExit("no simulator for " + prefix)
+          PY
+
+      - name: Capture
+        run: |
+          xcrun simctl bootstatus "$SIM_UDID" -b
+          XCTESTRUN=$(ls DerivedData/Build/Products/*.xctestrun | head -1)
+          mkdir -p raw
+          TEST_RUNNER_SCREENSHOT_DIR="$PWD/raw" \
+          xcodebuild test-without-building \
+            -xctestrun "$XCTESTRUN" \
+            -destination "platform=iOS Simulator,id=$SIM_UDID" \
+            -only-testing:AnyRouterUITests/ScreenshotTests \
+            -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 180 \
+            -maximum-test-execution-time-allowance 300 \
+            -resultBundlePath "TestResults.xcresult" \
+            CODE_SIGNING_ALLOWED=NO > test.log 2>&1 || echo "some capture tests failed"
+          tail -n 60 test.log
+          grep -E "Test Case .* (passed|failed)" test.log | sed 's/^.*Test Case //' > results.txt || true
+
+      - name: Name the files
         if: always()
         run: |
+          mkdir -p screenshots
+          for f in raw/*.png; do
+            [ -e "$f" ] && cp "$f" "screenshots/$SIM_NAME-$(basename "$f")"
+          done
+          cp results.txt "screenshots/$SIM_NAME-results.txt" 2>/dev/null || true
           {
-            echo "## Screenshots"
-            ls screenshots 2>/dev/null | sed 's/^/- /'
+            echo "## $SIM_NAME"
+            echo "$(ls screenshots/*.png 2>/dev/null | wc -l) screenshots"
+            grep -c " failed " results.txt 2>/dev/null | sed 's/^/failed tests: /' || true
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: screenshots
+          name: screenshots-${{ matrix.device }}
           path: screenshots
           retention-days: 14
 
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: TestResults
-          path: TestResults-*.xcresult
-          retention-days: 7
+          name: TestResults-${{ matrix.device }}
+          path: TestResults.xcresult
+          retention-days: 3
+
+  collect:
+    needs: capture
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: screenshots-*
+          exclude: screenshots-build
+          merge-multiple: true
+          path: screenshots
+      - run: ls screenshots | wc -l
+      - uses: actions/upload-artifact@v7
+        with:
+          name: screenshots
+          path: screenshots
+          retention-days: 14
