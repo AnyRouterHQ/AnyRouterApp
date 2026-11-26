@@ -11,12 +11,15 @@ enum ThreadActions {
         thread.title = ThreadListLogic.renamed(proposed, current: thread.title)
     }
 
-    static func delete(_ thread: ThreadRecord, in context: ModelContext) {
+    /// The thread's attachment files go with it.
+    static func delete(_ thread: ThreadRecord, in context: ModelContext, files: AttachmentStore = .shared) {
+        files.deleteThread(thread.id)
         context.delete(thread)
     }
 
     /// Removes every thread; messages go with them (cascade).
-    static func deleteAll(in context: ModelContext) {
+    static func deleteAll(in context: ModelContext, files: AttachmentStore = .shared) {
+        files.deleteAll()
         try? context.delete(model: ThreadRecord.self)
     }
 }

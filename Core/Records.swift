@@ -49,6 +49,8 @@ final class MessageRecord {
     var modelName: String?
     /// Id of that model, for its logo and for "Switched to" notes.
     var modelID: String?
+    /// Attachments of a user message as JSON. Optional so existing stores migrate without a mapping.
+    var attachmentsData: Data?
 
     init(id: UUID = UUID(), role: ChatMessage.Role, content: String, createdAt: Date = Date(),
          modelName: String? = nil, modelID: String? = nil) {
@@ -62,11 +64,17 @@ final class MessageRecord {
 
     convenience init(_ message: ChatMessage) {
         self.init(id: message.id, role: message.role, content: message.content, createdAt: message.createdAt)
+        self.attachments = message.attachments
     }
 
     var role: ChatMessage.Role {
         get { ChatMessage.Role(rawValue: roleRaw) ?? .assistant }
         set { roleRaw = newValue.rawValue }
+    }
+
+    var attachments: [Attachment] {
+        get { attachmentsData.flatMap { try? JSONDecoder().decode([Attachment].self, from: $0) } ?? [] }
+        set { attachmentsData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
     }
 
     var metadata: ResponseMetadata? {
@@ -80,7 +88,7 @@ final class MessageRecord {
     }
 
     var chatMessage: ChatMessage {
-        ChatMessage(id: id, role: role, content: content, createdAt: createdAt)
+        ChatMessage(id: id, role: role, content: content, createdAt: createdAt, attachments: attachments)
     }
 }
 

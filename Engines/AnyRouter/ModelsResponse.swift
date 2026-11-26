@@ -105,7 +105,9 @@ struct ModelsResponse: Decodable {
                     source: .anyrouter,
                     displayName: item.name ?? item.id,
                     contextLength: item.contextLength,
-                    capabilities: Self.normalized(item.capabilities ?? ["chat"], supportedParameters: item.supportedParameters ?? []),
+                    capabilities: Self.normalized(
+                        item.capabilities ?? ["chat"], supportedParameters: item.supportedParameters ?? [],
+                        inputModalities: item.architecture?.inputModalities ?? []),
                     sizeBytes: nil,
                     isInstalled: usable && item.cloudInfo.availability == .usable,
                     summary: item.description,
@@ -137,8 +139,10 @@ struct ModelsResponse: Decodable {
 
     /// The catalog tags tool support as `function-calling`; the app asks for `tools`.
     /// A model that lists `tools` among its supported request parameters can call tools too.
-    static func normalized(_ tags: [String], supportedParameters: [String] = []) -> Set<String> {
+    /// A model whose input modalities include `image` can see photos.
+    static func normalized(_ tags: [String], supportedParameters: [String] = [], inputModalities: [String] = []) -> Set<String> {
         var set = Set(tags)
+        if inputModalities.contains("image") { set.insert("vision") }
         if !set.isDisjoint(with: ["function-calling", "function_calling", "tool-use", "tool_use"])
             || supportedParameters.contains("tools") {
             set.insert("tools")

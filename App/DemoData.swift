@@ -13,6 +13,16 @@ enum DemoData {
     /// Text of the demo search result, read by the UI tests.
     static let demoSearchResult = "Swift 7 adds typed throws everywhere and faster builds."
 
+    /// `-ARDemoAttachFile YES` stages a small text file under the composer, so the UI test can see the chip
+    /// without driving the system file picker.
+    static var attachesSampleFile: Bool { isEnabled && UserDefaults.standard.bool(forKey: "ARDemoAttachFile") }
+
+    static func sampleAttachmentURL() -> URL {
+        let url = FileManager.default.temporaryDirectory.appending(path: "notes.txt")
+        try? Data("Pick up the keys.\nCall the bank on Monday.\n".utf8).write(to: url)
+        return url
+    }
+
     /// In-memory store with five sample threads.
     @MainActor
     static func makeContainer() throws -> ModelContainer {

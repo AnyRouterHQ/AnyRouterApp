@@ -13,6 +13,8 @@ struct ModelRowModel: Equatable, Identifiable {
     /// Cloud model this user cannot use now. The row is dimmed and explains why.
     var isDimmed: Bool
     var needsKey: Bool
+    /// The model takes images, so the row shows an eye.
+    var supportsVision = false
 
     var detailLine: String { details.joined(separator: " · ") }
 }
@@ -66,7 +68,7 @@ enum PickerRow {
         return ModelRowModel(
             id: model.id, title: model.shortName, idLabel: middleTruncated(model.wireID), details: details,
             brand: ModelBrand.resolve(model), isDimmed: availability != .usable && !model.isInstalled,
-            needsKey: availability == .needsKey)
+            needsKey: availability == .needsKey, supportsVision: model.supportsVision)
     }
 
     /// "GGUF Q4_K_M" or "MLX 4-bit".

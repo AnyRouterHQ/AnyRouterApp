@@ -18,6 +18,10 @@ final class ChatViewModel {
     private(set) var toolsDisabled = false
     /// Model id saved on this thread. `nil` follows the default for new chats.
     private(set) var preferredModelID: String?
+    /// Files and photos waiting under the composer for the next send.
+    private(set) var pending: [Attachment] = []
+    /// Attachments still being read (images are shrunk, text and OCR are read off the main actor).
+    private(set) var ingesting = 0
 
     /// Called once when the first send creates the thread.
     @ObservationIgnored var onThreadCreated: (@MainActor (UUID) -> Void)?
@@ -30,16 +34,19 @@ final class ChatViewModel {
     /// Seconds from any steady clock. Injected so timings are testable.
     @ObservationIgnored private let now: () -> TimeInterval
     @ObservationIgnored private let toolHost: @MainActor () -> (any ToolHost)?
+    @ObservationIgnored let attachmentStore: AttachmentStore
     @ObservationIgnored private var task: Task<Void, Never>?
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
          settings: AppSettings, models: ModelStore,
          toolHost: @escaping @MainActor () -> (any ToolHost)? = { nil },
+         attachments: AttachmentStore = .shared,
          save: @escaping (ModelContext) throws -> Void = { try $0.save() },
          now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
         self.save = save
         self.now = now
         self.toolHost = toolHost
+        self.attachmentStore = attachments
         self.thread = thread
         self.preferredModelID = thread?.modelID
         self.context = context
@@ -105,7 +112,64 @@ final class ChatViewModel {
     }
 
     var canSend: Bool {
-        phase == .idle && !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        phase == .idle && ingesting == 0
+            && (!input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pending.isEmpty)
+    }
+
+    // MARK: Attachments
+
+    /// Under the composer: pending photos and a model that cannot see them.
+    var attachmentNote: String? { AttachmentLogic.note(for: pending, model: model) }
+
+    /// A vision model to switch to, offered next to the note.
+    var visionAlternative: ModelDescriptor? {
+        attachmentNote == nil ? nil : AttachmentLogic.visionAlternative(in: models.models)
+    }
+
+    func switchToVisionModel() {
+        if let alternative = visionAlternative { choose(alternative) }
+    }
+
+    /// Photos or camera images as the bytes the system gave us.
+    func attachImages(_ images: [(data: Data, filename: String)]) {
+        add(images.count) { store, index in try await AttachmentIngest.image(from: images[index].data, filename: images[index].filename, store: store) }
+    }
+
+    /// Files from the Files importer.
+    func attachFiles(_ urls: [URL]) {
+        add(urls.count) { store, index in try await AttachmentIngest.file(at: urls[index], store: store) }
+    }
+
+    func removePending(_ attachment: Attachment) {
+        guard pending.contains(where: { $0.id == attachment.id }) else { return }
+        pending.removeAll { $0.id == attachment.id }
+        attachmentStore.remove(attachment)
+    }
+
+    /// Starts one reader per item; each result lands in `pending` in the order the items were picked.
+    private func add(_ count: Int, _ read: @escaping @Sendable (AttachmentStore, Int) async throws -> Attachment) {
+        let room = max(0, AttachmentLogic.maxPerMessage - pending.count - ingesting)
+        if count > room { errorMessage = "You can attach up to \(AttachmentLogic.maxPerMessage) files to a message." }
+        let store = attachmentStore
+        for index in 0..<min(count, room) {
+            ingesting += 1
+            Task { [weak self] in
+                do {
+                    let attachment = try await read(store, index)
+                    self?.finishIngest(.success(attachment))
+                } catch {
+                    self?.finishIngest(.failure(error))
+                }
+            }
+        }
+    }
+
+    private func finishIngest(_ result: Result<Attachment, Error>) {
+        ingesting -= 1
+        switch result {
+        case .success(let attachment): pending.append(attachment)
+        case .failure(let error): errorMessage = error.localizedDescription
+        }
     }
 
     /// The last reply can be regenerated, and a failed send can be retried.
@@ -119,16 +183,18 @@ final class ChatViewModel {
     @discardableResult
     func send() -> Task<Void, Never>? {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard phase == .idle, !text.isEmpty else { return nil }
+        guard canSend else { return nil }
         guard let model = self.model else {
             errorMessage = "Choose a model first."
             return nil
         }
-        let thread = ensureThread(firstMessage: text)
+        let thread = ensureThread(firstMessage: text.isEmpty ? (pending.first?.filename ?? "Attachment") : text)
         models.telemetry.track(.messageSent(source: model.source))
         let user = MessageRecord(role: .user, content: text)
         context.insert(user)
         user.thread = thread
+        user.attachments = pending.compactMap { try? attachmentStore.adopt($0, intoThread: thread.id) }
+        pending = []
         input = ""
         return startStream(model: model, thread: thread)
     }

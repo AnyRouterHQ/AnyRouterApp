@@ -57,6 +57,7 @@ targets:
       properties:
         SentryDSN: $(SENTRY_DSN)
         ARGitCommit: $(AR_GIT_COMMIT)
+        NSCameraUsageDescription: AnyRouter uses the camera to attach a photo to a message.
         UILaunchScreen:
           UIImageName: LaunchLogo
           UIColorName: LaunchBackground

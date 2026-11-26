@@ -19,6 +19,10 @@ struct ModelRowView: View {
                 Text(row.detailLine).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 0)
+            if row.supportsVision {
+                Image(systemName: "eye").font(.footnote).foregroundStyle(.secondary)
+                    .accessibilityLabel("Sees images")
+            }
             if isCurrent { Image(systemName: "checkmark").fontWeight(.semibold) }
         }
         .opacity(row.isDimmed ? 0.45 : 1)

@@ -14,13 +14,17 @@ struct AnyRouterEngine: ChatEngine {
     let session: URLSession
     let config: AnyRouterConfig
     let onUnauthorized: @Sendable () async -> Void
+    /// Where attached photos are read from when a vision model gets them.
+    let attachments: AttachmentStore
 
     init(
         tokens: any TokenStoring,
         config: AnyRouterConfig = .standard,
         session: URLSession = .shared,
+        attachments: AttachmentStore = .shared,
         onUnauthorized: @escaping @Sendable () async -> Void = {}
     ) {
+        self.attachments = attachments
         self.tokens = tokens
         self.config = config
         self.session = session
@@ -214,7 +218,8 @@ struct AnyRouterEngine: ChatEngine {
         if let system = params.systemPrompt, !system.isEmpty {
             wire.append(["role": "system", "content": system])
         }
-        wire += messages.map { message -> [String: Any] in ["role": message.role.rawValue, "content": message.content] }
+        let sendsImages = model.supportsVision
+        wire += messages.map { Self.wireMessage($0, sendsImages: sendsImages, store: attachments) }
         wire += extraMessages
 
         var body: [String: Any] = [
@@ -238,6 +243,25 @@ struct AnyRouterEngine: ChatEngine {
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         applyHeaders(&request, key: key)
         return request
+    }
+
+    /// One chat message. A vision model gets photos as OpenAI content parts (`image_url` with a data URL);
+    /// every other model gets the message and its files as plain text.
+    static func wireMessage(_ message: ChatMessage, sendsImages: Bool, store: AttachmentStore) -> [String: Any] {
+        let text = AttachmentPrompt.text(for: message, sendsImages: sendsImages)
+        let images = sendsImages && message.role == .user ? message.attachments.filter { $0.kind == .image } : []
+        guard !images.isEmpty else { return ["role": message.role.rawValue, "content": text] }
+        var parts: [[String: Any]] = []
+        if !text.isEmpty { parts.append(["type": "text", "text": text]) }
+        for image in images {
+            guard let data = store.data(for: image) else {
+                parts.append(["type": "text", "text": "[Image: \(image.filename). The file is missing.]"])
+                continue
+            }
+            parts.append(["type": "image_url",
+                          "image_url": ["url": "data:\(image.mimeType);base64,\(data.base64EncodedString())"]])
+        }
+        return ["role": message.role.rawValue, "content": parts]
     }
 
     /// OpenAI `tools` entry. A schema that is not a JSON object degrades to "no arguments".

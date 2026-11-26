@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 /// Chat input: a round "+" menu and a rounded field with a send, stop or presets button inside.
@@ -6,6 +7,10 @@ struct Composer: View {
     var hasModel: Bool
     var presets: PresetStore?
     @State private var showsPresets = false
+    @State private var showsPhotos = false
+    @State private var photoItems: [PhotosPickerItem] = []
+    @State private var showsCamera = false
+    @State private var showsFiles = false
     /// Owned by the chat screen so a tap outside the card can dismiss the keyboard.
     var focused: FocusState<Bool>.Binding
     @Environment(AppSettings.self) private var settings
@@ -22,6 +27,23 @@ struct Composer: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 4)
+            }
+            if !model.pending.isEmpty || model.ingesting > 0 {
+                PendingAttachments(attachments: model.pending, ingesting: model.ingesting,
+                                   store: model.attachmentStore) { model.removePending($0) }
+            }
+            if let note = model.attachmentNote {
+                HStack(spacing: 8) {
+                    Text(note).font(.caption).foregroundStyle(.secondary)
+                    if model.visionAlternative != nil {
+                        Button(AttachmentLogic.switchToVisionTitle) { model.switchToVisionModel() }
+                            .font(.caption)
+                            .frame(minHeight: 44)
+                            .accessibilityIdentifier("composer.switch-to-vision")
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
             }
             HStack(alignment: .bottom, spacing: 8) {
                 plusMenu
@@ -57,6 +79,16 @@ struct Composer: View {
         // Send, stop and the buttons beside the field keep the keyboard up.
         .keepsKeyboardOnTap()
         .onChange(of: model.focusTick) { focused.wrappedValue = true }
+        .photosPicker(isPresented: $showsPhotos, selection: $photoItems,
+                      maxSelectionCount: AttachmentLogic.maxPerMessage, matching: .images)
+        .onChange(of: photoItems) { _, items in loadPhotos(items) }
+        .fullScreenCover(isPresented: $showsCamera) {
+            CameraPicker { model.attachImages([(data: $0, filename: "Photo.jpg")]) }.ignoresSafeArea()
+        }
+        .fileImporter(isPresented: $showsFiles, allowedContentTypes: AttachmentLogic.importableTypes,
+                      allowsMultipleSelection: true) { result in
+            if case .success(let urls) = result { model.attachFiles(urls) }
+        }
         .sheet(isPresented: $showsPresets) {
             if let presets {
                 PresetSheet(store: presets, onPick: { model.usePreset($0) }, onSend: { model.sendNow($0) })
@@ -69,13 +101,31 @@ struct Composer: View {
         }
     }
 
-    /// Round button outside the field. Attachments are not wired yet, so they sit disabled under "Coming soon".
+    private func loadPhotos(_ items: [PhotosPickerItem]) {
+        guard !items.isEmpty else { return }
+        photoItems = []
+        Task {
+            var images: [(data: Data, filename: String)] = []
+            for (index, item) in items.enumerated() {
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    images.append((data: data, filename: "Photo \(index + 1).jpg"))
+                }
+            }
+            model.attachImages(images)
+        }
+    }
+
+    /// Round button outside the field: photos, camera and files, then the Tools and thinking switches.
     private var plusMenu: some View {
         Menu {
-            Section("Coming soon") {
-                Button("Attach photo", systemImage: "photo") {}.disabled(true)
-                Button("Take photo", systemImage: "camera") {}.disabled(true)
-                Button("Attach file", systemImage: "paperclip") {}.disabled(true)
+            Section {
+                Button("Photos", systemImage: "photo") { showsPhotos = true }
+                    .accessibilityIdentifier("composer.add-photos")
+                Button("Camera", systemImage: "camera") { showsCamera = true }
+                    .disabled(!CameraPicker.isAvailable)
+                    .accessibilityIdentifier("composer.add-camera")
+                Button("Files", systemImage: "folder") { showsFiles = true }
+                    .accessibilityIdentifier("composer.add-files")
             }
             if model.supportsTools {
                 Section {
@@ -106,7 +156,7 @@ struct Composer: View {
 
     @ViewBuilder
     private var trailingButton: some View {
-        if model.isStreaming || !model.input.isEmpty {
+        if model.isStreaming || !model.input.isEmpty || !model.pending.isEmpty {
             actionButton
         } else if presets != nil {
             Button { showsPresets = true } label: {

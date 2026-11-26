@@ -8,7 +8,10 @@ struct PromptMessage: Equatable, Sendable {
 enum PromptBuilder {
     /// Core messages as role/content pairs. `systemPrompt` is prepended unless the conversation already starts with a system message.
     static func promptMessages(from messages: [ChatMessage], systemPrompt: String?) -> [PromptMessage] {
-        var result = messages.map { PromptMessage(role: $0.role.rawValue, content: $0.content) }
+        // Local models read attached files as text; photos arrive as the text OCR found in them.
+        var result = messages.map {
+            PromptMessage(role: $0.role.rawValue, content: AttachmentPrompt.text(for: $0, sendsImages: false))
+        }
         if let systemPrompt, !systemPrompt.isEmpty, result.first?.role != "system" {
             result.insert(PromptMessage(role: "system", content: systemPrompt), at: 0)
         }

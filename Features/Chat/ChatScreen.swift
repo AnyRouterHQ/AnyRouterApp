@@ -62,6 +62,7 @@ struct ChatScreen: View {
                                   settings: settings, models: models,
                                   toolHost: { [app] in app.tools.makeHost(approver: app.toolApprovals) })
         model.onThreadCreated = { [shell] id in shell.selectedThreadID = id }
+        if DemoData.attachesSampleFile, thread == nil { model.attachFiles([DemoData.sampleAttachmentURL()]) }
         chat = model
     }
 

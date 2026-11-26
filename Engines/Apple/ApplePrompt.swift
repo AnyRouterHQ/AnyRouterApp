@@ -19,7 +19,7 @@ enum ApplePrompt {
         }
         var turns: [ChatMessage] = []
         for message in messages {
-            let text = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = AttachmentPrompt.text(for: message, sendsImages: false).trimmingCharacters(in: .whitespacesAndNewlines)
             if text.isEmpty { continue }
             if message.role == .system {
                 instructions.append(text)

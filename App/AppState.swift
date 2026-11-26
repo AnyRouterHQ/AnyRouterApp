@@ -30,6 +30,8 @@ final class AppState {
 
     init() {
         let tokenStore = KeychainStore()
+        // Files that were picked but never sent are not kept across launches.
+        if !DemoData.isEnabled { Task.detached { AttachmentStore.shared.purgePending() } }
         let integrations = IntegrationsStore(anyRouterToken: { tokenStore.token() })
         self.integrations = integrations
         tools = ToolRegistry(integrations: integrations)

@@ -33,13 +33,18 @@ struct MessageRow: View {
     private var userRow: some View {
         HStack {
             Spacer(minLength: 48)
-            Text(message.content)
-                .font(.arBase)
-                .foregroundStyle(ARColor.foreground)
-                .textSelection(.enabled)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(ARColor.secondary, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            VStack(alignment: .trailing, spacing: 8) {
+                if !message.attachments.isEmpty { MessageAttachments(attachments: message.attachments) }
+                if !message.content.isEmpty {
+                    Text(message.content)
+                        .font(.arBase)
+                        .foregroundStyle(ARColor.foreground)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(ARColor.secondary, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+            }
         }
     }
 
