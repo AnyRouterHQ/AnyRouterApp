@@ -393,7 +393,7 @@ final class AnyRouterRealToolsTests: XCTestCase {
             seen.add(request)
             return failing.value
                 ? MCPFixtures.reply(MCPFixtures.callError, to: request)
-                : MCPFixtures.reply(#"{"jsonrpc":"2.0","id":0,"result":{"content":[{"type":"text","text":"# Page\nHello"}]}}"#, to: request)
+                : MCPFixtures.reply(##"{"jsonrpc":"2.0","id":0,"result":{"content":[{"type":"text","text":"# Page\nHello"}]}}"##, to: request)
         }
         let registry = registry()
         await registry.integrations.refresh(.anyRouter)
