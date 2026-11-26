@@ -16,6 +16,10 @@ open AnyRouter.xcodeproj
 
 Personal settings (Team ID) go in `Config/Local.xcconfig`, copied from `Config/Local.xcconfig.example`.
 
+## Install on a device
+
+Ad-hoc signing and install steps are in [docs/install.md](./docs/install.md).
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) and [AGENTS.md](./AGENTS.md).

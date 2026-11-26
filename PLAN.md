@@ -144,8 +144,8 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] D7 (#13) Onboarding (Atomic `onboarding/`): first launch → pick Apple / download small local / sign in
 
 ### Lane E — ad-hoc signing and install (model: sonnet-low; blocked on operator secrets)
-- [ ] E1 `release-adhoc.yml`: import cert + profile from secrets, `xcodebuild archive` + `-exportArchive` (method `release-testing`/ad-hoc), upload IPA artifact
-- [ ] E2 Install doc: Apple Configurator 2 or OTA manifest page; size report of the IPA
+- [x] E1 (signing path untested until secrets exist) `release-adhoc.yml`: import cert + profile from secrets, `xcodebuild archive` + `-exportArchive` (method `release-testing`/ad-hoc), upload IPA artifact
+- [x] E2 Install doc: Apple Configurator 2 or OTA manifest page; size report of the IPA
 
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
 
@@ -181,3 +181,4 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - 2026-11-26 lane-C: catalog, HF client, device fit, background downloads and installer with tests (#7); local checks skipped
 - 2026-11-26 lane-C: GGUF engine on llama.cpp b10456 with a real tiny-model test (#10); local checks skipped
 - 2026-11-26 lane-C: MLX engine on mlx-swift-lm 3.33 with Simulator guard (#11); generation path to be verified on device; local checks skipped
+- 2026-11-26 lane-E: ad-hoc release workflow, signing scripts, install doc (E1-E2); signing path untested until secrets exist; local checks skipped
