@@ -116,7 +116,12 @@ final class ScreenshotTests: XCTestCase {
 
     func testHub() {
         forEachAppearance { app, appearance in
-            open(app, footer: "Browse Models")
+            // The sidebar has no hub entry any more: Settings > Models > Manage models.
+            open(app, footer: "Settings")
+            let manage = button(app, containing: "Manage models")
+            XCTAssertTrue(manage.waitForExistence(timeout: 10))
+            scrollTo(manage, in: app)
+            manage.tap()
             XCTAssertTrue(app.navigationBars["Manage models"].waitForExistence(timeout: 10))
             XCTAssertTrue(app.otherElements["hub.storage"].exists || app.staticTexts["Storage"].exists)
             // Rows are list cells with a link, so match by label instead of a static text id.

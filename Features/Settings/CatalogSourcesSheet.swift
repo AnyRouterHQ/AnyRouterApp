@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Edits where Browse Models gets its list: user-added Hugging Face repos and an optional remote catalog URL.
+/// Edits where Manage models gets its list: user-added Hugging Face repos and an optional remote catalog URL.
 struct CatalogSourcesSheet: View {
     @Environment(AppState.self) private var app
 
