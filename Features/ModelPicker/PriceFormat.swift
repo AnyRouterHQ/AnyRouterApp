@@ -60,9 +60,9 @@ enum PriceFormat {
         return formatter.string(from: NSNumber(value: value)) ?? String(value)
     }
 
-    /// "$0.0004" for a request cost, "Free" for zero.
+    /// "$0.0004" for a request cost, "$0" for zero (a free model still shows what the reply cost).
     static func cost(_ value: Decimal) -> String {
-        if value == 0 { return "Free" }
+        if value == 0 { return "$0" }
         let number = NSDecimalNumber(decimal: value)
         let formatter = NumberFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")

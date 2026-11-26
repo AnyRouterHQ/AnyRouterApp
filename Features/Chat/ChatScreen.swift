@@ -109,6 +109,8 @@ private struct ChatContent: View {
     /// The list follows the reply while true (see `ScrollFollow`).
     @State private var following = true
     @State private var nearBottom = true
+    /// The bottom of the last message is more than about one row off screen.
+    @State private var farFromBottom = false
     @ScaledMetric(relativeTo: .subheadline) private var greetingLogoSize: CGFloat = 15
 
     var body: some View {
@@ -229,6 +231,13 @@ private struct ChatContent: View {
         } action: { _, near in
             nearBottom = near
         }
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            ScrollFollow.showsJumpButton(distance: ScrollFollow.distanceFromBottom(
+                offset: geometry.contentOffset.y, container: geometry.containerSize.height,
+                content: geometry.contentSize.height, bottomInset: geometry.contentInsets.bottom))
+        } action: { _, far in
+            farFromBottom = far
+        }
         .onScrollPhaseChange { old, new in
             following = ScrollFollow.following(from: old, to: new, nearBottom: nearBottom, was: following)
         }
@@ -240,7 +249,7 @@ private struct ChatContent: View {
         .onChange(of: messages.last?.toolTraceData) { if following { proxy.scrollTo("bottom", anchor: .bottom) } }
         .onChange(of: messages.last?.content.count) { if following { proxy.scrollTo("bottom", anchor: .bottom) } }
         .overlay(alignment: .bottom) {
-            if !following {
+            if !following && farFromBottom {
                 Button {
                     following = true
                     proxy.scrollTo("bottom", anchor: .bottom)
@@ -250,11 +259,12 @@ private struct ChatContent: View {
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
                 .controlSize(.large)
+                .accessibilityIdentifier("jump-to-latest")
                 .padding(.bottom, 8)
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: following)
+        .animation(.easeInOut(duration: 0.2), value: !following && farFromBottom)
         }
     }
 }

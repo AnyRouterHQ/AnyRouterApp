@@ -22,15 +22,34 @@ enum ResponseFormat {
         }
     }
 
-    /// The one-line summary: cost, first token, total, speed, tokens. Missing numbers are left out.
-    static func summary(_ metadata: ResponseMetadata) -> [String] {
+    /// On the line under a reply: the cost and the first-token time. Missing numbers are left out.
+    static func inline(_ metadata: ResponseMetadata) -> [String] {
         var parts: [String] = []
         if let cost = metadata.costUSD { parts.append(PriceFormat.cost(cost)) }
-        if let ttft = metadata.ttftMs { parts.append("\(seconds(ttft)) first token") }
-        if let total = metadata.totalMs { parts.append(seconds(total)) }
-        if let speed = metadata.tokensPerSecond { parts.append(Self.speed(speed)) }
-        if let tokens = tokens(prompt: metadata.promptTokens, completion: metadata.completionTokens) { parts.append(tokens) }
+        if let ttft = metadata.ttftMs { parts.append("first token \(seconds(ttft))") }
         return parts
+    }
+
+    struct Field: Equatable {
+        let label: String
+        let value: String
+    }
+
+    static let requestLabel = "Request"
+
+    /// Under the chevron: everything that is not on the line. Missing values are left out.
+    static func expanded(_ metadata: ResponseMetadata) -> [Field] {
+        var fields: [Field] = []
+        func add(_ label: String, _ value: String?) { if let value { fields.append(Field(label: label, value: value)) } }
+        add("Model", metadata.servedModelID)
+        add("Provider", metadata.provider)
+        add("Total", metadata.totalMs.map(seconds))
+        add("Speed", metadata.tokensPerSecond.map(speed))
+        add("Tokens", tokens(prompt: metadata.promptTokens, completion: metadata.completionTokens))
+        add("Cached tokens", metadata.cachedTokens.map(String.init))
+        add("Upstream latency", metadata.upstreamLatencyMs.map(seconds))
+        add(requestLabel, metadata.requestID)
+        return fields
     }
 
     /// "AnyRouter → Nemotron 3.5 Bolt E4B" when a router picked the model, else the model's name.

@@ -36,7 +36,7 @@ struct PriceFormatTests {
     }
 
     @Test func requestCostKeepsSmallAmountsVisible() {
-        #expect(PriceFormat.cost(0) == "Free")
+        #expect(PriceFormat.cost(0) == "$0")
         #expect(PriceFormat.cost(Decimal(string: "0.0004")!) == "$0.0004")
         #expect(PriceFormat.cost(Decimal(string: "0.25")!) == "$0.25")
     }

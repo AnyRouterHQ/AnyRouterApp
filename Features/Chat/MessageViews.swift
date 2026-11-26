@@ -82,31 +82,20 @@ struct MessageRow: View {
                 MarkdownReply(text: message.content)
             }
             if !isStreamingThis && !message.content.isEmpty {
-                HStack(spacing: 4) {
-                    CopyButton(text: message.content)
-                    ReadAloudButton(message: message)
-                    if showsRegenerate {
-                        Button(action: onRegenerate) {
-                            Label("Regenerate", systemImage: "arrow.clockwise").labelStyle(.iconOnly)
-                        }
-                        .buttonStyle(.borderless)
-                        .foregroundStyle(.secondary)
-                        // The HIG minimum hit area; a borderless button is only as big as its symbol.
-                        .frame(minWidth: 44, minHeight: 44)
-                        .hoverEffect(.highlight)
-                        .accessibilityLabel("Regenerate")
-                    }
-                }
-                ResponseFooter(message: message, showsDetails: showsDetails)
+                ReplyFooter(message: message, showsRegenerate: showsRegenerate, onRegenerate: onRegenerate,
+                            showsDetails: showsDetails)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-/// Under a reply: the model that wrote it (with its logo), then cost and speed. Tap for the details.
-struct ResponseFooter: View {
+/// One line under a reply: the actions first, then the model that wrote it with its cost and first-token time.
+/// The line scrolls sideways when it does not fit. The chevron opens the rest of the details.
+struct ReplyFooter: View {
     let message: MessageRecord
+    let showsRegenerate: Bool
+    var onRegenerate: () -> Void
     let showsDetails: Bool
     @State private var expanded = false
 
@@ -121,60 +110,69 @@ struct ResponseFooter: View {
     }
 
     var body: some View {
-        if let title {
-            VStack(alignment: .leading, spacing: 6) {
-                if showsDetails, let metadata {
-                    Button { expanded.toggle() } label: {
-                        HStack(spacing: 6) {
-                            ModelLabel(name: title, brand: brand, style: .inline)
-                            Text(ResponseFormat.summary(metadata).joined(separator: " · ")).lineLimit(1)
-                            Image(systemName: expanded ? "chevron.up" : "chevron.down").imageScale(.small)
+        VStack(alignment: .leading, spacing: 4) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    CopyButton(text: message.content)
+                    ReadAloudButton(message: message)
+                    if showsRegenerate {
+                        Button(action: onRegenerate) {
+                            Label("Regenerate", systemImage: "arrow.clockwise").labelStyle(.iconOnly)
                         }
-                        .font(.caption)
+                        .buttonStyle(.borderless)
                         .foregroundStyle(.secondary)
+                        // The HIG minimum hit area; a borderless button is only as big as its symbol.
+                        .frame(minWidth: 44, minHeight: 44)
+                        .hoverEffect(.highlight)
+                        .accessibilityLabel("Regenerate")
                     }
-                    .buttonStyle(.plain)
-                    .hoverEffect(.highlight)
-                    .accessibilityIdentifier("response-details")
-                    if expanded { details(metadata) }
-                } else {
-                    ModelLabel(name: title, brand: brand, style: .inline).foregroundStyle(.secondary)
+                    info
                 }
+            }
+            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+            if expanded, let metadata { details(metadata) }
+        }
+    }
+
+    @ViewBuilder
+    private var info: some View {
+        if let title {
+            if showsDetails, let metadata {
+                Button { expanded.toggle() } label: {
+                    HStack(spacing: 6) {
+                        ModelLabel(name: title, brand: brand, style: .inline)
+                        Text(ResponseFormat.inline(metadata).joined(separator: " · ")).lineLimit(1).fixedSize()
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down").imageScale(.small)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(minHeight: 44)
+                    .padding(.leading, 8)
+                }
+                .buttonStyle(.plain)
+                .hoverEffect(.highlight)
+                .accessibilityIdentifier("response-details")
+            } else {
+                ModelLabel(name: title, brand: brand, style: .inline)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 8)
             }
         }
     }
 
     private func details(_ metadata: ResponseMetadata) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            row("Model", metadata.servedModelID)
-            row("Provider", metadata.provider)
-            row("Cost", metadata.costUSD.map(PriceFormat.cost))
-            row("First token", metadata.ttftMs.map(ResponseFormat.seconds))
-            row("Total", metadata.totalMs.map(ResponseFormat.seconds))
-            row("Speed", metadata.tokensPerSecond.map(ResponseFormat.speed))
-            row("Tokens", ResponseFormat.tokens(prompt: metadata.promptTokens, completion: metadata.completionTokens))
-            row("Cached tokens", metadata.cachedTokens.map(String.init))
-            row("Upstream latency", metadata.upstreamLatencyMs.map(ResponseFormat.seconds))
-            if let id = metadata.requestID {
-                HStack(spacing: 4) {
-                    row("Request", id)
-                    CopyButton(text: id)
+            ForEach(ResponseFormat.expanded(metadata), id: \.label) { field in
+                HStack(alignment: .firstTextBaseline) {
+                    Text(field.label)
+                    Spacer(minLength: 12)
+                    Text(field.value).textSelection(.enabled).multilineTextAlignment(.trailing)
+                    if field.label == ResponseFormat.requestLabel { CopyButton(text: field.value) }
                 }
             }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
-    }
-
-    @ViewBuilder
-    private func row(_ label: String, _ value: String?) -> some View {
-        if let value {
-            HStack(alignment: .firstTextBaseline) {
-                Text(label)
-                Spacer(minLength: 12)
-                Text(value).textSelection(.enabled).multilineTextAlignment(.trailing)
-            }
-        }
     }
 }
 
