@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-26",
+  "models": [
+    {
+      "repo": "unsloth/Qwen3-0.6B-GGUF",
+      "format": "gguf",
+      "file": "Qwen3-0.6B-Q4_K_M.gguf",
+      "title": "Qwen3 0.6B",
+      "summary": "Tiny and fast. Good for short answers on any iPhone.",
+      "parameters": "0.6B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 396705472,
+      "contextLength": 40960,
+      "license": "apache-2.0",
+      "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+      "capabilities": [
+        "chat",
+        "reasoning"
+      ],
+      "order": 0
+    },
+    {
+      "repo": "mlx-community/Qwen3-0.6B-4bit",
+      "format": "mlx",
+      "title": "Qwen3 0.6B (MLX)",
+      "summary": "Tiny and fast. Good for short answers on any iPhone.",
+      "parameters": "0.6B",
+      "quantization": "4-bit",
+      "sizeBytes": 351383618,
+      "contextLength": 40960,
+      "license": "apache-2.0",
+      "revision": "73e3e38d981303bc594367cd910ea6eb48349da8",
+      "capabilities": [
+        "chat",
+        "reasoning"
+      ],
+      "order": 1
+    },
+    {
+      "repo": "unsloth/Qwen3-1.7B-GGUF",
+      "format": "gguf",
+      "file": "Qwen3-1.7B-Q4_K_M.gguf",
+      "title": "Qwen3 1.7B",
+      "summary": "Small all-rounder with a thinking mode.",
+      "parameters": "1.7B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 1107409472,
+      "contextLength": 40960,
+      "license": "apache-2.0",
+      "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+      "capabilities": [
+        "chat",
+        "reasoning"
+      ],
+      "order": 2
+    },
+    {
+      "repo": "mlx-community/Qwen3-1.7B-4bit",
+      "format": "mlx",
+      "title": "Qwen3 1.7B (MLX)",
+      "summary": "Small all-rounder with a thinking mode.",
+      "parameters": "1.7B",
+      "quantization": "4-bit",
+      "sizeBytes": 984013244,
+      "contextLength": 40960,
+      "license": "apache-2.0",
+      "revision": "3b1b1768f8f8cf8351c712464f906e86c2b8269e",
+      "capabilities": [
+        "chat",
+        "reasoning"
+      ],
+      "order": 3
+    },
+    {
+      "repo": "unsloth/Qwen3-4B-GGUF",
+      "format": "gguf",
+      "file": "Qwen3-4B-Q4_K_M.gguf",
+      "title": "Qwen3 4B",
+      "summary": "Strongest of the small Qwen3 models. Wants 8 GB of RAM.",
+      "parameters": "4B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 2497281312,
+      "contextLength": 40960,
+      "license": "apache-2.0",
+      "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+      "capabilities": [
+        "chat",
+        "reasoning"
+      ],
+      "order": 4
+    },
+    {
+      "repo": "mlx-community/Qwen3-4B-4bit",
+      "format": "mlx",
+      "title": "Qwen3 4B (MLX)",
+      "summary": "Strongest of the small Qwen3 models. Wants 8 GB of RAM.",
+      "parameters": "4B",
+      "quantization": "4-bit",
+      "sizeBytes": 2278969756,
+      "contextLength": 40960,
+      "license": "apache-2.0",
+      "revision": "4dcb3d101c2a062e5c1d4bb173588c54ea6c4d25",
+      "capabilities": [
+        "chat",
+        "reasoning"
+      ],
+      "order": 5
+    },
+    {
+      "repo": "unsloth/gemma-3-1b-it-GGUF",
+      "format": "gguf",
+      "file": "gemma-3-1b-it-Q4_K_M.gguf",
+      "title": "Gemma 3 1B",
+      "summary": "Google small chat model. Quick and light.",
+      "parameters": "1B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 806058272,
+      "contextLength": 32768,
+      "license": "gemma",
+      "revision": "f0b45be0aac41bd6a100a4b5734cad5f67255bfb",
+      "capabilities": [
+        "chat"
+      ],
+      "order": 6
+    },
+    {
+      "repo": "mlx-community/gemma-3-1b-it-4bit",
+      "format": "mlx",
+      "title": "Gemma 3 1B (MLX)",
+      "summary": "Google small chat model. Quick and light.",
+      "parameters": "1B",
+      "quantization": "4-bit",
+      "sizeBytes": 771860852,
+      "contextLength": 32768,
+      "license": "gemma",
+      "revision": "2d44e83dc9e80843d22fb941d3d699a0b1351aa6",
+      "capabilities": [
+        "chat"
+      ],
+      "order": 7
+    },
+    {
+      "repo": "unsloth/gemma-3-4b-it-GGUF",
+      "format": "gguf",
+      "file": "gemma-3-4b-it-Q4_K_M.gguf",
+      "title": "Gemma 3 4B",
+      "summary": "Google mid-size chat model. Wants 8 GB of RAM.",
+      "parameters": "4B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 2489894016,
+      "contextLength": 131072,
+      "license": "gemma",
+      "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+      "capabilities": [
+        "chat"
+      ],
+      "order": 8
+    },
+    {
+      "repo": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+      "format": "gguf",
+      "file": "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+      "title": "Llama 3.2 1B",
+      "summary": "Meta small instruct model.",
+      "parameters": "1B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 807694464,
+      "contextLength": 131072,
+      "license": "llama3.2",
+      "revision": "067b946cf014b7c697f3654f621d577a3e3afd1c",
+      "capabilities": [
+        "chat"
+      ],
+      "order": 9
+    },
+    {
+      "repo": "mlx-community/Llama-3.2-1B-Instruct-4bit",
+      "format": "mlx",
+      "title": "Llama 3.2 1B (MLX)",
+      "summary": "Meta small instruct model.",
+      "parameters": "1B",
+      "quantization": "4-bit",
+      "sizeBytes": 712575975,
+      "contextLength": 131072,
+      "license": "llama3.2",
+      "revision": "08231374eeacb049a0eade7922910865b8fce912",
+      "capabilities": [
+        "chat"
+      ],
+      "order": 10
+    },
+    {
+      "repo": "bartowski/Llama-3.2-3B-Instruct-GGUF",
+      "format": "gguf",
+      "file": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+      "title": "Llama 3.2 3B",
+      "summary": "Meta compact instruct model.",
+      "parameters": "3B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 2019377696,
+      "contextLength": 131072,
+      "license": "llama3.2",
+      "revision": "5ab33fa94d1d04e903623ae72c95d1696f09f9e8",
+      "capabilities": [
+        "chat"
+      ],
+      "order": 11
+    },
+    {
+      "repo": "mlx-community/Llama-3.2-3B-Instruct-4bit",
+      "format": "mlx",
+      "title": "Llama 3.2 3B (MLX)",
+      "summary": "Meta compact instruct model.",
+      "parameters": "3B",
+      "quantization": "4-bit",
+      "sizeBytes": 1824807894,
+      "contextLength": 131072,
+      "license": "llama3.2",
+      "revision": "7f0dc925e0d0afb0322d96f9255cfddf2ba5636e",
+      "capabilities": [
+        "chat"
+      ],
+      "order": 12
+    }
+  ]
+}
