@@ -63,7 +63,40 @@ struct LocalModelEntry: Identifiable, Hashable, Sendable {
     var isOnboarding = false
     /// The catalog marks it as a top pick.
     var isRecommended = false
+    /// The family this size belongs to (Gemma 4, Qwen 3.5). Nil for a repo the user added.
+    var familyID: String? = nil
+    var familyName: String? = nil
+    var publisher: String? = nil
+    /// Short key for the family logo ("gemma", "qwen").
+    var logo: String? = nil
+    var website: String? = nil
+    /// "4B", "E2B": what this size is called, and how big it is for sorting (0.7 for "700M").
+    var parameters: String? = nil
+    var parameterBillions: Double? = nil
+    var quantization: String? = nil
+    /// ISO date the size was added or last updated, for "Newest".
+    var releasedAt: String? = nil
+    /// Hidden from browsing and recommendations. Installed copies keep working and say what replaces them.
+    var isDeprecated = false
+    /// Name of the family that replaces a deprecated one.
+    var replacementName: String? = nil
     var id: String { descriptor.id }
+}
+
+/// A model line at one generation with its sizes: what the model browser lists first.
+struct LocalModelFamily: Identifiable, Hashable, Sendable {
+    var id: String
+    var name: String
+    var publisher: String
+    var logo: String
+    var summary: String
+    var website: String?
+    /// Catalog tags: "thinking", "vision", "audio", "tools", "code", "multilingual".
+    var tags: [String]
+    /// The catalog's own badges: "best", "recommended", "new".
+    var badges: [String]
+    /// Every size in every format, in catalog order.
+    var variants: [LocalModelEntry]
 }
 
 /// A Hugging Face repo found by search. Its files become `LocalModelEntry` values on demand.
@@ -107,6 +140,13 @@ protocol ModelHubService: AnyObject {
     func removeUserModel(modelID: String) async
     /// Empty text clears the remote catalog.
     func setRemoteCatalogURL(_ text: String) async throws
+}
+
+extension ModelHubService {
+    /// Current model families with their sizes. Deprecated models are not listed.
+    var families: [LocalModelFamily] { FamilyLogic.families(from: catalog) }
+    /// Models without a family (repos the user added).
+    var ungroupedModels: [LocalModelEntry] { FamilyLogic.ungrouped(catalog) }
 }
 
 /// Inert default for previews and tests.

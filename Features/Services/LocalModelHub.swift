@@ -63,7 +63,13 @@ final class LocalModelHub: ModelHubService {
             let userIDs = Set(settings.userModels.map(\.id))
             raw = Dictionary(entries.map { ($0.id, $0) }, uniquingKeysWith: { $1 })
             downloads.refresh(entries: entries)
-            catalog = entries.map { map($0, isUser: userIDs.contains($0.id)) }
+            // A deprecated model is hidden unless it is installed: it keeps working, with a note about its replacement.
+            let familyNames = Dictionary(
+                entries.compactMap { entry in entry.familyID.flatMap { id in entry.familyName.map { (id, $0) } } },
+                uniquingKeysWith: { first, _ in first })
+            catalog = entries
+                .filter { $0.status == .current || downloads.state(for: $0) == .installed }
+                .map { map($0, isUser: userIDs.contains($0.id), replacementName: $0.replacedBy.flatMap { familyNames[$0] }) }
             lastError = nil
         } catch {
             lastError = error.localizedDescription
@@ -185,7 +191,7 @@ final class LocalModelHub: ModelHubService {
         source == .mlx ? .mlx : .gguf
     }
 
-    private func map(_ entry: CatalogEntry, isUser: Bool) -> LocalModelEntry {
+    private func map(_ entry: CatalogEntry, isUser: Bool, replacementName: String? = nil) -> LocalModelEntry {
         var tags = [entry.format == .mlx ? "mlx" : "gguf"]
         if let parameters = entry.parameters { tags.append(parameters) }
         if let quantization = entry.quantization { tags.append(quantization) }
@@ -227,7 +233,18 @@ final class LocalModelHub: ModelHubService {
             badges: entry.badges.map { ModelBadge(label: $0.label, tone: ModelBadge.Tone(rawValue: $0.tone ?? "") ?? .neutral) },
             fitDetail: detail,
             isOnboarding: entry.isOnboarding,
-            isRecommended: entry.recommended
+            isRecommended: entry.recommended,
+            familyID: entry.familyID,
+            familyName: entry.familyName,
+            publisher: entry.publisher,
+            logo: entry.iconKey,
+            website: entry.website,
+            parameters: entry.parameters,
+            parameterBillions: FamilyLogic.billions(of: entry.parameters),
+            quantization: entry.quantization,
+            releasedAt: entry.updatedAt ?? entry.createdAt,
+            isDeprecated: entry.status == .deprecated,
+            replacementName: replacementName
         )
     }
 }
