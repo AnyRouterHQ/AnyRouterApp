@@ -155,7 +155,7 @@ struct AttachmentChatTests {
         r.vm.attachImages([(data: pngData(width: 100, height: 100), filename: "p.png")])
         try await settle(r.vm)
         #expect(r.vm.model?.id == "apple/foundation")
-        #expect(r.vm.attachmentNote == AttachmentLogic.visionNote)
+        #expect(r.vm.attachmentNote == "\(AttachmentLogic.visionNote) Try Eyes.", "the note names the vision model on offer")
         #expect(r.vm.visionAlternative?.id == "apple/eyes")
         r.vm.switchToVisionModel()
         #expect(r.vm.model?.id == "apple/eyes")
