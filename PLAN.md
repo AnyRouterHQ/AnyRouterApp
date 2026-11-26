@@ -150,6 +150,8 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] D6 (#13) Settings: account (sign in/out), model providers, catalog sources editor, generation defaults, appearance, about + licenses
 - [x] D7 (#13) Onboarding: first launch → pick Apple / download small local / sign in
 - [x] D8 (#29) Default model and picker: signed-in default is the auto router (shown as "AnyRouter"), BYOK hidden but searchable, routers then providers, per-thread model with notice, model name under replies
+- [x] D9 (a1b5e2c) Native model picker: sheet with Local | AnyRouter tabs, search, sort menu, Top picks (bundled top-picks.json plus the 6 hour cached usage order), two-line rows with logo, price, context and upstreams, needs-key rows with the BYOK explainer, router detail (routing-preview). ModelBrand and ModelLabel with bundled mono logos (lobe-icons, MIT), `scripts/model-name-check.sh` keeps names and logos together
+- [x] D10 (9e75d3a) Response details under each reply: served model ("AnyRouter → X"), cost, first token, total, tok/s, tokens, request id; "Switched to X" note; setting "Show response details"
 
 ### Lane E — TestFlight (model: sonnet-low; blocked on operator secrets)
 - [x] E1 (upload path untested until secrets exist) `testflight.yml`: automatic signing with the ASC API key, `xcodebuild archive` + `-exportArchive` (method `app-store-connect`, destination `upload`), unique build number, dSYMs artifact
