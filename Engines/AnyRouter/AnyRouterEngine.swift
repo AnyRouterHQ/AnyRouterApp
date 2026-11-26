@@ -88,10 +88,13 @@ struct AnyRouterEngine: ChatEngine {
                     }
                     if !decoder.isDone { continuation.yield(.done(finishReason: decoder.finishReason)) }
                     continuation.finish()
-                } catch is CancellationError {
-                    continuation.finish()
                 } catch {
-                    continuation.finish(throwing: error)
+                    // A cancelled consumer is not an error; URLSession reports it as URLError.cancelled.
+                    if Task.isCancelled {
+                        continuation.finish()
+                    } else {
+                        continuation.finish(throwing: error)
+                    }
                 }
             }
             continuation.onTermination = { _ in task.cancel() }

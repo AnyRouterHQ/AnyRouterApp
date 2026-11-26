@@ -1,6 +1,12 @@
 import Foundation
 import Observation
 
+/// The browser sign-in step. `OAuthClient` is the real one; tests script it.
+@MainActor
+protocol OAuthSigning {
+    func signIn() async throws -> IssuedToken
+}
+
 /// Sign-in state the UI observes. Owns the Keychain store and the OAuth flow.
 @MainActor
 @Observable
@@ -15,9 +21,9 @@ final class AnyRouterAuth {
     private(set) var lastError: String?
 
     let store: KeychainStore
-    private let client: OAuthClient
+    private let client: any OAuthSigning
 
-    init(store: KeychainStore = KeychainStore(), client: OAuthClient? = nil) {
+    init(store: KeychainStore = KeychainStore(), client: (any OAuthSigning)? = nil) {
         self.store = store
         self.client = client ?? OAuthClient()
         refresh()
@@ -65,8 +71,8 @@ final class AnyRouterAuth {
     }
 
     /// Engine wired to this auth state.
-    func makeEngine(config: AnyRouterConfig = .standard) -> AnyRouterEngine {
-        AnyRouterEngine(tokens: store, config: config) { [weak self] in
+    func makeEngine(config: AnyRouterConfig = .standard, session: URLSession = .shared) -> AnyRouterEngine {
+        AnyRouterEngine(tokens: store, config: config, session: session) { [weak self] in
             await MainActor.run { self?.handleUnauthorized() }
         }
     }

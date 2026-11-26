@@ -6,9 +6,13 @@ enum PKCE {
     struct Failure: Error {}
 
     /// 32 random bytes encode to a 43-character base64url verifier (RFC 7636 allows 43 to 128).
-    static func makeVerifier() throws -> String {
+    static func makeVerifier(
+        fill: (inout [UInt8]) -> OSStatus = { (bytes: inout [UInt8]) in
+            SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        }
+    ) throws -> String {
         var bytes = [UInt8](repeating: 0, count: 32)
-        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+        guard fill(&bytes) == errSecSuccess else {
             throw Failure()
         }
         return base64URL(Data(bytes))

@@ -54,6 +54,21 @@ struct OnboardingLogicTests {
         #expect(can(.cloud, signedIn: true))
     }
 
+    @Test func modelsWithoutAKnownSizeAreStillConsidered() {
+        let catalog = [entry("unknown-a", size: nil), entry("unknown-b", size: nil)]
+        #expect(OnboardingLogic.recommendedLocal(in: catalog)?.id == "unknown-a" || OnboardingLogic.recommendedLocal(in: catalog)?.id == "unknown-b")
+        let mixed = [entry("unknown", size: nil), entry("sized", size: 4_000_000_000)]
+        #expect(OnboardingLogic.recommendedLocal(in: mixed)?.id == "sized")
+    }
+
+    @Test func modelIDIsNilWhenTheChoiceHasNoModel() {
+        #expect(OnboardingLogic.modelID(for: .apple, models: [], local: nil) == nil)
+        #expect(OnboardingLogic.modelID(for: .cloud, models: [], local: nil) == nil)
+        #expect(OnboardingLogic.modelID(for: .local, models: [], local: nil) == nil)
+        let uninstalled = [testModel(id: "apple/foundation", source: .apple, installed: false)]
+        #expect(OnboardingLogic.modelID(for: .apple, models: uninstalled, local: nil) == nil)
+    }
+
     @Test func modelIDFollowsTheChoice() {
         let models = [testModel(id: "apple/foundation", source: .apple), testModel(id: "anyrouter/x/y", source: .anyrouter)]
         let local = entry("gguf/org/m/f.gguf", size: 1)

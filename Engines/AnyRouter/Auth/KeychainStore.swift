@@ -4,11 +4,14 @@ import Security
 /// The access token lives in the Keychain only: never UserDefaults, never a log line.
 struct KeychainStore: TokenStoring {
     private let service: String
+    private let add: @Sendable (CFDictionary) -> OSStatus
     private static let tokenAccount = "oauth-access-token"
     private static let expiryAccount = "oauth-expires-at"
 
-    init(service: String = "dev.anyrouter.app") {
+    /// `add` is the Keychain insert; tests pass one that fails.
+    init(service: String = "dev.anyrouter.app", add: @escaping @Sendable (CFDictionary) -> OSStatus = { SecItemAdd($0, nil) }) {
         self.service = service
+        self.add = add
     }
 
     /// The token, or `nil` when none is stored or it has expired.
@@ -64,6 +67,6 @@ struct KeychainStore: TokenStoring {
         var insert = query
         insert[kSecValueData as String] = data
         insert[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        return SecItemAdd(insert as CFDictionary, nil) == errSecSuccess
+        return add(insert as CFDictionary) == errSecSuccess
     }
 }
