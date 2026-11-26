@@ -126,6 +126,15 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    func testDecisions() {
+        forEachAppearance { app, appearance in
+            showSidebar(app)
+            app.buttons["sidebar-decisions"].tap()
+            XCTAssertTrue(app.navigationBars["Decisions"].waitForExistence(timeout: 10))
+            capture("decisions", appearance)
+        }
+    }
+
     func testSettings() {
         forEachAppearance { app, appearance in
             open(app, footer: "Settings")
