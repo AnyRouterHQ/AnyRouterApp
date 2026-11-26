@@ -529,6 +529,22 @@ Sources: [Moonshine TTS](https://github.com/moonshine-ai/moonshine/blob/main/doc
 - [ ] V6 `Moonshine` TTS engine and catalog entries after each voice's licence is checked.
 - [ ] V7 (Later) Moonshine streaming STT for Vietnamese and English after the language is known; VieNeu-TTS through llama.cpp.
 
+## Accessibility audit findings
+
+Source: `performAccessibilityAudit` in the verify journeys, run 45825631128 (iPhone 17 Pro, light, dark, large text), on a main from before the text-style and 44 pt hit-area work. Lines are on main at 2924a6b. "Re-audit" means the finding cannot be tied to a line without a fresh run (`gh workflow run verify-ui.yml`, one at a time, main only). Fixed fonts: `git grep '.system(size:'` in App, Features, Design returns nothing now, so the old Dynamic Type "unsupported" findings are expected to be gone.
+
+| # | Finding | File:line | Owner lane | Status |
+|---|---|---|---|---|
+| 1 | Home greeting, subtitle, chips, bubbles reported as fixed-size fonts | Features/Chat/ChatScreen.swift:157-174, Features/Presets/PresetViews.swift:37-38 | native-ux-research | likely fixed, re-audit |
+| 2 | Preset chips clipped at AccessibilityXL (fixed chip width, one-line title and summary) | Features/Presets/PresetViews.swift:37-40 | native-ux-research | open |
+| 3 | Picker rows truncate names and ids at AccessibilityXL ("AnyRo…", "Claude Sonn…") | Features/ModelPicker/ModelPickerSheet.swift:16-19, 49-58 | weekly-usage | open |
+| 4 | Response-details row clipped, hit area too small | Features/Chat/MessageViews.swift:127-137 | chat-chrome | open |
+| 5 | Copy and Regenerate hit area under 44 pt | Features/Chat/MarkdownTheme.swift:104-125, Features/Chat/MessageViews.swift:95 | chat-chrome | re-audit (frame now 44) |
+| 6 | Sidebar thread titles and "Search chats" clipped at large text | Features/Threads/ThreadSidebar.swift:34, 81 | chat-search | open |
+| 7 | Account name and email clipped; email read as "label not human-readable" | Features/Account/AccountCard.swift:56-58 | settings-ia | open |
+| 8 | Contrast failed: home subtitle and chip text on the tinted wash | Features/Chat/ChatScreen.swift:168-174, Features/Presets/PresetViews.swift:37-38 | native-ux-research | re-audit |
+| 9 | Contrast failed: "Manage models" title, "Search models" placeholder, picker "Model" title | Features/Hub/HubScreen.swift, Features/ModelPicker/ModelPickerSheet.swift | weekly-usage, settings-ia | re-audit |
+
 ## Open questions (operator)
 
 - Q1 Add GitHub secrets: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_BASE64` (API key role App Manager).
@@ -705,6 +721,8 @@ Reviewer passes over main up to 8e275cd (2026-11-27). Fixed items are in `fix(..
 - Not reviewed in depth: Hub families and filters UI, the picker and Decisions screens, onboarding, the drawer shell, screenshot and perf tests.
 
 ## Status log
+
+- 2026-11-27 lane-verify: accessibility audit findings table with owners (run 45825631128); screenshots.yml split into build plus per-device shards; local checks skipped
 
 - 2026-11-26 lane-ux: native UX and performance audit, boundary decision D15, plan U1-U18 and measurement plan; docs only, local checks skipped
 - 2026-11-26 lane-mcp: MCP client, typed tool models, Settings › Integrations with per-tool switches (T1-T2) (#33); local checks skipped
