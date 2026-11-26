@@ -32,7 +32,7 @@ struct SettingsDestinationTests {
         #expect(SettingsLogic.versionText(version: "1.2", build: "7", commit: "abc1234") == "1.2 (7) · abc1234")
         #expect(SettingsLogic.versionText(version: "1.2", build: "7", commit: "") == "1.2 (7)")
         let text = SettingsLogic.diagnostics(version: "1.2", build: "7", system: "26.0")
-        #expect(text == "AnyRouter 1.2 (7)\niOS 26.0")
+        #expect(text == "AnyRouter 1.2 (7) · \(SettingsLogic.appCommit)\niOS 26.0")
         #expect(SettingsLogic.diagnosticsTapCount == 7)
     }
 }
