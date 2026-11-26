@@ -26,7 +26,7 @@ struct PresetSuggestions: View {
                         .overlay(Capsule().strokeBorder(ARColor.border, lineWidth: 1))
                 }
                 .accessibilityLabel("Shuffle presets")
-                ForEach(items) { chip(\$0) }
+                ForEach(items) { chip($0) }
             }
             .padding(.horizontal, ARTheme.pagePadding)
         }
