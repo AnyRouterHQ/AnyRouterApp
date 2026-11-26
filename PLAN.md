@@ -559,6 +559,7 @@ Source: `performAccessibilityAudit` in the verify journeys, run 45825631128 (iPh
 - Q2 Create the app record in App Store Connect (bundle id `dev.anyrouter.app`, name AnyRouter).
 - Q6 Verify-later sign-up is a Clerk dashboard setting (email address, verify at sign-up), not code. Until it is off, new users are verified before the app gets its key and the Settings row never shows. The server also needs `/me` to return `email_verified` (duyet/anyrouter#8468, not merged). The app treats a missing field as verified.
 - Q4 Resolved: icon from the public AnyRouter logo, anyrouter.dev orange accent (#8).
+- Q7 "No cloud models" on a signed-in device (28bd02c). The public catalog decodes fine (510 entries checked against the decoder), so the cause is on the signed-in path and not proven without a key. What the code did: every engine error was dropped by `try?`, each partial answer replaced the whole list, and an empty list always read "No cloud models". Now the reason and Retry show, and Settings > Diagnostics keeps it. If it still happens, the Diagnostics row names the cause.
 - Q5 Resolved: a sign-in token calls `tools/list` on `https://anyrouter.dev/api/v1/mcp` (initialize 200, 31 tools, no session id); no extra scope is needed.
 
 ## Native UX & performance
