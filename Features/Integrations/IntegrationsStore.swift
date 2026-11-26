@@ -1,0 +1,198 @@
+import Foundation
+import Observation
+
+/// Connected tool servers, their tool lists, and the per-tool on/off switches.
+///
+/// AnyRouter's own server is always listed; it connects with the sign-in token.
+/// Custom servers and their bearer tokens persist across launches (tokens in the Keychain).
+@MainActor @Observable
+final class IntegrationsStore {
+    enum Status: Equatable {
+        case idle
+        case connecting
+        case needsSignIn
+        case connected
+        case failed(String)
+    }
+
+    struct ServerState: Equatable {
+        var status: Status = .idle
+        var tools: [MCPTool] = []
+    }
+
+    struct TestSummary: Equatable {
+        var serverName: String
+        var toolCount: Int
+    }
+
+    private enum Key {
+        static let servers = "integrations.servers"
+        static let overrides = "integrations.toolOverrides"
+    }
+
+    private(set) var customServers: [MCPServer]
+    private(set) var states: [String: ServerState] = [:]
+    /// Tool switches the user changed. A tool with no entry is on.
+    private(set) var overrides: [String: Bool]
+
+    @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let credentials: any MCPCredentialStoring
+    @ObservationIgnored private let anyRouterToken: @Sendable () -> String?
+    @ObservationIgnored private let session: URLSession
+    @ObservationIgnored private var clients: [String: MCPClient] = [:]
+
+    init(
+        defaults: UserDefaults = .standard,
+        credentials: any MCPCredentialStoring = MCPKeychainCredentialStore(),
+        anyRouterToken: @escaping @Sendable () -> String?,
+        session: URLSession = .shared
+    ) {
+        self.defaults = defaults
+        self.credentials = credentials
+        self.anyRouterToken = anyRouterToken
+        self.session = session
+        customServers = defaults.data(forKey: Key.servers)
+            .flatMap { try? JSONDecoder().decode([MCPServer].self, from: $0) } ?? []
+        overrides = defaults.dictionary(forKey: Key.overrides) as? [String: Bool] ?? [:]
+    }
+
+    var servers: [MCPServer] { [MCPServer.anyRouter] + customServers }
+
+    func state(for server: MCPServer) -> ServerState { states[server.id] ?? ServerState() }
+
+    // MARK: Connecting
+
+    /// Connects with a fresh session and reads the tool list.
+    func refresh(_ server: MCPServer) async {
+        if server.auth == .anyRouterSignIn, anyRouterToken() == nil {
+            clients[server.id] = nil
+            states[server.id] = ServerState(status: .needsSignIn)
+            return
+        }
+        states[server.id] = ServerState(status: .connecting, tools: state(for: server).tools)
+        let client = makeClient(for: server)
+        clients[server.id] = client
+        do {
+            try await client.connect()
+            let tools = try await client.listTools()
+            states[server.id] = ServerState(status: .connected, tools: tools)
+        } catch is CancellationError {
+            states[server.id] = ServerState(status: .idle, tools: state(for: server).tools)
+        } catch MCPError.unauthorized where server.auth == .anyRouterSignIn {
+            states[server.id] = ServerState(status: .needsSignIn)
+        } catch {
+            states[server.id] = ServerState(status: .failed(error.localizedDescription))
+        }
+    }
+
+    func refreshAll() async {
+        for server in servers { await refresh(server) }
+    }
+
+    /// Client for tool calls. Created on first use, replaced by `refresh`.
+    func client(for server: MCPServer) -> MCPClient {
+        if let existing = clients[server.id] { return existing }
+        let client = makeClient(for: server)
+        clients[server.id] = client
+        return client
+    }
+
+    /// Checks a URL and optional token before the server is saved.
+    func testConnection(urlString: String, token: String) async -> Result<TestSummary, any Error> {
+        let url: URL
+        switch IntegrationsLogic.validate(urlString) {
+        case .success(let value): url = value
+        case .failure(let problem): return .failure(problem)
+        }
+        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        let probe = MCPServer(id: "probe", name: "probe", url: url, auth: trimmed.isEmpty ? .none : .bearerToken)
+        let client = MCPClient(server: probe, token: { trimmed }, session: session)
+        do {
+            let info = try await client.connect()
+            let tools = try await client.listTools()
+            await client.close()
+            return .success(TestSummary(serverName: info.name, toolCount: tools.count))
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    // MARK: Custom servers
+
+    @discardableResult
+    func addServer(name: String, urlString: String, token: String) throws -> MCPServer {
+        let url: URL
+        switch IntegrationsLogic.validate(urlString) {
+        case .success(let value): url = value
+        case .failure(let problem): throw problem
+        }
+        if customServers.contains(where: { $0.url == url }) { throw IntegrationsLogic.URLProblem.duplicate }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        let server = MCPServer(
+            id: UUID().uuidString.lowercased(),
+            name: trimmedName.isEmpty ? IntegrationsLogic.defaultName(for: url) : trimmedName,
+            url: url,
+            auth: trimmedToken.isEmpty ? .none : .bearerToken
+        )
+        if !trimmedToken.isEmpty { credentials.save(token: trimmedToken, for: server.id) }
+        customServers.append(server)
+        persistServers()
+        return server
+    }
+
+    func removeServer(_ server: MCPServer) {
+        guard server.id != MCPServer.anyRouter.id else { return }
+        credentials.remove(for: server.id)
+        customServers.removeAll { $0.id == server.id }
+        states[server.id] = nil
+        clients[server.id] = nil
+        overrides = overrides.filter { !$0.key.hasPrefix(server.id + "/") }
+        persistServers()
+        persistOverrides()
+    }
+
+    // MARK: Tool switches
+
+    func isEnabled(_ tool: MCPTool, on server: MCPServer) -> Bool {
+        overrides[IntegrationsLogic.toolKey(serverID: server.id, toolName: tool.name)] ?? true
+    }
+
+    func setEnabled(_ enabled: Bool, tool: MCPTool, on server: MCPServer) {
+        let key = IntegrationsLogic.toolKey(serverID: server.id, toolName: tool.name)
+        if enabled { overrides[key] = nil } else { overrides[key] = false }
+        persistOverrides()
+    }
+
+    /// Tools of connected servers that the user left on.
+    var enabledTools: [(server: MCPServer, tool: MCPTool)] {
+        servers.flatMap { server -> [(server: MCPServer, tool: MCPTool)] in
+            let state = state(for: server)
+            guard state.status == .connected else { return [] }
+            return state.tools.filter { isEnabled($0, on: server) }.map { (server: server, tool: $0) }
+        }
+    }
+
+    // MARK: Helpers
+
+    private func makeClient(for server: MCPServer) -> MCPClient {
+        let provider: @Sendable () -> String?
+        switch server.auth {
+        case .none: provider = { nil }
+        case .anyRouterSignIn: provider = anyRouterToken
+        case .bearerToken:
+            let credentials = credentials
+            let id = server.id
+            provider = { credentials.token(for: id) }
+        }
+        return MCPClient(server: server, token: provider, session: session)
+    }
+
+    private func persistServers() {
+        defaults.set(try? JSONEncoder().encode(customServers), forKey: Key.servers)
+    }
+
+    private func persistOverrides() {
+        defaults.set(overrides, forKey: Key.overrides)
+    }
+}

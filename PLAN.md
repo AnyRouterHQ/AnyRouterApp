@@ -158,6 +158,20 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] G1 Settings as a drill-down sheet (Models, Chat, Appearance, About), `SettingsDestination` routing, account card with `AccountSummary` from /me, /credits and /key (926ac73)
 - [x] G2 Wide sidebar drawer on iPhone (interactive drag, edge swipe), `NavigationSplitView` sidebar on iPad, bottom search and compose buttons (926ac73)
 
+## Tools & integrations (MCP)
+
+Operator request: tools and integrations through AnyRouter's MCP server. Sign-in token works against `https://mcp.anyrouter.dev/api/v1/mcp` (streamable HTTP, bearer). Core read-only tools plus Firecrawl web tools when the user connected Firecrawl; management tools are not exposed to sign-in tokens. Phases land as separate PRs.
+
+Decision: a small focused client (`Engines/MCP/`) instead of the official MCP Swift SDK. We need only initialize, tools/list, tools/call, a session id and JSON or SSE bodies; it avoids a new package graph that we cannot build locally.
+
+- [x] T1 `Engines/MCP/`: `MCPClient` (initialize, tools/list with paging, tools/call, session id, protocol version, one re-init on 404, JSON and SSE bodies), typed `MCPServer`, `MCPTool`, `MCPToolResult`, `JSONValue`; fixture tests with a stubbed URLSession; opt-in live test gated on `ANYROUTER_E2E_API_KEY` (#33)
+- [x] T2 Settings › Integrations (`Features/Integrations/`): AnyRouter card (connected when signed in), live tool list with persisted per-tool switches, add custom server (URL + optional bearer token in Keychain), connection test with clear errors (#33)
+- [ ] T3 Core data shape: `ChatDelta.toolCall` / `.toolResult` and tool parts on `ChatMessage` (one part model shared with attachments)
+- [ ] T4 AnyRouter engine: send enabled tools as OpenAI `tools`, parse streamed `tool_calls`, agent loop (max 8 steps, cancel-safe)
+- [ ] T5 Chat UI: tool-call rows (expandable), approval sheet for tools not marked read-only, "Tools" toggle in the composer and menu
+- [ ] T6 Apple Foundation Models: wrap enabled tools as `Tool` conformances with a dynamic `GenerationSchema`
+- [ ] T7 Local GGUF and MLX tool calling (Later): needs chat-template tool rendering and parsing of the model's tool-call tokens per model family
+
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
 
 - [ ] F1 Device smoke test on iPhone + iPad: AnyRouter sign-in, Apple FM chat, GGUF download + chat, MLX download + chat. Record results in the status log.
@@ -522,6 +536,7 @@ Reviewer pass over main up to bdf57b4 (2026-11-26). Fixed items are in `fix(...)
 ## Status log
 
 - 2026-11-26 lane-ux: native UX and performance audit, boundary decision D15, plan U1-U18 and measurement plan; docs only, local checks skipped
+- 2026-11-26 lane-mcp: MCP client, typed tool models, Settings › Integrations with per-tool switches (T1-T2) (#33); local checks skipped
 
 - 2026-11-26 lane-ui: launch screen shows the logo on a themed background, AppIcon dark and tinted variants, asset test; local checks skipped
 - 2026-11-26 lane-docs: local inference roadmap (L1-L10 verdicts, shared Core shapes, PR sequence S1-S9), decision D14; docs only, local checks skipped
