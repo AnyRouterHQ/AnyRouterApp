@@ -47,7 +47,7 @@ final class ChatViewModel {
     var supportsThinking: Bool { model?.supportsThinking ?? false }
 
     /// The selected model can call tools, so the composer shows the Tools switch.
-    var supportsTools: Bool { models.selected?.capabilities.contains("tools") ?? false }
+    var supportsTools: Bool { model?.capabilities.contains("tools") ?? false }
 
     var toolsEnabled: Bool { settings.toolsEnabled }
 
