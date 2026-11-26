@@ -286,6 +286,33 @@ struct ToolApprovalTests {
     }
 }
 
+struct ToolApprovalPromptTests {
+    private func request(args: String, title: String? = "Send a note") -> ToolApprovalRequest {
+        ToolApprovalRequest(
+            serverName: "Example",
+            spec: ToolSpec(name: "send_note", title: title, description: "", inputSchemaJSON: "{}", isReadOnly: false),
+            call: ToolCall(id: "1", name: "send_note", argumentsJSON: args))
+    }
+
+    @Test func titleNamesTheToolAndFallsBackToItsName() {
+        #expect(ToolApprovalPrompt.title(for: request(args: "{}")) == "Allow Send a note?")
+        #expect(ToolApprovalPrompt.title(for: request(args: "{}", title: nil)) == "Allow send_note?")
+    }
+
+    @Test func messageHasServerAndCompactArguments() {
+        let message = ToolApprovalPrompt.message(for: request(args: "{ \"to\": \"team\",\n  \"text\": \"a/b\" }"))
+        #expect(message == "Example\n{\"text\":\"a/b\",\"to\":\"team\"}")
+    }
+
+    @Test func longArgumentsAreCut() {
+        let long = "{\"text\":\"" + String(repeating: "a", count: 500) + "\"}"
+        let text = ToolApprovalPrompt.compactJSON(long)
+        #expect(text.count == ToolApprovalPrompt.maxArgumentCharacters + 1)
+        #expect(text.hasSuffix("…"))
+        #expect(ToolApprovalPrompt.compactJSON("not json") == "not json")
+    }
+}
+
 struct ToolApprovalQueueTests {
     private func entry() -> ToolApprovalQueue.Entry {
         .init(id: UUID(), request: ToolApprovalRequest(

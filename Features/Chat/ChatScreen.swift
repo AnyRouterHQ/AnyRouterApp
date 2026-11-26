@@ -50,13 +50,7 @@ struct ChatScreen: View {
         .sheet(isPresented: Bindable(shell).isModelPickerPresented) {
             ModelPickerSheet(currentID: chat?.model?.id) { chat?.choose($0) }
         }
-        // Swiping the sheet away denies the call.
-        .sheet(item: Binding(
-            get: { app.toolApprovals.pending },
-            set: { if $0 == nil { app.toolApprovals.resolveCurrent(.deny) } }
-        )) { entry in
-            ToolApprovalSheet(entry: entry) { app.toolApprovals.resolveCurrent($0) }
-        }
+        .toolApprovalDialog(app.toolApprovals)
     }
 
     /// Keeps the current model when it already shows the selected thread (a first send creates the thread itself).
