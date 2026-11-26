@@ -26,12 +26,12 @@ struct HomeTests {
         #expect(!model("c", .apple).supportsThinking)
     }
 
-    private func makeVM(engineModel: ModelDescriptor, container: ModelContainer, thread: ThreadRecord? = nil) async -> ChatViewModel {
+    private func makeVM(engineModel: ModelDescriptor, container: ModelContainer, context: ModelContext? = nil, thread: ThreadRecord? = nil) async -> ChatViewModel {
         let registry = EngineRegistry()
         registry.register(ScriptedEngine(source: engineModel.source, models: [engineModel], chunks: ["ok"]))
         let models = ModelStore(registry: registry, defaults: testDefaults())
         await models.refresh()
-        return ChatViewModel(thread: thread, context: ModelContext(container), registry: registry,
+        return ChatViewModel(thread: thread, context: context ?? ModelContext(container), registry: registry,
                              settings: AppSettings(defaults: testDefaults()), models: models)
     }
 
@@ -46,7 +46,8 @@ struct HomeTests {
     @Test func thinkingFlagPersistsWithTheThread() async throws {
         let container = try ModelContainer.anyRouter(inMemory: true)
         let r = model("apple/r", .apple, caps: ["chat", "reasoning"])
-        let vm = await makeVM(engineModel: r, container: container)
+        let context = ModelContext(container)
+        let vm = await makeVM(engineModel: r, container: container, context: context)
         vm.setThinkingEnabled(true)
         vm.input = "hello"
         await vm.send()?.value
@@ -54,7 +55,7 @@ struct HomeTests {
         #expect(thread.thinkingEnabled)
 
         // A fresh view model on the stored thread restores the flag, and toggling off is saved.
-        let again = await makeVM(engineModel: r, container: container, thread: thread)
+        let again = await makeVM(engineModel: r, container: container, context: context, thread: thread)
         #expect(again.thinkingEnabled)
         again.setThinkingEnabled(false)
         let reload = ModelContext(container)
