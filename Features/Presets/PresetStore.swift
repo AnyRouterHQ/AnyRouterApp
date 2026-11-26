@@ -51,12 +51,10 @@ final class PresetStore {
     private func keepUnreadableFile() {
         let name = fileURL.deletingPathExtension().lastPathComponent + ".unreadable-\(Int(Date().timeIntervalSince1970)).json"
         let aside = fileURL.deletingLastPathComponent().appendingPathComponent(name)
-        do {
-            try FileManager.default.moveItem(at: fileURL, to: aside)
-            saveError = "Your presets file could not be read. It was kept as \(name)."
-        } catch {
-            saveError = "Your presets file could not be read: \(error.localizedDescription)"
-        }
+        let kept = (try? FileManager.default.moveItem(at: fileURL, to: aside)) != nil
+        saveError = kept
+            ? "Your presets file could not be read. It was kept as \(name)."
+            : "Your presets file could not be read, and it could not be moved aside."
     }
 
     static var defaultURL: URL {

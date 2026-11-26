@@ -140,4 +140,59 @@ struct ToolChainTests {
         let again = try JSONDecoder().decode(ToolStep.self, from: JSONEncoder().encode(withSource))
         #expect(again.sourceID == "exa")
     }
+
+    // MARK: Every branch of the sentence and the summary
+
+    private func title(_ name: String, _ args: String, done: Bool) -> String {
+        let call = ToolCall(id: "1", name: name, argumentsJSON: args)
+        let result = done ? ToolResult(callID: "1", name: name, text: "x", isError: false) : nil
+        return ToolRowLogic.title(for: ToolStep(call: call, result: result))
+    }
+
+    @Test func eachToolSaysWhatItDidWhileRunningAndWhenDone() {
+        #expect(title("web_search", "{}", done: false) == "Searching the web")
+        #expect(title("web_search", "{}", done: true) == "Searched the web")
+        #expect(title("web_search", #"{"query":"a"}"#, done: true) == "Searched the web for “a”")
+        #expect(title("fetch_url", #"{"url":"https://example.com/x"}"#, done: false) == "Reading example.com/x")
+        #expect(title("fetch_url", "{}", done: true) == "Read a page")
+        #expect(title("calculator", #"{"expression":"2+2"}"#, done: true) == "Calculated 2+2")
+        #expect(title("calculator", "{}", done: false) == "Calculating a result")
+        #expect(title("current_date_time", "{}", done: false) == "Checking the date and time")
+        #expect(title("current_date_time", "{}", done: true) == "Checked the date and time")
+        #expect(title("read_attachment", #"{"name":"a.txt"}"#, done: true) == "Read a.txt")
+        #expect(title("read_attachment", "{}", done: false) == "Reading the attachments")
+        #expect(title("search_docs", "{}", done: false) == "Searching the web")
+        #expect(title("search_docs", "{}", done: true) == "Searched the web")
+        #expect(title("deploy", "{}", done: false) == "Using deploy")
+        #expect(title("deploy", "{}", done: true) == "Used deploy")
+    }
+
+    @Test func aFailedOrCancelledCallSaysSoAtTheEndOfTheSentence() {
+        let call = ToolCall(id: "1", name: "calculator", argumentsJSON: #"{"expression":"1/0"}"#)
+        let failed = ToolStep(call: call, result: ToolResult(callID: "1", name: "calculator", text: "bad", isError: true))
+        let cancelled = ToolStep(call: call, result: ToolResult(callID: "1", name: "calculator", text: ToolRowLogic.cancelledText, isError: true))
+        #expect(ToolRowLogic.title(for: failed) == "Calculated 1/0 failed")
+        #expect(ToolRowLogic.title(for: cancelled) == "Calculated 1/0 cancelled")
+    }
+
+    @Test func theSummaryHasEveryBuiltInArgumentAndNilWhenNothingReadable() {
+        func summary(_ name: String, _ args: String) -> String? {
+            ToolRowLogic.summary(for: ToolCall(id: "1", name: name, argumentsJSON: args))
+        }
+        #expect(summary("web_search", #"{"query":"swift"}"#) == "swift")
+        #expect(summary("web_search", "{}") == nil)
+        #expect(summary("fetch_url", "{}") == nil)
+        #expect(summary("calculator", #"{"expression":"2+2"}"#) == "2+2")
+        #expect(summary("read_attachment", #"{"name":"a.txt"}"#) == "a.txt")
+        #expect(summary("deploy", #"{"count":3}"#) == nil)
+        #expect(summary("deploy", #"{"target":"  prod  "}"#) == "prod")
+        #expect(summary("deploy", #"{"target":"   "}"#) == nil)
+    }
+
+    @Test func aLongArgumentIsCutWithAnEllipsis() {
+        let long = String(repeating: "word ", count: 30)
+        let summary = ToolRowLogic.summary(for: ToolCall(id: "1", name: "web_search", argumentsJSON: "{\"query\":\"\(long)\"}"))
+        #expect(summary?.hasSuffix("…") == true)
+        #expect((summary?.count ?? 0) <= ToolRowLogic.maxTitleArgument + 1)
+    }
 }
