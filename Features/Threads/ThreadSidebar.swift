@@ -73,6 +73,15 @@ struct ThreadSidebar: View {
 
     private var list: some View {
         List {
+            // A stock row: Decisions is a tool next to chat, not a thread.
+            Button { shell.open(.decisions, closeSidebar: isDrawer) } label: {
+                Label("Decisions", systemImage: "checklist")
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("sidebar-decisions")
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 8))
             if sections.isEmpty {
                 Text(query.isEmpty ? "No chats yet" : "No matching chats")
                     .font(.arSM)

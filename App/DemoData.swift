@@ -140,6 +140,23 @@ enum DemoData {
     """
 }
 
+/// Canned decision models and answers so the Decisions screen works offline.
+struct DemoDecisionsService: DecisionsService {
+    func decisionModels() async throws -> [DecisionModel] {
+        [DecisionModel(id: "anyrouter/decision", name: "AnyRouter Decision"),
+         DecisionModel(id: "google/gemini-decision-1", name: "Gemini Decision 1")]
+    }
+
+    func run(_ request: DecisionRequest) async throws -> DecisionResult {
+        let verdict = DecisionAnswer.Verdict(
+            headline: "Yes", probability: 0.91, options: [.init(label: "Yes", probability: 0.91), .init(label: "No", probability: 0.09)])
+        return DecisionResult(
+            model: request.model,
+            answers: request.questions.map { DecisionAnswer(id: $0.id, prompt: $0.prompt, outcome: .answered(verdict), citations: []) },
+            inputTokens: 120, outputTokens: 12, cost: 0, refusal: nil, latency: 0.8)
+    }
+}
+
 /// Streams a canned reply so the composer works offline.
 struct DemoEngine: ChatEngine {
     let source: ModelSource

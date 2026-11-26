@@ -17,6 +17,7 @@ struct AppShell: View {
         .background(ARColor.background.ignoresSafeArea())
         .sheet(isPresented: Bindable(shell).isSettingsPresented) { SettingsScreen() }
         .sheet(isPresented: Bindable(shell).isHubPresented) { HubSheet() }
+        .sheet(isPresented: Bindable(shell).isDecisionsPresented) { DecisionsSheet() }
         .onChange(of: isRegular, initial: true) { _, regular in
             shell.isSidebarOpen = regular
         }

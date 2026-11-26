@@ -16,6 +16,8 @@ final class AppState {
     let memory: MemoryMonitor
     /// Tool servers (AnyRouter MCP and custom ones).
     let integrations: IntegrationsStore
+    /// Typed questions answered by decision models.
+    let decisions: DecisionsStore
 
     init() {
         let tokenStore = KeychainStore()
@@ -27,6 +29,7 @@ final class AppState {
             account = demo.account
             hub = demo.hub
             memory = MemoryMonitor.inert()
+            decisions = DecisionsStore(service: DemoDecisionsService())
             return
         }
         settings = AppSettings()
@@ -60,7 +63,9 @@ final class AppState {
                 await mlx.unload()
             })
         let auth = AnyRouterAuth()
-        registry.register(auth.makeEngine())
+        let anyRouter = auth.makeEngine()
+        registry.register(anyRouter)
+        decisions = DecisionsStore(service: AnyRouterDecisionsAdapter(engine: anyRouter))
         account = AnyRouterAccountAdapter(auth: auth)
         hub = LocalModelHub()
     }

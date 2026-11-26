@@ -25,6 +25,21 @@ struct ShellModelTests {
         #expect(shell.selectedThreadID == id)
     }
 
+    @Test func decisionsIsASheetThatReplacesTheHubAndIsDismissedByPickingAThread() {
+        let shell = ShellModel()
+        shell.isSidebarOpen = true
+        shell.open(.decisions, closeSidebar: true)
+        #expect(shell.isDecisionsPresented && !shell.isHubPresented && !shell.isSidebarOpen)
+        shell.open(.hub, closeSidebar: false)
+        #expect(shell.isHubPresented && !shell.isDecisionsPresented)
+        shell.open(.decisions, closeSidebar: false)
+        shell.select(threadID: UUID(), closeSidebar: false)
+        #expect(!shell.isDecisionsPresented)
+        shell.open(.decisions, closeSidebar: false)
+        shell.newChat(closeSidebar: false)
+        #expect(!shell.isDecisionsPresented)
+    }
+
     @Test func findCommandOpensTheSidebarAndBumpsTheSearchRequest() {
         let shell = ShellModel()
         let before = shell.searchRequest
