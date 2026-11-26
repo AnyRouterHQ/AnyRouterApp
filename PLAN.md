@@ -32,7 +32,7 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that follows a reference 
 | D13 | Markdown rendering uses `gonzalezreal/swift-markdown-ui` (MarkdownUI 2.4.x) | Maintained, SwiftUI-native, themeable to our colors. |
 | D10 | Persistence: SwiftData for threads/messages; Keychain for the AnyRouter key; `UserDefaults` for settings | Simplest native stack. |
 | D14 | No custom llama.cpp fork in v1.x. GGUF features that need more than `libllama` (speculative decoding, TurboQuant KV) wait for F4: our own xcframework built from an official tag. A fork is considered only if a measured on-device need remains after F4. | The official tags already carry MTP, DFlash and EAGLE-3 in `common/`. Forks add upkeep and licence review, and the app ships weights, not new engines. |
-| D12 | llama.cpp is pinned to release b10456 through a local package `Packages/LlamaBinary` (binaryTarget + checksum) | b10456 is the newest official xcframework with iOS Simulator and device slices. From b10488 on, releases ship device slices only, and CI builds for Simulator. Revisit when upstream restores the simulator slice. |
+| D18 | llama.cpp is pinned to release b10456 through a local package `Packages/LlamaBinary` (binaryTarget + checksum) | b10456 is the newest official xcframework with iOS Simulator and device slices. From b10488 on, releases ship device slices only, and CI builds for Simulator. Revisit when upstream restores the simulator slice. |
 | D15 | UI boundary: native SwiftUI containers and behaviors skinned with the reference design's tokens (colors, radii, spacing, type scale). Per-screen deviations are listed in § Native UX & performance. | The reference is a web app; native containers give edge-swipe back, restoration, Liquid Glass, Dynamic Type, keyboard and pointer support that custom views cannot. |
 | D16 | Chat stays one `ChatEngine`; images, video frames and audio ride on `ChatMessage.parts`. Image generation, speech-to-text and text-to-speech are separate protocols (`ImageGenerationEngine`, `SpeechRecognizer`, `SpeechSynthesizer`) behind the same registry. | Their input and output are progress, previews and audio streams, not text deltas. Overloading `ChatDelta` would make every chat engine handle them. |
 | D17 | Speech uses system frameworks first (`SpeechTranscriber`, `AVSpeechSynthesizer`). Open speech models are opt-in extras later. | No download, no model upkeep, no app-size cost. |
@@ -156,7 +156,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [ ] F1 Device smoke test on iPhone + iPad: AnyRouter sign-in, Apple FM chat, GGUF download + chat, MLX download + chat. Record results in the status log.
 - [ ] F2 Reasoning stream: add `ChatDelta.reasoning(String)` to Core, emit it from GGUF/MLX (Qwen3 `<think>`) and AnyRouter (`reasoning` deltas), show a collapsible thinking block.
 - [ ] F3 GGUF KV-cache reuse between turns (only feed the new suffix).
-- [ ] F4 Newer llama.cpp: build our own xcframework (device + simulator slices) in CI from a pinned tag, replacing the b10456 pin (D12).
+- [ ] F4 Newer llama.cpp: build our own xcframework (device + simulator slices) in CI from a pinned tag, replacing the b10456 pin (D18).
 - [ ] F5 Bundle Inter (OFL) for closer UI parity; syntax highlighting in code blocks.
 - [ ] F6 Vision: image attachments for AnyRouter vision models and Gemma 3 4B (VLM) via MLXVLM.
 - [ ] F7 Mac: "Designed for iPad" on Apple silicon, then a native macOS destination.
@@ -168,7 +168,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 ## Local inference roadmap
 
 Plan for advanced on-device inference (research date 2026-11-26). Docs only: no feature code lands with this section.
-Engines today: GGUF through the official `llama.xcframework` (pinned b10456, D12) and MLX through `mlx-swift-lm` 3.33.0.
+Engines today: GGUF through the official `llama.xcframework` (pinned b10456, D18) and MLX through `mlx-swift-lm` 3.33.0.
 
 What the research found, and why it sets the order:
 
