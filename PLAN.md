@@ -149,6 +149,7 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] D5 (#12) Hub: catalog list, search, download/delete with progress, fit badge
 - [x] D6 (#13) Settings: account (sign in/out), model providers, catalog sources editor, generation defaults, appearance, about + licenses
 - [x] D7 (#13) Onboarding: first launch → pick Apple / download small local / sign in
+- [x] D8 Default model and picker: signed-in default is the auto router (shown as "AnyRouter"), BYOK hidden but searchable, routers then providers, per-thread model with notice, model name under replies
 
 ### Lane E — TestFlight (model: sonnet-low; blocked on operator secrets)
 - [x] E1 (upload path untested until secrets exist) `testflight.yml`: automatic signing with the ASC API key, `xcodebuild archive` + `-exportArchive` (method `app-store-connect`, destination `upload`), unique build number, dSYMs artifact
@@ -546,6 +547,8 @@ Reviewer passes over main up to 66ef975 (2026-11-26). Fixed items are in `fix(..
 - Not reviewed in depth: Design/, Features/Presets views, Onboarding, MarkdownTheme, HubLogic and the screenshot and smoke workflows (read for secrets and injection only; none found).
 
 ## Status log
+
+- 2026-11-26 lane-ui: default model is the auto router when signed in, BYOK hidden, picker groups routers and providers, model saved per thread and shown under replies (D8); local checks skipped
 
 - 2026-11-26 lane-ux: native UX and performance audit, boundary decision D15, plan U1-U18 and measurement plan; docs only, local checks skipped
 - 2026-11-26 lane-mcp: MCP client, typed tool models, Settings › Integrations with per-tool switches (T1-T2) (#33); local checks skipped

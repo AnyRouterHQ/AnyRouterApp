@@ -18,6 +18,14 @@ final class Counter: @unchecked Sendable {
     func next() -> Int { lock.withLock { raw += 1; return raw } }
 }
 
+/// Thread-safe list of the model ids an engine was asked to stream with.
+final class ModelLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var raw: [String] = []
+    var values: [String] { lock.withLock { raw } }
+    func add(_ id: String) { lock.withLock { raw.append(id) } }
+}
+
 struct TestFailure: LocalizedError {
     let message: String
     var errorDescription: String? { message }
@@ -53,6 +61,8 @@ struct ScriptedEngine: ChatEngine {
     var hangs = false
     var terminated = Flag()
     var calls = Counter()
+    /// Model id of every call, in order.
+    var usedModels = ModelLog()
     /// When set, every call replies "reply N".
     var numberedReplies = false
     /// Played after the text chunks, for example tool calls and results.
@@ -71,6 +81,7 @@ struct ScriptedEngine: ChatEngine {
         toolsSeen.record(tools)
         let n = calls.next()
         let deltas = self.deltas
+        usedModels.add(model.id)
         let chunks = numberedReplies ? ["reply \(n)"] : self.chunks
         let failure = self.failure
         let hangs = self.hangs

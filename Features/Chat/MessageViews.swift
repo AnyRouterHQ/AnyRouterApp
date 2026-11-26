@@ -54,6 +54,13 @@ struct MessageRow: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel("Regenerate")
                     }
+                    if let name = message.modelName {
+                        Text(name)
+                            .font(.arXS)
+                            .foregroundStyle(ARColor.mutedForeground)
+                            .lineLimit(1)
+                            .padding(.leading, 4)
+                    }
                 }
             }
         }

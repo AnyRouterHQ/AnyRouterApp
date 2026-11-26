@@ -16,6 +16,13 @@ struct Composer: View {
             if let error = model.errorMessage {
                 ErrorBanner(text: error) { model.dismissError() }
             }
+            if let notice = model.modelNotice {
+                Text(notice)
+                    .font(.arXS)
+                    .foregroundStyle(ARColor.mutedForeground)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
+            }
             HStack(alignment: .bottom, spacing: 8) {
                 plusMenu
                 HStack(alignment: .bottom, spacing: 6) {
