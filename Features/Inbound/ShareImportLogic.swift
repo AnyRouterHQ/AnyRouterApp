@@ -20,6 +20,7 @@ enum ShareImportLogic {
     }
 
     /// An `anyrouter://ask` link. Other links (`anyrouter://share`) are not requests.
+    @MainActor
     static func request(for url: URL, presets: PresetStore) -> InboundChat? {
         guard let link = ShareDeepLink.parse(url) else { return nil }
         return request(text: link.text, preset: link.action.presetID.flatMap { presets.preset(id: $0) })
