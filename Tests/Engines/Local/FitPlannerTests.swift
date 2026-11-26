@@ -102,10 +102,18 @@ struct FitPlannerTests {
         #expect(!estimate.streamsFromStorage)
     }
 
-    @Test func theMixtureOfExpertsFileOnAnEightGigabyteBudgetFitsOnlyWithAShortContext() {
+    @Test func aMixtureOfExpertsFileThatLeavesOnlyAShortContextStreamsInsteadForALongOne() {
+        // 8 GB: the whole file fits, but with only 2,048 tokens. Streaming the active experts allows 8,192.
         let estimate = FitPlanner.estimate(moe, memory: memory(8))
-        #expect(estimate.verdict == .tight(maxContext: 2048, maxReply: 256))
-        #expect(!estimate.streamsFromStorage, "the whole file still fits")
+        #expect(estimate.verdict == .tight(maxContext: 8192, maxReply: 512))
+        #expect(estimate.streamsFromStorage)
+    }
+
+    @Test func aMixtureOfExpertsFileThatFitsWithALongContextStaysInMemory() {
+        // 9 GB: not enough headroom for "runs well", but the file and 8,192 tokens fit: no streaming.
+        let estimate = FitPlanner.estimate(moe, memory: memory(9))
+        #expect(estimate.verdict == .tight(maxContext: 8192, maxReply: 512))
+        #expect(!estimate.streamsFromStorage)
     }
 
     @Test func aMixtureOfExpertsFileLargerThanMemoryRunsFromMmapOnItsActiveExperts() {
@@ -175,12 +183,27 @@ struct FitPlannerTests {
         #expect(FitPlanner.pickContext(dense4, memory: memory(3)) == nil)
     }
 
-    @Test func aLargerBudgetNeverGivesASmallerContext() {
-        var last = 0
-        for tenths in stride(from: 15, through: 120, by: 5) {
-            let context = FitPlanner.pickContext(moe, memory: memory(Double(tenths) / 10)) ?? 0
-            #expect(context >= last, "budget \(tenths) tenths of a GB")
-            last = context
+    @Test func moreMemoryNeverLowersTheVerdictAndNeverShrinksTheContextInTheSameMode() {
+        func rank(_ verdict: FitEstimate.Verdict) -> Int {
+            switch verdict {
+            case .wontFit: 0
+            case .tight: 1
+            case .runsWell: 2
+            }
+        }
+        for profile in [dense06, dense4, moe] {
+            var last: FitEstimate?
+            for tenths in stride(from: 10, through: 160, by: 5) {
+                let estimate = FitPlanner.estimate(profile, memory: memory(Double(tenths) / 10))
+                if let last {
+                    #expect(rank(estimate.verdict) >= rank(last.verdict), "verdict fell at \(tenths) tenths of a GB")
+                    let sameMode = estimate.streamsFromStorage == last.streamsFromStorage && rank(estimate.verdict) == rank(last.verdict)
+                    if sameMode, estimate.verdict != .wontFit {
+                        #expect(estimate.context >= last.context, "context shrank at \(tenths) tenths of a GB")
+                    }
+                }
+                last = estimate
+            }
         }
     }
 }

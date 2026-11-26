@@ -97,7 +97,7 @@ struct GGUFHeaderTests {
         b.u32("llama.attention.head_count", 32)
         b.u32("llama.attention.head_count_kv", 8)
         let info = try GGUFHeader.parse(b.build())
-        #expect(info.memory?.fullKVBytesPerToken == 16 * 8 * (64 + 64) * 2)
+        #expect(info.memory?.fullKVBytesPerToken == Int64(16 * 8 * (64 + 64) * 2))
     }
 
     @Test func gemma3WithoutAPatternKeyUsesFiveWindowLayersPerFullLayer() throws {
@@ -114,7 +114,7 @@ struct GGUFHeaderTests {
         b.u32("gemma3.attention.sliding_window", 512)
         let memory = try #require(try GGUFHeader.parse(b.build()).memory)
         #expect(memory.fullKVBytesPerToken == 4 * 1024)
-        #expect(memory.windowKVBytesPerToken == 22 * 1024)
+        #expect(memory.windowKVBytesPerToken == Int64(22 * 1024))
         #expect(memory.windowTokens == 512)
     }
 
@@ -136,7 +136,7 @@ struct GGUFHeaderTests {
         b.boolArray("gemma4.attention.sliding_window_pattern", (0..<35).map { $0 % 5 != 4 })
         let memory = try #require(try GGUFHeader.parse(b.build()).memory)
         #expect(memory.fullKVBytesPerToken == 3 * 2048)
-        #expect(memory.windowKVBytesPerToken == 12 * 1024)
+        #expect(memory.windowKVBytesPerToken == Int64(12 * 1024))
         #expect(memory.windowTokens == 512)
     }
 
@@ -151,7 +151,7 @@ struct GGUFHeaderTests {
         b.u32Array("hybrid.attention.head_count_kv", [0, 0, 2, 0])
         b.u32("hybrid.attention.key_length", 64)
         b.u32("hybrid.attention.value_length", 64)
-        #expect(try GGUFHeader.parse(b.build()).memory?.fullKVBytesPerToken == 2 * (64 + 64) * 2)
+        #expect(try GGUFHeader.parse(b.build()).memory?.fullKVBytesPerToken == Int64(2 * (64 + 64) * 2))
     }
 
     @Test func expertCountsGiveTheActiveShare() throws {
@@ -222,7 +222,7 @@ struct GGUFHeaderTests {
         b.u32("qwen3.embedding_length", 256)
         b.u32("qwen3.attention.head_count", 4)
         b.u32("qwen3.attention.head_count_kv", 4)
-        #expect(try GGUFHeader.parse(b.build()).memory?.fullKVBytesPerToken == 2 * 4 * (64 + 64) * 2)
+        #expect(try GGUFHeader.parse(b.build()).memory?.fullKVBytesPerToken == Int64(2 * 4 * (64 + 64) * 2))
     }
 
     @Test func anArchitectureWithoutAttentionKeysFallsBackToAnEstimate() throws {
@@ -263,7 +263,7 @@ struct GGUFHeaderTests {
             await sizes.add(size)
             return whole.prefix(size)
         }
-        #expect(info.memory?.fullKVBytesPerToken == 2 * 4 * (64 + 64) * 2)
+        #expect(info.memory?.fullKVBytesPerToken == Int64(2 * 4 * (64 + 64) * 2))
         #expect(await sizes.sizes == [GGUFHeader.readSizes[0], GGUFHeader.readSizes[1]])
     }
 
@@ -354,6 +354,6 @@ struct GGUFHeaderTests {
         b.u32("qwen3.attention.head_count_kv", 2)
         let url = makeTempDirectory().appending(path: "tiny.gguf")
         try b.build().write(to: url)
-        #expect(try GGUFHeader.read(fileAt: url).memory?.fullKVBytesPerToken == 1 * 2 * (32 + 32) * 2)
+        #expect(try GGUFHeader.read(fileAt: url).memory?.fullKVBytesPerToken == Int64(1 * 2 * (32 + 32) * 2))
     }
 }

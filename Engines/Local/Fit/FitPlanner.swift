@@ -111,14 +111,16 @@ enum FitPlanner {
         if let context = largestContext(profile, resident: profile.fileBytes, limit: comfortable, cap: cap), context >= preferred {
             return make(.runsWell, context: context)
         }
-        if let context = largestContext(profile, resident: profile.fileBytes, limit: budget, cap: cap) {
-            return make(.tight(maxContext: context, maxReply: maxReply(forContext: context)), context: context)
+        let inMemory = largestContext(profile, resident: profile.fileBytes, limit: budget, cap: cap)
+        // A mixture-of-experts model can also run from mmap: only the experts in use are resident, the rest is paged in
+        // from storage (slower). It wins when the whole file would leave less than the preferred context.
+        let streamed = profile.activeFraction == nil
+            ? nil : largestContext(profile, resident: profile.activeBytes, limit: budget, cap: cap)
+        if let streamed, streamed > (inMemory ?? 0), (inMemory ?? 0) < preferred {
+            return make(.tight(maxContext: streamed, maxReply: maxReply(forContext: streamed)), context: streamed, streams: true)
         }
-        // The file is larger than memory. A mixture-of-experts model can still run from mmap: only the experts in use
-        // are resident, the rest is paged in from storage.
-        if profile.activeFraction != nil,
-           let context = largestContext(profile, resident: profile.activeBytes, limit: budget, cap: cap) {
-            return make(.tight(maxContext: context, maxReply: maxReply(forContext: context)), context: context, streams: true)
+        if let inMemory {
+            return make(.tight(maxContext: inMemory, maxReply: maxReply(forContext: inMemory)), context: inMemory)
         }
         return make(.wontFit, context: minContext)
     }

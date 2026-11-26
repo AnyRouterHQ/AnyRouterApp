@@ -91,10 +91,10 @@ struct CatalogServiceRemoteTests {
             bundled: { bundled }, api: HuggingFaceAPI(http: http), cacheDirectory: dir, settings: { settings })
     }
 
-    @Test func withoutARemoteURLRefreshDoesNothing() async throws {
-        let s = service(http: FakeHTTP(), remote: nil)
-        #expect(try await s.refreshRemote() == false)
-        #expect(try await s.entries().map(\.repo) == ["org/bundled"])
+    @Test func withoutACustomURLRefreshFetchesTheDefaultCatalog() async throws {
+        let s = service(http: FakeHTTP(body: remoteDoc), remote: nil)
+        #expect(try await s.refreshRemote())
+        #expect(Set(try await s.entries().map(\.repo)) == ["org/bundled", "org/remote"])
     }
 
     @Test func refreshedRemoteModelsShowUpMergedWithBundledAndUserOnes() async throws {
