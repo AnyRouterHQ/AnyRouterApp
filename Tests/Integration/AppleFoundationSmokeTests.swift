@@ -20,12 +20,21 @@ final class AppleFoundationSmokeTests: XCTestCase {
         var text = ""
         var done = false
         let messages = [ChatMessage(role: .user, content: "Reply with the single word: ok")]
-        for try await delta in engine.stream(model: model, messages: messages, params: GenerationParams()) {
-            switch delta {
-            case .text(let piece): text += piece
-            case .done: done = true
-            case .usage: break
+        do {
+            for try await delta in engine.stream(model: model, messages: messages, params: GenerationParams()) {
+                switch delta {
+                case .text(let piece): text += piece
+                case .done: done = true
+                case .usage: break
+                }
             }
+        } catch {
+            // Runners report "available" but have no model assets. That is an environment limit, not a pass.
+            let detail = String(describing: error)
+            guard detail.contains("ModelManagerError") else { throw error }
+            let reason = "availability says available, but generation failed because the model assets are missing: ModelManagerError 1026"
+            SmokeReport.record("Apple Foundation Models", "SKIPPED, \(reason)")
+            throw XCTSkip("Apple Foundation Models: \(reason)")
         }
         XCTAssertFalse(text.isEmpty)
         XCTAssertTrue(done)

@@ -115,6 +115,25 @@ final class GGUFModelSmokeTests: XCTestCase {
         let messages = [ChatMessage(role: .user, content: "Write a very long story about a dragon.")]
         let stream = ctx.engine.stream(model: ctx.model, messages: messages, params: long)
 
+        // Baseline: how long a one-token chat takes on a warm engine. Cancel latency is whatever comes on top.
+        var short = GenerationParams()
+        short.temperature = 0
+        short.maxTokens = 1
+        func oneTokenChat() async throws -> Bool {
+            var sawDone = false
+            for try await delta in ctx.engine.stream(
+                model: ctx.model, messages: [ChatMessage(role: .user, content: "Hi")], params: short) {
+                if case .done = delta { sawDone = true }
+            }
+            return sawDone
+        }
+        func seconds(_ d: Duration) -> Double { Double(d.components.seconds) + Double(d.components.attoseconds) / 1e18 }
+        let clock = ContinuousClock()
+        let baselineStart = clock.now
+        let baselineDone = try await oneTokenChat()
+        let baseline = seconds(clock.now - baselineStart)
+        XCTAssertTrue(baselineDone)
+
         let reached = AsyncStream<Void>.makeStream()
         let consumer = Task { () -> Int in
             var pieces = 0
@@ -132,26 +151,18 @@ final class GGUFModelSmokeTests: XCTestCase {
         var iterator = reached.stream.makeAsyncIterator()
         await iterator.next()
 
-        let clock = ContinuousClock()
         let cancelledAt = clock.now
         consumer.cancel()
         let pieces = await consumer.value
         XCTAssertGreaterThanOrEqual(pieces, 5, "generation must have started before the cancel")
 
         // The engine runs one generation at a time. A new chat only completes if the cancelled one really stopped.
-        var short = GenerationParams()
-        short.temperature = 0
-        short.maxTokens = 1
-        var sawDone = false
-        for try await delta in ctx.engine.stream(
-            model: ctx.model, messages: [ChatMessage(role: .user, content: "Hi")], params: short) {
-            if case .done = delta { sawDone = true }
-        }
-        let elapsed = clock.now - cancelledAt
+        let sawDone = try await oneTokenChat()
+        let total = seconds(clock.now - cancelledAt)
+        let latency = max(0, total - baseline)
         XCTAssertTrue(sawDone, "the next chat must complete after the cancel")
-        let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
-        XCTAssertLessThan(seconds, 2.0, "cancel must free the engine within 2s, took \(seconds)s")
-        SmokeReport.record("GGUF cancel", String(format: "engine free %.2f s after cancel (limit 2 s)", seconds))
+        XCTAssertLessThan(latency, 2.0, "cancel must stop generation within 2s, took \(latency)s")
+        SmokeReport.record("GGUF cancel", String(format: "stopped %.2f s after cancel (limit 2 s); next chat done %.2f s after cancel, warm baseline %.2f s", latency, total, baseline))
     }
 
     func testInstallerRejectsWrongChecksumAndWrongSize() async throws {

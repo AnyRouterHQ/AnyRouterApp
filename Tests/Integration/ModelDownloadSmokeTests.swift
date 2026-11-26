@@ -2,45 +2,39 @@ import XCTest
 
 @testable import AnyRouter
 
-/// Drives the real `ModelDownloadManager` (background URLSession, Hugging Face listing, installer) with a ~1 MB model.
-/// Skipped unless the smoke job runs, because it needs the network.
-@MainActor
+/// The download path with a ~1 MB model, over the real Hugging Face API.
+///
+/// `ModelDownloadManager` itself cannot run here: its background `URLSession` needs `nsurlsessiond`, which is
+/// not reachable from a Simulator test host (`BackgroundSession ... connection to service named
+/// com.apple.nsurlsessiond`, seen in the first model-smoke run). So this test runs the same steps the manager runs
+/// with a foreground session: file listing, `RepoFiles.downloadPlan`, download, `ModelInstaller.verifyAndInstall`.
+/// Background downloads stay device-only (PLAN F1).
 final class ModelDownloadSmokeTests: XCTestCase {
-    func testDownloadManagerFetchesVerifiesAndInstallsATinyModel() async throws {
+    func testListingDownloadAndInstallerVerifyATinyModel() async throws {
         try XCTSkipUnless(SmokeEnv.enabled, "ANYROUTER_SMOKE is not set. The download test runs only in model-smoke.yml.")
         let entry = CatalogEntry(
             repo: "ggml-org/tiny-llamas", format: .gguf, file: "stories260K.gguf", title: "Tiny", quantization: "F32")
         let storage = LocalModelStorage(root: makeTempDirectory())
-        let manager = ModelDownloadManager(storage: storage)
+        let api = HuggingFaceAPI()
 
-        await manager.start(entry)
-        let deadline = ContinuousClock.now + .seconds(180)
-        var state = manager.state(for: entry)
-        while ContinuousClock.now < deadline {
-            state = manager.state(for: entry)
-            if state == .installed { break }
-            if case .failed(let message) = state {
-                XCTFail("download failed: \(message)")
-                SmokeReport.record("Download manager", "failed: \(message)")
-                return
-            }
-            try await Task.sleep(for: .milliseconds(250))
-        }
-        XCTAssertEqual(state, .installed, "download did not finish in 180s, last state \(state)")
-        guard state == .installed else {
-            SmokeReport.record("Download manager", "did not finish in 180s, last state \(state)")
-            return
-        }
+        let listing = try await api.listFiles(repo: entry.repo, revision: "main")
+        let plan = try RepoFiles.downloadPlan(for: entry, files: listing)
+        let file = try XCTUnwrap(plan.first)
+        let expectedSHA = try XCTUnwrap(file.sha256, "HF listed no sha256 for \(file.path), so nothing could be verified")
 
-        let file = try XCTUnwrap(entry.file)
-        let url = storage.fileURL(forEntryID: entry.id, path: file)
-        let listing = try await HuggingFaceAPI().listFiles(repo: entry.repo, revision: "main")
-        let listed = try XCTUnwrap(listing.first { $0.path == file }, "file missing from the HF listing")
-        let expected = try XCTUnwrap(listed.sha256, "HF listed no sha256 for \(file), so the installer could not verify it")
-        XCTAssertEqual(try ModelInstaller.sha256Hex(of: url), expected.lowercased())
-        let onDisk = try XCTUnwrap(try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber).int64Value
-        XCTAssertEqual(onDisk, listed.size)
+        let (tempURL, response) = try await URLSession.shared.download(
+            from: api.resolveURL(repo: entry.repo, revision: "main", path: file.path))
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        let partial = storage.partialFileURL(forEntryID: entry.id, path: file.path)
+        try FileManager.default.createDirectory(at: partial.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.moveItem(at: tempURL, to: partial)
+
+        try ModelInstaller.verifyAndInstall(DownloadJobRecord(entry: entry, files: plan), storage: storage)
         XCTAssertTrue(storage.isInstalled(entryID: entry.id))
-        SmokeReport.record("Download manager", "background session downloaded \(file) (\(onDisk) bytes), size + sha256 \(expected.prefix(12)) verified, installed")
+        let installed = storage.fileURL(forEntryID: entry.id, path: file.path)
+        XCTAssertEqual(try ModelInstaller.sha256Hex(of: installed), expectedSHA.lowercased())
+        SmokeReport.record(
+            "Download path",
+            "listing, plan, foreground download and installer verified \(file.path) (\(file.size) bytes, sha256 \(expectedSHA.prefix(12))). ModelDownloadManager's background session cannot run in a Simulator test host (nsurlsessiond unreachable): device only")
     }
 }
