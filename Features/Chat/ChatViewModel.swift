@@ -48,6 +48,8 @@ final class ChatViewModel {
     @ObservationIgnored private let isOnline: @MainActor () -> Bool
     /// Whether an offline request had web tools to leave out, so the chat can say so.
     @ObservationIgnored private let skipsToolsOffline: @MainActor (ToolContext) -> Bool
+    /// Web search for models that run no tool loop (local GGUF and MLX).
+    @ObservationIgnored private let webSearch: PreSearcher
     @ObservationIgnored let attachmentStore: AttachmentStore
     @ObservationIgnored private var task: Task<Void, Never>?
 
@@ -56,6 +58,7 @@ final class ChatViewModel {
          toolHost: @escaping @MainActor (ToolContext) -> (any ToolHost)? = { _ in nil },
          isOnline: @escaping @MainActor () -> Bool = { true },
          skipsToolsOffline: @escaping @MainActor (ToolContext) -> Bool = { _ in false },
+         webSearch: PreSearcher = .none,
          attachments: AttachmentStore = .shared,
          save: @escaping (ModelContext) throws -> Void = { try $0.save() },
          now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
@@ -64,6 +67,7 @@ final class ChatViewModel {
         self.toolHost = toolHost
         self.isOnline = isOnline
         self.skipsToolsOffline = skipsToolsOffline
+        self.webSearch = webSearch
         self.attachmentStore = attachments
         self.thread = thread
         self.preferredModelID = thread?.modelID
@@ -461,9 +465,21 @@ final class ChatViewModel {
             host = toolHost(toolContext)
             if skipsToolsOffline(toolContext) { offlineToolNote = OfflineLogic.toolNote }
         }
-        let stream = registry.engine(for: model).stream(
-            model: model, messages: history, params: params,
-            tools: host?.specs.isEmpty == false ? host : nil)
+        let engine = registry.engine(for: model)
+        let tools = host?.specs.isEmpty == false ? host : nil
+        // A model without a tool loop gets a search run for it when its question needs the web.
+        var grounding: (query: String, context: ToolContext)?
+        if toolsEnabled, WebGrounding.appliesTo(model.source), webSearch.isOn(model.source),
+            let question = thread.orderedMessages.last(where: { $0.role == .user })?.content,
+            WebGrounding.needsFreshInfo(question) {
+            var searchContext = Self.toolContext(for: thread, modelSource: model.source)
+            searchContext.isOffline = !isOnline()
+            if searchContext.isOffline {
+                offlineToolNote = OfflineLogic.toolNote
+            } else {
+                grounding = (WebGrounding.query(from: question), searchContext)
+            }
+        }
 
         let telemetry = models.telemetry
         let source = model.source
@@ -471,7 +487,20 @@ final class ChatViewModel {
         let startedAt = now()
         let clock = now
         let knownModels = models.models
+        let groundingPlan = grounding
+        // Without a search the engine is asked now, as it always was; with one it is asked once the results are in.
+        let earlyStream = groundingPlan == nil ? engine.stream(model: model, messages: history, params: params, tools: tools) : nil
         let task = Task { [weak self] in
+            let stream: AsyncThrowingStream<ChatDelta, Error>
+            if let earlyStream {
+                stream = earlyStream
+            } else {
+                var sent = history
+                if let plan = groundingPlan, let self {
+                    sent = await self.ground(history, query: plan.query, context: plan.context, assistant: assistant)
+                }
+                stream = engine.stream(model: model, messages: sent, params: params, tools: tools)
+            }
             var failure: String?
             var firstTokenSeen = false
             var reported: ResponseMetadata?
@@ -564,6 +593,22 @@ final class ChatViewModel {
         metadata.ttftMs = ttftMs
         metadata.totalMs = totalMs
         return metadata
+    }
+
+    /// Runs the search with a row in the reply ("Searching the web for …") and returns the history with the results in
+    /// front of the question. Without results the history is returned as it was and the row is removed.
+    private func ground(_ history: [ChatMessage], query: String, context: ToolContext, assistant: MessageRecord) async -> [ChatMessage] {
+        let call = ToolCall(
+            id: UUID().uuidString, name: WebSearchBinding.name,
+            argumentsJSON: JSONValue.object(["query": .string(query)]).jsonString())
+        assistant.toolSteps.append(ToolStep(call: call, result: nil))
+        guard let answer = await webSearch.search(query, context) else {
+            assistant.toolSteps.removeAll { $0.call.id == call.id }
+            return history
+        }
+        Self.fill(ToolResult(callID: call.id, name: call.name, text: answer.text, isError: answer.isError), in: assistant)
+        guard !answer.isError, let text = WebGrounding.context(for: WebGrounding.parse(answer.text)) else { return history }
+        return WebGrounding.applying(text, to: history)
     }
 
     private static func fill(_ result: ToolResult, in assistant: MessageRecord) {

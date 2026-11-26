@@ -163,6 +163,29 @@ final class ToolRegistry {
         return list
     }
 
+    // MARK: Search for models without tools
+
+    /// Exa's search tool is on, so a model that cannot call tools can still have a search run for it.
+    func canPreSearch(modelSource: ModelSource) -> Bool {
+        let exa = ToolSourceCatalog.exa
+        guard let source = publicSources.first(where: { $0.id == exa.id }), let server = source.server,
+            let search = source.tools.first(where: { $0.queryArgument == "query" })
+        else { return false }
+        return isOn(source, modelSource: modelSource) && integrations.isEnabled(search.mcpTool, on: server)
+    }
+
+    /// Runs Exa's search for `query` through the same host as a model's own call: the first-use note, the address and
+    /// long-passage checks and the result cap all apply. Nil when search is off or cannot run.
+    func preSearch(query: String, approver: any ToolApproving, context: ToolContext) async -> ToolResult? {
+        guard let model = context.modelSource, canPreSearch(modelSource: model) else { return nil }
+        var searchContext = context
+        searchContext.modelSource = nil
+        searchContext.forcedSourceIDs = [ToolSourceCatalog.exa.id]
+        guard let host = makeHost(approver: approver, context: searchContext) else { return nil }
+        let arguments = JSONValue.object(["query": .string(query)]).jsonString()
+        return await host.execute(ToolCall(id: UUID().uuidString, name: "web_search_exa", argumentsJSON: arguments))
+    }
+
     // MARK: Host
 
     /// What one request may use, before the connection is considered.

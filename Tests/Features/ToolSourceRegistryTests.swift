@@ -107,6 +107,68 @@ final class ToolSourceRegistryTests: XCTestCase {
         XCTAssertNil(forcedNames(makeRegistry(), ["anyrouter"]))
     }
 
+    // MARK: Search for models without tools
+
+    func testALocalModelCanHaveASearchRunWhenExaIsOn() {
+        let registry = makeRegistry()
+        XCTAssertTrue(registry.canPreSearch(modelSource: .gguf))
+        XCTAssertTrue(registry.canPreSearch(modelSource: .mlx))
+        XCTAssertTrue(makeRegistry(signedIn: true).canPreSearch(modelSource: .gguf), "a device model has no AnyRouter search")
+
+        registry.setSource(ToolSourceCatalog.exa, on: false)
+        XCTAssertFalse(registry.canPreSearch(modelSource: .gguf))
+
+        let toolOff = makeRegistry()
+        toolOff.integrations.setEnabled(false, tool: ToolSourceCatalog.exa.tools[0].mcpTool, on: ToolSourceCatalog.exa.server!)
+        XCTAssertFalse(toolOff.canPreSearch(modelSource: .gguf), "the search tool itself is switched off")
+
+        let none = ToolRegistry(
+            integrations: makeRegistry().integrations, publicSources: [], defaults: testDefaults())
+        XCTAssertFalse(none.canPreSearch(modelSource: .gguf))
+    }
+
+    func testPreSearchGoesThroughTheSameHostSoTheFirstUseNoteAndTheTokenRuleApply() async throws {
+        serveExa()
+        let registry = makeRegistry(token: "tok-secret")
+        let approver = ScriptedConsent()
+        let context = ToolContext(userTexts: ["latest swift news"], modelSource: .gguf)
+        let answer = await registry.preSearch(query: "latest swift news", approver: approver, context: context)
+        let result = try XCTUnwrap(answer)
+        XCTAssertFalse(result.isError)
+        XCTAssertEqual(WebGrounding.parse(result.text).first?.title, "Swift Programming Language")
+
+        let note = try XCTUnwrap(approver.requests.first)
+        XCTAssertTrue(note.canRemember)
+        XCTAssertEqual(note.serverName, "Exa")
+
+        let url = try XCTUnwrap(ToolSourceCatalog.exa.server?.url)
+        let sent = MCPStubProtocol.requests(for: url)
+        XCTAssertTrue(sent.allSatisfy { $0.header("Authorization") == nil })
+        let call = try XCTUnwrap(sent.first { $0.rpcMethod == "tools/call" })
+        XCTAssertEqual(call.body?["params"]?["name"]?.string, "web_search_exa")
+        XCTAssertEqual(call.body?["params"]?["arguments"]?["query"]?.string, "latest swift news")
+    }
+
+    func testRefusingTheFirstUseNoteGivesAFailedAnswerAndSendsNothing() async throws {
+        serveExa()
+        let registry = makeRegistry()
+        let answer = await registry.preSearch(
+            query: "latest swift news", approver: Refuses(), context: ToolContext(modelSource: .gguf))
+        let result = try XCTUnwrap(answer)
+        XCTAssertTrue(result.isError)
+        let url = try XCTUnwrap(ToolSourceCatalog.exa.server?.url)
+        XCTAssertFalse(MCPStubProtocol.requests(for: url).contains { $0.rpcMethod == "tools/call" })
+    }
+
+    func testPreSearchRunsNothingWhenSearchIsOffOrTheModelIsUnknown() async {
+        let registry = makeRegistry()
+        let none = await registry.preSearch(query: "q", approver: Refuses(), context: ToolContext())
+        XCTAssertNil(none, "no model, no search")
+        registry.setSource(ToolSourceCatalog.exa, on: false)
+        let off = await registry.preSearch(query: "q", approver: Refuses(), context: ToolContext(modelSource: .gguf))
+        XCTAssertNil(off)
+    }
+
     // MARK: The user's choice
 
     func testAChoiceBeatsTheDefaultAndSurvivesARestart() {

@@ -72,7 +72,12 @@ struct ChatScreen: View {
                                       app.tools.makeHost(approver: app.toolApprovals, context: context)
                                   },
                                   isOnline: { [app] in app.network.isOnline },
-                                  skipsToolsOffline: { [app] in app.tools.skipsOffline($0) })
+                                  skipsToolsOffline: { [app] in app.tools.skipsOffline($0) },
+                                  webSearch: PreSearcher(
+                                      isOn: { [app] in app.tools.canPreSearch(modelSource: $0) },
+                                      search: { [app] query, context in
+                                          await app.tools.preSearch(query: query, approver: app.toolApprovals, context: context)
+                                      }))
         model.onThreadCreated = { [shell] id in shell.selectedThreadID = id }
         if DemoData.attachesSampleFile, thread == nil { model.attachFiles([DemoData.sampleAttachmentURL()]) }
         chat = model
