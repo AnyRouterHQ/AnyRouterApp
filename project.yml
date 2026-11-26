@@ -1,0 +1,72 @@
+name: AnyRouter
+options:
+  bundleIdPrefix: dev.anyrouter
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    GENERATE_INFOPLIST_FILE: YES
+    SUPPORTS_MACCATALYST: NO
+  configs:
+    Release:
+      DEAD_CODE_STRIPPING: YES
+      SWIFT_COMPILATION_MODE: wholemodule
+      SWIFT_OPTIMIZATION_LEVEL: -O
+      STRIP_INSTALLED_PRODUCT: YES
+      ENABLE_TESTABILITY: NO
+# Add SPM packages here (lane B/C). Say so in the PR.
+packages: {}
+targets:
+  AnyRouter:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Core
+      - path: Design
+        optional: true
+      - path: Features
+        optional: true
+      - path: Engines
+        optional: true
+    excludes:
+      - "**/.gitkeep"
+    settings:
+      base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+  AnyRouterTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    excludes:
+      - "**/.gitkeep"
+    dependencies:
+      - target: AnyRouter
+    settings:
+      base:
+        PRODUCT_NAME: AnyRouterTests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.anyrouter.app.tests
+        INFOPLIST_KEY_CFBundleDisplayName: AnyRouterTests
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/AnyRouter.app/AnyRouter"
+schemes:
+  AnyRouter:
+    build:
+      targets:
+        AnyRouter: all
+        AnyRouterTests: [test]
+    test:
+      targets:
+        - AnyRouterTests
