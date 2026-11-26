@@ -1,6 +1,6 @@
 import Foundation
 
-/// Pure search for the full-screen chat search: recents when the query is blank, otherwise threads
+/// Pure search for the full-screen chat search: every chat, newest first, when the query is blank, otherwise threads
 /// whose title or any message contains it, with the text around the first message match.
 /// Matching ignores case and diacritics, so "du lich" finds "Du lịch" and "da nang" finds "Đà Nẵng".
 enum ThreadSearchLogic {
@@ -11,16 +11,15 @@ enum ThreadSearchLogic {
         var id: UUID { thread.id }
     }
 
-    static let recentLimit = 20
     /// Characters kept on each side of a match.
     static let snippetRadius = 40
 
-    /// Blank query: the 20 most recently updated threads. Otherwise every match, newest first.
+    /// Blank query: every thread, newest first, so "View all" in the sidebar shows the whole list. Otherwise every match, newest first.
     static func results(in threads: [ThreadRecord], query: String) -> [Hit] {
         let needle = fold(query.trimmingCharacters(in: .whitespacesAndNewlines))
         let newestFirst = threads.sorted { $0.updatedAt > $1.updatedAt }
         if needle.isEmpty {
-            return newestFirst.prefix(recentLimit).map { Hit(thread: $0, snippet: nil) }
+            return newestFirst.map { Hit(thread: $0, snippet: nil) }
         }
         return newestFirst.compactMap { thread in
             let found = thread.messages.sorted { $0.createdAt < $1.createdAt }

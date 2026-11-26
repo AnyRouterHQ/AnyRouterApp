@@ -32,6 +32,16 @@ struct ThreadListLogicTests {
         #expect(s.recent.map(\.title) == ["new", "old"])
     }
 
+    @Test func recentsStopAtTheSidebarLimitButPinnedAreAllKept() throws {
+        let c = try makeContext()
+        var all = (0..<15).map { thread(c, "chat \($0)", age: Double($0)) }
+        all += (0..<12).map { thread(c, "pin \($0)", pinned: true, age: 1000 + Double($0)) }
+        let s = ThreadListLogic.sections(from: all)
+        #expect(s.recent.count == ThreadListLogic.sidebarRecentLimit)
+        #expect(s.recent.first?.title == "chat 0", "the newest stay")
+        #expect(s.pinned.count == 12)
+    }
+
     @Test func titleFromFirstMessage() {
         #expect(ThreadListLogic.title(fromFirstMessage: "Hello\nsecond line") == "Hello")
         #expect(ThreadListLogic.title(fromFirstMessage: "   ") == "New chat")

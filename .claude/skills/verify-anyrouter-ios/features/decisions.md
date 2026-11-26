@@ -8,16 +8,15 @@ A sheet for running a yes/no decision flow: a model, a state text, optional ques
 
 ## How to get to it (user POV)
 
-- No entry point today: `ShellModel` can present it for the `.decisions` route, but nothing sets that route, and the sidebar has no Decisions row.
+- Open the sidebar and choose `Decisions` (`sidebar-decisions`) under More.
 
 ## Driving it with the journeys harness
 
 Preconditions:
 
-- None can be met through the UI.
+- Demo launch. Not yet run through the journeys harness; `UITests/DecisionsTests.swift` covers the entry point.
 
-- **Status.** Report this feature as unreachable. The attempted path is the sidebar and Settings; neither lists Decisions.
-- **Stale test.** `UITests/DecisionsTests.swift` taps `sidebar-decisions`, which no longer exists, so it fails in the screenshots workflow. Fix or remove it when the entry point is decided.
+- **Open.** Open the sidebar, tap `sidebar-decisions`. The Decisions sheet opens.
 
 ## Gotchas
 

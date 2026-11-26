@@ -23,7 +23,7 @@ struct ThreadSearchLogicTests {
 
     private func titles(_ hits: [ThreadSearchLogic.Hit]) -> [String] { hits.map(\.thread.title) }
 
-    @Test func blankQueryGivesRecentsNewestFirstWithoutSnippets() throws {
+    @Test func blankQueryGivesNewestFirstWithoutSnippets() throws {
         let c = try makeContext()
         let all = [thread(c, "old", age: 100), thread(c, "new", age: 10), thread(c, "pinned", pinned: true, age: 50)]
         let hits = ThreadSearchLogic.results(in: all, query: "  ")
@@ -31,13 +31,13 @@ struct ThreadSearchLogicTests {
         #expect(hits.allSatisfy { $0.snippet == nil })
     }
 
-    @Test func recentsStopAtTwentyThreads() throws {
+    @Test func blankQueryListsEveryThread() throws {
         let c = try makeContext()
         let all = (0..<25).map { thread(c, "chat \($0)", age: Double($0)) }
         let hits = ThreadSearchLogic.results(in: all, query: "")
-        #expect(hits.count == 20)
+        #expect(hits.count == 25)
         #expect(hits.first?.thread.title == "chat 0")
-        #expect(hits.last?.thread.title == "chat 19")
+        #expect(hits.last?.thread.title == "chat 24")
     }
 
     @Test func titleMatchHasNoSnippet() throws {

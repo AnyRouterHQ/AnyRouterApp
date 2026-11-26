@@ -1,13 +1,15 @@
 import SwiftData
 import SwiftUI
 
-/// Sidebar: a stock sidebar `List` with a search row that opens the full-screen search, a settings button and a
-/// compose button in the bottom bar. On iPhone it fills the drawer, on iPad the split-view column.
+/// Sidebar: the app name over a plain list (search, pinned and recent chats, more places) and a bottom bar with the
+/// account avatar and New chat. On iPhone it fills the drawer, on iPad the split-view column.
 struct ThreadSidebar: View {
     /// True when shown as a drawer over the chat (iPhone). Picking something then closes it.
     let isDrawer: Bool
 
     @Environment(ShellModel.self) private var shell
+    @Environment(AppState.self) private var app
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Query(sort: \ThreadRecord.updatedAt, order: .reverse) private var threads: [ThreadRecord]
 
     @State private var editing = ThreadEditing()
@@ -24,8 +26,13 @@ struct ThreadSidebar: View {
     }
 
     var body: some View {
-        // The iPad column already sits in a navigation context; the drawer needs its own.
-        if isDrawer { NavigationStack { content } } else { content }
+        // The iPad column already sits in a navigation context; the drawer needs its own. Its bar stays hidden:
+        // the title row below replaces it. The iPad column keeps its bar for the system sidebar toggle.
+        if isDrawer {
+            NavigationStack { content.toolbar(.hidden, for: .navigationBar) }
+        } else {
+            content
+        }
     }
 
     private var content: some View {
@@ -34,54 +41,116 @@ struct ThreadSidebar: View {
                 Label("Search chats", systemImage: "magnifyingglass").frame(minHeight: 44)
             }
             .foregroundStyle(.primary)
+            .rowInsets()
             .accessibilityIdentifier("sidebar.search")
             if sections.isEmpty {
                 Text("No chats yet")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
-                    .listRowSeparator(.hidden)
             }
-            if !sections.pinned.isEmpty { Section("Pinned") { rows(sections.pinned) } }
-            if !sections.recent.isEmpty { Section("Recents") { rows(sections.recent) } }
-        }
-        .listStyle(.sidebar)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                // The logo mark alone; the app name is not repeated here.
-                ARLogoMark(size: 26)
-                    .foregroundStyle(.primary)
-                    .accessibilityLabel("AnyRouter")
-                    .accessibilityIdentifier("sidebar.header")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { shell.presentSettings(closeSidebar: isDrawer) } label: {
-                    Image(systemName: "gearshape").imageScale(.large).frame(minWidth: 44, minHeight: 44)
+            if !sections.pinned.isEmpty { Section { rows(sections.pinned) } header: { header("Pinned") } }
+            if !sections.recent.isEmpty {
+                Section { rows(sections.recent) } header: {
+                    header("Recents") {
+                        Button { shell.presentSearch() } label: {
+                            HStack(spacing: 4) { Text("View all"); Image(systemName: "chevron.right").imageScale(.small) }
+                                .frame(minHeight: 44)
+                        }
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("sidebar.viewall")
+                    }
                 }
-                .accessibilityLabel("Settings")
-                .accessibilityIdentifier("sidebar.settings")
             }
-            ToolbarItemGroup(placement: .bottomBar) {
-                Spacer()
-                Button { shell.newChat(closeSidebar: isDrawer) } label: {
-                    Image(systemName: "square.and.pencil").imageScale(.large).frame(minWidth: 44, minHeight: 44)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .accessibilityLabel("New chat")
-                .accessibilityIdentifier("sidebar.compose")
-            }
+            Section { moreRows } header: { header("More") }
         }
+        .listStyle(.plain)
+        .listRowSeparator(.hidden)
+        .scrollEdgeEffectStyle(.soft, for: .bottom)
+        .safeAreaInset(edge: .top, spacing: 0) { titleRow }
+        .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
         .threadEditingDialogs($editing)
+    }
+
+    private var titleRow: some View {
+        HStack {
+            Text("AnyRouter")
+                .font(.title2.bold())
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("sidebar.header")
+            Spacer()
+            ARLogoMark(size: 28).foregroundStyle(.primary).accessibilityHidden(true)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+    }
+
+    private var bottomBar: some View {
+        HStack {
+            Button { shell.presentSettings(closeSidebar: isDrawer) } label: {
+                Avatar(url: app.account.summary?.avatarURL, initials: app.account.summary?.initials ?? "A", size: 44)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Settings")
+            .accessibilityIdentifier("sidebar.settings")
+            Spacer()
+            Button { shell.newChat(closeSidebar: isDrawer) } label: {
+                Label("New chat", systemImage: "plus").frame(minHeight: 44)
+            }
+            .buttonStyle(.glassProminent)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .accessibilityIdentifier("sidebar.compose")
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+    }
+
+    /// Section titles in the quiet secondary style, with an optional trailing control.
+    private func header(_ title: LocalizedStringKey) -> some View {
+        header(title) { EmptyView() }
+    }
+
+    private func header(_ title: LocalizedStringKey, @ViewBuilder trailing: () -> some View) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            trailing()
+        }
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .textCase(nil)
+    }
+
+    private var moreRows: some View {
+        Button { shell.open(.decisions, closeSidebar: isDrawer) } label: {
+            Label("Decisions", systemImage: "checklist").frame(minHeight: 44)
+        }
+        .foregroundStyle(.primary)
+        .rowInsets()
+        .accessibilityIdentifier("sidebar-decisions")
     }
 
     private func rows(_ items: [ThreadRecord]) -> some View {
         ForEach(items) { thread in
-            Text(thread.title)
-                .lineLimit(1)
+            Label(thread.title, systemImage: "bubble.left")
+                .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+                .frame(minHeight: 44)
+                .rowInsets()
                 .tag(thread.id)
+                // A plain list does not mark the open chat on iPhone, so the row paints its own highlight.
+                .listRowBackground(
+                    thread.id == shell.selectedThreadID
+                        ? Color(.quaternarySystemFill).clipShape(.rect(cornerRadius: 12)) : nil
+                )
                 .threadActions(thread, editing: $editing)
         }
+    }
+}
+
+private extension View {
+    /// Rows sit 12 pt from the edges so the highlight of the open chat has room; the content keeps the 20 pt of the title.
+    func rowInsets() -> some View {
+        padding(.horizontal, 8).listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
     }
 }
 
@@ -93,5 +162,6 @@ struct ThreadSidebar: View {
     }
     return ThreadSidebar(isDrawer: true)
         .environment(ShellModel())
+        .environment(AppState())
         .modelContainer(container)
 }

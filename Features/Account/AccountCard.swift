@@ -101,9 +101,11 @@ struct AccountCard: View {
     }
 }
 
-private struct Avatar: View {
+/// The account's picture, or its initials on the accent color. Shared by the account row and the sidebar.
+struct Avatar: View {
     let url: URL?
     let initials: String
+    var size: CGFloat = 48
 
     var body: some View {
         AsyncImage(url: url) { phase in
@@ -115,7 +117,7 @@ private struct Avatar: View {
                     .background(Color.accentColor)
             }
         }
-        .frame(width: 48, height: 48)
+        .frame(width: size, height: size)
         .clipShape(Circle())
         .accessibilityHidden(true)
     }

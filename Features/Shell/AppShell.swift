@@ -123,8 +123,8 @@ private struct PhoneShell: View {
             .allowsHitTesting(!shell.isSidebarOpen)
             .accessibilityHidden(shell.isSidebarOpen)
             .overlay {
-                // Dims the chat and closes the drawer on tap. It covers the whole chat, edge to edge.
-                Button { setOpen(false) } label: { Color.black.opacity(0.2 * progress) }
+                // Closes the drawer on a tap on the visible strip of chat. Invisible: the chat is never dimmed.
+                Button { setOpen(false) } label: { Color.clear.contentShape(.rect) }
                     .buttonStyle(.plain)
                     .allowsHitTesting(shell.isSidebarOpen)
                     .accessibilityLabel("Close sidebar")
@@ -132,11 +132,11 @@ private struct PhoneShell: View {
             }
             // Concentric with the display corners while the drawer is open or moving; no clip when closed.
             .clipShape(progress > 0.001 ? AnyShape(ConcentricRectangle()) : AnyShape(Rectangle()))
-            .overlay(alignment: .leading) {
-                // A soft edge on the side that meets the sidebar.
-                LinearGradient(colors: [.black.opacity(0.14 * progress), .clear], startPoint: .trailing, endPoint: .leading)
-                    .frame(width: 12)
-                    .offset(x: -12)
+            .overlay {
+                // A hairline along the edge that meets the sidebar, following the rounded corners.
+                ConcentricRectangle()
+                    .stroke(Color(.separator), lineWidth: 0.5)
+                    .opacity(progress)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }

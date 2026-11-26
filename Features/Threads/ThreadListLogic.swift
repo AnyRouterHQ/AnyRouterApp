@@ -8,10 +8,13 @@ enum ThreadListLogic {
         var isEmpty: Bool { pinned.isEmpty && recent.isEmpty }
     }
 
-    /// Pinned threads first, each group newest first.
+    /// The sidebar lists this many unpinned chats; "View all" opens the rest in the search screen.
+    static let sidebarRecentLimit = 10
+
+    /// Pinned threads first, each group newest first. Pinned are all shown, recents stop at the limit.
     static func sections(from threads: [ThreadRecord]) -> Sections {
         let sorted = threads.sorted { $0.updatedAt > $1.updatedAt }
-        return Sections(pinned: sorted.filter(\.isPinned), recent: sorted.filter { !$0.isPinned })
+        return Sections(pinned: sorted.filter(\.isPinned), recent: Array(sorted.filter { !$0.isPinned }.prefix(sidebarRecentLimit)))
     }
 
     /// Title for a thread created from its first user message.
