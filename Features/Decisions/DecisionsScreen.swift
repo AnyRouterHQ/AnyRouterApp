@@ -20,6 +20,8 @@ struct DecisionsScreen: View {
     @Environment(AppState.self) private var app
     @Environment(\.modelContext) private var context
     @Query(sort: \DecisionRunRecord.createdAt, order: .reverse) private var recent: [DecisionRunRecord]
+    /// The one focus owner for every text input here, so Run can dismiss the keyboard.
+    @FocusState private var focus: DecisionField?
 
     var body: some View {
         @Bindable var store = app.decisions
@@ -37,6 +39,7 @@ struct DecisionsScreen: View {
             }
             Section {
                 TextEditor(text: $store.state)
+                    .focused($focus, equals: .state)
                     .frame(minHeight: 120)
                     .accessibilityIdentifier("decisions-state")
             } header: {
@@ -45,7 +48,7 @@ struct DecisionsScreen: View {
                 Text("The text to judge. \(store.state.count) of \(DecisionsLogic.maxStateCharacters) characters.")
             }
             Section("Questions") {
-                ForEach($store.questions) { $question in QuestionRow(question: $question) }
+                ForEach($store.questions) { $question in QuestionRow(question: $question, focus: $focus) }
                     .onDelete { store.deleteQuestions(at: $0) }
                     .onMove { store.moveQuestions(from: $0, to: $1) }
                 Button { store.addQuestion() } label: { Label("Add question", systemImage: "plus") }
@@ -67,12 +70,16 @@ struct DecisionsScreen: View {
                 }
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Decisions")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { EditButton() }
             ToolbarItem(placement: .primaryAction) {
-                Button("Run") { Task { await store.run() } }
+                Button("Run") {
+                    focus = nil
+                    Task { await store.run() }
+                }
                     .disabled(!store.canRun)
                     .accessibilityIdentifier("decisions-run")
             }
@@ -84,8 +91,15 @@ struct DecisionsScreen: View {
     }
 }
 
+private enum DecisionField: Hashable {
+    case state
+    case prompt(QuestionDraft.ID)
+    case list(QuestionDraft.ID)
+}
+
 private struct QuestionRow: View {
     @Binding var question: QuestionDraft
+    var focus: FocusState<DecisionField?>.Binding
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -94,9 +108,11 @@ private struct QuestionRow: View {
             }
             .pickerStyle(.segmented)
             TextField("Question", text: $question.prompt, axis: .vertical)
+                .focused(focus, equals: .prompt(question.id))
                 .accessibilityIdentifier("decisions-question-prompt")
             if let hint = question.kind.listPrompt {
                 TextField(hint, text: $question.list, axis: .vertical)
+                    .focused(focus, equals: .list(question.id))
             }
             if !question.prompt.isEmpty, let problem = DecisionsLogic.problem(with: question) {
                 Text(problem).font(.footnote).foregroundStyle(.secondary)
