@@ -48,6 +48,15 @@ private struct HeaderBuilder {
         pairs.append((key, body))
     }
 
+    mutating func int8(_ key: String, _ value: Int8) {
+        pairs.append((key, Self.le(UInt32(1)) + Data([UInt8(bitPattern: value)])))
+    }
+
+    /// An array header that promises far more elements than the file holds.
+    mutating func array(_ key: String, element: UInt32, claiming count: UInt64) {
+        pairs.append((key, Self.le(UInt32(9)) + Self.le(element) + Self.le(count)))
+    }
+
     mutating func stringArray(_ key: String, count: Int) {
         var body = Self.le(UInt32(9)) + Self.le(UInt32(8)) + Self.le(UInt64(count))
         for index in 0..<count { body += Self.string("tok\(index)") }
@@ -160,6 +169,48 @@ struct GGUFHeaderTests {
         // The profile built from it is what the planner uses for a file larger than memory.
         let profile = try GGUFHeader.parse(b.build()).profile(fileBytes: 6_880_000_000)
         #expect(profile.activeFraction == 0.119 && profile.fileBytes == 6_880_000_000 && !profile.isEstimated)
+    }
+
+    @Test func anArrayThatClaimsMoreElementsThanExistIsRejectedNotTrapped() {
+        for element: UInt32 in [4, 10, 8] {
+            var b = HeaderBuilder()
+            b.string("general.architecture", "qwen3")
+            b.array("tokenizer.ggml.scores", element: element, claiming: UInt64.max)
+            #expect(throws: GGUFHeaderError.self) { _ = try GGUFHeader.parse(b.build()) }
+        }
+    }
+
+    @Test func aHostileLayerCountOrSharedLayerCountCannotCrashTheFitCheck() throws {
+        var many = HeaderBuilder()
+        many.string("general.architecture", "qwen3")
+        many.u32("qwen3.block_count", 1_000_000)
+        #expect(throws: GGUFHeaderError.self) { _ = try GGUFHeader.parse(many.build()) }
+
+        // A negative shared-layer count used to index past the per-layer lists.
+        var negative = HeaderBuilder()
+        negative.string("general.architecture", "qwen3")
+        negative.u32("qwen3.block_count", 4)
+        negative.u32("qwen3.context_length", 4096)
+        negative.u32("qwen3.embedding_length", 256)
+        negative.u32("qwen3.attention.head_count", 4)
+        negative.u32("qwen3.attention.head_count_kv", 4)
+        negative.int8("qwen3.attention.shared_kv_layers", -5)
+        #expect(try GGUFHeader.parse(negative.build()).memory?.fullKVBytesPerToken == 4 * 4 * (64 + 64) * 2)
+    }
+
+    @Test func absurdHeadSizesAreCappedSoTheCacheMathCannotOverflow() throws {
+        var b = HeaderBuilder()
+        b.string("general.architecture", "qwen3")
+        b.u32("qwen3.block_count", 2)
+        b.u32("qwen3.context_length", 4096)
+        b.u32("qwen3.embedding_length", 256)
+        b.u32("qwen3.attention.head_count", 4)
+        b.u32("qwen3.attention.head_count_kv", 4_000_000_000)
+        b.u32("qwen3.attention.key_length", 4_000_000_000)
+        b.u32("qwen3.attention.value_length", 128)
+        let bytes = try #require(try GGUFHeader.parse(b.build()).memory?.fullKVBytesPerToken)
+        #expect(bytes == 2 * 4096 * (16384 + 128) * 2)
+        #expect(bytes * Int64(FitPlanner.maxContext) > 0)
     }
 
     @Test func aHugeTokenTableIsSkippedNotDecoded() throws {

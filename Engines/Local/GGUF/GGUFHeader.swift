@@ -113,6 +113,8 @@ enum GGUFHeader {
         }
         let p = architecture + "."
         let layers = meta[p + "block_count"]?.int ?? 0
+        // The header comes from a file the user picked on the Hub: bound every size before it feeds arithmetic or an allocation.
+        guard layers <= maxLayers else { throw GGUFHeaderError.unsupported("The file claims \(layers) layers.") }
         let trained = meta[p + "context_length"]?.int ?? 0
         guard layers > 0, let embedding = meta[p + "embedding_length"]?.int,
               let heads = perLayer(meta[p + "attention.head_count"], count: layers)
@@ -125,7 +127,7 @@ enum GGUFHeader {
         let keyWindow = meta[p + "attention.key_length_swa"]?.int ?? keyLength
         let valueWindow = meta[p + "attention.value_length_swa"]?.int ?? valueLength
         let window = meta[p + "attention.sliding_window"]?.int ?? 0
-        let shared = meta[p + "attention.shared_kv_layers"]?.int ?? 0
+        let shared = min(max(meta[p + "attention.shared_kv_layers"]?.int ?? 0, 0), layers)
 
         var period: Int?
         var flags: [Bool]?
@@ -147,11 +149,11 @@ enum GGUFHeader {
         var full: Int64 = 0
         var windowed: Int64 = 0
         for layer in 0..<max(0, layers - shared) {
-            let kv = kvHeads[layer]
+            let kv = bounded(kvHeads[layer], limit: maxHeads)
             if kv == 0 { continue } // a layer without attention keeps no KV cache
             let swa = isWindow(layer)
-            let keyDim = (swa ? keyWindow : keyLength) ?? embedding / max(1, heads[layer])
-            let valueDim = (swa ? valueWindow : valueLength) ?? embedding / max(1, heads[layer])
+            let keyDim = bounded((swa ? keyWindow : keyLength) ?? embedding / max(1, heads[layer]), limit: maxHeadDimension)
+            let valueDim = bounded((swa ? valueWindow : valueLength) ?? embedding / max(1, heads[layer]), limit: maxHeadDimension)
             let bytes = Int64(kv * (keyDim + valueDim) * 2)
             if swa { windowed += bytes } else { full += bytes }
         }
@@ -164,6 +166,15 @@ enum GGUFHeader {
             activeFraction: ModelMemoryProfile.activeFraction(expertCount: experts, expertsUsed: used))
         return GGUFInfo(architecture: architecture, blockCount: layers, trainedContext: trained, memory: memory)
     }
+
+    /// No real model has more layers than this.
+    private static let maxLayers = 4096
+
+    /// Keeps a per-layer size in a range where the cache math cannot overflow `Int64`: 4096 layers of
+    /// 4096 KV heads and 16384-wide heads at the largest context the app asks for stay far below it.
+    private static func bounded(_ value: Int, limit: Int) -> Int { min(max(value, 0), limit) }
+    private static let maxHeads = 4096
+    private static let maxHeadDimension = 16384
 
     /// A key that is one number for every layer, or one number per layer.
     private static func perLayer(_ value: Value?, count: Int) -> [Int]? {
@@ -242,7 +253,9 @@ enum GGUFHeader {
             }
             if kind == 9 {
                 let inner = try u32()
-                let count = Int(try u64())
+                let rawCount = try u64()
+                guard rawCount <= 1 << 32 else { throw GGUFHeaderError.unsupported("A GGUF array is implausibly long.") }
+                let count = Int(rawCount)
                 if let width = Self.width(of: inner) {
                     if !keep || count > 4096 {
                         try skip(count * width)
