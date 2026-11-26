@@ -55,7 +55,8 @@
     "venice": "Venice",
     "vllm": "vLLM",
     "xiaomi": "Xiaomi",
-    "apple": "Apple"
+    "apple": "Apple",
+    "exa": "Exa"
   },
   "aliases": {
     "meta-llama": "meta",
