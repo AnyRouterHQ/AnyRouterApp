@@ -47,6 +47,16 @@ This repo is **public** (Apache-2.0). Everything you commit, every PR, issue, co
 - Secrets: OAuth keys go to the Keychain only. Never log keys, tokens, or prompts. No secrets in the repo; signing material lives in GitHub Actions secrets.
 - Keep it small. No speculative abstractions, no feature beyond the task. Comments only where the why is not obvious.
 
+## Design rule: native first
+
+The app should look and behave like a stock iOS 26 app. Before you build a custom view, use the system one:
+
+- Lists and settings: `List` / `Form` with `.insetGrouped`, `Section` headers, `Label` + SF Symbols, `NavigationLink`, `Toggle`, `Picker`. No hand-made cards or row chrome.
+- Navigation: `NavigationStack` / `NavigationSplitView`, toolbar items with system buttons (`.close`, `.confirm` roles), `.searchable`, `Menu`, `ShareLink`, sheets with `presentationDetents`. No custom circle buttons, nav bars or search fields.
+- Look: system fonts (`.body`, `.headline`, …, so Dynamic Type works), semantic colors (`.primary`, `.secondary`, `Color(.systemGroupedBackground)`), and one app tint (the accent color) set once. No per-icon tinting and no custom palettes for chrome.
+- Liquid Glass comes from the system components. Add `.glassEffect` only on custom floating controls (the composer, the model pill), never on content.
+- A custom view needs a reason the system one can't meet, written in one comment. Reference: Apple HIG (developer.apple.com/design/human-interface-guidelines) and the WWDC25 Liquid Glass sessions.
+
 ## Workflow (trunk-based)
 
 Everyone commits to `main`. No pull requests for agent work (outside contributors may still open PRs).
