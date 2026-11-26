@@ -31,17 +31,10 @@ final class GGUFModelSmokeTests: XCTestCase {
         let size = try XCTUnwrap(try FileManager.default.attributesOfItem(atPath: source.path)[.size] as? NSNumber).int64Value
         let document: CatalogDocument
         let entry: CatalogEntry
-        if SmokeEnv.external {
-            // A model that is not in the catalog: build its entry from what the workflow resolved. Nothing here names it.
-            let repo = try XCTUnwrap(SmokeEnv.hfRepo, "ANYROUTER_SMOKE_HF_REPO is required for an external model")
-            entry = CatalogEntry(
-                repo: repo, format: .gguf, file: source.lastPathComponent, title: "External model", sizeBytes: size,
-                revision: SmokeEnv.hfRevision, sha256: sha)
+        if let json = SmokeEnv.entryJSON {
+            // The workflow resolved the entry (catalog, dev catalog or a model given at run time). Nothing here names it.
+            entry = try JSONDecoder().decode(CatalogEntry.self, from: Data(json.utf8))
             document = CatalogDocument(schemaVersion: 1, updatedAt: nil, models: [entry])
-        } else if let id = SmokeEnv.ggufModelID {
-            document = try BundledCatalog.load()
-            let ggufs = document.models.filter { $0.format == .gguf }
-            entry = try XCTUnwrap(ggufs.first { $0.id == id }, "bundled catalog has no GGUF entry \(id)")
         } else {
             document = try BundledCatalog.load()
             let ggufs = document.models.filter { $0.format == .gguf }

@@ -13,10 +13,10 @@ enum SmokeEnv {
     /// Catalog id (`gguf/<repo>/<file>`) of the downloaded file. Unset means the smallest GGUF in the catalog.
     static var ggufModelID: String? { env["ANYROUTER_SMOKE_MODEL_ID"].flatMap { $0.isEmpty ? nil : $0 } }
     /// `1` when the GGUF is not a catalog model (a Hugging Face repo and file given to the workflow at run time).
-    /// Then the repo and revision come from here, and reports must not name the model.
+    /// Then reports must not name the model.
     static var external: Bool { env["ANYROUTER_SMOKE_EXTERNAL"] == "1" }
-    static var hfRepo: String? { env["ANYROUTER_SMOKE_HF_REPO"].flatMap { $0.isEmpty ? nil : $0 } }
-    static var hfRevision: String? { env["ANYROUTER_SMOKE_HF_REVISION"].flatMap { $0.isEmpty ? nil : $0 } }
+    /// The catalog entry to run, as JSON, resolved by the workflow from models.json, dev-models.json or its inputs.
+    static var entryJSON: String? { env["ANYROUTER_SMOKE_ENTRY_JSON"].flatMap { $0.isEmpty ? nil : $0 } }
     /// Folder with the Gemma 4 MLX tokenizer files (no weights), for the chat template check.
     static var mlxTokenizerDir: String? { env["ANYROUTER_SMOKE_MLX_TOKENIZER_DIR"] }
 }

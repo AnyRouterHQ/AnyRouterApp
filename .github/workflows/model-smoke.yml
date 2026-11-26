@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       model_id:
-        description: "Catalog GGUF id to run, like gguf/<repo>/<file>. Empty runs the smallest GGUF in the catalog."
+        description: "Catalog GGUF id (models.json or dev-models.json), like gguf/<repo>/<file>. Empty runs the smallest GGUF in models.json."
         required: false
         default: ""
       hf_repo:
@@ -66,10 +66,13 @@ jobs:
         run: |
           python3 - <<'PY' >> "$GITHUB_ENV"
           import json, os, sys, urllib.request
-          doc = json.load(open("catalog/models.json"))
-          ggufs = [m for m in doc["models"] if m["format"] == "gguf"]
+          def ggufs(path):
+              return [m for m in json.load(open(path))["models"] if m["format"] == "gguf"]
+          production = ggufs("catalog/models.json")
+          catalog = production + ggufs("catalog/dev-models.json")
           wanted = os.environ.get("INPUT_MODEL_ID", "").strip()
           ext_repo, ext_file = os.environ.get("EXT_HF_REPO", "").strip(), os.environ.get("EXT_HF_FILE", "").strip()
+          external = False
           if ext_repo or ext_file:
               if not (ext_repo and ext_file):
                   sys.exit("give both a repo and a file, or neither")
@@ -79,31 +82,27 @@ jobs:
               found = next((f for f in listing if f["path"] == ext_file), None)
               if not found or not found.get("lfs"):
                   sys.exit("the file is not in the repo, or is not an LFS file")
-              print(f"MODEL_REPO={ext_repo}")
-              print(f"MODEL_FILE={ext_file}")
-              print(f"MODEL_REV={rev}")
-              print(f"MODEL_SHA256={found['lfs']['oid']}")
-              print("MODEL_TITLE=External model")
-              print("MODEL_ID=external")
-              print("MODEL_EXTERNAL=1")
-              sys.exit(0)
-          if wanted:
-              matches = [m for m in ggufs if f"gguf/{m['repo']}/{m['file']}" == wanted]
+              entry = {"repo": ext_repo, "format": "gguf", "file": ext_file, "title": "External model",
+                       "sizeBytes": found["size"], "revision": rev, "sha256": found["lfs"]["oid"]}
+              external = True
+          elif wanted:
+              matches = [m for m in catalog if f"gguf/{m['repo']}/{m['file']}" == wanted]
               if not matches:
-                  sys.exit("no GGUF catalog entry with id " + wanted + ". Known: " + ", ".join(f"gguf/{m['repo']}/{m['file']}" for m in ggufs))
+                  sys.exit("no GGUF catalog entry with id " + wanted + ". Known: " + ", ".join(f"gguf/{m['repo']}/{m['file']}" for m in catalog))
               entry = matches[0]
           else:
-              entry = min(ggufs, key=lambda m: m.get("sizeBytes", 1 << 62))
+              entry = min(production, key=lambda m: m.get("sizeBytes", 1 << 62))
           repo, file, rev = entry["repo"], entry["file"], entry["revision"]
-          url = f"https://huggingface.co/api/models/{repo}/tree/{rev}"
-          listing = json.load(urllib.request.urlopen(url))
+          listing = json.load(urllib.request.urlopen(f"https://huggingface.co/api/models/{repo}/tree/{rev}?recursive=true"))
           sha = next(f["lfs"]["oid"] for f in listing if f["path"] == file)
           print(f"MODEL_REPO={repo}")
           print(f"MODEL_FILE={file}")
           print(f"MODEL_REV={rev}")
           print(f"MODEL_SHA256={sha}")
           print(f"MODEL_TITLE={entry['title']}")
-          print(f"MODEL_ID=gguf/{repo}/{file}")
+          print(f"MODEL_ID={'external' if external else 'gguf/' + repo + '/' + file}")
+          print(f"MODEL_EXTERNAL={'1' if external else ''}")
+          print("MODEL_ENTRY_JSON=" + json.dumps(entry, separators=(",", ":")))
           PY
 
       - name: Cache the model file
@@ -190,8 +189,7 @@ jobs:
           TEST_RUNNER_ANYROUTER_SMOKE_GGUF_SHA256: ${{ env.MODEL_SHA256 }}
           TEST_RUNNER_ANYROUTER_SMOKE_MODEL_ID: ${{ env.MODEL_ID }}
           TEST_RUNNER_ANYROUTER_SMOKE_EXTERNAL: ${{ env.MODEL_EXTERNAL }}
-          TEST_RUNNER_ANYROUTER_SMOKE_HF_REPO: ${{ env.MODEL_EXTERNAL == '1' && env.MODEL_REPO || '' }}
-          TEST_RUNNER_ANYROUTER_SMOKE_HF_REVISION: ${{ env.MODEL_EXTERNAL == '1' && env.MODEL_REV || '' }}
+          TEST_RUNNER_ANYROUTER_SMOKE_ENTRY_JSON: ${{ env.MODEL_ENTRY_JSON }}
           TEST_RUNNER_ANYROUTER_SMOKE_MLX_TOKENIZER_DIR: ${{ runner.temp }}/mlx-tokenizer
           TEST_RUNNER_ANYROUTER_SMOKE_REPORT: ${{ runner.temp }}/smoke-report.md
         run: |

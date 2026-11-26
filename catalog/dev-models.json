@@ -454,6 +454,322 @@
       "createdAt": "2026-11-26",
       "updatedAt": "2026-11-26",
       "order": 16
+    },
+    {
+      "repo": "unsloth/Qwen3.5-0.8B-GGUF",
+      "format": "gguf",
+      "file": "Qwen3.5-0.8B-Q4_K_M.gguf",
+      "title": "Qwen3.5 0.8B",
+      "summary": "Tiny Qwen 3.5 with a thinking mode. Quick on any iPhone.",
+      "parameters": "0.8B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 532517120,
+      "contextLength": 262144,
+      "license": "apache-2.0",
+      "revision": "6ab461498e2023f6e3c1baea90a8f0fe38ab64d0",
+      "sha256": "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517",
+      "capabilities": [
+        "chat"
+      ],
+      "iconKey": "qwen",
+      "supportsThinking": true,
+      "vision": {
+        "mmprojFile": "mmproj-F16.gguf",
+        "mmprojSize": 204987232
+      },
+      "memory": {
+        "fullKVBytesPerToken": 49152
+      },
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
+      "order": 17
+    },
+    {
+      "repo": "unsloth/Qwen3.5-2B-GGUF",
+      "format": "gguf",
+      "file": "Qwen3.5-2B-Q4_K_M.gguf",
+      "title": "Qwen3.5 2B",
+      "summary": "Small Qwen 3.5 with a thinking mode. A good default for most iPhones.",
+      "parameters": "2B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 1280835840,
+      "contextLength": 262144,
+      "license": "apache-2.0",
+      "revision": "f6d5376be1edb4d416d56da11e5397a961aca8ae",
+      "sha256": "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
+      "capabilities": [
+        "chat"
+      ],
+      "iconKey": "qwen",
+      "supportsThinking": true,
+      "vision": {
+        "mmprojFile": "mmproj-F16.gguf",
+        "mmprojSize": 668227264
+      },
+      "memory": {
+        "fullKVBytesPerToken": 49152
+      },
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
+      "order": 18
+    },
+    {
+      "repo": "unsloth/Qwen3.5-4B-GGUF",
+      "format": "gguf",
+      "file": "Qwen3.5-4B-Q4_K_M.gguf",
+      "title": "Qwen3.5 4B",
+      "summary": "Stronger Qwen 3.5 with a thinking mode. Wants 8 GB of RAM.",
+      "parameters": "4B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 2740937888,
+      "contextLength": 262144,
+      "license": "apache-2.0",
+      "revision": "e87f176479d0855a907a41277aca2f8ee7a09523",
+      "sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+      "capabilities": [
+        "chat"
+      ],
+      "iconKey": "qwen",
+      "supportsThinking": true,
+      "vision": {
+        "mmprojFile": "mmproj-F16.gguf",
+        "mmprojSize": 672423616
+      },
+      "memory": {
+        "fullKVBytesPerToken": 131072
+      },
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
+      "order": 19
+    },
+    {
+      "repo": "LiquidAI/LFM2.5-1.2B-Instruct-GGUF",
+      "format": "gguf",
+      "file": "LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+      "title": "LFM2.5 1.2B Instruct",
+      "summary": "Liquid AI on-device model. Very fast for its quality.",
+      "parameters": "1.2B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 730895168,
+      "contextLength": 128000,
+      "license": "other",
+      "revision": "8ed288026e23958ad9dfa92d53ed773a8eee7125",
+      "sha256": "b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5",
+      "capabilities": [
+        "chat"
+      ],
+      "iconKey": "liquid",
+      "memory": {
+        "fullKVBytesPerToken": 12288
+      },
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
+      "order": 20
+    },
+    {
+      "repo": "LiquidAI/LFM2.5-VL-1.6B-GGUF",
+      "format": "gguf",
+      "file": "LFM2.5-VL-1.6B-Q4_K_M.gguf",
+      "title": "LFM2.5 VL 1.6B",
+      "summary": "Liquid AI vision-language model. Text chat now, images later.",
+      "parameters": "1.6B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 730896256,
+      "contextLength": 128000,
+      "license": "other",
+      "revision": "36fc16bc95133424921bcc3da009e83b2f23ffb5",
+      "sha256": "aefc3c97c9eb30d9c0dd6af4c38250f5f5106b57c8cf92de7914c7d0a9c94da2",
+      "capabilities": [
+        "chat"
+      ],
+      "iconKey": "liquid",
+      "vision": {
+        "mmprojFile": "mmproj-LFM2.5-VL-1.6b-Q8_0.gguf",
+        "mmprojSize": 583109888
+      },
+      "memory": {
+        "fullKVBytesPerToken": 12288
+      },
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
+      "order": 21
+    },
+    {
+      "repo": "LiquidAI/LFM2.5-VL-3B-GGUF",
+      "format": "gguf",
+      "file": "LFM2.5-VL-3B-Q4_K_M.gguf",
+      "title": "LFM2.5 VL 3B",
+      "summary": "Larger Liquid AI vision-language model. Text chat now, images later. Wants 8 GB of RAM.",
+      "parameters": "3B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 1674455072,
+      "contextLength": 32768,
+      "license": "other",
+      "revision": "6f730e9a2c454e8af9adc29db58e638e01e5957f",
+      "sha256": "2436cf4bbac9a16e5dfc7799a140e583c2bc15958f4b24a391f8a8b10ecb8884",
+      "capabilities": [
+        "chat"
+      ],
+      "iconKey": "liquid",
+      "vision": {
+        "mmprojFile": "mmproj-LFM2.5-VL-3B-Q8_0.gguf",
+        "mmprojSize": 583109984
+      },
+      "memory": {
+        "fullKVBytesPerToken": 16384
+      },
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
+      "order": 22
+    },
+    {
+      "repo": "LiquidAI/LFM2-700M-GGUF",
+      "format": "gguf",
+      "file": "LFM2-700M-Q4_K_M.gguf",
+      "title": "LFM2 700M",
+      "summary": "Liquid AI tiny model. Light and quick.",
+      "parameters": "700M",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 468624320,
+      "contextLength": 128000,
+      "license": "other",
+      "revision": "fd39e80d7a5ac61494ffff577e61bbbfddbd0d02",
+      "sha256": "684e8406dc13321452b3f6aeca432776e2a6a7e1ad6c23f7887b8fe3efbe2efa",
+      "capabilities": [
+        "chat"
+      ],
+      "iconKey": "liquid",
+      "memory": {
+        "fullKVBytesPerToken": 12288
+      },
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
+      "order": 23
+    },
+    {
+      "repo": "ggml-org/SmolLM3-3B-GGUF",
+      "format": "gguf",
+      "file": "SmolLM3-Q4_K_M.gguf",
+      "title": "SmolLM3 3B",
+      "summary": "Hugging Face 3B model with a thinking mode.",
+      "parameters": "3B",
+      "quantization": "Q4_K_M",
+      "sizeBytes": 1915305312,
+      "contextLength": 65536,
+      "license": "apache-2.0",
+      "revision": "4965cb60b150737b68a0408c36aeefb65078f894",
+      "sha256": "8334b850b7bd46238c16b0c550df2138f0889bf433809008cc17a8b05761863e",
+      "capabilities": [
+        "chat"
+      ],
+      "iconKey": "smollm",
+      "supportsThinking": true,
+      "memory": {
+        "fullKVBytesPerToken": 73728
+      },
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
+      "order": 24
+    },
+    {
+      "repo": "unsloth/gemma-4-E2B-it-qat-mobile-GGUF",
+      "format": "gguf",
+      "file": "gemma-4-E2B-it-qat-UD-Q2_K_XL.gguf",
+      "title": "Gemma 4 E2B (mobile)",
+      "summary": "Smaller Gemma 4 E2B build for phones. Text chat. Wants 6 GB of RAM.",
+      "parameters": "E2B",
+      "quantization": "Q2_K_XL",
+      "sizeBytes": 2186186784,
+      "contextLength": 131072,
+      "license": "apache-2.0",
+      "revision": "46af839dc23aceb4b965ab640dae7fc1bea39bba",
+      "sha256": "0a5bbc20f91f92da96ab4870fa71b356c45b8500a7b8b9c3e0eb48359b72da28",
+      "capabilities": [
+        "chat"
+      ],
+      "iconKey": "gemma",
+      "memory": {
+        "fullKVBytesPerToken": 6144,
+        "windowKVBytesPerToken": 12288,
+        "windowTokens": 512
+      },
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
+      "order": 25
+    },
+    {
+      "repo": "unsloth/gemma-4-E4B-it-qat-mobile-GGUF",
+      "format": "gguf",
+      "file": "gemma-4-E4B-it-qat-UD-Q2_K_XL.gguf",
+      "title": "Gemma 4 E4B (mobile)",
+      "summary": "Smaller Gemma 4 E4B build for phones. Text chat. Wants 8 GB of RAM.",
+      "parameters": "E4B",
+      "quantization": "Q2_K_XL",
+      "sizeBytes": 3219532192,
+      "contextLength": 131072,
+      "license": "apache-2.0",
+      "revision": "6a6e7121b977cefd85daa8fbc538fa485e7e8b1b",
+      "sha256": "79dde517866cfbb5c00230b530de17910fc7fc78f8827554d0e14281ce5faf03",
+      "capabilities": [
+        "chat"
+      ],
+      "iconKey": "gemma",
+      "memory": {
+        "fullKVBytesPerToken": 16384,
+        "windowKVBytesPerToken": 40960,
+        "windowTokens": 512
+      },
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
+      "order": 26
+    },
+    {
+      "repo": "prism-ml/Bonsai-8B-gguf",
+      "format": "gguf",
+      "file": "Bonsai-8B-Q1_0.gguf",
+      "title": "Bonsai 8B (1-bit)",
+      "summary": "8B model squeezed to 1 bit per weight. Small file, runs on most iPhones.",
+      "parameters": "8B",
+      "quantization": "Q1_0",
+      "sizeBytes": 1158654496,
+      "contextLength": 65536,
+      "license": "apache-2.0",
+      "revision": "48516770dd04643643e9f9019a2a349cf26c5dbd",
+      "sha256": "284a335aa3fb2ced3b1b01fcb40b08aa783e3b70832767f0dd2e3fdfa134bd54",
+      "capabilities": [
+        "chat"
+      ],
+      "iconKey": "bonsai",
+      "memory": {
+        "fullKVBytesPerToken": 147456
+      },
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
+      "order": 27
+    },
+    {
+      "repo": "prism-ml/Ternary-Bonsai-8B-gguf",
+      "format": "gguf",
+      "file": "Ternary-Bonsai-8B-Q2_0.gguf",
+      "title": "Ternary Bonsai 8B",
+      "summary": "8B model with ternary weights. Better quality than the 1-bit build.",
+      "parameters": "8B",
+      "quantization": "Q2_0",
+      "sizeBytes": 2182184672,
+      "contextLength": 65536,
+      "license": "apache-2.0",
+      "revision": "c2aefbeb4b24469cd11579c3384b990404c17a30",
+      "sha256": "3c8d70470a5d97e5a2b9410ddd899cb740116591462626c60cb2fead6448f60b",
+      "capabilities": [
+        "chat"
+      ],
+      "iconKey": "bonsai",
+      "memory": {
+        "fullKVBytesPerToken": 147456
+      },
+      "createdAt": "2026-11-26",
+      "updatedAt": "2026-11-26",
+      "order": 28
     }
   ]
 }
