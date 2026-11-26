@@ -293,13 +293,3 @@ struct AnyRouterEngineDecisionTests {
         await #expect(throws: AnyRouterError.badResponse) { try await engine.runDecision(request) }
     }
 }
-
-final class LockedBox<Value>: @unchecked Sendable {
-    private let lock = NSLock()
-    private var raw: Value
-    init(_ value: Value) { raw = value }
-    var value: Value {
-        get { lock.withLock { raw } }
-        set { lock.withLock { raw = newValue } }
-    }
-}
