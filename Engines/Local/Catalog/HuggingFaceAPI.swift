@@ -2,9 +2,35 @@ import Foundation
 
 protocol HTTPFetching: Sendable {
     func fetch(_ request: URLRequest) async throws -> (Data, HTTPURLResponse)
+    /// The first `maxBytes` of the body. Reads no more than that, even from a server that ignores the Range header.
+    func fetchPrefix(_ request: URLRequest, maxBytes: Int) async throws -> (Data, HTTPURLResponse)
+}
+
+extension HTTPFetching {
+    /// For fakes: fetch, then cut. `URLSession` streams and stops instead.
+    func fetchPrefix(_ request: URLRequest, maxBytes: Int) async throws -> (Data, HTTPURLResponse) {
+        var ranged = request
+        ranged.setValue("bytes=0-\(maxBytes - 1)", forHTTPHeaderField: "Range")
+        let (data, response) = try await fetch(ranged)
+        return (data.prefix(maxBytes), response)
+    }
 }
 
 extension URLSession: HTTPFetching {
+    func fetchPrefix(_ request: URLRequest, maxBytes: Int) async throws -> (Data, HTTPURLResponse) {
+        var ranged = request
+        ranged.setValue("bytes=0-\(maxBytes - 1)", forHTTPHeaderField: "Range")
+        let (bytes, response) = try await self.bytes(for: ranged)
+        guard let http = response as? HTTPURLResponse else { throw LocalModelError.invalidResponse }
+        var data = Data()
+        data.reserveCapacity(min(maxBytes, 1 << 20))
+        for try await byte in bytes {
+            data.append(byte)
+            if data.count >= maxBytes { break }
+        }
+        return (data, http)
+    }
+
     func fetch(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await self.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw LocalModelError.invalidResponse }
@@ -124,6 +150,25 @@ struct HuggingFaceAPI: Sendable {
         return try items.filter { $0.type == "file" }.map { item in
             guard isSafeFilePath(item.path) else { throw LocalModelError.invalidFilePath(item.path) }
             return HFFile(path: item.path, size: item.size ?? 0, sha256: item.lfs?.oid)
+        }
+    }
+
+    /// What the fit check needs from a GGUF file, read from the start of the file on the Hub. Downloads the header only
+    /// (a few MB, tens of MB with a large vocabulary), never the weights.
+    func ggufInfo(repo: String, file: String, revision: String = "main") async throws -> GGUFInfo {
+        guard Self.isValidRepo(repo) else { throw LocalModelError.invalidRepo(repo) }
+        guard Self.isSafeFilePath(file) else { throw LocalModelError.invalidFilePath(file) }
+        let url = resolveURL(repo: repo, revision: revision, path: file)
+        return try await GGUFHeader.read { size in
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 60
+            let (data, response) = try await http.fetchPrefix(request, maxBytes: size)
+            switch response.statusCode {
+            case 200..<300: return data
+            case 401, 403: throw LocalModelError.gatedOrPrivate(repo)
+            case 404: throw LocalModelError.notFound(repo)
+            default: throw LocalModelError.http(status: response.statusCode)
+            }
         }
     }
 

@@ -8,6 +8,18 @@ on:
         description: "Catalog GGUF id to run, like gguf/<repo>/<file>. Empty runs the smallest GGUF in the catalog."
         required: false
         default: ""
+      hf_repo:
+        description: "Run a GGUF that is not in the catalog: its Hugging Face repo (with hf_file). Shown in the run page, so use hf_from_secrets for private targets."
+        required: false
+        default: ""
+      hf_file:
+        description: "File name inside hf_repo, for example model-Q4_K_M.gguf"
+        required: false
+        default: ""
+      hf_from_secrets:
+        description: "Take the repo and file from the SMOKE_HF_REPO and SMOKE_HF_FILE secrets instead. Values are masked in logs."
+        type: boolean
+        default: false
   schedule:
     - cron: "17 3 * * *"
   pull_request:
@@ -27,8 +39,18 @@ permissions:
 jobs:
   smoke:
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 120
+    env:
+      # An external target (not in the catalog), from the inputs or from secrets. Empty means a catalog model.
+      EXT_HF_REPO: ${{ inputs.hf_from_secrets && secrets.SMOKE_HF_REPO || inputs.hf_repo }}
+      EXT_HF_FILE: ${{ inputs.hf_from_secrets && secrets.SMOKE_HF_FILE || inputs.hf_file }}
     steps:
+      - name: Mask the external target in every log line
+        run: |
+          for value in "$EXT_HF_REPO" "$EXT_HF_FILE"; do
+            if [ -n "$value" ]; then echo "::add-mask::$value"; fi
+          done
+
       - uses: actions/checkout@v7
 
       - name: Select Xcode 26
@@ -47,6 +69,24 @@ jobs:
           doc = json.load(open("catalog/models.json"))
           ggufs = [m for m in doc["models"] if m["format"] == "gguf"]
           wanted = os.environ.get("INPUT_MODEL_ID", "").strip()
+          ext_repo, ext_file = os.environ.get("EXT_HF_REPO", "").strip(), os.environ.get("EXT_HF_FILE", "").strip()
+          if ext_repo or ext_file:
+              if not (ext_repo and ext_file):
+                  sys.exit("give both a repo and a file, or neither")
+              info = json.load(urllib.request.urlopen(f"https://huggingface.co/api/models/{ext_repo}"))
+              rev = info["sha"]
+              listing = json.load(urllib.request.urlopen(f"https://huggingface.co/api/models/{ext_repo}/tree/{rev}?recursive=true"))
+              found = next((f for f in listing if f["path"] == ext_file), None)
+              if not found or not found.get("lfs"):
+                  sys.exit("the file is not in the repo, or is not an LFS file")
+              print(f"MODEL_REPO={ext_repo}")
+              print(f"MODEL_FILE={ext_file}")
+              print(f"MODEL_REV={rev}")
+              print(f"MODEL_SHA256={found['lfs']['oid']}")
+              print("MODEL_TITLE=External model")
+              print("MODEL_ID=external")
+              print("MODEL_EXTERNAL=1")
+              sys.exit(0)
           if wanted:
               matches = [m for m in ggufs if f"gguf/{m['repo']}/{m['file']}" == wanted]
               if not matches:
@@ -68,13 +108,14 @@ jobs:
 
       - name: Cache the model file
         id: model-cache
+        if: env.MODEL_EXTERNAL != '1'
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/model
           key: gguf-${{ env.MODEL_SHA256 }}
 
       - name: Download the model
-        if: steps.model-cache.outputs.cache-hit != 'true'
+        if: env.MODEL_EXTERNAL == '1' || steps.model-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p "$RUNNER_TEMP/model"
           curl -L --fail --retry 5 --retry-delay 5 -o "$RUNNER_TEMP/model/$MODEL_FILE" \
@@ -148,6 +189,9 @@ jobs:
           TEST_RUNNER_ANYROUTER_SMOKE_GGUF_PATH: ${{ runner.temp }}/model/${{ env.MODEL_FILE }}
           TEST_RUNNER_ANYROUTER_SMOKE_GGUF_SHA256: ${{ env.MODEL_SHA256 }}
           TEST_RUNNER_ANYROUTER_SMOKE_MODEL_ID: ${{ env.MODEL_ID }}
+          TEST_RUNNER_ANYROUTER_SMOKE_EXTERNAL: ${{ env.MODEL_EXTERNAL }}
+          TEST_RUNNER_ANYROUTER_SMOKE_HF_REPO: ${{ env.MODEL_EXTERNAL == '1' && env.MODEL_REPO || '' }}
+          TEST_RUNNER_ANYROUTER_SMOKE_HF_REVISION: ${{ env.MODEL_EXTERNAL == '1' && env.MODEL_REV || '' }}
           TEST_RUNNER_ANYROUTER_SMOKE_MLX_TOKENIZER_DIR: ${{ runner.temp }}/mlx-tokenizer
           TEST_RUNNER_ANYROUTER_SMOKE_REPORT: ${{ runner.temp }}/smoke-report.md
         run: |

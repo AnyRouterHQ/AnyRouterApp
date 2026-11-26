@@ -63,6 +63,20 @@ enum GGUFHeader {
         return try info(from: meta)
     }
 
+    /// Reads the header through `prefix`, which returns the first N bytes of the file (for a remote file, a ranged request).
+    /// Asks for more, in turn, until the metadata is complete.
+    static func read(prefix: (Int) async throws -> Data) async throws -> GGUFInfo {
+        for size in readSizes {
+            let data = try await prefix(size)
+            do {
+                return try parse(data)
+            } catch GGUFHeaderError.needMoreData where data.count >= size {
+                continue
+            }
+        }
+        throw GGUFHeaderError.unsupported("The GGUF header is larger than \(readSizes.last! / 1_048_576) MB.")
+    }
+
     /// The first bytes of a local file, enough for the metadata.
     static func read(fileAt url: URL) throws -> GGUFInfo {
         let handle = try FileHandle(forReadingFrom: url)

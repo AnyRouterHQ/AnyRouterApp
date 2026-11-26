@@ -15,36 +15,52 @@ final class GGUFModelSmokeTests: XCTestCase {
         var size: Int64
     }
 
+    /// A hard link when possible: a multi-GB model must not take twice the runner's disk.
+    private static func stage(_ source: URL, as destination: URL) throws {
+        do { try FileManager.default.linkItem(at: source, to: destination) } catch {
+            try FileManager.default.copyItem(at: source, to: destination)
+        }
+    }
+
     private func makeContext() async throws -> Context {
         let path = SmokeEnv.ggufPath
         try XCTSkipUnless(path != nil, "ANYROUTER_SMOKE_GGUF_PATH is not set. The real-model test runs only in model-smoke.yml.")
         let sha = try XCTUnwrap(SmokeEnv.ggufSHA256, "ANYROUTER_SMOKE_GGUF_SHA256 is required with the path")
         let source = URL(fileURLWithPath: try XCTUnwrap(path))
 
-        let document = try BundledCatalog.load()
-        let ggufs = document.models.filter { $0.format == .gguf }
+        let size = try XCTUnwrap(try FileManager.default.attributesOfItem(atPath: source.path)[.size] as? NSNumber).int64Value
+        let document: CatalogDocument
         let entry: CatalogEntry
-        if let id = SmokeEnv.ggufModelID {
+        if SmokeEnv.external {
+            // A model that is not in the catalog: build its entry from what the workflow resolved. Nothing here names it.
+            let repo = try XCTUnwrap(SmokeEnv.hfRepo, "ANYROUTER_SMOKE_HF_REPO is required for an external model")
+            entry = CatalogEntry(
+                repo: repo, format: .gguf, file: source.lastPathComponent, title: "External model", sizeBytes: size,
+                revision: SmokeEnv.hfRevision, sha256: sha)
+            document = CatalogDocument(schemaVersion: 1, updatedAt: nil, models: [entry])
+        } else if let id = SmokeEnv.ggufModelID {
+            document = try BundledCatalog.load()
+            let ggufs = document.models.filter { $0.format == .gguf }
             entry = try XCTUnwrap(ggufs.first { $0.id == id }, "bundled catalog has no GGUF entry \(id)")
         } else {
+            document = try BundledCatalog.load()
+            let ggufs = document.models.filter { $0.format == .gguf }
             entry = try XCTUnwrap(ggufs.min { ($0.sizeBytes ?? .max) < ($1.sizeBytes ?? .max) }, "bundled catalog has no GGUF entry")
         }
         let file = try XCTUnwrap(entry.file)
-        XCTAssertEqual(source.lastPathComponent, file, "the workflow must download the chosen catalog GGUF file")
-
-        let size = try XCTUnwrap(try FileManager.default.attributesOfItem(atPath: source.path)[.size] as? NSNumber).int64Value
+        XCTAssertEqual(source.lastPathComponent, file, "the workflow must download the chosen GGUF file")
         XCTAssertEqual(size, entry.sizeBytes, "catalog sizeBytes must match the real file")
 
         let storage = LocalModelStorage(root: makeTempDirectory())
         let partial = storage.partialFileURL(forEntryID: entry.id, path: file)
         try FileManager.default.createDirectory(at: partial.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try FileManager.default.copyItem(at: source, to: partial)
+        try Self.stage(source, as: partial)
         try ModelInstaller.verifyAndInstall(
             DownloadJobRecord(entry: entry, files: [HFFile(path: file, size: size, sha256: sha)]), storage: storage)
         XCTAssertTrue(storage.isInstalled(entryID: entry.id))
 
         let catalog = CatalogService(
-            bundled: { try BundledCatalog.load() }, cacheDirectory: makeTempDirectory(), settings: { CatalogSettings() })
+            bundled: { document }, cacheDirectory: makeTempDirectory(), settings: { CatalogSettings() })
         let engine = GGUFEngine(storage: storage, catalog: catalog)
         let models = try await engine.availableModels()
         let model = try XCTUnwrap(models.first { $0.id == entry.id }, "engine must list the installed catalog model")
@@ -101,7 +117,9 @@ final class GGUFModelSmokeTests: XCTestCase {
         let total = seconds(end - start)
         let decode = firstText.map { seconds(end - $0) } ?? total
         let perSecond = decode > 0 ? Double(max(reported.completion - 1, 1)) / decode : 0
-        SmokeReport.record("GGUF model", "\(ctx.entry.title) \(ctx.entry.quantization ?? "") (\(ctx.entry.id), rev \((ctx.entry.revision ?? "main").prefix(8)))")
+        SmokeReport.record("GGUF model", SmokeEnv.external
+            ? "external model given at run time (not named here), \(ctx.size) bytes"
+            : "\(ctx.entry.title) \(ctx.entry.quantization ?? "") (\(ctx.entry.id), rev \((ctx.entry.revision ?? "main").prefix(8)))")
         SmokeReport.record("GGUF file size", "\(ctx.size) bytes, sha256 \(ctx.sha256.prefix(12))")
         SmokeReport.record("GGUF prompt", "What is 2+2? Answer with one number.")
         SmokeReport.record("GGUF answer", answer)
@@ -185,7 +203,7 @@ final class GGUFModelSmokeTests: XCTestCase {
 
         func stage() throws {
             try FileManager.default.createDirectory(at: partial.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try FileManager.default.copyItem(at: ctx.sourceFile, to: partial)
+            try Self.stage(ctx.sourceFile, as: partial)
         }
 
         try stage()

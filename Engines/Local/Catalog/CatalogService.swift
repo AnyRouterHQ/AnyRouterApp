@@ -64,9 +64,20 @@ actor CatalogService {
     }
 
     /// Entries for a repo the user wants to add: one per GGUF file, or the MLX snapshot.
+    /// For GGUF the model's shape is read from the header of the smallest file (every quantization of a repo shares it),
+    /// so each file shows an exact fit verdict before anything is downloaded. If the header cannot be read the entries
+    /// are still returned, and the fit check estimates from file sizes.
     func entries(forRepo repo: String, format: LocalModelFormat) async throws -> [CatalogEntry] {
         let files = try await api.listFiles(repo: repo)
-        return try RepoFiles.entries(repo: repo, format: format, files: files)
+        var entries = try RepoFiles.entries(repo: repo, format: format, files: files)
+        guard format == .gguf, let probe = entries.min(by: { ($0.sizeBytes ?? .max) < ($1.sizeBytes ?? .max) })?.file,
+              let info = try? await api.ggufInfo(repo: repo, file: probe)
+        else { return entries }
+        for index in entries.indices {
+            entries[index].memory = info.memory
+            if info.trainedContext > 0 { entries[index].contextLength = info.trainedContext }
+        }
+        return entries
     }
 
     // MARK: Cache
