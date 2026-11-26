@@ -27,3 +27,7 @@ Tokenizers come from swift-transformers (https://github.com/huggingface/swift-tr
 ## WhisperKit
 
 Speech to text with a downloaded Whisper model uses WhisperKit from argmax-oss-swift (https://github.com/argmaxinc/argmax-oss-swift), MIT License, Copyright (c) 2024 argmax, inc. The Whisper models are OpenAI's (https://github.com/openai/whisper), MIT License, converted to Core ML by argmax (https://huggingface.co/argmaxinc/whisperkit-coreml).
+
+## TTSKit and Qwen3-TTS
+
+Spoken replies with a downloaded neural voice use TTSKit from argmax-oss-swift (https://github.com/argmaxinc/argmax-oss-swift), MIT License, Copyright (c) 2024 argmax, inc. The voices are Qwen3-TTS-12Hz-0.6B-CustomVoice (https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice) from the Qwen team, Apache License 2.0, converted to Core ML by argmax (https://huggingface.co/argmaxinc/ttskit-coreml). The tokenizer files come from Qwen/Qwen3-0.6B (https://huggingface.co/Qwen/Qwen3-0.6B), Apache License 2.0.

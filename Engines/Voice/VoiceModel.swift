@@ -9,6 +9,7 @@ enum VoiceModelKind: String, Codable, Sendable, CaseIterable {
 enum VoiceEngineKind: String, Codable, Sendable {
     case system
     case whisperKit
+    case ttsKit
     case moonshine
 }
 

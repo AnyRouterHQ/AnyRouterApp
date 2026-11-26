@@ -43,7 +43,8 @@ struct VoiceFitTests {
     }
 
     @Test func noModelOfAKindMeansNoRecommendation() throws {
-        #expect(VoiceFit.recommended(try BundledVoiceCatalog.load(), kind: .tts, memory: memory(.gb16)) == nil)
+        let speechToTextOnly = try BundledVoiceCatalog.load().filter { $0.kind == .stt }
+        #expect(VoiceFit.recommended(speechToTextOnly, kind: .tts, memory: memory(.gb16)) == nil)
         #expect(VoiceFit.recommended([], kind: .stt, memory: memory(.gb16)) == nil)
     }
 

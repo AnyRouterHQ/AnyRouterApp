@@ -159,6 +159,8 @@ final class AppState {
         // A downloaded speech engine is built on first use, so registering it costs nothing at launch.
         voice.register(
             speechToText: { model, folder in WhisperKitSpeechToText.installed(model: model, folder: folder) }, for: .whisperKit)
+        voice.register(
+            textToSpeech: { model, folder in TTSKitTextToSpeech.installed(model: model, folder: folder) }, for: .ttsKit)
         telemetry.track(.appOpen)
     }
 }

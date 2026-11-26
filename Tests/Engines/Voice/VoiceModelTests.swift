@@ -29,6 +29,27 @@ struct VoiceModelTests {
         #expect(tiny.isWeak(for: .vietnamese) && !tiny.isWeak(for: .english))
     }
 
+    @Test func theBundledNeuralVoiceIsOneFolderTheEngineLoadsOffline() throws {
+        let model = try #require(try BundledVoiceCatalog.load().first { $0.engine == .ttsKit })
+        #expect(model.id == "ttskit-qwen3-0.6b" && model.kind == .tts && model.license == "Apache-2.0")
+        #expect(Set(model.languages) == Set(TTSKitLanguage.allCases.map(\.code)), "the list and the engine's mapping say the same")
+        #expect(!model.supports(.vietnamese) && model.summary?.contains("Vietnamese") == true)
+        #expect(model.sizeBytes < 1_500_000_000)
+        #expect(model.files.allSatisfy { $0.sha256 != nil }, "every file is checked after download")
+        // TTSKitConfig's layout for the 0.6B model, with the variants of Qwen3VariantDefaults (argmax-oss-swift 1.1.1).
+        let layout = [
+            "code_decoder": "W8A16-stateful", "multi_code_decoder": "W8A16-multifunction", "code_embedder": "W16A16",
+            "multi_code_embedder": "W16A16", "text_projector": "W8A16", "speech_decoder": "W8A16-multifunction",
+        ]
+        for (component, variant) in layout {
+            let prefix = "qwen3_tts/\(component)/12hz-0.6b-customvoice/\(variant)/"
+            let inside = model.files.filter { $0.path.hasPrefix(prefix) }
+            #expect(inside.contains { $0.path.hasSuffix(".mlmodelc/coremldata.bin") }, "\(component) needs a compiled model")
+        }
+        let others = model.files.filter { !$0.path.hasPrefix("qwen3_tts/") }.map(\.path)
+        #expect(others == ["tokenizer.json", "tokenizer_config.json"], "the tokenizer sits at the folder root, so nothing is fetched at load time")
+    }
+
     @Test func anInvalidCatalogIsRefused() {
         #expect(throws: VoiceCatalogError.unsupportedVersion(2)) { try VoiceCatalogDocument.decode(VoiceFixtures.catalogJSON(version: 2)) }
         #expect(throws: VoiceCatalogError.invalidID("Bad Id")) { try VoiceCatalogDocument.decode(VoiceFixtures.catalogJSON(id: "Bad Id")) }
