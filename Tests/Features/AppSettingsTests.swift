@@ -24,6 +24,13 @@ struct AppSettingsTests {
         #expect(s.generationParams.systemPrompt == nil)
     }
 
+    @Test func keyboardOnLaunchIsOffByDefaultAndPersists() {
+        let d = testDefaults()
+        #expect(!AppSettings(defaults: d).showKeyboardOnLaunch)
+        AppSettings(defaults: d).showKeyboardOnLaunch = true
+        #expect(AppSettings(defaults: d).showKeyboardOnLaunch)
+    }
+
     @Test func valuesPersistInTheirDefaults() {
         let d = testDefaults()
         AppSettings(defaults: d).temperature = 0.2

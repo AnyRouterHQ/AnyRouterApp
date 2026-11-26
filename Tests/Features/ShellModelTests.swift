@@ -17,11 +17,20 @@ struct ShellModelTests {
 
     @Test func selectingThreadReturnsToChatRoute() {
         let shell = ShellModel()
-        shell.open(.settings, closeSidebar: false)
+        shell.open(.hub, closeSidebar: false)
         let id = UUID()
         shell.select(threadID: id, closeSidebar: true)
         #expect(shell.route == .chat)
         #expect(shell.selectedThreadID == id)
+    }
+
+    @Test func settingsIsASheetNotARoute() {
+        let shell = ShellModel()
+        shell.isSidebarOpen = true
+        shell.presentSettings(closeSidebar: true)
+        #expect(shell.isSettingsPresented)
+        #expect(!shell.isSidebarOpen)
+        #expect(shell.route == .chat)
     }
 
     @Test func deletingSelectedThreadResetsSelection() {

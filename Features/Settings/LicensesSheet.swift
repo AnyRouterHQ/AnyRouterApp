@@ -1,16 +1,8 @@
 import SwiftUI
 
 struct LicensesSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("Licenses").font(.arXL).foregroundStyle(ARColor.foreground)
-                Spacer()
-                Button("Done") { dismiss() }
-            }
-            .padding(ARTheme.pagePadding)
             ScrollView {
                 VStack(spacing: 12) {
                     ForEach(LicenseNotice.all) { notice in

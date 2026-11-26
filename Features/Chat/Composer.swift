@@ -6,6 +6,8 @@ struct Composer: View {
     var hasModel: Bool
     var presets: PresetStore?
     @State private var showsPresets = false
+    @Environment(AppSettings.self) private var settings
+    @Environment(ShellModel.self) private var shell
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -57,6 +59,11 @@ struct Composer: View {
             if let presets {
                 PresetSheet(store: presets, onPick: { model.usePreset($0) }, onSend: { model.sendNow($0) })
             }
+        }
+        .task {
+            guard settings.showKeyboardOnLaunch, !shell.didFocusComposerOnLaunch else { return }
+            shell.didFocusComposerOnLaunch = true
+            focused = true
         }
     }
 

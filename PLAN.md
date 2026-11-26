@@ -30,6 +30,7 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that follows a reference 
 | D11 | Config: `Config/Base.xcconfig` (committed) + `Config/Local.xcconfig` (gitignored) for Team ID; CI secrets for signing | Open source: no personal values in git. |
 | D12 | UI-facing service protocols live in `Features/Services/`: `AccountService` (adapter `AnyRouterAccountAdapter` wraps lane B's `AnyRouterAuth`) and `ModelHubService` (adapter `LocalModelHub` wraps lane C's `CatalogService` and `ModelDownloadManager`). Lane D owns the adapters, so B and C change nothing. `AppState` holds both. | UI never imports engine types except inside the adapters. |
 | D13 | Markdown rendering uses `gonzalezreal/swift-markdown-ui` (MarkdownUI 2.4.x) | Maintained, SwiftUI-native, themeable to our colors. |
+| D16 | Settings is a sheet with a native `NavigationStack` and grouped list. Pages plug in via `SettingsDestination` (`Features/Settings/SettingsDestination.swift`): add a case, its title and icon, put it in a `Group`, add a branch in `SettingsDestinationView`, and write the page as its own file under `Features/Settings/Pages/`. Presets and MCP lanes replace `PresetsSettingsView` and `IntegrationsSettingsView` and leave the list alone. | Parallel lanes add pages without touching the list layout. |
 | D10 | Persistence: SwiftData for threads/messages; Keychain for the AnyRouter key; `UserDefaults` for settings | Simplest native stack. |
 | D14 | No custom llama.cpp fork in v1.x. GGUF features that need more than `libllama` (speculative decoding, TurboQuant KV) wait for F4: our own xcframework built from an official tag. A fork is considered only if a measured on-device need remains after F4. | The official tags already carry MTP, DFlash and EAGLE-3 in `common/`. Forks add upkeep and licence review, and the app ships weights, not new engines. |
 | D12 | llama.cpp is pinned to release b10456 through a local package `Packages/LlamaBinary` (binaryTarget + checksum) | b10456 is the newest official xcframework with iOS Simulator and device slices. From b10488 on, releases ship device slices only, and CI builds for Simulator. Revisit when upstream restores the simulator slice. |
@@ -148,6 +149,11 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 ### Lane E — TestFlight (model: sonnet-low; blocked on operator secrets)
 - [x] E1 (upload path untested until secrets exist) `testflight.yml`: automatic signing with the ASC API key, `xcodebuild archive` + `-exportArchive` (method `app-store-connect`, destination `upload`), unique build number, dSYMs artifact
 - [x] E2 `docs/testflight.md`: app record, API key, secrets, run, internal testers, TestFlight install
+
+## Lane G — sidebar and settings IA (feat/sidebar-settings)
+
+- [x] G1 Settings as a drill-down sheet (Models, Chat, Appearance, About), `SettingsDestination` routing, account card with `AccountSummary` from /me, /credits and /key
+- [ ] G2 Wide sidebar drawer on iPhone (interactive drag, edge swipe), `NavigationSplitView` sidebar on iPad, bottom search and compose buttons
 
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
 
@@ -378,6 +384,8 @@ Not doing: a custom navigation container, per-token haptics, pull-to-refresh on 
 ## Status log
 
 - 2026-11-26 lane-ux: native UX and performance audit, boundary decision D15, plan U1-U18 and measurement plan; docs only, local checks skipped
+- 2026-11-26 lane-G: settings IA, `SettingsDestination`, account card with credits or key usage; local checks skipped
+
 - 2026-11-26 lane-ui: launch screen shows the logo on a themed background, AppIcon dark and tinted variants, asset test; local checks skipped
 - 2026-11-26 lane-docs: local inference roadmap (L1-L10 verdicts, shared Core shapes, PR sequence S1-S9), decision D14; docs only, local checks skipped
 - 2026-11-26 lane-ci: unsigned debug IPA workflow `device-ipa.yml` and `docs/sideload.md`; local checks skipped

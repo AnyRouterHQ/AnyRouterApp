@@ -121,7 +121,18 @@ struct ThreadSidebar: View {
         VStack(spacing: 2) {
             Divider().overlay(ARColor.border)
             footerRow("Browse Models", systemImage: "square.stack.3d.up", route: .hub)
-            footerRow("Settings", systemImage: "gearshape", route: .settings)
+            Button { shell.presentSettings(closeSidebar: isDrawer) } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "gearshape").frame(width: 22)
+                    Text("Settings").font(.arBase)
+                    Spacer()
+                }
+                .foregroundStyle(ARColor.foreground)
+                .padding(.horizontal, 12)
+                .frame(height: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 8)
         .padding(.bottom, 8)
