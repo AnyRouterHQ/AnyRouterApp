@@ -4,6 +4,8 @@ import UniformTypeIdentifiers
 /// Pure rules for attachments: what can be attached, how big, which icon, and what to tell the user.
 enum AttachmentLogic {
     static let maxPerMessage = 10
+    /// Largest file read from the Files importer. It is loaded whole, so a bigger one could end the app.
+    static let maxFileBytes: Int64 = 50_000_000
     /// Longest side of a stored image, in pixels.
     static let maxImageSide = 2048
     static let visionNote = "This model cannot see images. The text in them is sent instead."

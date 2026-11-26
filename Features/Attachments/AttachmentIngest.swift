@@ -8,11 +8,13 @@ import Vision
 enum AttachmentError: LocalizedError, Equatable {
     case unreadable(String)
     case unsupported(String)
+    case tooLarge(String)
 
     var errorDescription: String? {
         switch self {
         case .unreadable(let name): "Could not read \(name)."
         case .unsupported(let name): "\(name) is not a type the app can read."
+        case .tooLarge(let name): "\(name) is larger than \(AttachmentLogic.sizeText(AttachmentLogic.maxFileBytes))."
         }
     }
 }
@@ -37,7 +39,9 @@ enum AttachmentIngest {
     }
 
     /// A file from the Files importer. The URL is security scoped.
-    @concurrent static func file(at url: URL, store: AttachmentStore) async throws -> ChatAttachment {
+    @concurrent static func file(
+        at url: URL, store: AttachmentStore, maxBytes: Int64 = AttachmentLogic.maxFileBytes
+    ) async throws -> ChatAttachment {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let name = AttachmentLogic.displayName(url.lastPathComponent, fallback: "File")
@@ -46,6 +50,10 @@ enum AttachmentIngest {
         let typeID = type?.identifier ?? UTType.data.identifier
         guard let kind = AttachmentLogic.kind(forUTType: type?.identifier, fileExtension: url.pathExtension) else {
             throw AttachmentError.unsupported(name)
+        }
+        // The whole file is read into memory (and parsed), so a huge one is refused before it is opened.
+        if let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize, Int64(size) > maxBytes {
+            throw AttachmentError.tooLarge(name)
         }
         guard let data = try? Data(contentsOf: url) else { throw AttachmentError.unreadable(name) }
         switch kind {

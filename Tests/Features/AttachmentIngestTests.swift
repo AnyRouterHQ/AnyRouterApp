@@ -170,8 +170,21 @@ struct AttachmentIngestTests {
         await #expect(throws: AttachmentError.unreadable("gone.txt")) { try await AttachmentIngest.file(at: missing, store: temp.store) }
     }
 
+    @Test func aFileOverTheLimitIsRefusedBeforeItIsRead() async throws {
+        let temp = TempAttachments()
+        defer { temp.cleanup() }
+        let big = try write(Data(repeating: 0x41, count: 5), named: "big.txt")
+        await #expect(throws: AttachmentError.tooLarge("big.txt")) {
+            try await AttachmentIngest.file(at: big, store: temp.store, maxBytes: 4)
+        }
+        let fits = try await AttachmentIngest.file(at: big, store: temp.store, maxBytes: 5)
+        #expect(fits.kind == .text && fits.extractedText == "AAAAA")
+        #expect(AttachmentLogic.maxFileBytes == 50_000_000)
+    }
+
     @Test func errorsReadAsASentence() {
         #expect(AttachmentError.unreadable("a.pdf").errorDescription == "Could not read a.pdf.")
         #expect(AttachmentError.unsupported("a.zip").errorDescription == "a.zip is not a type the app can read.")
+        #expect(AttachmentError.tooLarge("a.mov").errorDescription == "a.mov is larger than \(AttachmentLogic.sizeText(50_000_000)).")
     }
 }
