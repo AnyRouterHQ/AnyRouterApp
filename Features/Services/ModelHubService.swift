@@ -31,6 +31,8 @@ struct LocalModelEntry: Identifiable, Hashable, Sendable {
     var fit: ModelFit
     /// Added by the user (custom repo), so it can be removed.
     var isUserAdded: Bool
+    /// Why this model cannot run on this device (for example MLX in the Simulator). Nil when it can.
+    var unavailableReason: String? = nil
     var id: String { descriptor.id }
 }
 

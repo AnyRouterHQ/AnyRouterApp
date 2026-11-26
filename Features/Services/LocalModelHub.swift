@@ -169,6 +169,8 @@ final class LocalModelHub: ModelHubService {
             verdict = .unknown
         }
         let installed = downloads.state(for: entry) == .installed
+        var unavailable: String?
+        if entry.format == .mlx, case .unavailable(let reason) = MLXEngine.availability { unavailable = reason }
         return LocalModelEntry(
             descriptor: ModelDescriptor(
                 id: entry.id,
@@ -182,7 +184,8 @@ final class LocalModelHub: ModelHubService {
             summary: entry.summary ?? entry.repo,
             tags: tags,
             fit: verdict,
-            isUserAdded: isUser
+            isUserAdded: isUser,
+            unavailableReason: unavailable
         )
     }
 }

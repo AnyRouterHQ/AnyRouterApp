@@ -8,6 +8,7 @@ struct ModelCard: View {
     let tags: [String]
     var fit: ModelFit = .unknown
     var state: DownloadState = .notInstalled
+    var unavailableReason: String?
     var leadingIcon: String?
     var onDownload: (() -> Void)?
     var onPause: (() -> Void)?
@@ -36,6 +37,8 @@ struct ModelCard: View {
     @ViewBuilder
     private var actions: some View {
         switch state {
+        case .notInstalled where unavailableReason != nil:
+            Text(unavailableReason ?? "").font(.arXS).foregroundStyle(ARColor.mutedForeground)
         case .notInstalled:
             if let onDownload { Button("Download") { onDownload() }.buttonStyle(.arFilled) }
         case .failed(let message):

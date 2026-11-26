@@ -48,6 +48,10 @@ targets:
         optional: true
     excludes:
       - "**/.gitkeep"
+    entitlements:
+      path: App/AnyRouter.entitlements
+      properties:
+        com.apple.developer.kernel.increased-memory-limit: true
     dependencies:
       - package: MarkdownUI
         product: MarkdownUI

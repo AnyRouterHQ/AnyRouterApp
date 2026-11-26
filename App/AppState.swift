@@ -14,6 +14,8 @@ final class AppState {
     init() {
         models = ModelStore(registry: registry)
         registry.register(AppleFoundationEngine())
+        registry.register(GGUFEngine())
+        registry.register(MLXEngine())
         let auth = AnyRouterAuth()
         registry.register(auth.makeEngine())
         account = AnyRouterAccountAdapter(auth: auth)
