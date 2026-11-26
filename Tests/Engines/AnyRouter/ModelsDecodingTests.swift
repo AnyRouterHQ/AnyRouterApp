@@ -18,7 +18,8 @@ final class ModelsDecodingTests: XCTestCase {
         let models = response.descriptors(usable: true)
         XCTAssertEqual(models.map(\.id), ["anyrouter/openai/gpt-5.4-mini", "anyrouter/anyrouter/auto"])
         XCTAssertEqual(models[0].contextLength, 128000)
-        XCTAssertEqual(models[0].capabilities, ["chat", "function-calling", "vision"])
+        // `function-calling` also reads as `tools`, which is what the chat screen asks for.
+        XCTAssertEqual(models[0].capabilities, ["chat", "function-calling", "vision", "tools"])
         XCTAssertEqual(models[0].displayName, "openai/gpt-5.4-mini")
         XCTAssertEqual(models[1].displayName, "Auto")
         XCTAssertEqual(models[1].capabilities, ["chat"])
