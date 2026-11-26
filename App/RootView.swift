@@ -34,6 +34,12 @@ struct RootView: View {
                 .environment(appState.models)
             }
             .onAppear { showsOnboarding = !appState.settings.hasOnboarded }
+            .alert("Help improve AnyRouter?", isPresented: Bindable(appState.settings).isAskingDiagnostics) {
+                Button("Share") { appState.settings.answerDiagnostics(share: true) }
+                Button("Not now", role: .cancel) { appState.settings.answerDiagnostics(share: false) }
+            } message: {
+                Text("Share anonymous crash reports and timings. No messages, keys or emails.")
+            }
             .task {
                 let watchdog = MainThreadWatchdog.shared
                 watchdog.mark("launch: local models")

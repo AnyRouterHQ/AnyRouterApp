@@ -37,11 +37,47 @@ struct TelemetryWiringTests {
         }
     }
 
-    @Test func sharingDiagnosticsFollowsTheBuildUntilTheUserChooses() {
+    @Test func theQuestionIsAskedOnceAfterAGoodChatInABuildThatCanSend() {
+        let settings = AppSettings(defaults: testDefaults())
+        settings.noteSuccessfulChat(configured: false)
+        #expect(!settings.isAskingDiagnostics, "a build without a DSN has nothing to ask")
+        settings.noteSuccessfulChat(configured: true)
+        #expect(settings.isAskingDiagnostics)
+        settings.answerDiagnostics(share: false)
+        #expect(!settings.isAskingDiagnostics && settings.diagnosticsAsked && !settings.shareDiagnostics)
+        settings.noteSuccessfulChat(configured: true)
+        #expect(!settings.isAskingDiagnostics, "Not now is remembered: no second alert")
+    }
+
+    @Test func sayingShareTurnsSharingOnAndIsRemembered() {
         let defaults = testDefaults()
         let settings = AppSettings(defaults: defaults)
-        #expect(settings.shareDiagnostics == Diagnostics.isConfigured, "on by default only when a DSN exists")
-        #expect(AppSettings.sharesDiagnostics(defaults: defaults) == Diagnostics.isConfigured)
+        settings.noteSuccessfulChat(configured: true)
+        settings.answerDiagnostics(share: true)
+        #expect(AppSettings.sharesDiagnostics(defaults: defaults))
+        #expect(AppSettings(defaults: defaults).diagnosticsAsked)
+    }
+
+    @Test func aReplyRaisesTheQuestionAndAFailedOneDoesNot() async throws {
+        // The test build has no DSN, so the alert flag stays down. What matters here is the wiring: asked once, via settings.
+        let settings = AppSettings(defaults: testDefaults())
+        let registry = EngineRegistry()
+        registry.register(ScriptedEngine(chunks: ["ok"]))
+        let models = ModelStore(registry: registry, defaults: testDefaults())
+        await models.refresh()
+        let vm = ChatViewModel(
+            thread: nil, context: ModelContext(try ModelContainer.anyRouter(inMemory: true)), registry: registry,
+            settings: settings, models: models)
+        vm.input = "hi"
+        await vm.send()?.value
+        #expect(!settings.isAskingDiagnostics, "no DSN in the test build")
+    }
+
+    @Test func sharingDiagnosticsIsOffUntilTheUserChooses() {
+        let defaults = testDefaults()
+        let settings = AppSettings(defaults: defaults)
+        #expect(!settings.shareDiagnostics, "off by default, even in a build with a DSN")
+        #expect(!AppSettings.sharesDiagnostics(defaults: defaults))
         settings.shareDiagnostics = true
         #expect(AppSettings.sharesDiagnostics(defaults: defaults))
         settings.shareDiagnostics = false

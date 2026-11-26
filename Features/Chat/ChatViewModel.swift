@@ -380,12 +380,14 @@ final class ChatViewModel {
                 text: ToolRowLogic.cancelledText, isError: true)
         }
         if steps != assistant.toolSteps { assistant.toolSteps = steps }
+        let gotReply = failure == nil && !assistant.content.isEmpty
         if assistant.content.isEmpty && steps.isEmpty { remove(assistant) }
         thread.updatedAt = Date()
         phase = .idle
         task = nil
         loadingModelName = nil
         errorMessage = failure
+        if gotReply { settings.noteSuccessfulChat() }
         do {
             try save(context)
         } catch {

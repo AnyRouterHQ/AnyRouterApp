@@ -15,9 +15,11 @@ What the AnyRouter app collects, where it goes, and how to turn it off.
 
 ## Optional remote reporting (Sentry)
 
-Off unless the build has a Sentry DSN (`SENTRY_DSN`). A build without one starts no SDK and makes no network calls for diagnostics. Builds from this repository have no DSN unless the person building sets one.
+Off unless the build has a Sentry DSN (`SENTRY_DSN`) **and you say yes**. A build without a DSN starts no SDK and makes no network calls for diagnostics. Builds from this repository have no DSN unless the person building sets one.
 
-When a DSN is set and **Settings, Privacy, Share anonymous diagnostics** is on (the default for such a build), the app sends:
+Even with a DSN, sharing is **off by default**. After your first successful chat the app asks once: "Help improve AnyRouter? Share anonymous crash reports and timings. No messages, keys or emails." Choose Share or Not now. The answer is remembered and the question is not asked again. You can change it any time in **Settings, Privacy, Share anonymous diagnostics**.
+
+When a DSN is set and you chose to share, the app sends:
 
 - Crash and app hang reports from the Sentry SDK.
 - Breadcrumbs for these events only: `app_open`, `sign_in_ok`, `sign_in_fail` (a short reason code), `model_selected` (source: apple, gguf, mlx or anyrouter), `message_sent` (source only), `first_token_ms`, `engine_load_ms`, `download_ok`, `download_fail` (reason code), `crash_seen` (kind).
@@ -28,5 +30,5 @@ Sentry is the only third-party service. There is no analytics SDK.
 
 ## Turn it off
 
-- **Settings, Privacy, Share anonymous diagnostics** off. Events and crash reports are dropped from then on. The SDK itself stops at the next launch. Turning the switch on starts it at the next launch.
+- **Settings, Privacy, Share anonymous diagnostics** off. Events and crash reports are dropped from then on. The SDK itself stops at the next launch. Turning the switch on (or answering Share) starts it at the next launch.
 - Or build without a DSN: leave `SENTRY_DSN` empty in `Config/Local.xcconfig` (see `Config/Local.xcconfig.example`) and unset the `SENTRY_DSN` repository secret.

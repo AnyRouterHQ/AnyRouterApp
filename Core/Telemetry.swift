@@ -127,8 +127,8 @@ enum DiagnosticsConfig {
         return text
     }
 
-    /// Sharing is on by default only when a DSN exists.
-    static func defaultShare(dsn raw: String?) -> Bool { dsn(from: raw) != nil }
+    /// The one-time "Help improve AnyRouter?" question: only for a build that can send, and only once.
+    static func shouldAskToShare(configured: Bool, asked: Bool) -> Bool { configured && !asked }
 
     /// Builds the telemetry the app uses. `makeSink` runs only for a usable DSN.
     static func makeTelemetry(

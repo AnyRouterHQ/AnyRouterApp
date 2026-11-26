@@ -104,14 +104,15 @@ struct DiagnosticsConfigTests {
     @Test func emptyOrBrokenDSNMeansOff() {
         for raw in [nil, "", "   ", "$(SENTRY_DSN)", "not a url", "http://key@host/1", "https://"] as [String?] {
             #expect(DiagnosticsConfig.dsn(from: raw) == nil, "\(raw ?? "nil")")
-            #expect(DiagnosticsConfig.defaultShare(dsn: raw) == false)
         }
     }
 
     @Test func httpsDSNIsKeptAndTrimmed() {
         let dsn = "https://abc123@o1.ingest.example.io/42"
         #expect(DiagnosticsConfig.dsn(from: "  \(dsn)\n") == dsn)
-        #expect(DiagnosticsConfig.defaultShare(dsn: dsn))
+        #expect(DiagnosticsConfig.shouldAskToShare(configured: true, asked: false))
+        #expect(!DiagnosticsConfig.shouldAskToShare(configured: true, asked: true), "asked once")
+        #expect(!DiagnosticsConfig.shouldAskToShare(configured: false, asked: false), "nothing to ask without a DSN")
     }
 
     @Test func emptyDSNNeverBuildsASink() {

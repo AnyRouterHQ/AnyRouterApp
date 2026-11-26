@@ -28,6 +28,7 @@ final class AppSettings {
         static let onboarded = "settings.onboarded"
         static let showKeyboard = "settings.showKeyboardOnLaunch"
         static let shareDiagnostics = "settings.shareDiagnostics"
+        static let diagnosticsAsked = "settings.diagnosticsAsked"
         static let showResponseDetails = "settings.showResponseDetails"
     }
 
@@ -71,7 +72,30 @@ final class AppSettings {
         set { withMutation(keyPath: \.hasOnboarded) { defaults.set(newValue, forKey: Key.onboarded) } }
     }
 
-    /// "Share anonymous diagnostics". On by default only when this build has a Sentry DSN.
+    /// True while the one-time "Help improve AnyRouter?" alert should show. Not stored: it is set after the first good chat.
+    var isAskingDiagnostics = false
+
+    /// Whether the question was already answered (either way). It is asked once.
+    var diagnosticsAsked: Bool {
+        get { access(keyPath: \.diagnosticsAsked); return defaults.bool(forKey: Key.diagnosticsAsked) }
+        set { withMutation(keyPath: \.diagnosticsAsked) { defaults.set(newValue, forKey: Key.diagnosticsAsked) } }
+    }
+
+    /// Called after a chat reply came back. Raises the question once, in a build that has a DSN.
+    func noteSuccessfulChat(configured: Bool = Diagnostics.isConfigured) {
+        if DiagnosticsConfig.shouldAskToShare(configured: configured, asked: diagnosticsAsked) {
+            isAskingDiagnostics = true
+        }
+    }
+
+    /// The alert's two buttons. Both remember the answer, so the question is not asked again.
+    func answerDiagnostics(share: Bool) {
+        shareDiagnostics = share
+        diagnosticsAsked = true
+        isAskingDiagnostics = false
+    }
+
+    /// "Share anonymous diagnostics". Off until the user says yes, even when this build has a Sentry DSN.
     var shareDiagnostics: Bool {
         get { access(keyPath: \.shareDiagnostics); return Self.sharesDiagnostics(defaults: defaults) }
         set { withMutation(keyPath: \.shareDiagnostics) { defaults.set(newValue, forKey: Key.shareDiagnostics) } }
@@ -79,7 +103,7 @@ final class AppSettings {
 
     /// The same answer without an instance, for code that runs off the main actor (the telemetry gate).
     nonisolated static func sharesDiagnostics(defaults: UserDefaults = .standard) -> Bool {
-        defaults.object(forKey: Key.shareDiagnostics) as? Bool ?? Diagnostics.isConfigured
+        defaults.object(forKey: Key.shareDiagnostics) as? Bool ?? false
     }
 
     var showKeyboardOnLaunch: Bool {

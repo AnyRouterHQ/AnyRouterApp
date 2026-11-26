@@ -14,7 +14,7 @@ struct PrivacySettings: View {
                     .accessibilityIdentifier("privacy.shareDiagnostics")
             } footer: {
                 Text(Diagnostics.isConfigured
-                    ? "Crash and hang reports and basic usage counts. Never chats, keys or emails. Turning it on takes effect after the app restarts."
+                    ? "Crash and hang reports and basic usage counts. Never chats, keys or emails. Off until you choose. Turning it on takes effect after the app restarts."
                     : "This build has no remote reporting set up, so nothing is shared. Crash reports stay on this device under Diagnostics.")
             }
             Section { Link("Read the full text on anyrouter.dev", destination: LegalPage.Kind.privacy.url) }
