@@ -7,6 +7,8 @@ struct StubResponse: Sendable {
     var status = 200
     var headers: [String: String] = ["Content-Type": "application/json"]
     var body: Data
+    /// When set, the answer is held back until the gate is released.
+    var gate: StubGate?
 
     init(status: Int = 200, headers: [String: String] = ["Content-Type": "application/json"], body: String = "") {
         self.status = status
@@ -20,6 +22,32 @@ struct StubResponse: Sendable {
 
     static func sse(_ body: String, headers: [String: String] = [:]) -> StubResponse {
         StubResponse(headers: ["Content-Type": "text/event-stream"].merging(headers) { $1 }, body: body)
+    }
+}
+
+/// Holds a stubbed answer until a test lets it go. Nothing blocks a thread: the answer is delivered when `release` is called.
+final class StubGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var released = false
+    private var waiting: [@Sendable () -> Void] = []
+
+    func release() {
+        let blocks = lock.withLock { () -> [@Sendable () -> Void] in
+            released = true
+            let pending = waiting
+            waiting = []
+            return pending
+        }
+        for block in blocks { block() }
+    }
+
+    func whenReleased(_ block: @escaping @Sendable () -> Void) {
+        let runNow = lock.withLock { () -> Bool in
+            if released { return true }
+            waiting.append(block)
+            return false
+        }
+        if runNow { block() }
     }
 }
 
@@ -82,9 +110,12 @@ final class MCPStubProtocol: URLProtocol, @unchecked Sendable {
         }
         let stub = handler?(recordedRequest) ?? StubResponse(status: 500, body: "no handler")
         let response = HTTPURLResponse(url: request.url!, statusCode: stub.status, httpVersion: "HTTP/1.1", headerFields: stub.headers)!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: stub.body)
-        client?.urlProtocolDidFinishLoading(self)
+        let deliver: @Sendable () -> Void = { [self] in
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: stub.body)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+        if let gate = stub.gate { gate.whenReleased(deliver) } else { deliver() }
     }
 
     override func stopLoading() {}

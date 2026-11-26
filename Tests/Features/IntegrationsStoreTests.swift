@@ -199,21 +199,32 @@ final class AnyRouterSignInConnectTests: XCTestCase {
     }
 
     func testASignOutWhileConnectingWinsOverTheLateAnswer() async {
+        // The handshake answer is held until after the sign-out, whatever the machine's speed.
+        let gate = StubGate()
         let answer = standardMCPHandler()
         MCPStubProtocol.register(host: MCPServer.anyRouter.url.host()!) { request in
-            // The server is slow to answer the handshake, so the sign-out below lands while the connect is in flight.
-            if request.rpcMethod == "initialize" { Thread.sleep(forTimeInterval: 0.4) }
-            return answer(request)
+            var response = answer(request)
+            if request.rpcMethod == "initialize" { response.gate = gate }
+            return response
         }
         let box = TokenBox()
         box.token = "sk-ar-live"
         let store = makeStore(box)
         let refreshing = Task { await store.refresh(.anyRouter) }
-        // `refresh` marks the server connecting before its first suspension.
-        let started = await waitUntil { store.state(for: .anyRouter).status == .connecting }
-        XCTAssertTrue(started)
+
+        var connecting = false
+        for _ in 0..<500 {
+            if store.state(for: .anyRouter).status == .connecting { connecting = true; break }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        guard connecting else {
+            gate.release()
+            XCTFail("The connect never started; the status is \(store.state(for: .anyRouter).status).")
+            return
+        }
         box.token = nil
         store.accountChanged(signedIn: false)
+        gate.release()
         await refreshing.value
         XCTAssertEqual(store.state(for: .anyRouter).status, .needsSignIn)
         XCTAssertTrue(store.state(for: .anyRouter).tools.isEmpty)
