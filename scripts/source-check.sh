@@ -19,4 +19,9 @@ if git grep -n -E '^(public |internal |private |fileprivate )?(struct|class|enum
   git grep -n -E '^(public |internal |private |fileprivate )?(struct|class|enum|actor) (Attachment|Test|Tag|Issue|Trait|Confirmation)\b' -- '*.swift' | sed 's/^/::error::type name clashes with Swift Testing: /'
   fail=1
 fi
+# Swift Testing: a #require inside another #require's argument fails with "recursive expansion of macro".
+if git grep -n -E '#require\([^)]*#require\(' -- 'Tests/*.swift' 'UITests/*.swift' >/dev/null; then
+  git grep -n -E '#require\([^)]*#require\(' -- 'Tests/*.swift' 'UITests/*.swift' | sed 's/^/::error::nested #require, split it into a let: /'
+  fail=1
+fi
 exit $fail
