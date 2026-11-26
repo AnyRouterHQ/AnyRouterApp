@@ -67,8 +67,17 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_ENV"
           import json, os, sys, urllib.request
           def ggufs(path):
-              return [m for m in json.load(open(path))["models"] if m["format"] == "gguf"]
-          production = ggufs("catalog/models.json")
+              # The catalog lists families with sizes; the app's entry for a size is flat.
+              out = []
+              for family in json.load(open(path))["families"]:
+                  for v in family["variants"]:
+                      if v["engine"] == "gguf":
+                          out.append({"repo": v["repo"], "format": "gguf", "file": v["file"],
+                                      "title": f"{family['name']} {v['params']}", "quantization": v.get("quant"),
+                                      "sizeBytes": v["sizeBytes"], "contextLength": v.get("contextLength"),
+                                      "revision": v["revision"], "sha256": v.get("sha256"), "status": family["status"]})
+              return out
+          production = [m for m in ggufs("catalog/models.json") if m["status"] == "current"]
           catalog = production + ggufs("catalog/dev-models.json")
           wanted = os.environ.get("INPUT_MODEL_ID", "").strip()
           ext_repo, ext_file = os.environ.get("EXT_HF_REPO", "").strip(), os.environ.get("EXT_HF_FILE", "").strip()
@@ -133,7 +142,7 @@ jobs:
           import json, os, urllib.request
           repo = "mlx-community/gemma-4-e2b-it-4bit"
           catalog = json.load(open("catalog/models.json"))
-          rev = next(m["revision"] for m in catalog["models"] if m["repo"] == repo)
+          rev = next(v["revision"] for f in catalog["families"] for v in f["variants"] if v["repo"] == repo)
           out = os.path.join(os.environ["RUNNER_TEMP"], "mlx-tokenizer")
           os.makedirs(out, exist_ok=True)
           for name in ["config.json", "tokenizer_config.json", "tokenizer.json", "chat_template.jinja"]:

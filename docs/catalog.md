@@ -6,36 +6,59 @@ The list of local models in the app comes from JSON files in this repo. Adding o
 | File | Used by |
 |---|---|
 | `catalog/models.json` | Production. Bundled in the app as the offline fallback, and fetched from GitHub at launch and on pull-to-refresh. |
-| `catalog/dev-models.json` | Development. Fetched when **Settings > Catalog source > Use the development catalog** is on. Try new entries here first. |
+| `catalog/dev-models.json` | Development. Fetched when **Settings > Catalog source > Use the development catalog** is on. Try new models here first. |
 
 Remote URL: `https://raw.githubusercontent.com/AnyRouterHQ/AnyRouterApp/main/catalog/models.json` (and `dev-models.json`).
 A user can replace it with their own https URL in Settings.
 
-## How the app uses it
+## Shape
 
-1. Shows the bundled list at once.
-2. Fetches the remote file with `If-None-Match` (ETag). `304` means nothing changed.
-3. Accepts a remote file only if it decodes and its `schemaVersion` is one the app understands. Otherwise it keeps the cached copy, then the bundled one. A bad file never empties the hub.
-4. Merges by entry id: user-added models over remote over bundled. A remote file that leaves out a bundled model does not remove it.
+`{"schemaVersion": 2, "updatedAt": "yyyy-MM-dd", "families": [family]}`. A family is a model line at one generation, with its
+sizes. The app lists families first, then the sizes of one family.
 
-## Add a model
+| Family field | Meaning |
+|---|---|
+| `id`, `name`, `publisher` | `gemma-4`, "Gemma 4", "Google". |
+| `line` | The model line across generations (`gemma`). At most one **current** family per line. |
+| `logo` | Short key for the logo (`gemma`, `qwen`, `llama`, `liquid`). Unknown keys get a generic mark. |
+| `summary`, `website` | One line, and an https link. The summary makes no memory claims. |
+| `tags` | `thinking`, `vision`, `audio`, `tools`, `code`, `multilingual`. Only what the app can use today. |
+| `badges` | `best`, `recommended`, `new`. |
+| `status`, `replacedBy` | `current` or `deprecated`. A deprecated family names the current family that replaces it. |
+| `order` | Smaller first. |
+| `variants` | The sizes. |
+
+| Variant field | Meaning |
+|---|---|
+| `repo`, `engine` (`gguf` or `mlx`), `file` | What to download. `file` is for GGUF only. The app's id for it is `gguf/<repo>/<file>` or `mlx/<repo>`. |
+| `params`, `quant` | "4B", "E2B"; "Q4_K_M", "4-bit". |
+| `revision` | Full 40-character commit sha. Never a branch. |
+| `sizeBytes` | The file, or the sum of the MLX snapshot files. |
+| `sha256` | GGUF only. The app refuses a download whose listing disagrees. |
+| `contextLength`, `license` | Display and fit. |
+| `memory` | `{"fullKVBytesPerToken", "windowKVBytesPerToken", "windowTokens", "activeFraction", "lazyWeightBytes"}`. Written by the scripts from the model's own metadata: KV cache per token, sliding-window layers, expert share, and the embedding tables that mmap keeps out of RAM. The app's fit check uses it. |
+| `vision` | `{"mmprojFile": "...", "mmprojSize": 0}`, the projector in the same repo. Data only until image input ships. |
+| `isOnboarding` | Offered first in onboarding when it fits the device. |
+| `platforms`, `minRAMBytes` | `["ios", "ipados"]`; omit for all. |
+| `createdAt`, `updatedAt` | `yyyy-MM-dd`. "Newest" sorts by them. |
+
+## Add a size
 
 ```bash
-# GGUF: one file of a repo
-scripts/catalog-add.sh <hf-repo> <file.gguf> --catalog catalog/dev-models.json \
-    --title "Name" --summary "One sentence." --params 4B --icon gemma
+# GGUF: one file of a repo, into an existing family
+scripts/catalog-add.sh <hf-repo> <file.gguf> --catalog catalog/dev-models.json --family gemma-4 --params E2B
 
 # MLX: the whole snapshot
-scripts/catalog-add.sh <hf-repo> --mlx --catalog catalog/dev-models.json --title "Name (MLX)" --summary "..."
+scripts/catalog-add.sh <hf-repo> --mlx --catalog catalog/dev-models.json --family gemma-4 --params E2B
+
+# A new family: say who makes it
+scripts/catalog-add.sh <hf-repo> <file.gguf> --family smollm-3 --params 3B --name SmolLM3 --publisher "Hugging Face" \
+    --line smollm --logo smollm --summary "One line." --website https://huggingface.co/HuggingFaceTB --tags thinking
 ```
 
-The script fills size, `sha256` (the LFS oid), the pinned commit `revision`, context length, license, quantization and dates from the
-Hugging Face API. Then edit by hand what it cannot know: `summary`, `badges`, `vision`, `platforms`, `isOnboarding`, `recommended`.
-`--update` refreshes an existing entry (new revision, size, sha256) and keeps your hand-written fields.
-
-The same script fills `memory` (KV-cache bytes per token, sliding-window layers, expert share) from the model's own GGUF header or MLX
-`config.json`. The app uses it to say whether the model runs on the device and which context it can load with. `scripts/catalog-memory.sh`
-refreshes it for every entry.
+The script fills size, `sha256` (the LFS oid), the pinned commit `revision`, context length, license, quantization, dates and
+`memory` from the Hugging Face API and the file's header. `--update` refreshes a size (new revision, size, sha256) and keeps
+what you wrote by hand. `scripts/catalog-memory.sh` refreshes `memory` for every size.
 
 Check before you push:
 
@@ -44,32 +67,18 @@ scripts/catalog-check.sh              # both files, against Hugging Face
 scripts/catalog-check.sh --offline    # schema only
 ```
 
-CI runs the same check on every change to `catalog/**` (Ubuntu, no macOS minutes).
+CI runs the same check on every change to `catalog/**` (Ubuntu, no macOS minutes). It fails when a family has an unknown
+tag or badge, a current family shares its `line` with another current family, a current size lacks a pinned revision, size,
+sha256 or memory facts, a deprecated family lacks `replacedBy`, a summary talks about RAM or GB, or a file on Hugging Face no
+longer matches.
 
-Only models the app can run belong in `models.json`. The llama.cpp build in `Packages/LlamaBinary` decides which GGUF architectures load.
-Test a new entry in `dev-models.json` or with the `model-smoke` workflow before it goes to production.
+## Curation
 
-## Fields
+1. Keep the list short: at most three sizes per family, the best quant per size, GGUF and MLX only where both are tested.
+2. One current generation per line. When a new generation lands, set the old family to `deprecated` with `replacedBy`; do not delete it.
+3. A deprecated model is hidden from browsing, search and recommendations. A person who installed it keeps using it, sees "Older model, try <replacement>" in Manage models, and can delete it.
+4. A model enters `models.json` only after it loaded and answered in the `model-smoke` workflow. New ones start in `dev-models.json`.
+5. Memory claims come from the `memory` facts and the fit check, never from prose.
 
-| Field | Meaning |
-|---|---|
-| `repo`, `format` (`gguf` or `mlx`), `file` | What to download. `file` is for GGUF only. The entry id is `gguf/<repo>/<file>` or `mlx/<repo>`. |
-| `revision` | Full 40-character commit sha. Never a branch. |
-| `sizeBytes` | The file, or the sum of the MLX snapshot files. |
-| `sha256` | GGUF only. The app refuses a download whose listing disagrees. |
-| `title`, `summary`, `parameters`, `quantization`, `contextLength`, `license` | Display. |
-| `capabilities` | `chat`, `reasoning`, ... |
-| `iconKey` | Short key for the card icon, for example `qwen`, `gemma`, `llama`. |
-| `badges` | `[{"label": "New", "tone": "success"}]`. Tones: `info`, `success`, `warning`, `neutral`. |
-| `supportsThinking` | The model has a thinking mode. |
-| `vision` | `{"mmprojFile": "...", "mmprojSize": 0}`, the projector in the same repo. Data only until image input ships. |
-| `isOnboarding` | Offered first in onboarding when it fits the device. |
-| `recommended` | Top pick. |
-| `platforms` | `["ios", "ipados"]`. Omit for all. |
-| `minRAMBytes` | Do not offer as runnable below this much RAM. |
-| `memory` | `{"fullKVBytesPerToken": n, "windowKVBytesPerToken": n, "windowTokens": n, "activeFraction": 0.119}`. Written by the scripts. Without it the app estimates from the file size. |
-| `createdAt`, `updatedAt` | `yyyy-MM-dd`. |
-| `order` | Smaller first. |
-
-The envelope is `{"schemaVersion": 1, "updatedAt": "yyyy-MM-dd", "models": [...]}`. A breaking change to the schema raises `schemaVersion`;
-older apps then ignore the remote file and keep their bundled list.
+The llama.cpp build in `Packages/LlamaBinary` decides which GGUF architectures load. A breaking change to the schema raises
+`schemaVersion`; older apps then ignore the remote file and keep their bundled list.
