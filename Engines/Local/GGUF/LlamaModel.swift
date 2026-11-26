@@ -24,6 +24,7 @@ final class LlamaModel: @unchecked Sendable {
     private let vocab: OpaquePointer
     let trainedContext: Int
     private let template: String?
+    private let thoughtChannel: (open: llama_token, close: llama_token)?
 
     init(path: String) throws {
         _ = Self.backend
@@ -42,11 +43,21 @@ final class LlamaModel: @unchecked Sendable {
         self.model = model
         self.vocab = vocab
         self.trainedContext = Int(llama_model_n_ctx_train(model))
-        if let raw = llama_model_chat_template(model, nil) {
-            self.template = String(cString: raw)
+        let template = llama_model_chat_template(model, nil).map { String(cString: $0) }
+        self.template = template
+        if let template, Gemma4Formatter.matches(template: template),
+           let open = Self.specialToken("<|channel>", vocab: vocab), let close = Self.specialToken("<channel|>", vocab: vocab) {
+            self.thoughtChannel = (open, close)
         } else {
-            self.template = nil
+            self.thoughtChannel = nil
         }
+    }
+
+    /// The token id when `text` is exactly one special token of the vocabulary, else nil.
+    private static func specialToken(_ text: String, vocab: OpaquePointer) -> llama_token? {
+        var token = llama_token(0)
+        let count = llama_tokenize(vocab, text, Int32(text.utf8.count), &token, 1, false, true)
+        return count == 1 ? token : nil
     }
 
     deinit {
@@ -60,9 +71,11 @@ final class LlamaModel: @unchecked Sendable {
 
     // MARK: Prompt
 
-    /// The prompt in the model's own chat format. Uses the template stored in the GGUF; ChatML when llama.cpp cannot apply it.
+    /// The prompt in the model's own chat format. Uses the template stored in the GGUF; Gemma 4 has its own formatter,
+    /// and ChatML is the last resort when llama.cpp cannot apply the template.
     func formatPrompt(_ messages: [PromptMessage]) -> String {
-        formatWithTemplate(messages) ?? ChatMLFormatter.format(messages)
+        if let template, Gemma4Formatter.matches(template: template) { return Gemma4Formatter.format(messages) }
+        return formatWithTemplate(messages) ?? ChatMLFormatter.format(messages)
     }
 
     private func formatWithTemplate(_ messages: [PromptMessage]) -> String? {
@@ -157,6 +170,7 @@ final class LlamaModel: @unchecked Sendable {
         var generated = 0
         var reason = "length"
         var accumulator = UTF8Accumulator()
+        var thought = ThoughtChannelFilter(open: thoughtChannel?.open, close: thoughtChannel?.close)
         let limit = params.maxTokens ?? Int.max
         while generated < limit {
             if isCancelled() { throw CancellationError() }
@@ -166,7 +180,7 @@ final class LlamaModel: @unchecked Sendable {
                 break
             }
             generated += 1
-            if let text = accumulator.append(pieceBytes(token)) { emit(text) }
+            if thought.isVisible(token), let text = accumulator.append(pieceBytes(token)) { emit(text) }
             let status = withUnsafeMutablePointer(to: &token) { pointer in
                 llama_decode(context, llama_batch_get_one(pointer, 1))
             }

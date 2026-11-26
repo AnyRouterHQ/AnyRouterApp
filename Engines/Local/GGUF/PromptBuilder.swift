@@ -38,6 +38,50 @@ enum ChatMLFormatter {
     }
 }
 
+/// Gemma 4 turn format. Its GGUF template is jinja-only and newer than llama.cpp's built-in template list,
+/// so `llama_chat_apply_template` rejects it and the ChatML fallback would be the wrong format.
+/// No `<bos>` here: tokenizing the prompt adds it.
+enum Gemma4Formatter {
+    static func matches(template: String) -> Bool {
+        template.contains("<|turn>") && template.contains("<turn|>")
+    }
+
+    static func format(_ messages: [PromptMessage]) -> String {
+        var text = ""
+        for message in messages {
+            let role = message.role == "assistant" ? "model" : message.role
+            text += "<|turn>\(role)\n\(message.content.trimmingCharacters(in: .whitespacesAndNewlines))<turn|>\n"
+        }
+        return text + "<|turn>model\n"
+    }
+}
+
+/// Gemma 4 can open a thinking channel (`<|channel>thought ... <channel|>`) before its answer.
+/// The app has no thinking view yet, so tokens inside the channel are not shown.
+struct ThoughtChannelFilter {
+    let open: Int32?
+    let close: Int32?
+    private var inside = false
+
+    init(open: Int32?, close: Int32?) {
+        self.open = open
+        self.close = close
+    }
+
+    /// True when the token belongs to the visible answer. The channel markers themselves are never shown.
+    mutating func isVisible(_ token: Int32) -> Bool {
+        if let open, token == open {
+            inside = true
+            return false
+        }
+        if let close, token == close {
+            inside = false
+            return false
+        }
+        return !inside
+    }
+}
+
 /// Collects token bytes and releases only complete UTF-8 text, so an emoji split across tokens is never shown as garbage.
 struct UTF8Accumulator {
     private var pending: [UInt8] = []
