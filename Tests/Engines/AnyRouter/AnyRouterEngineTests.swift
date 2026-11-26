@@ -215,7 +215,8 @@ struct AnyRouterRequestTests {
         params.maxTokens = 64
         params.systemPrompt = "Be brief."
         let request = try engine.makeChatRequest(key: "k", model: model, messages: [ChatMessage(role: .user, content: "hi")], params: params)
-        let body = try #require(JSONSerialization.jsonObject(with: #require(request.httpBody)) as? [String: Any])
+        let data = try #require(request.httpBody)
+        let body = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
         #expect(body["max_tokens"] as? Int == 64)
         #expect((body["messages"] as? [[String: String]])?.first?["content"] == "Be brief.")
     }
@@ -225,7 +226,8 @@ struct AnyRouterRequestTests {
         var params = GenerationParams()
         params.systemPrompt = ""
         let request = try engine.makeChatRequest(key: "k", model: model, messages: [ChatMessage(role: .user, content: "hi")], params: params)
-        let body = try #require(JSONSerialization.jsonObject(with: #require(request.httpBody)) as? [String: Any])
+        let data = try #require(request.httpBody)
+        let body = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
         #expect((body["messages"] as? [[String: String]])?.map { $0["role"] } == ["user"])
         #expect(body["max_tokens"] == nil)
     }
