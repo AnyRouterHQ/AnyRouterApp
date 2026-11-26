@@ -91,9 +91,10 @@ final class PadLayoutTests: XCTestCase {
         // Split View and Slide Over cannot be scripted; -ARSizeClass compact gives the app the size class they give it.
         let app = launch(["-ARSizeClass", "compact"], orientation: .landscapeLeft)
         XCTAssertTrue(app.buttons["Menu"].waitForExistence(timeout: 15), "compact width keeps the drawer button")
-        XCTAssertFalse(sidebarIsVisible(app))
+        XCTAssertFalse(element(app, "sidebar.header").exists, "the drawer starts closed")
         app.buttons["Menu"].tap()
-        XCTAssertTrue(wait { sidebarIsVisible(app) }, "the drawer opens")
+        // The header sits in the top bar; the bottom-bar compose button is not laid out the iPhone way under a forced size class.
+        XCTAssertTrue(element(app, "sidebar.header").waitForExistence(timeout: 8), "the drawer opens")
         XCTAssertTrue(element(app, "main.container").exists, "the phone shell is on screen")
     }
 
@@ -116,7 +117,7 @@ final class PadLayoutTests: XCTestCase {
 
     // MARK: Presentations
 
-    func testModelPickerIsAPopoverUnderThePillAndCmdKOpensIt() {
+    func testModelPickerIsAPopoverUnderThePill() {
         let app = launch(orientation: .landscapeLeft)
         let pill = app.buttons["Model"]
         XCTAssertTrue(pill.waitForExistence(timeout: 15))
@@ -129,6 +130,11 @@ final class PadLayoutTests: XCTestCase {
 
         popover.buttons["Close"].tap()
         XCTAssertTrue(wait { !app.popovers.firstMatch.exists })
+    }
+
+    func testCmdKOpensTheModelPicker() {
+        let app = launch(orientation: .landscapeLeft)
+        XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
         app.typeKey("k", modifierFlags: .command)
         XCTAssertTrue(app.popovers.firstMatch.waitForExistence(timeout: 5), "Cmd K opens the picker")
     }
