@@ -26,7 +26,7 @@ struct VoiceLanguage: Hashable, Sendable, Codable, Comparable {
     var locale: Locale { Locale(identifier: code) }
 
     /// "Vietnamese", in the language of the device.
-    var displayName: String {
+    var name: String {
         guard let name = Locale.current.localizedString(forLanguageCode: code) else { return code }
         return name.localizedCapitalized
     }

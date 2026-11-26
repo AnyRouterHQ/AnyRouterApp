@@ -31,7 +31,7 @@ enum VoiceError: Error, Equatable, LocalizedError {
         switch self {
         case .microphoneDenied: "AnyRouter cannot use the microphone. Turn it on in Settings."
         case .speechRecognitionDenied: "AnyRouter cannot use speech recognition. Turn it on in Settings."
-        case .languageUnavailable(let language): "\(language.displayName) is not available for voice on this device."
+        case .languageUnavailable(let language): "\(language.name) is not available for voice on this device."
         case .audioFailed(let message): message
         }
     }

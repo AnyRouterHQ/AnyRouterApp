@@ -24,4 +24,12 @@ struct ComposerLogicTests {
         #expect(Set(all.map(\.title)).count == 3)
         #expect(Set(all.map(\.symbol)).count == 3)
     }
+
+    @Test func dictationTurnsTheButtonIntoStopDictationUnlessAReplyIsStreaming() {
+        #expect(ComposerAction.current(isStreaming: false, hasInput: true, hasAttachments: false, isDictating: true) == .stopDictation)
+        #expect(ComposerAction.current(isStreaming: false, hasInput: false, hasAttachments: false, isDictating: true) == .stopDictation)
+        #expect(ComposerAction.current(isStreaming: true, hasInput: false, hasAttachments: false, isDictating: true) == .stop)
+        #expect(ComposerAction.stopDictation.title == "Stop dictation")
+        #expect(ComposerAction.stopDictation.symbol != ComposerAction.voice.symbol)
+    }
 }

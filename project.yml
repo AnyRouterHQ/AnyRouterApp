@@ -64,6 +64,8 @@ targets:
         SentryDSN: $(SENTRY_DSN)
         ARGitCommit: $(AR_GIT_COMMIT)
         NSCameraUsageDescription: AnyRouter uses the camera to attach a photo to a message.
+        NSMicrophoneUsageDescription: AnyRouter uses the microphone to turn your speech into text on this device.
+        NSSpeechRecognitionUsageDescription: AnyRouter uses speech recognition to turn your speech into text. Recognition runs on this device.
         # `anyrouter://share` and `anyrouter://ask`: how the share extension asks the app to open.
         CFBundleURLTypes:
           - CFBundleURLName: dev.anyrouter.app

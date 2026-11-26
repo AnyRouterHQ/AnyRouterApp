@@ -3,11 +3,14 @@ import Foundation
 /// What the round button at the end of the composer field does right now.
 enum ComposerAction: Equatable {
     case voice, send, stop
+    /// Dictation is running: the same button ends it and keeps the words.
+    case stopDictation
 
     /// A reply in progress always shows stop. Text or an attachment shows send, even while it cannot be sent yet
     /// (a model is loading), so the button does not flip while the reader types. Otherwise it offers voice input.
-    static func current(isStreaming: Bool, hasInput: Bool, hasAttachments: Bool) -> ComposerAction {
+    static func current(isStreaming: Bool, hasInput: Bool, hasAttachments: Bool, isDictating: Bool = false) -> ComposerAction {
         if isStreaming { return .stop }
+        if isDictating { return .stopDictation }
         return hasInput || hasAttachments ? .send : .voice
     }
 
@@ -16,6 +19,7 @@ enum ComposerAction: Equatable {
         case .voice: "Voice input"
         case .send: "Send"
         case .stop: "Stop"
+        case .stopDictation: "Stop dictation"
         }
     }
 
@@ -24,6 +28,7 @@ enum ComposerAction: Equatable {
         case .voice: "waveform"
         case .send: "arrow.up"
         case .stop: "stop.fill"
+        case .stopDictation: "mic.fill"
         }
     }
 }

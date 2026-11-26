@@ -108,7 +108,7 @@ struct VoiceModel: Identifiable, Codable, Hashable, Sendable {
             guard let languageCount else { return "Many languages" }
             return "\(languageCount) languages"
         }
-        return languages.map { VoiceLanguage($0).displayName }.joined(separator: ", ")
+        return languages.map { VoiceLanguage($0).name }.joined(separator: ", ")
     }
 
     private enum CodingKeys: String, CodingKey {

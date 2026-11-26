@@ -1,0 +1,154 @@
+import Foundation
+import Testing
+@testable import AnyRouter
+
+@MainActor
+struct VoiceHubTests {
+    private struct Rig {
+        let hub: VoiceHub
+        let system: FakeSpeechToText
+        let systemVoice: FakeTextToSpeech
+        let root: URL
+    }
+
+    private func rig(catalog: [VoiceModel]) -> Rig {
+        let system = FakeSpeechToText(id: "system")
+        let systemVoice = FakeTextToSpeech(id: "system")
+        let root = FileManager.default.temporaryDirectory.appending(path: "voice-\(UUID().uuidString)")
+        let hub = VoiceHub(
+            settings: VoiceSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!),
+            downloader: VoiceModelDownloader(storage: VoiceModelStorage(root: root)),
+            catalog: { catalog }, systemSTT: { system }, systemTTS: { systemVoice })
+        return Rig(hub: hub, system: system, systemVoice: systemVoice, root: root)
+    }
+
+    private func install(_ model: VoiceModel, in rig: Rig) throws {
+        try rig.hub.downloader.storage.writeManifest(VoiceInstalledManifest(id: model.id, files: [], completedAt: Date()))
+    }
+
+    private let small = VoiceFixtures.model("whisper-small", detects: true, order: 3)
+    private let tiny = VoiceFixtures.model("whisper-tiny", detects: true, weak: ["vi"], order: 1)
+    private let voice = VoiceFixtures.model("voice-en", kind: .tts, languages: ["en"], order: 1)
+
+    @Test func theListStartsWithTheSystemRowThenTheCatalogInOrder() {
+        let r = rig(catalog: [small, voice, tiny])
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        #expect(r.hub.models(.stt).map(\.id) == ["system", "whisper-tiny", "whisper-small"])
+        #expect(r.hub.models(.tts).map(\.id) == ["system", "voice-en"])
+        #expect(r.hub.catalog.count == 3)
+    }
+
+    @Test func theSystemEnginesAnswerUntilAModelIsInstalledAndSelected() throws {
+        let r = rig(catalog: [small])
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        var factoryCalls = 0
+        let whisper = FakeSpeechToText(id: "whisper")
+        r.hub.register(speechToText: { _, _ in factoryCalls += 1; return whisper }, for: .whisperKit)
+
+        #expect(r.hub.speechToText(for: nil).engine.id == "system")
+        #expect(r.hub.isSelected(.system(.stt)))
+        r.hub.select(small)
+        #expect(r.hub.isSelected(small) && !r.hub.isSelected(.system(.stt)))
+        let notYet = r.hub.speechToText(for: nil)
+        #expect(notYet.engine.id == "system" && notYet.choice == .system(.notInstalled))
+
+        try install(small, in: r)
+        let chosen = r.hub.speechToText(for: nil)
+        #expect(chosen.engine.id == "whisper" && chosen.choice == .model(small))
+        _ = r.hub.speechToText(for: .vietnamese)
+        #expect(factoryCalls == 1, "the engine is built once")
+
+        r.hub.forget(small)
+        _ = r.hub.speechToText(for: nil)
+        #expect(factoryCalls == 2)
+
+        r.hub.select(.system(.stt))
+        #expect(r.hub.speechToText(for: nil).engine.id == "system")
+        #expect(r.hub.selectedID(.stt) == VoiceModel.systemID)
+    }
+
+    @Test func aModelThatDoesNotCoverTheLanguageHandsOverToTheSystemVoice() throws {
+        let r = rig(catalog: [voice])
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        let neural = FakeTextToSpeech(id: "neural", supported: [.english])
+        r.hub.register(textToSpeech: { _, _ in neural }, for: .moonshine)
+        r.hub.select(voice)
+        try install(voice, in: r)
+        #expect(r.hub.textToSpeech(for: .english).engine.id == "neural")
+        let vietnamese = r.hub.textToSpeech(for: .vietnamese)
+        #expect(vietnamese.engine.id == "system")
+        #expect(vietnamese.choice == .system(.languageNotCovered(.vietnamese)))
+        #expect(r.hub.selectedID(.tts) == "voice-en")
+    }
+
+    @Test func anEngineKindThatThisBuildLacksFallsBackQuietly() throws {
+        let r = rig(catalog: [small, voice])
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        r.hub.select(small)
+        r.hub.select(voice)
+        try install(small, in: r)
+        try install(voice, in: r)
+        #expect(r.hub.speechToText(for: nil).engine.id == "system")
+        #expect(r.hub.textToSpeech(for: .english).engine.id == "system")
+        r.hub.register(speechToText: { _, _ in nil }, for: .whisperKit)
+        r.hub.register(textToSpeech: { _, _ in nil }, for: .moonshine)
+        #expect(r.hub.speechToText(for: nil).engine.id == "system")
+        #expect(r.hub.textToSpeech(for: .english).engine.id == "system")
+    }
+
+    @Test func theEngineIsHandedItsInstallFolder() throws {
+        let r = rig(catalog: [small])
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        var folder: URL?
+        r.hub.register(speechToText: { _, url in folder = url; return FakeSpeechToText() }, for: .whisperKit)
+        r.hub.select(small)
+        try install(small, in: r)
+        _ = r.hub.speechToText(for: nil)
+        #expect(folder == r.hub.downloader.storage.directory(for: small.id))
+    }
+
+    @Test func theSystemEnginesAreBuiltOnFirstUse() {
+        var built = 0
+        let hub = VoiceHub(
+            settings: VoiceSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!), catalog: { [] },
+            systemSTT: { built += 1; return FakeSpeechToText() }, systemTTS: { FakeTextToSpeech() })
+        #expect(built == 0)
+        _ = hub.systemSpeechToText
+        _ = hub.systemSpeechToText
+        #expect(built == 1)
+        _ = hub.systemTextToSpeech
+    }
+
+    @Test func theRecommendationFollowsTheDevice() {
+        let r = rig(catalog: [small, tiny])
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        #expect(r.hub.recommended(.stt, memory: DeviceClass.gb8.memory(.standard))?.id == "whisper-small")
+        #expect(r.hub.recommended(.tts, memory: DeviceClass.gb8.memory(.standard)) == nil)
+        #expect(r.hub.recommended(.stt, memory: DeviceMemory(budgetBytes: 1, physicalBytes: 1)) == nil)
+    }
+
+    @Test func aBrokenCatalogShowsAsAnEmptyList() {
+        let hub = VoiceHub(
+            settings: VoiceSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!),
+            catalog: { throw VoiceCatalogError.missingBundle })
+        #expect(hub.catalog.isEmpty)
+        #expect(hub.models(.stt).count == 1)
+    }
+
+    @Test func settingsRoundTripThroughDefaults() {
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let settings = VoiceSettings(defaults: defaults)
+        #expect(settings.selectedSTT == nil && settings.selectedTTS == nil && !settings.readRepliesAloud)
+        #expect(settings.forcedLanguage == nil && settings.lastLanguage == nil)
+        settings.selectedSTT = "whisper-small"
+        settings.selectedTTS = "voice-en"
+        settings.readRepliesAloud = true
+        settings.forcedLanguage = .vietnamese
+        settings.lastLanguage = .english
+        let again = VoiceSettings(defaults: defaults)
+        #expect(again.selectedSTT == "whisper-small" && again.selectedTTS == "voice-en" && again.readRepliesAloud)
+        #expect(again.forcedLanguage == .vietnamese && again.lastLanguage == .english)
+        again.forcedLanguage = nil
+        #expect(VoiceSettings(defaults: defaults).forcedLanguage == nil)
+    }
+}

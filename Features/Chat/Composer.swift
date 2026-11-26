@@ -20,6 +20,7 @@ struct Composer: View {
     @Environment(AppSettings.self) private var settings
     @Environment(AppState.self) private var app
     @Environment(ShellModel.self) private var shell
+    @Environment(\.scenePhase) private var scenePhase
     @ScaledMetric(relativeTo: .body) private var fieldRadius: CGFloat = 26
 
     var body: some View {
@@ -37,6 +38,12 @@ struct Composer: View {
             }
             if let error = model.errorMessage {
                 ErrorBanner(text: error) { model.dismissError() }
+            }
+            if let error = app.dictation.errorMessage {
+                ErrorBanner(text: error) { app.dictation.dismissError() }
+            }
+            if app.dictation.isActive {
+                DictationBar(dictation: app.dictation, hub: app.voice)
             }
             if let notice = model.modelNotice {
                 Text(notice)
@@ -106,6 +113,14 @@ struct Composer: View {
         .onChange(of: model.input) { old, new in
             model.inputChanged(from: old, to: new)
             if showsPluginList, new != old { showsPluginList = false }
+        }
+        // Dictation ends with the screen: leaving the chat, or the app going to the background, keeps the words so far.
+        .onChange(of: scenePhase) { _, phase in if phase != .active { app.dictation.finish() } }
+        .onDisappear { app.dictation.cancel() }
+        .sheet(isPresented: Bindable(app.dictation).showsExplanation, onDismiss: {
+            if app.dictation.phase == .idle { app.dictation.declineExplanation() }
+        }) {
+            VoicePermissionSheet(onContinue: { app.dictation.confirmExplanation() }, onNotNow: { app.dictation.declineExplanation() })
         }
         // A light tap when a send starts a reply (not on every reply end).
         .sensoryFeedback(.impact(weight: .light), trigger: model.isStreaming) { _, streaming in streaming }
@@ -242,10 +257,12 @@ struct Composer: View {
     /// text or an attachment, stop while a reply streams.
     private var trailingButton: some View {
         let action = ComposerAction.current(isStreaming: model.isStreaming, hasInput: !model.input.isEmpty,
-                                            hasAttachments: !model.pending.isEmpty)
+                                            hasAttachments: !model.pending.isEmpty, isDictating: app.dictation.isActive)
         return Button { perform(action) } label: {
             Label { Text(action.title) } icon: {
-                Image(systemName: action.symbol).contentTransition(.symbolEffect(.replace))
+                Image(systemName: action.symbol)
+                    .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.pulse, isActive: action == .stopDictation)
             }
             .labelStyle(.iconOnly)
         }
@@ -262,9 +279,7 @@ struct Composer: View {
         switch action {
         case .stop: model.stop()
         case .send: _ = model.send()
-        // Dictation (PLAN M4, `SpeechTranscriber`) is not built yet. Until it lands the button raises the keyboard,
-        // whose own microphone key dictates into the field.
-        case .voice: focused.wrappedValue = true
+        case .voice, .stopDictation: app.dictation.toggle(text: $model.input, hub: app.voice)
         }
     }
 }

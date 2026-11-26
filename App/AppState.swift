@@ -31,6 +31,9 @@ final class AppState {
     let tools: ToolRegistry
     /// The tool approval sheet's queue.
     let toolApprovals = ToolApprovalCenter()
+    /// Voice engines, voice models and their settings, and the one dictation session (there is one microphone).
+    let voice = VoiceHub()
+    let dictation = DictationController()
     /// Whether the device has a connection: offline, cloud models and web tools are skipped.
     let network = NetworkStatus()
     /// Typed questions answered by decision models.

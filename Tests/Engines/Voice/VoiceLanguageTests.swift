@@ -19,7 +19,7 @@ struct VoiceLanguageTests {
 
     @Test func itLabelsItself() {
         #expect(VoiceLanguage.vietnamese.badge == "VI")
-        #expect(!VoiceLanguage.vietnamese.displayName.isEmpty)
+        #expect(!VoiceLanguage.vietnamese.name.isEmpty)
         #expect(VoiceLanguage.english < VoiceLanguage.vietnamese)
         #expect(VoiceLanguage.vietnamese.locale.identifier == "vi")
         #expect(!VoiceLanguage.device.code.isEmpty)
