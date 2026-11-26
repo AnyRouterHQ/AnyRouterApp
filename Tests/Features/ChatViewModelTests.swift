@@ -78,6 +78,21 @@ struct ChatViewModelTests {
         #expect(await waitUntil { r.engine.terminated.value })
     }
 
+    @Test func deletingTheThreadWhileItStreamsEndsQuietly() async throws {
+        let r = try await rig(ScriptedEngine(chunks: ["partial"], hangs: true))
+        r.vm.input = "Hi"
+        let task = try #require(r.vm.send())
+        #expect(await waitUntil { r.vm.messages.last?.content == "partial" })
+        let thread = try #require(r.vm.thread)
+        r.context.delete(thread)
+        try r.context.save()
+        r.vm.stop()
+        await task.value
+        #expect(r.vm.phase == .idle)
+        #expect(r.vm.errorMessage == nil)
+        #expect(await waitUntil { r.engine.terminated.value })
+    }
+
     @Test func stopBeforeFirstTokenRemovesEmptyReply() async throws {
         let r = try await rig(ScriptedEngine(hangs: true))
         r.vm.input = "Hi"

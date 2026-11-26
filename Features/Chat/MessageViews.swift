@@ -1,4 +1,3 @@
-import MarkdownUI
 import SwiftUI
 
 /// One message row: user text in a rounded bubble, assistant reply as plain markdown with actions.
@@ -81,9 +80,7 @@ struct MessageRow: View {
                         .padding(.vertical, 8)
                 }
             } else if !message.content.isEmpty {
-                Markdown(message.content)
-                    .markdownTheme(.anyRouter)
-                    .textSelection(.enabled)
+                MarkdownReply(text: message.content)
             }
             if !isStreamingThis && !message.content.isEmpty {
                 HStack(spacing: 4) {

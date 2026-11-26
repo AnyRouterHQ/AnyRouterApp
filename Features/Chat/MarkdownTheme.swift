@@ -4,7 +4,7 @@ import UIKit
 
 extension Theme {
     /// Markdown look in AnyRouter colors.
-    @MainActor static var anyRouter: Theme {
+    @MainActor static let anyRouter: Theme = {
         Theme()
             .text {
                 ForegroundColor(ARColor.foreground)
@@ -60,7 +60,7 @@ extension Theme {
                     .markdownTableBorderStyle(.init(color: ARColor.border))
                     .markdownMargin(top: 0, bottom: 12)
             }
-    }
+    }()
 }
 
 /// Fenced code block with a language label and a copy button.

@@ -83,6 +83,10 @@ private struct ChatContent: View {
     @FocusState private var composerFocused: Bool
     /// A tapped-in tip that replaces the model subtitle until the chat changes.
     @State private var tip: String?
+    @State private var position = ScrollPosition(edge: .bottom)
+    /// The list follows the reply while true (see `ScrollFollow`).
+    @State private var following = true
+    @State private var nearBottom = true
 
     var body: some View {
         Group {
@@ -135,36 +139,62 @@ private struct ChatContent: View {
         let messages = chat.messages
         let lastID = messages.last?.id
         let switchNotes = SwitchNotes.make(messages)
-        return ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 20) {
-                    ForEach(messages) { message in
-                        MessageRow(
-                            message: message,
-                            isStreamingThis: chat.isStreaming && message.id == lastID,
-                            showsRegenerate: message.id == lastID && chat.canRegenerate,
-                            onRegenerate: { chat.regenerate() },
-                            switchNote: switchNotes[message.id],
-                            showsDetails: showsDetails,
-                            loadingModelName: message.id == lastID ? chat.loadingModelName : nil
-                        )
-                    }
-                    Color.clear.frame(height: 1).id("bottom")
+        return ScrollView {
+            LazyVStack(spacing: 20) {
+                ForEach(messages) { message in
+                    MessageRow(
+                        message: message,
+                        isStreamingThis: chat.isStreaming && message.id == lastID,
+                        showsRegenerate: message.id == lastID && chat.canRegenerate,
+                        onRegenerate: { chat.regenerate() },
+                        switchNote: switchNotes[message.id],
+                        showsDetails: showsDetails,
+                        loadingModelName: message.id == lastID ? chat.loadingModelName : nil
+                    )
                 }
-                .frame(maxWidth: ARTheme.contentMaxWidth)
-                .padding(.horizontal, ARTheme.pagePadding)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
             }
-            .scrollDismissesKeyboard(.interactively)
-            .scrollEdgeEffectStyle(.soft, for: .all)
-            .defaultScrollAnchor(.bottom)
-            .onChange(of: messages.count) { proxy.scrollTo("bottom", anchor: .bottom) }
-            .onChange(of: messages.last?.toolTraceData) { proxy.scrollTo("bottom", anchor: .bottom) }
-            .onChange(of: messages.last?.content.count) {
-                if chat.isStreaming { proxy.scrollTo("bottom", anchor: .bottom) }
+            .frame(maxWidth: ARTheme.contentMaxWidth)
+            .padding(.horizontal, ARTheme.pagePadding)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+        }
+        .scrollPosition($position)
+        .scrollDismissesKeyboard(.interactively)
+        .scrollEdgeEffectStyle(.soft, for: .all)
+        .defaultScrollAnchor(.bottom)
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            ScrollFollow.isNearBottom(
+                offset: geometry.contentOffset.y, container: geometry.containerSize.height,
+                content: geometry.contentSize.height, bottomInset: geometry.contentInsets.bottom)
+        } action: { _, near in
+            nearBottom = near
+        }
+        .onScrollPhaseChange { old, new in
+            following = ScrollFollow.following(from: old, to: new, nearBottom: nearBottom, was: following)
+        }
+        // A new message is the reader's own send or a regenerate: always show it.
+        .onChange(of: messages.count) {
+            following = true
+            position.scrollTo(edge: .bottom)
+        }
+        .onChange(of: messages.last?.toolTraceData) { if following { position.scrollTo(edge: .bottom) } }
+        .onChange(of: messages.last?.content.count) { if following { position.scrollTo(edge: .bottom) } }
+        .overlay(alignment: .bottom) {
+            if !following {
+                Button {
+                    following = true
+                    position.scrollTo(edge: .bottom)
+                } label: {
+                    Label("Jump to latest", systemImage: "arrow.down").labelStyle(.iconOnly)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .controlSize(.large)
+                .padding(.bottom, 8)
+                .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: following)
     }
 }
 

@@ -281,6 +281,8 @@ final class ChatViewModel {
                 for try await delta in stream {
                     // A chunk that was already buffered when the user pressed stop is dropped.
                     if Task.isCancelled { continue }
+                    // The thread can be deleted while it streams; stop writing into models that are gone.
+                    if Self.isGone(assistant) || Self.isGone(thread) { break }
                     if case .text = delta {} else if let held = pending.flush() { assistant.content += held }
                     switch delta {
                     case .text(let piece):
@@ -303,6 +305,10 @@ final class ChatViewModel {
             } catch {
                 failure = error.localizedDescription
             }
+            if Self.isGone(assistant) || Self.isGone(thread) {
+                self?.abandon()
+                return
+            }
             if let held = pending.flush() { assistant.content += held }
             if !assistant.content.isEmpty || !assistant.toolSteps.isEmpty {
                 assistant.metadata = Self.finalMetadata(
@@ -314,6 +320,18 @@ final class ChatViewModel {
         }
         self.task = task
         return task
+    }
+
+    /// A deleted record (or one whose context is gone) must not be read or written: SwiftData traps on it.
+    static func isGone(_ model: some PersistentModel) -> Bool {
+        model.isDeleted || model.modelContext == nil
+    }
+
+    /// The thread was deleted during the reply: nothing to save, the view model just returns to idle.
+    private func abandon() {
+        phase = .idle
+        task = nil
+        loadingModelName = nil
     }
 
     /// Seconds between screen updates while text streams in.
