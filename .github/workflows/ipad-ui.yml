@@ -75,7 +75,12 @@ jobs:
             -destination "platform=iOS Simulator,id=$MINI_UDID" \
             -derivedDataPath DerivedData \
             -clonedSourcePackagesDirPath SourcePackages \
-            CODE_SIGNING_ALLOWED=NO | tail -n 100
+            CODE_SIGNING_ALLOWED=NO | tee build.log | tail -n 100
+
+      - name: Build errors
+        if: failure()
+        run: |
+          grep -n -E "error:" build.log | sort -u -t: -k2 | cut -c1-500 | head -60 || true
 
       - name: Run PadLayoutTests
         run: |
