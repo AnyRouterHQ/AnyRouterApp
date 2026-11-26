@@ -1,0 +1,98 @@
+{
+ "_comment": "First match wins. match is a regex on the screen id: Screenshots use the capture name (empty-chat), Verify UI uses journey/step (drawer/drawer-open). lane is the agent lane that owns the files (PLAN.md lanes); files feed the native-first ratchet count. Add a row when a screen is added.",
+ "owners": [
+  {
+   "match": "^onboarding",
+   "lane": "onboarding-signup",
+   "files": [
+    "Features/Onboarding/OnboardingScreen.swift",
+    "Features/Onboarding/OnboardingLocalStep.swift"
+   ]
+  },
+  {
+   "match": "^(theme|settings|licenses)|^(settings|theme|responsedetails)/|settings-(more|account)",
+   "lane": "settings-ia",
+   "files": [
+    "Features/Settings/SettingsScreen.swift",
+    "Features/Account/AccountCard.swift",
+    "Features/Settings/LicensesSheet.swift"
+   ]
+  },
+  {
+   "match": "pad-split",
+   "lane": "ipad-layout",
+   "files": [
+    "Features/Shell/AppShell.swift",
+    "Features/Threads/ThreadSidebar.swift"
+   ]
+  },
+  {
+   "match": "^hub|/hub-",
+   "lane": "weekly-usage",
+   "files": [
+    "Features/Hub/HubScreen.swift",
+    "Features/Hub/ModelRow.swift"
+   ]
+  },
+  {
+   "match": "thread-list|^drawer/|search",
+   "lane": "chat-search",
+   "files": [
+    "Features/Threads/ThreadSidebar.swift",
+    "Features/Threads/ThreadSearchScreen.swift"
+   ]
+  },
+  {
+   "match": "picker|model-filters|model-picker",
+   "lane": "weekly-usage",
+   "files": [
+    "Features/ModelPicker/ModelPickerSheet.swift",
+    "Features/ModelPicker/PickerRow.swift",
+    "Features/ModelPicker/ModelFilterSheet.swift"
+   ]
+  },
+  {
+   "match": "decisions",
+   "lane": "unassigned",
+   "files": [
+    "Features/Decisions/DecisionsScreen.swift"
+   ]
+  },
+  {
+   "match": "attachment",
+   "lane": "chat-chrome",
+   "files": [
+    "Features/Attachments/AttachmentViews.swift"
+   ]
+  },
+  {
+   "match": "empty-chat|^composer/home|new-chat-home|home-system-theme|home-tip",
+   "lane": "native-ux-research",
+   "files": [
+    "Features/Chat/ChatScreen.swift",
+    "Features/Presets/PresetViews.swift"
+   ]
+  },
+  {
+   "match": "composer|typed|keyboard",
+   "lane": "chat-chrome",
+   "files": [
+    "Features/Chat/Composer.swift",
+    "Features/Chat/ChatScreen.swift"
+   ]
+  },
+  {
+   "match": "chat-markdown|response|reply|replied|chose-claude",
+   "lane": "chat-chrome",
+   "files": [
+    "Features/Chat/MessageViews.swift",
+    "Features/Chat/MarkdownTheme.swift"
+   ]
+  },
+  {
+   "match": ".*",
+   "lane": "unassigned",
+   "files": []
+  }
+ ]
+}

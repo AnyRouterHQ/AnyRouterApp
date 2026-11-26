@@ -1,0 +1,27 @@
+```json
+{
+ "scores": {
+  "native": 4,
+  "hierarchy": 4,
+  "spacing": 5,
+  "tap_targets": 3,
+  "contrast": 3,
+  "clutter": 4,
+  "consistency": 4,
+  "states": null,
+  "space": 4
+ },
+ "reasons": {
+  "native": "System toolbar and a glass composer, one hand-made chip row.",
+  "hierarchy": "The greeting is the clear primary element.",
+  "spacing": "Even 16 pt margins.",
+  "tap_targets": "The two toolbar icons look close to 40 pt.",
+  "contrast": "Subtitle is light gray on white.",
+  "clutter": "Four controls in the top bar.",
+  "consistency": "Model logo matches the picker.",
+  "states": "",
+  "space": "Content fills the phone width."
+ },
+ "top_fix": "Darken the subtitle and enlarge the toolbar icons so the composer and the model pill carry the page."
+}
+```
