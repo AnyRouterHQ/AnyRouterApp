@@ -17,24 +17,34 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
-    /// `app` is for landscape: the screen screenshot stays in the device's portrait frame, the app screenshot does not.
-    private func capture(_ name: String, _ appearance: Appearance, app: XCUIApplication? = nil) {
+    /// `landscape`: the screen screenshot stays in the device's portrait frame (the content comes out turned
+    /// clockwise), so turn it back counter-clockwise before saving.
+    private func capture(_ name: String, _ appearance: Appearance, landscape: Bool = false) {
         sleep(1)
         // On a Mac the screen is the whole desktop: capture the app's window.
         let screenshot = ProcessInfo.processInfo.isiOSAppOnMac
-            ? XCUIApplication().windows.firstMatch.screenshot() : (app?.screenshot() ?? XCUIScreen.main.screenshot())
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "\(appearance.rawValue)-\(name)"
+            ? XCUIApplication().windows.firstMatch.screenshot() : XCUIScreen.main.screenshot()
+        let png = landscape ? Self.turnedCounterClockwise(screenshot.image) ?? screenshot.pngRepresentation : screenshot.pngRepresentation
+        let attachment = XCTAttachment(uniformTypeIdentifier: "public.png", name: "\(appearance.rawValue)-\(name)", payload: png)
         attachment.lifetime = .keepAlways
         add(attachment)
         guard let dir = ProcessInfo.processInfo.environment["SCREENSHOT_DIR"], !dir.isEmpty else { return }
         let url = URL(fileURLWithPath: dir).appendingPathComponent("\(appearance.rawValue)-\(name).png")
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try screenshot.pngRepresentation.write(to: url)
+            try png.write(to: url)
         } catch {
             XCTFail("Could not write \(url.lastPathComponent): \(error)")
         }
+    }
+
+    private static func turnedCounterClockwise(_ image: UIImage) -> Data? {
+        let size = CGSize(width: image.size.height, height: image.size.width)
+        return UIGraphicsImageRenderer(size: size).image { context in
+            context.cgContext.translateBy(x: 0, y: size.height)
+            context.cgContext.rotate(by: -.pi / 2)
+            image.draw(at: .zero)
+        }.pngData()
     }
 
     private func button(_ app: XCUIApplication, containing text: String) -> XCUIElement {
@@ -89,7 +99,7 @@ final class ScreenshotTests: XCTestCase {
         forEachAppearance { app, appearance in
             XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
             sleep(1)
-            capture("pad-split-landscape", appearance, app: app)
+            capture("pad-split-landscape", appearance, landscape: true)
         }
         XCUIDevice.shared.orientation = .portrait
     }
