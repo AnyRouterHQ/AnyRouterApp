@@ -4,10 +4,20 @@ import UIKit
 /// The pieces of launch that touch the Keychain, the network SDKs or UserDefaults, injectable so a test can
 /// prove none of them does blocking work inside `AppState.init`.
 struct LaunchDependencies {
-    var tokenStore: any AuthTokenStore = KeychainStore()
+    var tokenStore: any AuthTokenStore = LaunchDependencies.defaultTokenStore()
     /// Remembers the sign-in state between launches, so the UI can show it before the Keychain answers.
     var hints: UserDefaults = .standard
     var makeTelemetry: @MainActor () -> any Telemetry = { Diagnostics.makeTelemetry() }
+}
+
+extension LaunchDependencies {
+    /// The Keychain, except in a Debug UI end-to-end run that passes `-ARTestAPIKey`.
+    static func defaultTokenStore() -> any AuthTokenStore {
+        #if DEBUG
+        if let injected = E2ETokenStore.fromLaunchArguments() { return injected }
+        #endif
+        return KeychainStore()
+    }
 }
 
 /// App-wide state and dependency root. Lanes register their engines and services here.
