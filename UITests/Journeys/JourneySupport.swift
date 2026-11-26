@@ -126,24 +126,18 @@ class JourneyCase: XCTestCase {
     }
 
     /// iPhone: the sidebar is a drawer behind the Menu button; its views exist in the tree while it is closed,
-    /// so "open" means the search field is on screen. iPad: the column is open at launch or behind the system toggle.
+    /// so "open" means its Settings button is on screen. iPad: the column is open at launch or behind the system toggle.
     func openSidebar(_ app: XCUIApplication) {
-        let search = app.searchFields["Search chats"]
-        if search.exists && search.isHittable { return }
+        let gear = app.buttons["Settings"].firstMatch
+        if gear.exists && gear.isHittable { return }
         if app.buttons["Menu"].waitForExistence(timeout: 10) {
             app.buttons["Menu"].tap()
         } else {
             button(app, containing: "Sidebar").tap()
         }
-        if !waitHittable(search, timeout: 5) { fail(app, "sidebar-did-not-open", "sidebar did not open") }
+        if !waitHittable(gear, timeout: 5) { fail(app, "sidebar-did-not-open", "sidebar did not open") }
         // The drawer springs in; a tap while it moves lands on the old position.
         sleep(1)
-    }
-
-    /// A button that is on screen. Closed-drawer buttons stay in the tree, so plain label lookups can pick them.
-    func visibleButton(_ app: XCUIApplication, _ label: String) -> XCUIElement {
-        let matches = app.buttons.matching(NSPredicate(format: "label == %@", label)).allElementsBoundByIndex
-        return matches.first(where: { $0.isHittable }) ?? app.buttons[label].firstMatch
     }
 
     func openSettings(_ app: XCUIApplication) {

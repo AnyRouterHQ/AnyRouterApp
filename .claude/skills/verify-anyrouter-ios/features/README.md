@@ -35,7 +35,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 |---|---|---|
 | [Home](./home.md) | composer (home step) | greeting and presets covered by the composer journey; the tip tap does not exist in the code |
 | [Composer and keyboard](./composer.md) | `composer` | automated, passing (run 45814540560) |
-| [Sidebar](./sidebar.md) | `drawer` | automated, passing (run 45857039234) |
+| [Sidebar](./sidebar.md) | `drawer` | passed on run 45857039234; main since redesigned the sidebar search into a button (`sidebar.search`), so the search steps need updating |
 | [Model picker](./model-picker.md) | `model-picker` | automated, passing (run 45814540560) |
 | [Settings](./settings.md) | `settings`, `theme` | automated, both passing (runs 45862667608, 45814540560) |
 | [Hub (Manage models)](./hub.md) | `hub` | written; last run (45865789108) stopped at closing the filter menu, fix pushed and not yet re-run |
