@@ -111,7 +111,7 @@ enum ModelPickerLogic {
 
     /// Matches the name, the short name or the provider-qualified id. The `anyrouter/` prefix is
     /// not searched, or every cloud model would match "anyrouter".
-    private static func matches(_ model: ModelDescriptor, _ needle: String) -> Bool {
+    static func matches(_ model: ModelDescriptor, _ needle: String) -> Bool {
         [model.displayName, model.shortName].contains { $0.range(of: needle, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
             || model.wireID.range(of: needle, options: .caseInsensitive) != nil
     }

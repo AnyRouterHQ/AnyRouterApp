@@ -80,13 +80,38 @@ enum DemoData {
                         capabilities: ["chat"], sizeBytes: size, isInstalled: installed)
     }
 
+    private static func cloudDescriptor(
+        _ id: String, _ name: String, input: Decimal, output: Decimal, context: Int, upstreams: Int,
+        members: Int? = nil, vision: Bool = false, reasoning: Bool = false
+    ) -> ModelDescriptor {
+        var model = descriptor("anyrouter/\(id)", .anyrouter, name)
+        model.contextLength = context
+        model.cloud = CloudInfo(
+            pricing: CloudPricing(
+                input: input, output: output, cacheRead: nil,
+                billing: input == 0 && output == 0 ? .free : .credits),
+            availability: .usable, upstreamCount: upstreams, memberCount: members,
+            supportsVision: vision, supportsReasoning: reasoning, created: nil, logoURL: nil)
+        return model
+    }
+
     private static let cloudModels: [ModelDescriptor] = [
-        descriptor("anyrouter/anthropic/claude-sonnet-4-6", .anyrouter, "Claude Sonnet 4.6"),
-        descriptor("anyrouter/anthropic/claude-opus-4-5", .anyrouter, "Claude Opus 4.5"),
-        descriptor("anyrouter/openai/gpt-5", .anyrouter, "GPT-5"),
-        descriptor("anyrouter/openai/gpt-5-mini", .anyrouter, "GPT-5 mini"),
-        descriptor("anyrouter/google/gemini-2.5-pro", .anyrouter, "Gemini 2.5 Pro"),
-        descriptor("anyrouter/meta-llama/llama-4-maverick", .anyrouter, "Llama 4 Maverick"),
+        cloudDescriptor("anyrouter/auto", "AnyRouter Auto", input: 0, output: 0, context: 4_194_304,
+                        upstreams: 1, members: 7, vision: true),
+        cloudDescriptor("anyrouter/free", "AnyRouter Free", input: 0, output: 0, context: 1_048_576,
+                        upstreams: 1, members: 5),
+        cloudDescriptor("anthropic/claude-sonnet-4-6", "Claude Sonnet 4.6", input: 3, output: 15, context: 1_000_000,
+                        upstreams: 35, vision: true, reasoning: true),
+        cloudDescriptor("anthropic/claude-opus-4-5", "Claude Opus 4.5", input: 5, output: 25, context: 200_000,
+                        upstreams: 28, vision: true, reasoning: true),
+        cloudDescriptor("openai/gpt-5", "GPT-5", input: Decimal(string: "1.25")!, output: 10, context: 400_000,
+                        upstreams: 26, vision: true, reasoning: true),
+        cloudDescriptor("openai/gpt-5-mini", "GPT-5 mini", input: Decimal(string: "0.25")!, output: 2, context: 400_000,
+                        upstreams: 22, vision: true),
+        cloudDescriptor("google/gemini-2.5-pro", "Gemini 2.5 Pro", input: Decimal(string: "1.25")!, output: 10,
+                        context: 1_048_576, upstreams: 18, vision: true, reasoning: true),
+        cloudDescriptor("meta-llama/llama-4-maverick", "Llama 4 Maverick", input: Decimal(string: "0.15")!,
+                        output: Decimal(string: "0.6")!, context: 1_000_000, upstreams: 9),
     ]
 
     private static let localCatalog: [(id: String, name: String, size: Int64, summary: String, tags: [String], fit: ModelFit)] = [

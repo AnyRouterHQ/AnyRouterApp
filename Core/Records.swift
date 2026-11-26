@@ -43,14 +43,17 @@ final class MessageRecord {
     var toolTraceData: Data?
     /// Display name of the model that wrote this reply. Optional so existing stores migrate.
     var modelName: String?
+    /// Id of that model, for its logo and for "Switched to" notes.
+    var modelID: String?
 
     init(id: UUID = UUID(), role: ChatMessage.Role, content: String, createdAt: Date = Date(),
-         modelName: String? = nil) {
+         modelName: String? = nil, modelID: String? = nil) {
         self.id = id
         self.roleRaw = role.rawValue
         self.content = content
         self.createdAt = createdAt
         self.modelName = modelName
+        self.modelID = modelID
     }
 
     convenience init(_ message: ChatMessage) {

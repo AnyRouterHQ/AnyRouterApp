@@ -1,0 +1,5 @@
+{
+  "curated": ["anyrouter/auto", "anyrouter/free"],
+  "fallback": ["anthropic/claude-sonnet-4-6", "openai/gpt-5", "google/gemini-2.5-pro"],
+  "usageCount": 3
+}

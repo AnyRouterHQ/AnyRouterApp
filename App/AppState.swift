@@ -43,7 +43,7 @@ final class AppState {
         let telemetry = Diagnostics.makeTelemetry()
         self.telemetry = telemetry
         settings = AppSettings()
-        models = ModelStore(registry: registry, telemetry: telemetry)
+        models = ModelStore(registry: registry, telemetry: telemetry, usage: AnyRouterUsageOrder())
         let gguf = GGUFEngine(telemetry: telemetry)
         let mlx = MLXEngine(telemetry: telemetry)
         registry.register(AppleFoundationEngine())

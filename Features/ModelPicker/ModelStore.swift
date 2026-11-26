@@ -15,12 +15,22 @@ final class ModelStore {
     private(set) var isLoading = false
     /// True after the first refresh, so a missing model can be told apart from "not loaded yet".
     private(set) var hasLoaded = false
+    /// Wire ids, most used first. From the cache until a fresh fetch lands; empty offline on first launch.
+    private(set) var usageOrder: [String] = []
     private var selectedID: String?
+    @ObservationIgnored private let usageSource: (any UsageOrderSource)?
+    @ObservationIgnored private let usageCache: UsageOrderCache
 
-    init(registry: EngineRegistry, defaults: UserDefaults = .standard, telemetry: any Telemetry = NoopTelemetry()) {
+    init(
+        registry: EngineRegistry, defaults: UserDefaults = .standard, telemetry: any Telemetry = NoopTelemetry(),
+        usage: (any UsageOrderSource)? = nil
+    ) {
         self.registry = registry
         self.defaults = defaults
         self.telemetry = telemetry
+        self.usageSource = usage
+        self.usageCache = UsageOrderCache(defaults: defaults)
+        self.usageOrder = usageCache.load()
         self.selectedID = defaults.string(forKey: Self.selectedKey)
     }
 
@@ -50,6 +60,20 @@ final class ModelStore {
         models = await registry.allModels()
         isLoading = false
         hasLoaded = true
+        await refreshUsageOrder()
+    }
+
+    /// Wire id to place in the usage order (0 is most used).
+    var usageRank: [String: Int] {
+        Dictionary(usageOrder.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// Fetches the usage order at most every 6 hours. A failure keeps the cached order.
+    func refreshUsageOrder(now: Date = Date()) async {
+        guard let usageSource, !usageCache.isFresh(now: now) else { return }
+        guard let ids = try? await usageSource.fetchUsageOrder(), !ids.isEmpty else { return }
+        usageCache.save(ids, at: now)
+        usageOrder = ids
     }
 
     /// Remembers the pick as the default for new chats.

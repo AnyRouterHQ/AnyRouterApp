@@ -16,6 +16,8 @@ struct ModelDescriptor: Identifiable, Hashable, Codable, Sendable {
     var isInstalled: Bool
     /// One-line description from the provider, when it has one.
     var summary: String? = nil
+    /// Cloud models only: price, availability and size of the routing pool.
+    var cloud: CloudInfo? = nil
 }
 
 struct ChatMessage: Identifiable, Hashable, Codable, Sendable {

@@ -11,17 +11,76 @@ struct ModelsResponse: Decodable {
         var capabilities: [String]?
         var supportedParameters: [String]?
         var architecture: Architecture?
+        var created: Double?
+        var providers: [String]?
+        var members: [Member]?
+        var pricing: Pricing?
+        var canRoute: Bool?
+        var canRouteReason: String?
+        var logo: String?
 
         struct Architecture: Decodable {
+            var inputModalities: [String]?
             var outputModalities: [String]?
 
-            enum CodingKeys: String, CodingKey { case outputModalities = "output_modalities" }
+            enum CodingKeys: String, CodingKey {
+                case inputModalities = "input_modalities"
+                case outputModalities = "output_modalities"
+            }
+        }
+
+        /// Only the count of router members is used.
+        struct Member: Decodable {}
+
+        /// Prices are USD per 1M tokens. The catalog sends numbers and strings, so both parse.
+        struct Pricing: Decodable {
+            var prompt: Amount?
+            var completion: Amount?
+            var inputPer1M: Amount?
+            var outputPer1M: Amount?
+            var inputCacheReadPer1M: Amount?
+            var billing: String?
+
+            enum CodingKeys: String, CodingKey {
+                case prompt, completion, billing
+                case inputPer1M = "input_per_1m"
+                case outputPer1M = "output_per_1m"
+                case inputCacheReadPer1M = "input_cache_read_per_1m"
+            }
         }
 
         enum CodingKeys: String, CodingKey {
-            case id, name, category, description, capabilities, architecture
+            case id, name, category, description, capabilities, architecture, created, providers, members, pricing, logo
             case contextLength = "context_length"
             case supportedParameters = "supported_parameters"
+            case canRoute = "can_route"
+            case canRouteReason = "can_route_reason"
+        }
+
+        var cloudInfo: CloudInfo {
+            let input = pricing?.inputPer1M?.value ?? pricing?.prompt?.value
+            let output = pricing?.outputPer1M?.value ?? pricing?.completion?.value
+            let billing = CloudBilling(rawValue: pricing?.billing ?? "") ?? .unknown
+            let availability: CloudAvailability
+            switch (canRoute, canRouteReason) {
+            case (false, "no_route"): availability = .noRoute
+            case (false, "disabled"): availability = .disabled
+            case (false, _): availability = .needsKey
+            default: availability = .usable
+            }
+            let tags = Set(capabilities ?? [])
+            let parameters = Set(supportedParameters ?? [])
+            return CloudInfo(
+                pricing: CloudPricing(
+                    input: input, output: output,
+                    cacheRead: pricing?.inputCacheReadPer1M?.value, billing: billing),
+                availability: availability,
+                upstreamCount: providers?.count,
+                memberCount: members?.count,
+                supportsVision: tags.contains("vision") || (architecture?.inputModalities ?? []).contains("image"),
+                supportsReasoning: !parameters.isDisjoint(with: ["reasoning", "reasoning_effort", "include_reasoning"]),
+                created: created.map { Date(timeIntervalSince1970: $0) },
+                logoURL: logo.flatMap(URL.init(string:)))
         }
 
         var kind: ModelKind {
@@ -48,8 +107,9 @@ struct ModelsResponse: Decodable {
                     contextLength: item.contextLength,
                     capabilities: Self.normalized(item.capabilities ?? ["chat"]),
                     sizeBytes: nil,
-                    isInstalled: usable,
-                    summary: item.description
+                    isInstalled: usable && item.cloudInfo.availability == .usable,
+                    summary: item.description,
+                    cloud: item.cloudInfo
                 )
             }
     }
@@ -57,6 +117,22 @@ struct ModelsResponse: Decodable {
     /// Decision models, for the Decisions screen. Ids are the wire ids (`anyrouter/decision`).
     func decisionModels() -> [DecisionModel] {
         data.filter { $0.kind == .decision }.map { DecisionModel(id: $0.id, name: $0.name ?? $0.id) }
+    }
+
+    /// A number or a numeric string, as a Decimal.
+    struct Amount: Decodable {
+        let value: Decimal?
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let number = try? container.decode(Double.self) {
+                value = Decimal(string: "\(number)")
+            } else if let text = try? container.decode(String.self) {
+                value = Decimal(string: text)
+            } else {
+                value = nil
+            }
+        }
     }
 
     /// The catalog tags tool support as `function-calling`; the app asks for `tools`.

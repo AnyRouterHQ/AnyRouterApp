@@ -51,7 +51,9 @@ struct AppleFoundationEngine: ChatEngine {
                 contextLength: 4096,
                 capabilities: Self.capabilities(available: ready),
                 sizeBytes: nil,
-                isInstalled: ready
+                isInstalled: ready,
+                // The reason shows in the picker when Apple Intelligence cannot be used.
+                summary: Self.unavailabilityNote()
             )
         ]
     }
