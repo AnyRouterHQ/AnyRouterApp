@@ -234,7 +234,7 @@ struct CatalogServiceTests {
 }
 
 /// A fake HTTP layer that records requests and can answer with headers.
-private final class RecordingHTTP: HTTPFetching, @unchecked Sendable {
+private final class CatalogRecordingHTTP: HTTPFetching, @unchecked Sendable {
     private let lock = NSLock()
     private var seen: [URLRequest] = []
     private let respond: @Sendable (URLRequest) -> (String, Int, [String: String])
@@ -283,7 +283,7 @@ struct SharedCatalogTests {
     }
 
     @Test func refreshFetchesTheDefaultURLWhenNoneIsSet() async throws {
-        let http = RecordingHTTP { _ in (Self.remoteJSON(Self.mlxJSON(repo: "org/r", title: "R")), 200, [:]) }
+        let http = CatalogRecordingHTTP { _ in (Self.remoteJSON(Self.mlxJSON(repo: "org/r", title: "R")), 200, [:]) }
         let service = CatalogService(
             bundled: empty, api: HuggingFaceAPI(http: http), cacheDirectory: makeTempDirectory(), settings: { CatalogSettings() })
         #expect(try await service.refreshRemote())
@@ -292,7 +292,7 @@ struct SharedCatalogTests {
     }
 
     @Test func theDevelopmentSwitchFetchesAndCachesTheDevFileSeparately() async throws {
-        let http = RecordingHTTP { _ in (Self.remoteJSON(Self.mlxJSON(repo: "org/dev", title: "Dev")), 200, [:]) }
+        let http = CatalogRecordingHTTP { _ in (Self.remoteJSON(Self.mlxJSON(repo: "org/dev", title: "Dev")), 200, [:]) }
         let cache = makeTempDirectory()
         let dev = CatalogSettings(useDevelopmentCatalog: true)
         let service = CatalogService(bundled: empty, api: HuggingFaceAPI(http: http), cacheDirectory: cache, settings: { dev })
@@ -303,7 +303,7 @@ struct SharedCatalogTests {
     }
 
     @Test func aSecondRefreshSendsTheETagAndA304KeepsTheCachedCopy() async throws {
-        let http = RecordingHTTP { request in
+        let http = CatalogRecordingHTTP { request in
             if request.value(forHTTPHeaderField: "If-None-Match") == "\"v1\"" { return ("", 304, [:]) }
             return (Self.remoteJSON(Self.mlxJSON(repo: "org/r", title: "R")), 200, ["ETag": "\"v1\""])
         }
@@ -318,7 +318,7 @@ struct SharedCatalogTests {
 
     @Test func aNewETagReplacesTheCachedCopy() async throws {
         let version = CatalogVersionBox("v1")
-        let http = RecordingHTTP { request in
+        let http = CatalogRecordingHTTP { request in
             let current = version.value
             if request.value(forHTTPHeaderField: "If-None-Match") == "\"\(current)\"" { return ("", 304, [:]) }
             return (Self.remoteJSON(Self.mlxJSON(repo: "org/r", title: current)), 200, ["ETag": "\"\(current)\""])
@@ -332,7 +332,7 @@ struct SharedCatalogTests {
     }
 
     @Test func noETagIsSentWithoutACachedBody() async throws {
-        let http = RecordingHTTP { _ in (Self.remoteJSON(Self.mlxJSON(repo: "org/r", title: "R")), 200, ["ETag": "\"v1\""]) }
+        let http = CatalogRecordingHTTP { _ in (Self.remoteJSON(Self.mlxJSON(repo: "org/r", title: "R")), 200, ["ETag": "\"v1\""]) }
         let cache = makeTempDirectory()
         let first = CatalogService(bundled: empty, api: HuggingFaceAPI(http: http), cacheDirectory: cache, settings: { CatalogSettings() })
         try await first.refreshRemote()
@@ -347,7 +347,7 @@ struct SharedCatalogTests {
         let bundled = CatalogDocument(schemaVersion: 1, updatedAt: nil, models: [
             sampleMLX(repo: "org/shared", order: 0, title: "Bundled"), sampleMLX(repo: "org/only-bundled", order: 1, title: "Old"),
         ])
-        let http = RecordingHTTP { _ in (Self.remoteJSON(Self.mlxJSON(repo: "org/shared", title: "Remote", extra: #","order":0"#)), 200, [:]) }
+        let http = CatalogRecordingHTTP { _ in (Self.remoteJSON(Self.mlxJSON(repo: "org/shared", title: "Remote", extra: #","order":0"#)), 200, [:]) }
         let mine = sampleMLX(repo: "org/mine", order: 5, title: "Mine")
         let service = CatalogService(
             bundled: { bundled }, api: HuggingFaceAPI(http: http), cacheDirectory: makeTempDirectory(),
@@ -362,7 +362,7 @@ struct SharedCatalogTests {
     @Test func aBadRemoteFileIsIgnoredAndTheBundledCatalogStillLoads() async throws {
         let bundled = CatalogDocument(schemaVersion: 1, updatedAt: nil, models: [sampleMLX(repo: "org/bundled", order: 0)])
         for body in ["not json", #"{"schemaVersion":99,"models":[]}"#, #"{"schemaVersion":1,"models":[{"repo":"../x","format":"mlx","title":"x"}]}"#] {
-            let http = RecordingHTTP { _ in (body, 200, [:]) }
+            let http = CatalogRecordingHTTP { _ in (body, 200, [:]) }
             let service = CatalogService(
                 bundled: { bundled }, api: HuggingFaceAPI(http: http), cacheDirectory: makeTempDirectory(), settings: { CatalogSettings() })
             await #expect(throws: (any Error).self) { try await service.refreshRemote() }
