@@ -10,6 +10,7 @@ enum DemoData {
     private static var onboarding: Bool { UserDefaults.standard.bool(forKey: "ARDemoOnboarding") }
 
     /// In-memory store with five sample threads.
+    @MainActor
     static func makeContainer() throws -> ModelContainer {
         let container = try ModelContainer.anyRouter(inMemory: true)
         let context = container.mainContext
