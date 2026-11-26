@@ -10,6 +10,8 @@ final class ChatViewModel {
     var input = ""
     private(set) var phase: Phase = .idle
     private(set) var errorMessage: String?
+    /// Under the messages when the last request left web tools out because the device was offline.
+    private(set) var offlineToolNote: String?
     /// Name of the local model that is loading or reading the prompt, until its first token arrives. Nil otherwise.
     /// The UI shows "Loading <name>…" and stays usable; Stop cancels.
     private(set) var loadingModelName: String?
@@ -42,18 +44,26 @@ final class ChatViewModel {
     @ObservationIgnored private let now: () -> TimeInterval
     /// Builds the tools for one request from what the chat holds: its attachments and the user's own words.
     @ObservationIgnored private let toolHost: @MainActor (ToolContext) -> (any ToolHost)?
+    /// Whether the device has a connection, asked at each send.
+    @ObservationIgnored private let isOnline: @MainActor () -> Bool
+    /// Whether an offline request had web tools to leave out, so the chat can say so.
+    @ObservationIgnored private let skipsToolsOffline: @MainActor (ToolContext) -> Bool
     @ObservationIgnored let attachmentStore: AttachmentStore
     @ObservationIgnored private var task: Task<Void, Never>?
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
          settings: AppSettings, models: ModelStore,
          toolHost: @escaping @MainActor (ToolContext) -> (any ToolHost)? = { _ in nil },
+         isOnline: @escaping @MainActor () -> Bool = { true },
+         skipsToolsOffline: @escaping @MainActor (ToolContext) -> Bool = { _ in false },
          attachments: AttachmentStore = .shared,
          save: @escaping (ModelContext) throws -> Void = { try $0.save() },
          now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
         self.save = save
         self.now = now
         self.toolHost = toolHost
+        self.isOnline = isOnline
+        self.skipsToolsOffline = skipsToolsOffline
         self.attachmentStore = attachments
         self.thread = thread
         self.preferredModelID = thread?.modelID
@@ -230,6 +240,7 @@ final class ChatViewModel {
             errorMessage = "Choose a model first."
             return nil
         }
+        if blockedOffline(model) { return nil }
         // Files move first: if one cannot, nothing is sent and every file stays under the field.
         let threadID = thread?.id ?? draftThreadID
         guard let adopted = adoptPending(into: threadID) else { return nil }
@@ -315,12 +326,20 @@ final class ChatViewModel {
     @discardableResult
     func regenerate() -> Task<Void, Never>? {
         guard canRegenerate, let thread, let model = self.model else { return nil }
+        if blockedOffline(model) { return nil }
         if let last = messages.last, last.role == .assistant { remove(last) }
         guard messages.last?.role == .user else { return nil }
         return startStream(model: model, thread: thread)
     }
 
     // MARK: - Private
+
+    /// A cloud model cannot answer without a connection: say so, and name the model on the device that can.
+    private func blockedOffline(_ model: ModelDescriptor) -> Bool {
+        guard !isOnline(), OfflineLogic.needsNetwork(model) else { return false }
+        errorMessage = OfflineLogic.modelMessage(for: model, suggestion: OfflineLogic.suggestedModel(in: models.models))
+        return true
+    }
 
     /// Drops the message from the relationship first so `messages` is correct before the next save.
     private func remove(_ message: MessageRecord) {
@@ -382,7 +401,14 @@ final class ChatViewModel {
         context.insert(assistant)
         assistant.thread = thread
         let params = settings.generationParams
-        let host = toolsEnabled && model.capabilities.contains("tools") ? toolHost(Self.toolContext(for: thread, modelSource: model.source)) : nil
+        var host: (any ToolHost)?
+        offlineToolNote = nil
+        if toolsEnabled && model.capabilities.contains("tools") {
+            var toolContext = Self.toolContext(for: thread, modelSource: model.source)
+            toolContext.isOffline = !isOnline()
+            host = toolHost(toolContext)
+            if skipsToolsOffline(toolContext) { offlineToolNote = OfflineLogic.toolNote }
+        }
         let stream = registry.engine(for: model).stream(
             model: model, messages: history, params: params,
             tools: host?.specs.isEmpty == false ? host : nil)

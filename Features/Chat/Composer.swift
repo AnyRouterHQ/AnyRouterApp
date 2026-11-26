@@ -170,7 +170,10 @@ struct Composer: View {
                                 get: { app.tools.isOn(source, modelSource: model.model?.source) },
                                 set: { app.tools.setSource(source, on: $0) }
                             )) {
-                                Label { Text(source.title) } icon: { ToolSourceIcon(icon: source.icon) }
+                                Label {
+                                    Text(OfflineLogic.sourceTitle(source.title, needsNetwork: source.id != ToolSourceCatalog.device.id,
+                                                                  isOffline: app.network.isOffline))
+                                } icon: { ToolSourceIcon(icon: source.icon) }
                             }
                             .accessibilityIdentifier("composer.tool-source.\(source.id)")
                         }

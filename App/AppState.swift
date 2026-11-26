@@ -31,6 +31,8 @@ final class AppState {
     let tools: ToolRegistry
     /// The tool approval sheet's queue.
     let toolApprovals = ToolApprovalCenter()
+    /// Whether the device has a connection: offline, cloud models and web tools are skipped.
+    let network = NetworkStatus()
     /// Typed questions answered by decision models.
     let decisions: DecisionsStore
     /// The one reporting door. Views and engines call this, never a vendor SDK.

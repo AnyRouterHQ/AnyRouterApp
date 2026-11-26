@@ -118,6 +118,7 @@ struct ModelPickerSheet: View {
         let shown = shown
         return NavigationStack {
             List {
+                if app.network.isOffline { offlineSection }
                 switch tab {
                 case .local: localRows(shown.local)
                 case .anyrouter: cloudRows(shown.cloud)
@@ -200,6 +201,21 @@ struct ModelPickerSheet: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("\(keyExplainer?.shortName ?? "This model") runs on your own provider account. Add the key in your AnyRouter dashboard, then pick it here.")
+        }
+    }
+
+    // MARK: - Offline
+
+    /// Without a connection the cloud models cannot answer. The picker says so and offers the model on this device.
+    private var offlineSection: some View {
+        Section {
+            Label(OfflineLogic.pickerNote, systemImage: "wifi.slash")
+            if let suggestion = OfflineLogic.suggestedModel(in: models.models) {
+                Button { choose(suggestion) } label: { Label("Use \(suggestion.shortName)", systemImage: "iphone") }
+                    .accessibilityIdentifier("model-picker.offline-suggestion")
+            }
+        } header: {
+            Text(OfflineLogic.label)
         }
     }
 
@@ -315,7 +331,8 @@ struct ModelPickerSheet: View {
     // MARK: - Rows
 
     private func modelButton(_ model: ModelDescriptor, fitBadge: String? = nil) -> some View {
-        HStack(spacing: 8) {
+        let skipped = app.network.isOffline && OfflineLogic.needsNetwork(model)
+        return HStack(spacing: 8) {
             Button {
                 choose(model)
             } label: {
@@ -327,6 +344,8 @@ struct ModelPickerSheet: View {
             }
             .buttonStyle(.plain)
             .hoverEffect(.highlight)
+            .disabled(skipped)
+            if skipped { Text(OfflineLogic.label).font(.footnote).foregroundStyle(.secondary) }
             if model.source == .anyrouter {
                 Button { detailModel = model } label: { Image(systemName: "info.circle") }
                     .buttonStyle(.borderless)

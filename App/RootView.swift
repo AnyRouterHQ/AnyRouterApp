@@ -49,6 +49,7 @@ struct RootView: View {
                 Text("Share anonymous crash reports and timings. No messages, keys or emails.")
             }
             .task {
+                if !DemoData.isEnabled { appState.network.start() }
                 let watchdog = MainThreadWatchdog.shared
                 watchdog.mark("launch: local models")
                 await appState.hub.reload()

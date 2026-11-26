@@ -163,8 +163,25 @@ final class ToolRegistry {
 
     // MARK: Host
 
-    /// The tools for one chat request, or nil when none is on.
-    func makeHost(approver: any ToolApproving, context: ToolContext = ToolContext()) -> AgentToolHost? {
+    /// What one request may use, before the connection is considered.
+    private struct HostPlan {
+        var match: WebSearchBinding.Match?
+        var scrape: WebSearchBinding.Match?
+        var builtIns: [any BuiltInTool]
+        var mcpTools: [(server: MCPServer, tool: MCPTool)]
+
+        /// Search, page reading and every MCP tool need the connection.
+        var usesNetwork: Bool { match != nil || scrape != nil || !mcpTools.isEmpty || builtIns.contains { $0.needsNetwork } }
+
+        mutating func dropNetworkTools() {
+            match = nil
+            scrape = nil
+            mcpTools = []
+            builtIns.removeAll { $0.needsNetwork }
+        }
+    }
+
+    private func plan(for context: ToolContext) -> HostPlan {
         let situation = ToolSituation(signedIn: integrations.signedIn, modelSource: context.modelSource)
         let deviceOn = isOn(ToolSourceCatalog.device, in: situation)
         var mcpTools = activeMCPTools(situation)
@@ -181,6 +198,19 @@ final class ToolRegistry {
         if deviceOn, !context.attachments.isEmpty, isBuiltInEnabled("read_attachment") {
             builtIns.append(ReadAttachmentTool(provider: ThreadAttachments(attachments: context.attachments)))
         }
+        return HostPlan(match: match, scrape: scrape, builtIns: builtIns, mcpTools: mcpTools)
+    }
+
+    /// The device is offline and this request would have used a web tool. The chat tells the reader.
+    func skipsOffline(_ context: ToolContext) -> Bool {
+        context.isOffline && self.plan(for: context).usesNetwork
+    }
+
+    /// The tools for one chat request, or nil when none is on. Offline, the web tools are left out.
+    func makeHost(approver: any ToolApproving, context: ToolContext = ToolContext()) -> AgentToolHost? {
+        var plan = self.plan(for: context)
+        if context.isOffline { plan.dropNetworkTools() }
+        let (match, scrape, builtIns, mcpTools) = (plan.match, plan.scrape, plan.builtIns, plan.mcpTools)
         guard match != nil || !builtIns.isEmpty || !mcpTools.isEmpty else { return nil }
 
         let reserved = AgentToolHost.reservedNames(builtIns: builtIns, hasSearch: match != nil)

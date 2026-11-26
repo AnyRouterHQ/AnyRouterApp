@@ -7,4 +7,6 @@ struct ToolContext: Sendable {
     var userTexts: [String] = []
     /// The model that will use the tools. Sets what is on by default and how much tool text it is given.
     var modelSource: ModelSource?
+    /// The device has no connection: web tools are left out of the request.
+    var isOffline = false
 }

@@ -10,10 +10,14 @@ protocol BuiltInTool: Sendable {
     /// For the model.
     var description: String { get }
     var inputSchemaJSON: String { get }
+    /// The tool needs an internet connection, so it is left out while the device is offline.
+    var needsNetwork: Bool { get }
     func run(_ arguments: JSONValue) async throws -> String
 }
 
 extension BuiltInTool {
+    var needsNetwork: Bool { false }
+
     var spec: ToolSpec {
         ToolSpec(name: name, title: title, description: description, inputSchemaJSON: inputSchemaJSON, isReadOnly: true)
     }

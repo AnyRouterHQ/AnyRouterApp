@@ -70,7 +70,9 @@ struct ChatScreen: View {
                                   settings: settings, models: models,
                                   toolHost: { [app] context in
                                       app.tools.makeHost(approver: app.toolApprovals, context: context)
-                                  })
+                                  },
+                                  isOnline: { [app] in app.network.isOnline },
+                                  skipsToolsOffline: { [app] in app.tools.skipsOffline($0) })
         model.onThreadCreated = { [shell] id in shell.selectedThreadID = id }
         if DemoData.attachesSampleFile, thread == nil { model.attachFiles([DemoData.sampleAttachmentURL()]) }
         chat = model
@@ -183,12 +185,18 @@ private struct ChatContent: View {
                         loadingModelName: message.id == lastID ? chat.loadingModelName : nil
                     )
                 }
+                if let note = chat.offlineToolNote {
+                    Text(note)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .accessibilityIdentifier("offline-tool-note")
+                }
             }
             // A container of its own, so the UI tests can measure the column.
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("chat.content")
-            .padding(.vertical, 12)
-            .readableWidth()
+            .padding(.vertical, 12)            .readableWidth()
         }
         .scrollPosition($position)
         .scrollDismissesKeyboard(.interactively)
