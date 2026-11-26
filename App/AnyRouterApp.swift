@@ -22,5 +22,6 @@ struct AnyRouterApp: App {
                 .environment(appState.registry)
         }
         .modelContainer(container)
+        .commands { ShellCommands() }
     }
 }

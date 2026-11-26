@@ -16,6 +16,7 @@ struct AppShell: View {
         }
         .background(ARColor.background.ignoresSafeArea())
         .sheet(isPresented: Bindable(shell).isSettingsPresented) { SettingsScreen() }
+        .sheet(isPresented: Bindable(shell).isHubPresented) { HubSheet() }
         .onChange(of: isRegular, initial: true) { _, regular in
             shell.isSidebarOpen = regular
         }
@@ -140,18 +141,10 @@ private struct PhoneShell: View {
 }
 
 private struct Detail: View {
-    @Environment(ShellModel.self) private var shell
-
     var body: some View {
         NavigationStack {
-            Group {
-                switch shell.route {
-                case .chat: ChatScreen()
-                // The hub still draws its own page header until it becomes a native sheet.
-                case .hub: HubScreen().toolbar(.hidden, for: .navigationBar)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ChatScreen()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

@@ -15,13 +15,22 @@ struct ShellModelTests {
         #expect(!shell.isSidebarOpen)
     }
 
-    @Test func selectingThreadReturnsToChatRoute() {
+    @Test func hubIsASheetAndPickingAThreadDismissesIt() {
         let shell = ShellModel()
         shell.open(.hub, closeSidebar: false)
+        #expect(shell.isHubPresented)
         let id = UUID()
         shell.select(threadID: id, closeSidebar: true)
-        #expect(shell.route == .chat)
+        #expect(!shell.isHubPresented)
         #expect(shell.selectedThreadID == id)
+    }
+
+    @Test func findCommandOpensTheSidebarAndBumpsTheSearchRequest() {
+        let shell = ShellModel()
+        let before = shell.searchRequest
+        shell.requestSidebarSearch()
+        #expect(shell.isSidebarOpen)
+        #expect(shell.searchRequest == before + 1)
     }
 
     @Test func settingsIsASheetNotARoute() {
@@ -30,7 +39,7 @@ struct ShellModelTests {
         shell.presentSettings(closeSidebar: true)
         #expect(shell.isSettingsPresented)
         #expect(!shell.isSidebarOpen)
-        #expect(shell.route == .chat)
+        #expect(!shell.isHubPresented)
     }
 
     @Test func deletingSelectedThreadResetsSelection() {

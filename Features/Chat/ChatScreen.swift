@@ -13,7 +13,6 @@ struct ChatScreen: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var chat: ChatViewModel?
-    @State private var showsPicker = false
 
     var body: some View {
         Group {
@@ -32,7 +31,7 @@ struct ChatScreen: View {
                 }
             }
             ToolbarItem(placement: .principal) {
-                ModelPill { showsPicker = true }
+                ModelPill { shell.isModelPickerPresented = true }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "plus") }
@@ -41,7 +40,7 @@ struct ChatScreen: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .task(id: shell.selectedThreadID) { prepare() }
-        .sheet(isPresented: $showsPicker) {
+        .sheet(isPresented: Bindable(shell).isModelPickerPresented) {
             ModelPickerSheet()
         }
     }

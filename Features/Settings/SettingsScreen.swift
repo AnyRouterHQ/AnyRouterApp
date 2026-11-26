@@ -104,7 +104,7 @@ struct SettingsDestinationView: View {
     var body: some View {
         Group {
             switch destination {
-            case .manageModels: HubScreen(embedded: true)
+            case .manageModels: HubScreen()
             case .defaultModel: DefaultModelSettings()
             case .inference: InferenceSettings()
             case .catalogSources: CatalogSourcesSheet()

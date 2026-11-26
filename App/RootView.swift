@@ -9,6 +9,7 @@ struct RootView: View {
     var body: some View {
         AppShell()
             .environment(shell)
+            .focusedSceneValue(\.shell, shell)
             .environment(appState.settings)
             .environment(appState.models)
             .tint(ARColor.accent)

@@ -24,6 +24,12 @@ struct Composer: View {
                     .lineLimit(1...6)
                     .focused(focused)
                     .submitLabel(.return)
+                    // Hardware keyboards: Return sends, Shift-Return adds a line.
+                    .onKeyPress(.return, phases: .down) { press in
+                        guard !press.modifiers.contains(.shift), !model.isStreaming else { return .ignored }
+                        if model.canSend { _ = model.send() }
+                        return .handled
+                    }
                     .padding(.horizontal, 4)
                 HStack {
                     Button {} label: {

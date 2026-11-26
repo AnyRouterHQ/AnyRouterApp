@@ -126,24 +126,6 @@ struct ARSectionTitle: View {
     }
 }
 
-/// Top bar for full-screen pages (hub, settings): back circle plus title.
-struct ARPageHeader: View {
-    let title: String
-    var onBack: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ARIconButton(systemName: "arrow.left", label: "Back", action: onBack)
-            Text(title)
-                .font(.arXL)
-                .foregroundStyle(ARColor.foreground)
-            Spacer()
-        }
-        .padding(.horizontal, ARTheme.pagePadding)
-        .padding(.vertical, 8)
-    }
-}
-
 /// Placeholder for surfaces that stay visible but are not wired yet.
 struct ARComingSoon: View {
     let title: String

@@ -1,13 +1,26 @@
 import SwiftUI
 
-/// Browse Models: installed and available local models, Hugging Face search, downloads.
+/// Sheet wrapper: the hub in its own navigation stack with a Done button.
+struct HubSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            HubScreen()
+                .navigationTitle("Browse Models")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                }
+        }
+        .tint(ARColor.accent)
+    }
+}
+
+/// Browse Models content: installed and available local models, Hugging Face search, downloads.
 struct HubScreen: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models
-    @Environment(ShellModel.self) private var shell
-
-    /// True inside Settings, where the navigation bar provides the title and back button.
-    var embedded = false
 
     @State private var query = ""
     @State private var showsRepoSearch = false
@@ -24,10 +37,6 @@ struct HubScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if !embedded { ARPageHeader(title: "Browse Models") { shell.open(.chat, closeSidebar: false) } }
-            ARSearchField(text: $query, prompt: "Search models")
-                .padding(.horizontal, ARTheme.pagePadding)
-                .padding(.bottom, 12)
             ScrollView {
                 VStack(spacing: 12) {
                     if let error = hub.lastError { ErrorBanner(text: error) {} }
@@ -41,6 +50,8 @@ struct HubScreen: View {
                 .frame(maxWidth: .infinity)
             }
         }
+        .searchable(text: $query, prompt: "Search models")
+        .refreshable { await hub.reload() }
         .sheet(isPresented: $showsRepoSearch) {
             RepoSearchSheet(query: query)
         }

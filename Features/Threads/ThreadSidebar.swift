@@ -36,6 +36,7 @@ struct ThreadSidebar: View {
                 renaming = nil
             }
         }
+        .onChange(of: shell.searchRequest) { setSearching(true) }
         .confirmationDialog(
             "Delete this chat?",
             isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
