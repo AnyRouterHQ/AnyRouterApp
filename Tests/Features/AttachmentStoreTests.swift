@@ -63,6 +63,24 @@ struct AttachmentStoreTests {
         #expect(throws: (any Error).self) { try temp.store.adopt(pending, intoThread: UUID()) }
     }
 
+    @Test func adoptingIntoTheSameThreadTwiceKeepsTheFile() throws {
+        let temp = TempAttachments()
+        defer { temp.cleanup() }
+        let thread = UUID()
+        let once = try temp.store.adopt(try temp.attachment(), intoThread: thread)
+        let twice = try temp.store.adopt(once, intoThread: thread)
+        #expect(twice == once && temp.exists(twice))
+    }
+
+    @Test func existsFollowsTheFile() throws {
+        let temp = TempAttachments()
+        defer { temp.cleanup() }
+        let attachment = try temp.attachment()
+        #expect(temp.store.exists(attachment))
+        temp.store.remove(attachment)
+        #expect(!temp.store.exists(attachment))
+    }
+
     @Test func removingDeletesTheFile() throws {
         let temp = TempAttachments()
         defer { temp.cleanup() }

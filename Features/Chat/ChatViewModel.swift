@@ -25,6 +25,10 @@ final class ChatViewModel {
     private(set) var pending: [ChatAttachment] = []
     /// Attachments still being read (images are shrunk, text and OCR are read off the main actor).
     private(set) var ingesting = 0
+    /// Pending files that could not be moved into the thread at the last send. They stay pending, marked.
+    private(set) var failedAttachmentIDs: Set<UUID> = []
+    /// Id of the thread a first send creates, so files moved by a send that failed halfway are found again.
+    let draftThreadID = UUID()
 
     /// Called once when the first send creates the thread.
     @ObservationIgnored var onThreadCreated: (@MainActor (UUID) -> Void)?
@@ -147,6 +151,7 @@ final class ChatViewModel {
     func removePending(_ attachment: ChatAttachment) {
         guard pending.contains(where: { $0.id == attachment.id }) else { return }
         pending.removeAll { $0.id == attachment.id }
+        failedAttachmentIDs.remove(attachment.id)
         attachmentStore.remove(attachment)
     }
 
@@ -192,12 +197,15 @@ final class ChatViewModel {
             errorMessage = "Choose a model first."
             return nil
         }
-        let thread = ensureThread(firstMessage: text.isEmpty ? (pending.first?.filename ?? "Attachment") : text)
+        // Files move first: if one cannot, nothing is sent and every file stays under the field.
+        let threadID = thread?.id ?? draftThreadID
+        guard let adopted = adoptPending(into: threadID) else { return nil }
+        let thread = ensureThread(id: threadID, firstMessage: text.isEmpty ? (adopted.first?.filename ?? "Attachment") : text)
         models.telemetry.track(.messageSent(source: model.source))
         let user = MessageRecord(role: .user, content: text)
         context.insert(user)
         user.thread = thread
-        user.attachments = pending.compactMap { try? attachmentStore.adopt($0, intoThread: thread.id) }
+        user.attachments = adopted
         pending = []
         input = ""
         return startStream(model: model, thread: thread)
@@ -236,9 +244,33 @@ final class ChatViewModel {
         context.delete(message)
     }
 
-    private func ensureThread(firstMessage: String) -> ThreadRecord {
+    /// Moves the pending files into the thread's folder. `nil` when one cannot move: it stays pending and
+    /// marked, and an error says which file to remove or attach again. A file that is already gone is found
+    /// before anything moves, so a failed send leaves the others where they were.
+    private func adoptPending(into threadID: UUID) -> [ChatAttachment]? {
+        var failed = pending.filter { !attachmentStore.exists($0) }
+        var result = pending
+        if failed.isEmpty {
+            for index in result.indices {
+                do {
+                    result[index] = try attachmentStore.adopt(result[index], intoThread: threadID)
+                } catch {
+                    failed.append(result[index])
+                }
+            }
+        }
+        failedAttachmentIDs = Set(failed.map(\.id))
+        guard failed.isEmpty else {
+            pending = result
+            errorMessage = "Could not send \(failed.map(\.filename).joined(separator: ", ")). Remove it and attach it again."
+            return nil
+        }
+        return result
+    }
+
+    private func ensureThread(id: UUID, firstMessage: String) -> ThreadRecord {
         if let thread { return thread }
-        let created = ThreadRecord(title: ThreadListLogic.title(fromFirstMessage: firstMessage))
+        let created = ThreadRecord(id: id, title: ThreadListLogic.title(fromFirstMessage: firstMessage))
         created.thinkingEnabled = thinkingEnabled
         created.toolsDisabled = toolsDisabled
         context.insert(created)

@@ -82,6 +82,42 @@ struct AttachmentChatTests {
         #expect(r.vm.pending.isEmpty)
     }
 
+    @Test func aFileThatCannotBeSentStaysPendingMarkedAndNothingIsSent() async throws {
+        let r = try await rig()
+        defer { r.temp.cleanup() }
+        r.vm.attachFiles([try textFile("good.txt"), try textFile("bad.txt")])
+        try await settle(r.vm)
+        let bad = try #require(r.vm.pending.first { $0.filename == "bad.txt" })
+        r.temp.store.remove(bad)
+        r.vm.input = "Read both"
+        #expect(r.vm.send() == nil)
+        #expect(r.vm.thread == nil && r.vm.messages.isEmpty)
+        #expect(r.vm.input == "Read both")
+        #expect(r.vm.pending.count == 2 && r.vm.failedAttachmentIDs == [bad.id])
+        #expect(r.vm.errorMessage?.contains("bad.txt") == true)
+        let good = try #require(r.vm.pending.first { $0.filename == "good.txt" })
+        #expect(r.temp.exists(good) && good.relativePath.hasPrefix("_pending/"))
+
+        r.vm.removePending(bad)
+        #expect(r.vm.failedAttachmentIDs.isEmpty)
+        await r.vm.send()?.value
+        #expect(r.vm.messages.first?.attachments.map(\.filename) == ["good.txt"])
+        #expect(r.vm.messages.first?.attachments.first.map(r.temp.exists) == true)
+    }
+
+    @Test func aMoveThatFailsAfterTheCheckKeepsEveryFilePendingToo() async throws {
+        let r = try await rig()
+        defer { r.temp.cleanup() }
+        r.vm.attachFiles([try textFile("a.txt")])
+        try await settle(r.vm)
+        // A plain file where the thread folder must go: creating the folder fails.
+        try FileManager.default.createDirectory(at: r.temp.store.root, withIntermediateDirectories: true)
+        try Data().write(to: r.temp.store.root.appending(path: r.vm.draftThreadID.uuidString))
+        #expect(r.vm.send() == nil)
+        #expect(r.vm.pending.map(\.filename) == ["a.txt"] && r.vm.failedAttachmentIDs.count == 1)
+        #expect(r.vm.thread == nil)
+    }
+
     @Test func atMostTenFilesGoInOneMessage() async throws {
         let r = try await rig()
         defer { r.temp.cleanup() }

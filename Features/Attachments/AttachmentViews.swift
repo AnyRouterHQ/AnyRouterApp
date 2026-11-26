@@ -7,6 +7,7 @@ import UIKit
 struct PendingAttachments: View {
     let attachments: [ChatAttachment]
     let ingesting: Int
+    var failed: Set<UUID> = []
     let store: AttachmentStore
     var onRemove: (ChatAttachment) -> Void
 
@@ -14,7 +15,9 @@ struct PendingAttachments: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(attachments) { attachment in
-                    AttachmentChip(attachment: attachment, store: store) { onRemove(attachment) }
+                    AttachmentChip(attachment: attachment, store: store, failed: failed.contains(attachment.id)) {
+                        onRemove(attachment)
+                    }
                 }
                 if ingesting > 0 { ProgressView().frame(width: 44, height: 44) }
             }
@@ -28,10 +31,18 @@ struct PendingAttachments: View {
 struct AttachmentChip: View {
     let attachment: ChatAttachment
     let store: AttachmentStore
+    /// The file could not be sent. The chip says so and the user can remove it.
+    var failed = false
     var onRemove: () -> Void
 
     var body: some View {
         HStack(spacing: 0) {
+            if failed {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                    .padding(.leading, 12)
+                    .accessibilityLabel("Could not send")
+            }
             if attachment.kind == .image {
                 AttachmentThumbnail(attachment: attachment, store: store, side: 44)
                     .clipShape(.rect(cornerRadius: 8))

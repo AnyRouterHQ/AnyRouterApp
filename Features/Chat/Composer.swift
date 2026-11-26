@@ -30,7 +30,7 @@ struct Composer: View {
             }
             if !model.pending.isEmpty || model.ingesting > 0 {
                 PendingAttachments(attachments: model.pending, ingesting: model.ingesting,
-                                   store: model.attachmentStore) { model.removePending($0) }
+                                   failed: model.failedAttachmentIDs, store: model.attachmentStore) { model.removePending($0) }
             }
             if let note = model.attachmentNote {
                 HStack(spacing: 8) {

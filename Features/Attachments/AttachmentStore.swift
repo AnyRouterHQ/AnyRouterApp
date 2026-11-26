@@ -43,6 +43,8 @@ struct AttachmentStore: Sendable {
     func adopt(_ attachment: ChatAttachment, intoThread thread: UUID) throws -> ChatAttachment {
         let name = (attachment.relativePath as NSString).lastPathComponent
         let folder = thread.uuidString
+        // Already there (a send that failed halfway): moving it onto itself would delete it.
+        if attachment.relativePath.hasPrefix(folder + "/") { return attachment }
         let directory = root.appending(path: folder, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let destination = directory.appending(path: name)
@@ -51,6 +53,10 @@ struct AttachmentStore: Sendable {
         var moved = attachment
         moved.relativePath = "\(folder)/\(name)"
         return moved
+    }
+
+    func exists(_ attachment: ChatAttachment) -> Bool {
+        FileManager.default.fileExists(atPath: attachment.url(in: root).path)
     }
 
     func remove(_ attachment: ChatAttachment) {
