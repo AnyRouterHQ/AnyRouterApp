@@ -3,7 +3,8 @@ import Foundation
 /// Which logo a model shows. Pure, so the mapping is tested without a view.
 ///
 /// Slugs follow the AnyRouter web app (provider aliases and model families), so both apps agree.
-/// A logo URL from the API wins. The bundled monochrome set is the fallback, then an SF Symbol.
+/// A logo URL from the API wins. The bundled monochrome set is the fallback, then a letter monogram
+/// (an owner without a public mark), then a generic symbol.
 enum ModelBrand: Equatable {
     /// A bundled template image in the asset catalog.
     case asset(String)
@@ -14,32 +15,11 @@ enum ModelBrand: Equatable {
     static let anyRouterMark = "BrandMark"
     static let unknown = ModelBrand.symbol("cube")
 
+    /// The brand table. One checked-in file (`Design/model-brands.json`) that `scripts/logo-coverage.py` reads too.
+    static let table = BrandTable.bundled
+
     /// Asset names are `Logo-<slug>`. These are the slugs that ship in the bundle.
-    static let bundledSlugs: Set<String> = [
-        "openai", "anthropic", "google", "meta", "mistral", "qwen", "deepseek", "xai", "cohere",
-        "nvidia", "z-ai", "moonshotai", "perplexity", "microsoft", "aws", "huggingface", "liquid",
-        "minimax", "stepfun", "ai21", "groq", "openrouter", "fireworks", "together", "baidu",
-        "bytedance", "ollama",
-    ]
-
-    /// Owner prefixes and display names that map to another logo, as on the web app.
-    private static let providerAliases: [String: String] = [
-        "meta-llama": "meta", "metallama": "meta", "mistralai": "mistral", "mistral-ai": "mistral",
-        "x-ai": "xai", "deepseek-ai": "deepseek", "zhipu": "z-ai", "zhipuai": "z-ai", "zhipu-ai": "z-ai",
-        "zai": "z-ai", "zai-org": "z-ai", "chatglm": "z-ai", "moonshot": "moonshotai", "moonshot-ai": "moonshotai",
-        "kimi": "moonshotai", "amazon": "aws", "amazon-bedrock": "aws", "msft": "microsoft", "alibaba": "qwen",
-        "google-deepmind": "google", "google-vertex": "google", "vertex": "google", "stepfun-ai": "stepfun",
-        "hf": "huggingface", "ollama-cloud": "ollama",
-    ]
-
-    /// Model family by the bare model name, in the web app's order.
-    private static let familyPatterns: [(prefix: String, slug: String)] = [
-        ("claude", "anthropic"), ("gpt", "openai"), ("gemini", "google"), ("gemma", "google"),
-        ("llama", "meta"), ("mistral", "mistral"), ("mixtral", "mistral"), ("codestral", "mistral"),
-        ("ministral", "mistral"), ("deepseek", "deepseek"), ("glm", "z-ai"), ("qwen", "qwen"),
-        ("grok", "xai"), ("command", "cohere"), ("step", "stepfun"), ("nemotron", "nvidia"),
-        ("phi", "microsoft"), ("lfm", "liquid"), ("smollm", "huggingface"),
-    ]
+    static let bundledSlugs = Set(table.brands.keys)
 
     static func resolve(_ model: ModelDescriptor) -> ModelBrand {
         if let url = model.cloud?.logoURL { return .remote(url) }
@@ -64,7 +44,7 @@ enum ModelBrand: Equatable {
             let wire = id.hasPrefix("anyrouter/") ? String(id.dropFirst("anyrouter/".count)) : id
             let owner = wire.split(separator: "/").first.map(String.init) ?? ""
             if owner == "anyrouter" { return .asset(anyRouterMark) }
-            return logo(slug(owner: owner, bareName: bare(wire))) ?? unknown
+            return logo(slug(owner: owner, bareName: bare(wire))) ?? monogram(owner)
         case .gguf, .mlx:
             // "gguf/org/repo/file.gguf" and "mlx/org/repo": the repo name carries the family.
             let parts = id.split(separator: "/").map(String.init)
@@ -72,7 +52,7 @@ enum ModelBrand: Equatable {
             let owner = parts.count > 1 ? parts[1] : ""
             let byFamily = logo(slug(owner: "", bareName: repo.lowercased()))
             let byOwner = logo(slug(owner: owner, bareName: ""))
-            return byFamily ?? byOwner ?? ModelBrand.symbol("cpu")
+            return byFamily ?? byOwner ?? monogram(repo)
         }
     }
 
@@ -80,11 +60,17 @@ enum ModelBrand: Equatable {
     static func slug(owner: String, bareName: String) -> String? {
         let key = owner.lowercased()
         if !key.isEmpty {
-            let mapped = providerAliases[key] ?? key
+            let mapped = table.aliases[key] ?? key
             if bundledSlugs.contains(mapped) { return mapped }
         }
         let name = bareName.lowercased()
-        return familyPatterns.first { name.hasPrefix($0.prefix) }?.slug
+        return table.families.first { name.hasPrefix($0.prefix) }?.slug
+    }
+
+    /// The first letter as an SF Symbol ("t.circle.fill"). Anything but a letter keeps the generic cube.
+    static func monogram(_ name: String) -> ModelBrand {
+        guard let first = name.lowercased().first, first.isASCII, first.isLetter else { return unknown }
+        return .symbol("\(first).circle.fill")
     }
 
     private static func logo(_ slug: String?) -> ModelBrand? {
@@ -95,4 +81,27 @@ enum ModelBrand: Equatable {
     private static func bare(_ wire: String) -> String {
         wire.split(separator: "/").last.map(String.init) ?? wire
     }
+}
+
+/// What ModelBrand needs to know about providers, decoded from `Design/model-brands.json`.
+struct BrandTable: Decodable, Equatable, Sendable {
+    struct Family: Decodable, Equatable, Sendable {
+        let prefix: String
+        let slug: String
+    }
+
+    /// Bundled logo slug to display name.
+    let brands: [String: String]
+    /// Owner prefixes and display names that map to another logo, as on the web app.
+    let aliases: [String: String]
+    /// Model family by the bare model name, in the web app's order.
+    let families: [Family]
+    /// Owners reviewed as having no public mark. They show a monogram. Read by the coverage test and script.
+    let noMark: [String]
+
+    /// A missing or malformed file is a build defect, so it stops loudly; every test run loads it.
+    static let bundled: BrandTable = {
+        let url = Bundle.main.url(forResource: "model-brands", withExtension: "json")!
+        return try! JSONDecoder().decode(BrandTable.self, from: Data(contentsOf: url))
+    }()
 }

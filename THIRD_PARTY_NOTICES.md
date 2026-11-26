@@ -18,7 +18,7 @@ The MLX engine uses mlx-swift (https://github.com/ml-explore/mlx-swift) and mlx-
 
 ## Provider and model logos
 
-The monochrome provider and model logos in `Design/Assets.xcassets` (`Logo-*`) come from lobe-icons (https://github.com/lobehub/lobe-icons, `@lobehub/icons-static-svg`), MIT License, Copyright (c) 2023 LobeHub. The marks are trademarks of their owners and are shown only to identify a model's provider.
+The monochrome provider and model logos in `Design/Assets.xcassets` (`Logo-*`) come from lobe-icons (https://github.com/lobehub/lobe-icons, `@lobehub/icons-static-svg`), MIT License, Copyright (c) 2023 LobeHub. Version 1.106.0 is pinned in `scripts/logo-add.py`, which adds each mark; `Design/model-brands.json` lists them. The marks are trademarks of their owners and are shown only to identify a model's provider.
 
 ## swift-transformers
 

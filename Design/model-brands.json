@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "brands": {
+    "openai": "OpenAI",
+    "anthropic": "Anthropic",
+    "google": "Google",
+    "meta": "Meta",
+    "mistral": "Mistral AI",
+    "qwen": "Qwen",
+    "deepseek": "DeepSeek",
+    "xai": "xAI",
+    "cohere": "Cohere",
+    "nvidia": "NVIDIA",
+    "z-ai": "Z.ai",
+    "moonshotai": "Moonshot AI",
+    "perplexity": "Perplexity",
+    "microsoft": "Microsoft",
+    "aws": "Amazon",
+    "huggingface": "Hugging Face",
+    "liquid": "Liquid AI",
+    "minimax": "MiniMax",
+    "stepfun": "StepFun",
+    "ai21": "AI21 Labs",
+    "groq": "Groq",
+    "openrouter": "OpenRouter",
+    "fireworks": "Fireworks AI",
+    "together": "Together AI",
+    "baidu": "Baidu",
+    "bytedance": "ByteDance",
+    "ollama": "Ollama",
+    "agnes-ai": "Agnes AI",
+    "aion-labs": "Aion Labs",
+    "antgroup": "Ant Group",
+    "arcee": "Arcee AI",
+    "baai": "BAAI",
+    "cloudflare": "Cloudflare",
+    "cognitivecomputations": "Cognitive Computations",
+    "dots-studio": "dots.studio",
+    "ibm": "IBM",
+    "inception": "Inception",
+    "inclusionai": "inclusionAI",
+    "inference-net": "Inference.net",
+    "internlm": "InternLM",
+    "meituan": "Meituan",
+    "morph": "Morph",
+    "nousresearch": "Nous Research",
+    "perceptron": "Perceptron",
+    "reflection": "Reflection AI",
+    "reka": "Reka",
+    "relace": "Relace",
+    "sakana": "Sakana AI",
+    "snowflake": "Snowflake",
+    "tencent": "Tencent",
+    "upstage": "Upstage",
+    "venice": "Venice",
+    "vllm": "vLLM",
+    "xiaomi": "Xiaomi",
+    "apple": "Apple"
+  },
+  "aliases": {
+    "meta-llama": "meta",
+    "metallama": "meta",
+    "mistralai": "mistral",
+    "mistral-ai": "mistral",
+    "x-ai": "xai",
+    "deepseek-ai": "deepseek",
+    "zhipu": "z-ai",
+    "zhipuai": "z-ai",
+    "zhipu-ai": "z-ai",
+    "zai": "z-ai",
+    "zai-org": "z-ai",
+    "chatglm": "z-ai",
+    "moonshot": "moonshotai",
+    "moonshot-ai": "moonshotai",
+    "kimi": "moonshotai",
+    "amazon": "aws",
+    "amazon-bedrock": "aws",
+    "msft": "microsoft",
+    "alibaba": "qwen",
+    "google-deepmind": "google",
+    "google-vertex": "google",
+    "vertex": "google",
+    "stepfun-ai": "stepfun",
+    "hf": "huggingface",
+    "ollama-cloud": "ollama",
+    "bytedance-seed": "bytedance",
+    "sentence-transformers": "huggingface",
+    "ibm-granite": "ibm",
+    "intern": "internlm",
+    "rekaai": "reka",
+    "snowflakeai": "snowflake",
+    "antdigital": "antgroup",
+    "vllm-sr": "vllm",
+    "arcee-ai": "arcee"
+  },
+  "families": [
+    {
+      "prefix": "claude",
+      "slug": "anthropic"
+    },
+    {
+      "prefix": "gpt",
+      "slug": "openai"
+    },
+    {
+      "prefix": "gemini",
+      "slug": "google"
+    },
+    {
+      "prefix": "gemma",
+      "slug": "google"
+    },
+    {
+      "prefix": "llama",
+      "slug": "meta"
+    },
+    {
+      "prefix": "mistral",
+      "slug": "mistral"
+    },
+    {
+      "prefix": "mixtral",
+      "slug": "mistral"
+    },
+    {
+      "prefix": "codestral",
+      "slug": "mistral"
+    },
+    {
+      "prefix": "ministral",
+      "slug": "mistral"
+    },
+    {
+      "prefix": "deepseek",
+      "slug": "deepseek"
+    },
+    {
+      "prefix": "glm",
+      "slug": "z-ai"
+    },
+    {
+      "prefix": "qwen",
+      "slug": "qwen"
+    },
+    {
+      "prefix": "grok",
+      "slug": "xai"
+    },
+    {
+      "prefix": "command",
+      "slug": "cohere"
+    },
+    {
+      "prefix": "step",
+      "slug": "stepfun"
+    },
+    {
+      "prefix": "nemotron",
+      "slug": "nvidia"
+    },
+    {
+      "prefix": "phi",
+      "slug": "microsoft"
+    },
+    {
+      "prefix": "lfm",
+      "slug": "liquid"
+    },
+    {
+      "prefix": "smollm",
+      "slug": "huggingface"
+    }
+  ],
+  "noMark": [
+    "agents-a1",
+    "aiteamvn",
+    "anthracite-org",
+    "apodex",
+    "atria-asi",
+    "baselabs",
+    "chinhnc",
+    "convaiinnovations",
+    "elorian",
+    "fastino",
+    "fpt-ai",
+    "gryphe",
+    "hal-x",
+    "humansand",
+    "interfaze",
+    "intfloat",
+    "jaredpalmer",
+    "kt",
+    "mancer",
+    "mixedbread-ai",
+    "moondream",
+    "motif-technologies",
+    "nace-ai",
+    "nex-agi",
+    "nomic-ai",
+    "ornith",
+    "parallel",
+    "particle-ai",
+    "poolside",
+    "prism-ml",
+    "recursive",
+    "respan",
+    "ricursive",
+    "sao10k",
+    "sarvam",
+    "scaledown",
+    "scira",
+    "stealth",
+    "strandsagents",
+    "subquadratic",
+    "thedrummer",
+    "thenlper",
+    "thinkingmachines",
+    "typesafe",
+    "unbiased",
+    "undi95",
+    "writer",
+    "xingchen-agi"
+  ]
+}

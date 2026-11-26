@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UIKit
 @testable import AnyRouter
 
 struct ModelBrandTests {
@@ -31,7 +32,30 @@ struct ModelBrandTests {
     @Test func unknownOwnerFallsBackToTheModelFamilyThenAGenericSymbol() {
         #expect(brand("some-host/claude-clone") == .asset("Logo-anthropic"))
         #expect(brand("some-host/qwen3-235b") == .asset("Logo-qwen"))
-        #expect(brand("some-host/mystery-1") == .symbol("cube"))
+        #expect(brand("some-host/mystery-1") == .symbol("s.circle.fill"))
+    }
+
+    @Test func companiesWithAPublicMarkGetIt() {
+        #expect(brand("tencent/hunyuan-a13b") == .asset("Logo-tencent"))
+        #expect(brand("ibm-granite/granite-4") == .asset("Logo-ibm"))
+        #expect(brand("xiaomi/mimo-v2") == .asset("Logo-xiaomi"))
+        #expect(brand("bytedance-seed/seed-2") == .asset("Logo-bytedance"))
+        #expect(brand("sentence-transformers/all-minilm") == .asset("Logo-huggingface"))
+        #expect(brand("apple/some-cloud-model") == .asset("Logo-apple"))
+    }
+
+    @Test func anOwnerWithoutAMarkShowsItsFirstLetter() {
+        #expect(brand("thedrummer/cydonia") == .symbol("t.circle.fill"))
+        #expect(brand("Sao10K/euryale") == .symbol("s.circle.fill"))
+        #expect(ModelBrand.monogram("01-ai") == ModelBrand.unknown)
+        #expect(ModelBrand.monogram("") == ModelBrand.unknown)
+        #expect(ModelBrand.monogram("écho") == ModelBrand.unknown)
+    }
+
+    @Test func everyMonogramIsASystemSymbol() {
+        for letter in "abcdefghijklmnopqrstuvwxyz" {
+            #expect(UIImage(systemName: "\(letter).circle.fill") != nil, "no symbol for \(letter)")
+        }
     }
 
     @Test func appleUsesTheAppleSymbol() {
@@ -46,7 +70,7 @@ struct ModelBrandTests {
         #expect(ModelBrand.resolve(localModel("gguf/liquid/LFM2-1.2B-GGUF/x.gguf")) == .asset("Logo-liquid"))
         #expect(ModelBrand.resolve(localModel("gguf/org/SmolLM2-360M-GGUF/x.gguf")) == .asset("Logo-huggingface"))
         #expect(ModelBrand.resolve(localModel("gguf/openai/some-oss-GGUF/x.gguf")) == .asset("Logo-openai"))
-        #expect(ModelBrand.resolve(localModel("gguf/org/unknown-model-GGUF/x.gguf")) == .symbol("cpu"))
+        #expect(ModelBrand.resolve(localModel("gguf/org/unknown-model-GGUF/x.gguf")) == .symbol("u.circle.fill"))
     }
 
     @Test func aLogoFromTheAPIWins() throws {
@@ -62,13 +86,55 @@ struct ModelBrandTests {
         #expect(ModelBrand.resolve(id: "anyrouter/anyrouter/auto") == .asset(ModelBrand.anyRouterMark))
     }
 
+    private var repoRoot: URL {
+        URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    }
+
+    /// The live AnyRouter owner list, refreshed by `scripts/logo-coverage.py --refresh`.
+    private func fixtureOwners() throws -> [String] {
+        let url = repoRoot.appendingPathComponent("Tests/Fixtures/anyrouter-owners.json")
+        let ids = try JSONDecoder().decode(OwnerFixture.self, from: Data(contentsOf: url)).ids
+        return Set(ids.compactMap { $0.split(separator: "/").first.map(String.init) }).sorted()
+    }
+
+    @Test func everyKnownOwnerHasAMarkOrWasReviewedAsMarkless() throws {
+        let noMark = Set(ModelBrand.table.noMark)
+        let owners = try fixtureOwners()
+        try #require(owners.count > 50)
+        let unreviewed = owners.filter { $0 != "anyrouter" && ModelBrand.slug(owner: $0, bareName: "") == nil && !noMark.contains($0) }
+        #expect(unreviewed.isEmpty, "no logo for \(unreviewed): add one with scripts/logo-add.py or list it under noMark")
+        let stale = noMark.filter { ModelBrand.slug(owner: $0, bareName: "") != nil || !owners.contains($0) }
+        #expect(stale.isEmpty, "noMark lists owners that are gone or now have a mark: \(stale.sorted())")
+    }
+
+    @Test func everyLocalCatalogRepoHasAMark() throws {
+        let data = try Data(contentsOf: repoRoot.appendingPathComponent("catalog/models.json"))
+        let repos = try JSONDecoder().decode(CatalogRepos.self, from: data).families.flatMap(\.variants).map(\.repo)
+        try #require(!repos.isEmpty)
+        for repo in repos {
+            guard case .asset = ModelBrand.resolve(localModel("gguf/\(repo)/x.gguf")) else {
+                Issue.record("local catalog repo without a logo: \(repo)")
+                continue
+            }
+        }
+    }
+
     @Test func everyBundledSlugHasItsImageInTheAssetCatalog() throws {
-        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("Design/Assets.xcassets")
+        let root = repoRoot.appendingPathComponent("Design/Assets.xcassets")
         try #require(FileManager.default.fileExists(atPath: root.path))
         for slug in ModelBrand.bundledSlugs {
             let dir = root.appendingPathComponent("Logo-\(slug).imageset/\(slug).svg")
             #expect(FileManager.default.fileExists(atPath: dir.path), "missing logo for \(slug)")
         }
     }
+}
+
+private struct OwnerFixture: Decodable { let ids: [String] }
+
+private struct CatalogRepos: Decodable {
+    struct Family: Decodable {
+        struct Variant: Decodable { let repo: String }
+        let variants: [Variant]
+    }
+    let families: [Family]
 }

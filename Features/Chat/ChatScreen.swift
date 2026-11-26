@@ -85,6 +85,7 @@ private struct ChatContent: View {
     /// The list follows the reply while true (see `ScrollFollow`).
     @State private var following = true
     @State private var nearBottom = true
+    @ScaledMetric(relativeTo: .subheadline) private var greetingLogoSize: CGFloat = 15
 
     var body: some View {
         Group {
@@ -115,7 +116,7 @@ private struct ChatContent: View {
             .accessibilityHint("Shows a tip")
             .accessibilityIdentifier("home.greeting")
             HStack(spacing: 6) {
-                if tip == nil, let model = chat.model { ModelLogo(brand: ModelBrand.resolve(model), size: 15) }
+                if tip == nil, let model = chat.model { ModelLogo(brand: ModelBrand.resolve(model), size: greetingLogoSize) }
                 Text(tip ?? subtitle)
                     .font(.subheadline)
                     .multilineTextAlignment(.center)
