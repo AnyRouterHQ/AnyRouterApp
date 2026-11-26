@@ -4,10 +4,10 @@ enum SettingsLogic {
     /// Taps on the version row that copy diagnostics.
     static let diagnosticsTapCount = 7
 
-    static var appVersion: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0" }
-    static var appBuild: String { Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1" }
+    static var appVersion: String { Bundle.main.infoString("CFBundleShortVersionString", default: "1.0") }
+    static var appBuild: String { Bundle.main.infoString("CFBundleVersion", default: "1") }
 
-    static var appCommit: String { Bundle.main.infoDictionary?["ARGitCommit"] as? String ?? "dev" }
+    static var appCommit: String { Bundle.main.infoString("ARGitCommit", default: "dev") }
 
     /// "0.1.0 (123) · abc1234": the CI run number and commit tell builds apart.
     static func versionText(version: String, build: String, commit: String? = nil) -> String {

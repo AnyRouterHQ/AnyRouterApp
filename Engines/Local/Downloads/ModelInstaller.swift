@@ -23,7 +23,7 @@ enum ModelInstaller {
         let id = job.entry.id
         for file in job.files {
             let url = storage.partialFileURL(forEntryID: id, path: file.path)
-            let size = (try fm.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.int64Value ?? -1
+            let size = (try fm.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.int64Value
             if file.size > 0, size != file.size {
                 try? fm.removeItem(at: url)
                 throw LocalModelError.sizeMismatch(file.path)

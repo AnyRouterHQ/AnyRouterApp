@@ -15,7 +15,7 @@ extension AnyRouterEngine {
         let started = ContinuousClock.now
         let (data, response) = try await session.data(for: http)
         let elapsed = started.duration(to: .now)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let status = AnyRouterError.status(of: response)
         if status == 401 {
             tokens.clear()
             await onUnauthorized()

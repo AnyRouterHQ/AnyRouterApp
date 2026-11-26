@@ -75,8 +75,8 @@ enum ModelPickerLogic {
             PickerSection(kind: .local, models: byName(local)),
         ]
         result += providers
+            .sorted { providerTitle($0.key).localizedCaseInsensitiveCompare(providerTitle($1.key)) == .orderedAscending }
             .map { PickerSection(kind: .provider($0.key), models: byName($0.value)) }
-            .sorted { providerTitle($0.kind.providerName).localizedCaseInsensitiveCompare(providerTitle($1.kind.providerName)) == .orderedAscending }
         return result.filter { !$0.models.isEmpty || (!searching && $0.kind == .anyrouter) }
     }
 
@@ -131,12 +131,5 @@ enum ModelPickerLogic {
             if a != b { return a < b }
             return $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
         }
-    }
-}
-
-private extension PickerSection.Kind {
-    var providerName: String {
-        if case .provider(let name) = self { return name }
-        return ""
     }
 }

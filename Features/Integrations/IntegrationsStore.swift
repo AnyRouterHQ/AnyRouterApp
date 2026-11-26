@@ -227,9 +227,9 @@ final class IntegrationsStore {
     // MARK: Helpers
 
     private func makeClient(for server: MCPServer) -> MCPClient {
-        let provider: @Sendable () -> String?
+        let provider: (@Sendable () -> String?)?
         switch server.auth {
-        case .none: provider = { nil }
+        case .none: provider = nil
         case .anyRouterSignIn: provider = anyRouterToken
         case .bearerToken:
             let credentials = credentials

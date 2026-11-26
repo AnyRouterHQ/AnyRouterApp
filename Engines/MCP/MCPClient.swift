@@ -17,7 +17,8 @@ actor MCPClient {
     static let defaultMaxResponseBytes = 4 * 1024 * 1024
 
     private let server: MCPServer
-    private let token: @Sendable () -> String?
+    /// Nil for servers without credentials.
+    private let token: (@Sendable () -> String?)?
     private let session: URLSession
     private let clientName: String
     private let clientVersion: String
@@ -31,7 +32,7 @@ actor MCPClient {
 
     init(
         server: MCPServer,
-        token: @escaping @Sendable () -> String?,
+        token: (@Sendable () -> String?)?,
         session: URLSession = .shared,
         clientName: String = "AnyRouter for iOS",
         clientVersion: String = "1",
@@ -149,7 +150,7 @@ actor MCPClient {
 
     private func baseRequest(timeout: TimeInterval) -> URLRequest {
         var request = URLRequest(url: server.url, timeoutInterval: timeout)
-        if server.auth != .none, let token = token(), !token.isEmpty {
+        if server.auth != .none, let token = token?(), !token.isEmpty {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         return request

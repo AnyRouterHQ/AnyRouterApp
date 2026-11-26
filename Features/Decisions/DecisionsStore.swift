@@ -83,8 +83,9 @@ final class DecisionsStore {
         guard let context, let record = try? DecisionRunRecord(
             modelID: modelID, state: state, questions: questions, result: result) else { return }
         context.insert(record)
-        let all = (try? context.fetch(FetchDescriptor<DecisionRunRecord>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
-        for old in all.dropFirst(DecisionsLogic.recentLimit) { context.delete(old) }
+        if let all = try? context.fetch(FetchDescriptor<DecisionRunRecord>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])) {
+            for old in all.dropFirst(DecisionsLogic.recentLimit) { context.delete(old) }
+        }
         try? context.save()
     }
 }

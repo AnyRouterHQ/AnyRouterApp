@@ -113,7 +113,7 @@ final class ChatViewModel {
         guard let thread else { return }
         thread.modelID = model.id
         do {
-            try context.save()
+            try save(context)
         } catch {
             errorMessage = "Could not save the chat: \(error.localizedDescription)"
         }

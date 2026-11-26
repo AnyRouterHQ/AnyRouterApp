@@ -9,9 +9,7 @@ struct AnyRouterConfig: Sendable {
     var source = "ios-app"
     var categories = "general-chat"
 
-    var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
-    }
+    var version: String { Bundle.main.infoString("CFBundleShortVersionString", default: "0") }
 
     static let standard = AnyRouterConfig()
 }
@@ -29,6 +27,11 @@ enum AnyRouterError: LocalizedError, Equatable {
         case .stream(let message): return message
         case .badResponse: return "AnyRouter returned an unexpected response."
         }
+    }
+
+    /// HTTP status of a response, 0 when it is not an HTTP response.
+    static func status(of response: URLResponse) -> Int {
+        (response as? HTTPURLResponse)?.statusCode ?? 0
     }
 
     /// Pulls `error.message` (or OAuth `error_description`) out of an error body.

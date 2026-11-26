@@ -182,8 +182,9 @@ struct LocalModelStorage: Sendable {
             at: url, includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .isRegularFileKey]) else { return 0 }
         var total: Int64 = 0
         for case let file as URL in walker {
-            let values = try? file.resourceValues(forKeys: [.totalFileAllocatedSizeKey, .isRegularFileKey])
-            if values?.isRegularFile == true { total += Int64(values?.totalFileAllocatedSize ?? 0) }
+            guard let values = try? file.resourceValues(forKeys: [.totalFileAllocatedSizeKey, .isRegularFileKey]),
+                  values.isRegularFile == true, let size = values.totalFileAllocatedSize else { continue }
+            total += Int64(size)
         }
         return total
     }

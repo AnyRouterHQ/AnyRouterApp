@@ -179,7 +179,15 @@ struct HuggingFaceAPI: Sendable {
     }
 
     private static func encode(_ path: String) -> String {
-        path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
+        var encoded = ""
+        for byte in path.utf8 {
+            if byte < 0x80, CharacterSet.urlPathAllowed.contains(Unicode.Scalar(byte)) {
+                encoded.unicodeScalars.append(Unicode.Scalar(byte))
+            } else {
+                encoded += String(format: "%%%02X", byte)
+            }
+        }
+        return encoded
     }
 
     // MARK: Requests

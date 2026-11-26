@@ -82,7 +82,7 @@ enum RepoFiles {
         repo: String, format: LocalModelFormat, files: [HFFile], revision: String? = nil
     ) throws -> [CatalogEntry] {
         guard HuggingFaceAPI.isValidRepo(repo) else { throw LocalModelError.invalidRepo(repo) }
-        let name = String(repo.split(separator: "/").last ?? "")
+        let name = (repo as NSString).lastPathComponent
         switch format {
         case .gguf:
             let choices = ggufChoices(files)

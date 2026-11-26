@@ -48,7 +48,7 @@ struct AnyRouterEngine: ChatEngine {
         request.timeoutInterval = 15
         applyHeaders(&request, key: key)
         let (data, response) = try await session.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let status = AnyRouterError.status(of: response)
         if status == 401, key != nil {
             tokens.clear()
             await onUnauthorized()
@@ -140,7 +140,7 @@ struct AnyRouterEngine: ChatEngine {
 
     private func streamRound(_ request: URLRequest, emit: (ChatDelta) -> Void) async throws -> Round {
         let (bytes, response) = try await session.bytes(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let status = AnyRouterError.status(of: response)
         guard (200..<300).contains(status) else {
             var body = Data()
             for try await byte in bytes {

@@ -19,7 +19,7 @@ final class PresetStore {
 
     init(fileURL: URL = PresetStore.defaultURL, builtIns: [PromptPreset]? = nil) {
         self.fileURL = fileURL
-        self.builtIns = builtIns ?? ((try? PresetStore.bundled()) ?? [])
+        self.builtIns = builtIns ?? PresetStore.bundledOrEmpty()
         guard let data = try? Data(contentsOf: fileURL) else { return }
         if let saved = try? JSONDecoder().decode(Saved.self, from: data) {
             custom = saved.custom
@@ -42,9 +42,12 @@ final class PresetStore {
     }
 
     static var defaultURL: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base.appendingPathComponent("presets.json")
+        URL.applicationSupportDirectory.appendingPathComponent("presets.json")
+    }
+
+    /// The built-in presets, or none when the file cannot be read (the UI then shows only the user's own).
+    static func bundledOrEmpty(bundle: Bundle? = nil) -> [PromptPreset] {
+        do { return try bundled(bundle: bundle) } catch { return [] }
     }
 
     /// A missing or broken file is a build error, so this throws.

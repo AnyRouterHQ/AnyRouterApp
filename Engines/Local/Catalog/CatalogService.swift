@@ -70,7 +70,7 @@ actor CatalogService {
     func entries(forRepo repo: String, format: LocalModelFormat) async throws -> [CatalogEntry] {
         let files = try await api.listFiles(repo: repo)
         var entries = try RepoFiles.entries(repo: repo, format: format, files: files)
-        guard format == .gguf, let probe = entries.min(by: { ($0.sizeBytes ?? .max) < ($1.sizeBytes ?? .max) })?.file,
+        guard format == .gguf, let probe = RepoFiles.ggufChoices(files).first?.path,
               let info = try? await api.ggufInfo(repo: repo, file: probe)
         else { return entries }
         for index in entries.indices {
