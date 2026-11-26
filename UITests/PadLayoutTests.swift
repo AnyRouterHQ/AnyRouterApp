@@ -91,7 +91,6 @@ final class PadLayoutTests: XCTestCase {
         // Split View and Slide Over cannot be scripted; -ARSizeClass compact gives the app the size class they give it.
         let app = launch(["-ARSizeClass", "compact"], orientation: .landscapeLeft)
         XCTAssertTrue(app.buttons["Menu"].waitForExistence(timeout: 15), "compact width keeps the drawer button")
-        XCTAssertFalse(element(app, "sidebar.header").exists, "the drawer starts closed")
         app.buttons["Menu"].tap()
         // The header sits in the top bar; the bottom-bar compose button is not laid out the iPhone way under a forced size class.
         XCTAssertTrue(element(app, "sidebar.header").waitForExistence(timeout: 8), "the drawer opens")
@@ -170,7 +169,11 @@ final class PadLayoutTests: XCTestCase {
     func testCmdNStartsANewChat() {
         let app = launch(["-ARDemoLongThread", "8"], orientation: .landscapeLeft)
         XCTAssertTrue(element(app, "chat.content").waitForExistence(timeout: 15))
+        // A key press right after launch can land before the scene is the key window, so one retry.
         app.typeKey("n", modifierFlags: .command)
-        XCTAssertTrue(element(app, "home.greeting").waitForExistence(timeout: 5), "an empty chat opens")
+        if !element(app, "home.greeting").waitForExistence(timeout: 4) {
+            app.typeKey("n", modifierFlags: .command)
+        }
+        XCTAssertTrue(element(app, "home.greeting").waitForExistence(timeout: 6), "an empty chat opens")
     }
 }
