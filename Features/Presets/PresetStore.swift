@@ -60,6 +60,9 @@ final class PresetStore {
     }
 
     var customIDs: Set<String> { Set(custom.map(\.id)) }
+
+    /// Any preset by id, a hidden built-in included: a Shortcut that names one keeps working after the user hides it.
+    func preset(id: String) -> PromptPreset? { (custom + builtIns).first { $0.id == id } }
     /// Custom presets first, then the visible built-ins.
     var all: [PromptPreset] { custom + builtIns.filter { !hiddenBuiltIns.contains($0.id) } }
     var hasHiddenBuiltIns: Bool { !hiddenBuiltIns.isEmpty }

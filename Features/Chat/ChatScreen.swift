@@ -52,7 +52,12 @@ struct ChatScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .background { if chat?.messages.isEmpty ?? true { ARHomeBackground().transition(.opacity) } }
         .animation(.easeInOut(duration: 0.3), value: chat?.messages.isEmpty)
-        .task(id: shell.selectedThreadID) { prepare() }
+        .task(id: shell.selectedThreadID) {
+            prepare()
+            applyInbound()
+        }
+        // On a window that already shows the fresh chat the task above does not run again.
+        .onChange(of: shell.inbound?.id) { applyInbound() }
         .toolApprovalDialog(app.toolApprovals)
     }
 
@@ -69,6 +74,13 @@ struct ChatScreen: View {
         model.onThreadCreated = { [shell] id in shell.selectedThreadID = id }
         if DemoData.attachesSampleFile, thread == nil { model.attachFiles([DemoData.sampleAttachmentURL()]) }
         chat = model
+    }
+
+    /// An outside request lands in a fresh chat only. While the old thread is still showing, the task above applies
+    /// it once `prepare()` has swapped the chat.
+    private func applyInbound() {
+        guard let chat, chat.thread == nil, let request = shell.takeInbound() else { return }
+        chat.start(request, preset: request.presetID.flatMap { app.presets.preset(id: $0) })
     }
 
     private func fetchThread(_ id: UUID) -> ThreadRecord? {

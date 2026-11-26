@@ -218,6 +218,15 @@ Research: [docs/research/local-agent.md](docs/research/local-agent.md) (2026-11-
 - [ ] LA15 Later: Siri AI tool-intent variant (`@AppIntent(.tool)`, iOS 27.3, internal TestFlight only, not usable from App Store builds; it removes App Shortcuts from Siri)
 - [ ] LA16 Later: Core Spotlight index of chat threads and a recall tool
 
+Entry points (reach AnyRouter from anywhere on the phone; owner sonnet-medium-local-agent):
+
+- [ ] LA17 "Ask AnyRouter" App Intent and App Shortcuts (iOS 26, app target, no extension): `AskAnyRouterIntent(text, preset, sendNow)` opens a fresh chat with the text in the composer and the preset applied, or sends it; "Fix my English with AnyRouter"; `PresetEntity` from `PresetStore`. Supersedes the open-the-app part of LA12 (an answer returned to Shortcuts stays in LA12)
+- [ ] LA18 Reply helper: built-in "Reply to this" with tone (Polite, Short, Friendly, Formal) and language (Same, English, Vietnamese) pickers; in the launcher row and the @/plugin list; Copy button copies the answer only
+- [ ] LA19 Read a photo: composer + menu (Camera, Photos) and Share run on-device Vision text recognition (vi, en) into the composer, with presets Translate, Split this bill, Summarize
+- [ ] LA20 Offline mode: `NWPathMonitor`; offline skips AnyRouter models and web tools ("Offline"), the picker suggests the installed local or Apple model, a chat note says a tool was skipped
+- [ ] LA21 Control Center and Lock Screen controls (`ControlWidget`, new widget extension `dev.anyrouter.app.controls`): New chat, Voice, Paste and fix, through the LA17 intent. Edits `project.yml`
+- [ ] LA22 Share extension "Ask AnyRouter" (text, URL, PDF, image) through the App Group `group.dev.anyrouter.app`; degrades with a clear message where App Groups are not available (free Apple ID sideload). Edits `project.yml` and entitlements
+
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
 
 - [ ] F1 Device smoke test on iPhone + iPad: AnyRouter sign-in, Apple FM chat, GGUF download + chat, MLX download + chat. Record results in the status log.

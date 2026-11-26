@@ -19,6 +19,8 @@ final class ShellModel {
     var isSearchPresented = false
     /// The composer takes focus once per launch when the user asked for the keyboard.
     var didFocusComposerOnLaunch = false
+    /// An outside request (Siri, Shortcuts, a control) waiting for the chat screen to pick it up.
+    private(set) var inbound: InboundChat?
 
     func presentSettings(closeSidebar: Bool) {
         isSettingsPresented = true
@@ -52,6 +54,20 @@ final class ShellModel {
     }
 
     func presentSearch() { isSearchPresented = true }
+
+    /// Opens a fresh chat for an outside request, over whatever was open.
+    func start(_ request: InboundChat) {
+        newChat(closeSidebar: true)
+        isSettingsPresented = false
+        isSearchPresented = false
+        isModelPickerPresented = false
+        inbound = request
+    }
+
+    func takeInbound() -> InboundChat? {
+        defer { inbound = nil }
+        return inbound
+    }
 
     /// Opens a thread found in the search, and closes the search and the drawer behind it.
     func openFromSearch(threadID: UUID) {

@@ -217,6 +217,15 @@ final class ChatViewModel {
         focusTick += 1
     }
 
+    /// A chat opened from outside the app: the composer gets the request's text and preset, and the message goes out
+    /// when the request says so.
+    @discardableResult
+    func start(_ request: InboundChat, preset: PromptPreset?) -> Task<Void, Never>? {
+        input = InboundChatLogic.composerText(preset: preset, text: request.text)
+        focusTick += 1
+        return request.sendNow ? send() : nil
+    }
+
     @discardableResult
     func sendNow(_ preset: PromptPreset) -> Task<Void, Never>? {
         guard phase == .idle else { return nil }

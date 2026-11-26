@@ -38,6 +38,10 @@ struct RootView: View {
                 .environment(appState.models)
             }
             .onAppear { showsOnboarding = !appState.settings.hasOnboarded }
+            // Siri, Shortcuts and the controls leave a request here; a cold launch has it waiting before the first frame.
+            .onChange(of: InboundChatMailbox.shared.pending?.id, initial: true) {
+                if let request = InboundChatMailbox.shared.take() { shell.start(request) }
+            }
             .alert("Help improve AnyRouter?", isPresented: Bindable(appState.settings).isAskingDiagnostics) {
                 Button("Share") { appState.settings.answerDiagnostics(share: true) }
                 Button("Not now", role: .cancel) { appState.settings.answerDiagnostics(share: false) }
