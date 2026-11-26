@@ -39,6 +39,14 @@ final class ToolsRecorder: @unchecked Sendable {
     func record(_ tools: (any ToolHost)?) { lock.withLock { raw.append(tools?.specs.map(\.name)) } }
 }
 
+/// The text of the last message of every request an engine got.
+final class MessagesRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var raw: [String] = []
+    var lastTexts: [String] { lock.withLock { raw } }
+    func record(_ messages: [ChatMessage]) { lock.withLock { raw.append(messages.last?.content ?? "") } }
+}
+
 /// Tool host with fixed specs; never asked to run anything in these tests.
 struct StubToolHost: ToolHost {
     var specs: [ToolSpec] = [ToolSpec(name: "search", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: true)]
@@ -68,6 +76,7 @@ struct ScriptedEngine: ChatEngine {
     /// Played after the text chunks, for example tool calls and results.
     var deltas: [ChatDelta] = []
     var toolsSeen = ToolsRecorder()
+    var messagesSeen = MessagesRecorder()
 
     func availableModels() async throws -> [ModelDescriptor] { models }
 
@@ -79,6 +88,7 @@ struct ScriptedEngine: ChatEngine {
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams, tools: (any ToolHost)?)
         -> AsyncThrowingStream<ChatDelta, Error> {
         toolsSeen.record(tools)
+        messagesSeen.record(messages)
         let n = calls.next()
         let deltas = self.deltas
         usedModels.add(model.id)

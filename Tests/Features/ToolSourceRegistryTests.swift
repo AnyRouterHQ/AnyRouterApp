@@ -74,6 +74,35 @@ final class ToolSourceRegistryTests: XCTestCase {
         XCTAssertEqual(names(registry, .anyrouter), device + exa + ["read_wiki_structure"])
     }
 
+    // MARK: Named with @
+
+    private func forcedNames(_ registry: ToolRegistry, _ ids: Set<String>, _ source: ModelSource? = .anyrouter) -> [String]? {
+        registry.makeHost(approver: Refuses(), context: ToolContext(modelSource: source, forcedSourceIDs: ids))?.specs.map(\.name)
+    }
+
+    func testANamedSourceIsTheOnlyOneOfferedAndIgnoresItsSwitch() {
+        let registry = makeRegistry()
+        XCTAssertEqual(forcedNames(registry, ["exa"]), exa)
+        registry.setSource(ToolSourceCatalog.exa, on: false)
+        XCTAssertEqual(forcedNames(registry, ["exa"]), exa, "named, so on for this message")
+        XCTAssertEqual(names(registry, .anyrouter), device, "the switch still decides the other messages")
+    }
+
+    func testANamedSourceThatIsOffByDefaultKeepsItsOwnToolSwitches() {
+        let registry = makeRegistry()
+        XCTAssertEqual(forcedNames(registry, ["deepwiki"]), ["ask_wiki_question"])
+        XCTAssertEqual(forcedNames(registry, ["deepwiki", "mslearn"]), ["ask_wiki_question", "microsoft_docs_search", "microsoft_docs_fetch"])
+    }
+
+    func testNamingTheDeviceOffersOnlyItsTools() {
+        let registry = makeRegistry()
+        XCTAssertEqual(forcedNames(registry, ["device"]), device)
+    }
+
+    func testNamingASourceWithNothingConnectedOffersNothing() {
+        XCTAssertNil(forcedNames(makeRegistry(), ["anyrouter"]))
+    }
+
     // MARK: The user's choice
 
     func testAChoiceBeatsTheDefaultAndSurvivesARestart() {

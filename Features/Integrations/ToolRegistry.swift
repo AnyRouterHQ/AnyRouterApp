@@ -79,8 +79,10 @@ final class ToolRegistry {
         isOn(source, in: ToolSituation(signedIn: integrations.signedIn, modelSource: modelSource))
     }
 
-    private func isOn(_ source: ToolSource, in situation: ToolSituation) -> Bool {
-        sourceChoices[source.id] ?? source.isOnByDefault(in: situation)
+    /// `forced` are the sources the user named with @ for this request: only they are on, whatever their switch says.
+    private func isOn(_ source: ToolSource, in situation: ToolSituation, forced: Set<String> = []) -> Bool {
+        if !forced.isEmpty { return forced.contains(source.id) }
+        return sourceChoices[source.id] ?? source.isOnByDefault(in: situation)
     }
 
     func setSource(_ source: ToolSource, on: Bool) {
@@ -94,9 +96,9 @@ final class ToolRegistry {
     }
 
     /// The MCP tools a chat may use: those of connected servers and public services whose source and tool are on.
-    private func activeMCPTools(_ situation: ToolSituation) -> [(server: MCPServer, tool: MCPTool)] {
-        var list = integrations.enabledTools.filter { isOn(source(for: $0.server), in: situation) }
-        for source in publicSources where isOn(source, in: situation) {
+    private func activeMCPTools(_ situation: ToolSituation, forced: Set<String> = []) -> [(server: MCPServer, tool: MCPTool)] {
+        var list = integrations.enabledTools.filter { isOn(source(for: $0.server), in: situation, forced: forced) }
+        for source in publicSources where isOn(source, in: situation, forced: forced) {
             guard let server = source.server else { continue }
             for pin in source.tools {
                 let tool = pin.mcpTool
@@ -183,8 +185,8 @@ final class ToolRegistry {
 
     private func plan(for context: ToolContext) -> HostPlan {
         let situation = ToolSituation(signedIn: integrations.signedIn, modelSource: context.modelSource)
-        let deviceOn = isOn(ToolSourceCatalog.device, in: situation)
-        var mcpTools = activeMCPTools(situation)
+        let deviceOn = isOn(ToolSourceCatalog.device, in: situation, forced: context.forcedSourceIDs)
+        var mcpTools = activeMCPTools(situation, forced: context.forcedSourceIDs)
         let match = WebSearchBinding.find(in: mcpTools).flatMap { isBuiltInEnabled(WebSearchBinding.name) ? $0 : nil }
         let scrape = deviceOn && isBuiltInEnabled(FetchURLTool.toolName) ? WebSearchBinding.findScrape(in: mcpTools) : nil
         if let match {

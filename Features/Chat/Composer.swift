@@ -11,6 +11,8 @@ struct Composer: View {
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var showsCamera = false
     @State private var showsFiles = false
+    /// The @ list was opened from the + menu instead of by typing an @.
+    @State private var showsPluginList = false
     /// The photo or camera picker that is open reads text into the composer instead of attaching the image.
     @State private var readsText = false
     /// Owned by the chat screen so a tap outside the card can dismiss the keyboard.
@@ -22,6 +24,13 @@ struct Composer: View {
 
     var body: some View {
         VStack(spacing: 8) {
+            if let query = mentionQuery ?? (showsPluginList ? "" : nil) {
+                let close: (() -> Void)? = mentionQuery == nil ? { showsPluginList = false } : nil
+                MentionSuggestions(items: ComposerMention.filter(mentionRows, query: query), onClose: close) { item in
+                    model.addMention(item)
+                    showsPluginList = false
+                }
+            }
             if let error = model.errorMessage {
                 ErrorBanner(text: error) { model.dismissError() }
             }
@@ -51,6 +60,9 @@ struct Composer: View {
             }
             if model.pasteOffered, let presets, !presets.pasteOffered.isEmpty {
                 PasteOfferRow(presets: presets.pasteOffered, onPick: { model.applyToPaste($0) }, onDismiss: { model.dismissPasteOffer() })
+            }
+            if !model.mentions.isEmpty {
+                MentionChips(mentions: model.mentions) { model.removeMention($0) }
             }
             HStack(alignment: .bottom, spacing: 8) {
                 plusMenu
@@ -87,7 +99,10 @@ struct Composer: View {
         // Send, stop and the buttons beside the field keep the keyboard up.
         .keepsKeyboardOnTap()
         .onChange(of: model.focusTick) { focused.wrappedValue = true }
-        .onChange(of: model.input) { old, new in model.inputChanged(from: old, to: new) }
+        .onChange(of: model.input) { old, new in
+            model.inputChanged(from: old, to: new)
+            if showsPluginList, new != old { showsPluginList = false }
+        }
         // A light tap when a send starts a reply (not on every reply end).
         .sensoryFeedback(.impact(weight: .light), trigger: model.isStreaming) { _, streaming in streaming }
         .photosPicker(isPresented: $showsPhotos, selection: $photoItems,
@@ -114,6 +129,19 @@ struct Composer: View {
             shell.didFocusComposerOnLaunch = true
             focused.wrappedValue = true
         }
+    }
+
+    /// The words after an @ the user is typing, when this model can use tools.
+    private var mentionQuery: String? {
+        model.supportsTools ? ComposerMention.query(in: model.input) : nil
+    }
+
+    /// Plugins that are on for this model and the files of this chat, minus what is already chosen.
+    private var mentionRows: [MentionItem] {
+        let modelSource = model.model?.source
+        let sources = app.tools.menuSources.filter { app.tools.isOn($0, modelSource: modelSource) }
+        let chosen = Set(model.mentions.map(\.id))
+        return ComposerMention.items(sources: sources, files: model.mentionableFiles).filter { !chosen.contains($0.id) }
     }
 
     private func loadPhotos(_ items: [PhotosPickerItem]) {
@@ -157,6 +185,11 @@ struct Composer: View {
                     .accessibilityIdentifier("composer.presets")
             }
             if model.supportsTools {
+                Button("Plugins", systemImage: "at") {
+                    showsPluginList = true
+                    focused.wrappedValue = true
+                }
+                .accessibilityIdentifier("composer.plugins")
                 Section {
                     Toggle("Tools", systemImage: "puzzlepiece.extension", isOn: Binding(
                         get: { model.toolsEnabled },

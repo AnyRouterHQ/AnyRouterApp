@@ -190,6 +190,29 @@ final class ChatViewModel {
         }
     }
 
+    // MARK: @ mentions
+
+    /// Plugins and files the user named with @ for the next message. The send takes them.
+    private(set) var mentions: [MentionItem] = []
+
+    /// Files the @ list offers: those waiting under the field, then those of this chat.
+    var mentionableFiles: [ChatAttachment] {
+        var seen = Set<UUID>()
+        return (pending + messages.flatMap(\.attachments)).filter { seen.insert($0.id).inserted }
+    }
+
+    /// Takes the "@words" out of the field and keeps the choice as a chip.
+    func addMention(_ item: MentionItem) {
+        let cleaned = ComposerMention.removingQuery(from: input)
+        if cleaned != input {
+            input = cleaned
+            ownText = cleaned
+        }
+        if !mentions.contains(where: { $0.id == item.id }) { mentions.append(item) }
+    }
+
+    func removeMention(_ item: MentionItem) { mentions.removeAll { $0.id == item.id } }
+
     func removePending(_ attachment: ChatAttachment) {
         guard pending.contains(where: { $0.id == attachment.id }) else { return }
         pending.removeAll { $0.id == attachment.id }
@@ -251,7 +274,9 @@ final class ChatViewModel {
         user.attachments = adopted
         pending = []
         input = ""
-        return startStream(model: model, thread: thread)
+        let named = mentions
+        mentions = []
+        return startStream(model: model, thread: thread, mentions: named)
     }
 
     /// A preset with pickers (tone, language) waits here for the user's choices. The chat screen shows its sheet.
@@ -402,21 +427,23 @@ final class ChatViewModel {
         return ToolContext(attachments: all, userTexts: texts, modelSource: modelSource)
     }
 
-    private func startStream(model: ModelDescriptor, thread: ThreadRecord) -> Task<Void, Never> {
+    private func startStream(model: ModelDescriptor, thread: ThreadRecord, mentions: [MentionItem] = []) -> Task<Void, Never> {
         phase = .streaming
         errorMessage = nil
         loadingModelName = (model.source == .gguf || model.source == .mlx) ? model.shortName : nil
         thread.modelID = model.id
         preferredModelID = model.id
         let assistant = MessageRecord(role: .assistant, content: "", modelName: model.shortName, modelID: model.id)
-        let history = thread.orderedMessages
+        // The plugins and files the user named with @ are asked for in this request only; the saved message stays as typed.
+        let history = ComposerMention.applying(mentions, to: thread.orderedMessages)
         context.insert(assistant)
         assistant.thread = thread
         let params = settings.generationParams
         var host: (any ToolHost)?
         offlineToolNote = nil
-        if toolsEnabled && model.capabilities.contains("tools") {
+        if (toolsEnabled || !mentions.isEmpty) && model.capabilities.contains("tools") {
             var toolContext = Self.toolContext(for: thread, modelSource: model.source)
+            toolContext.forcedSourceIDs = ComposerMention.forcedSourceIDs(of: mentions)
             toolContext.isOffline = !isOnline()
             host = toolHost(toolContext)
             if skipsToolsOffline(toolContext) { offlineToolNote = OfflineLogic.toolNote }

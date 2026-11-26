@@ -9,4 +9,6 @@ struct ToolContext: Sendable {
     var modelSource: ModelSource?
     /// The device has no connection: web tools are left out of the request.
     var isOffline = false
+    /// Sources the user named with @ for this message. When set, only their tools are offered.
+    var forcedSourceIDs: Set<String> = []
 }
