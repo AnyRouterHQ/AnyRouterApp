@@ -430,6 +430,8 @@ def check_file(path, offline):
         for key in ("title", "summary"):
             if not str(m.get(key, "")).strip() or str(m.get(key, "")).startswith("TODO"):
                 bad(i, f"{ident}: {key} is missing or still a TODO")
+        if re.search(r"\b(RAM|GB|memory)\b", str(m.get("summary", "")), re.I):
+            bad(i, f"{ident}: the summary must not make memory claims; the app derives them from the model's memory facts")
         if not isinstance(m.get("sizeBytes"), int) or m["sizeBytes"] <= 0:
             bad(i, f"{ident}: sizeBytes must be a positive integer")
         if not re.fullmatch(r"[0-9a-f]{40}", str(m.get("revision", ""))):

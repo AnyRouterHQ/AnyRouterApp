@@ -62,6 +62,22 @@ struct PromptBuilderTests {
     }
 }
 
+struct SpecialTokenTests {
+    @Test func aPromptThatAlreadyStartsWithBOSDoesNotGetASecondOne() {
+        #expect(!PromptBuilder.addsSpecialTokens(to: "<|begin_of_text|><|start_header_id|>user", bosText: "<|begin_of_text|>"))
+    }
+
+    @Test func aPromptWithoutBOSGetsTheVocabularysOwn() {
+        #expect(PromptBuilder.addsSpecialTokens(to: "<|turn>user\nhi<turn|>\n", bosText: "<bos>"))
+        #expect(PromptBuilder.addsSpecialTokens(to: "<|im_start|>user", bosText: nil))
+        #expect(PromptBuilder.addsSpecialTokens(to: "hi", bosText: ""))
+    }
+
+    @Test func bosInTheMiddleOfAPromptIsNotTheStart() {
+        #expect(PromptBuilder.addsSpecialTokens(to: "hello <bos>", bosText: "<bos>"))
+    }
+}
+
 struct Gemma4FormatterTests {
     @Test func recognizesTheGemma4TemplateByItsTurnMarkers() {
         #expect(Gemma4Formatter.matches(template: "{{ '<|turn>' + role }}...{{ '<turn|>\\n' }}"))

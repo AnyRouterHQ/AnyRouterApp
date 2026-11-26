@@ -25,6 +25,8 @@ final class LlamaModel: @unchecked Sendable {
     /// system cannot allocate that much, so the next one starts from what worked.
     private(set) var contextSize: Int
     private let template: String?
+    /// The text of the vocabulary's BOS token (for example `<|begin_of_text|>`), nil when it has none.
+    private let bosText: String?
     private let thoughtChannel: (open: llama_token, close: llama_token)?
 
     init(path: String) throws {
@@ -67,6 +69,7 @@ final class LlamaModel: @unchecked Sendable {
         self.vocab = vocab
         self.trainedContext = Int(llama_model_n_ctx_train(model))
         self.contextSize = planned
+        self.bosText = Self.specialPiece(llama_vocab_bos(vocab), vocab: vocab)
         let template = llama_model_chat_template(model, nil).map { String(cString: $0) }
         self.template = template
         if let template, Gemma4Formatter.matches(template: template),
@@ -75,6 +78,15 @@ final class LlamaModel: @unchecked Sendable {
         } else {
             self.thoughtChannel = nil
         }
+    }
+
+    /// The text of a special token, or nil for "no token".
+    private static func specialPiece(_ token: llama_token, vocab: OpaquePointer) -> String? {
+        guard token >= 0 else { return nil }
+        var buffer = [CChar](repeating: 0, count: 64)
+        let count = llama_token_to_piece(vocab, token, &buffer, 64, 0, true)
+        guard count > 0 else { return nil }
+        return String(decoding: buffer.prefix(Int(count)).map { UInt8(bitPattern: $0) }, as: UTF8.self)
     }
 
     /// The token id when `text` is exactly one special token of the vocabulary, else nil.
@@ -124,14 +136,16 @@ final class LlamaModel: @unchecked Sendable {
 
     func tokenize(_ text: String) throws -> [llama_token] {
         let byteCount = text.utf8.count
-        // Special tokens are parsed (the template writes them as text); BOS is added when the model wants one.
+        // Special tokens are parsed (the template writes them as text). BOS is added when the model wants one, unless the
+        // template already wrote it.
+        let addSpecial = PromptBuilder.addsSpecialTokens(to: text, bosText: bosText)
         var capacity = Int32(byteCount + 8)
         var tokens = [llama_token](repeating: 0, count: Int(capacity))
-        var count = llama_tokenize(vocab, text, Int32(byteCount), &tokens, capacity, true, true)
+        var count = llama_tokenize(vocab, text, Int32(byteCount), &tokens, capacity, addSpecial, true)
         if count < 0 {
             capacity = -count
             tokens = [llama_token](repeating: 0, count: Int(capacity))
-            count = llama_tokenize(vocab, text, Int32(byteCount), &tokens, capacity, true, true)
+            count = llama_tokenize(vocab, text, Int32(byteCount), &tokens, capacity, addSpecial, true)
         }
         guard count >= 0 else { throw GGUFError.tokenizeFailed }
         return Array(tokens.prefix(Int(count)))

@@ -6,6 +6,13 @@ struct PromptMessage: Equatable, Sendable {
 }
 
 enum PromptBuilder {
+    /// Whether tokenizing should add the vocabulary's own special tokens (BOS). Not when the prompt already starts with
+    /// the BOS text, as Llama-style templates write it: the model would see two.
+    static func addsSpecialTokens(to prompt: String, bosText: String?) -> Bool {
+        guard let bosText, !bosText.isEmpty else { return true }
+        return !prompt.hasPrefix(bosText)
+    }
+
     /// Core messages as role/content pairs. `systemPrompt` is prepended unless the conversation already starts with a system message.
     static func promptMessages(from messages: [ChatMessage], systemPrompt: String?) -> [PromptMessage] {
         // Local models read attached files as text; photos arrive as the text OCR found in them.

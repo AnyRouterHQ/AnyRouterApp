@@ -154,6 +154,15 @@ struct PrefixFetchTests {
         #expect(StubRegistry.shared.wasStopped(host: stub.host), "the transfer is cancelled, not left running")
     }
 
+    @Test func cancellingTheTaskStopsTheTransferAndThrows() async throws {
+        let stub = StubbedAPI { _ in .init(status: 200, body: Data(repeating: 3, count: 10), hangs: true) }
+        let url = URL(string: "https://\(stub.host)/f")!
+        let task = Task { try await stub.session.fetchPrefix(URLRequest(url: url), maxBytes: 1_000) }
+        try await Task.sleep(for: .milliseconds(100))
+        task.cancel()
+        await #expect(throws: (any Error).self) { _ = try await task.value }
+    }
+
     @Test func aBodyShorterThanTheLimitIsReturnedWhole() async throws {
         let stub = StubbedAPI { _ in .init(status: 200, body: Data(repeating: 2, count: 40)) }
         let (data, _) = try await stub.session.fetchPrefix(URLRequest(url: URL(string: "https://\(stub.host)/f")!), maxBytes: 1_000)
@@ -181,4 +190,56 @@ private final class StubSeen: @unchecked Sendable {
     private var stored: String?
     func set(_ value: String?) { lock.withLock { stored = value } }
     var value: String? { lock.withLock { stored } }
+}
+
+
+private struct LinkedHTTP: HTTPFetching {
+    let handler: @Sendable (URLRequest) -> (String, [String: String])
+
+    func fetch(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let (body, headers) = handler(request)
+        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: headers)!
+        return (Data(body.utf8), response)
+    }
+}
+
+struct ListingPaginationTests {
+    private func page(_ names: [String]) -> String {
+        "[" + names.map { #"{"type":"file","path":"\#($0)","size":1}"# }.joined(separator: ",") + "]"
+    }
+
+    @Test func everyPageOfALargeRepoIsListed() async throws {
+        let http = LinkedHTTP { request in
+            switch request.url?.query ?? "" {
+            case "recursive=true": return (self.page(["a", "b"]), ["Link": #"<https://huggingface.co/api/models/org/m/tree/main?recursive=true&cursor=p2>; rel="next""#])
+            case "recursive=true&cursor=p2": return (self.page(["c"]), ["Link": #"<https://huggingface.co/api/models/org/m/tree/main?recursive=true&cursor=p3>; rel="next""#])
+            default: return (self.page(["d"]), [:])
+            }
+        }
+        let files = try await HuggingFaceAPI(http: http).listFiles(repo: "org/m")
+        #expect(files.map(\.path) == ["a", "b", "c", "d"], "an MLX snapshot must not lose its last files")
+    }
+
+    @Test func aLinkToAnotherHostOrAnotherPathIsNotFollowed() {
+        let base = URL(string: "https://huggingface.co")!
+        #expect(HuggingFaceAPI.nextPage(inLinkHeader: #"<https://evil.example/api/models/x?c=1>; rel="next""#, base: base) == nil)
+        #expect(HuggingFaceAPI.nextPage(inLinkHeader: #"<https://huggingface.co/other?c=1>; rel="next""#, base: base) == nil)
+        #expect(HuggingFaceAPI.nextPage(inLinkHeader: #"<http://huggingface.co/api/models/x?c=1>; rel="next""#, base: base) == nil)
+        #expect(HuggingFaceAPI.nextPage(inLinkHeader: #"<https://huggingface.co/api/models/x?c=1>; rel="prev""#, base: base) == nil)
+        #expect(HuggingFaceAPI.nextPage(inLinkHeader: nil, base: base) == nil)
+        #expect(HuggingFaceAPI.nextPage(inLinkHeader: "garbage", base: base) == nil)
+    }
+
+    @Test func theNextLinkIsPickedOutOfSeveral() {
+        let base = URL(string: "https://huggingface.co")!
+        let header = #"<https://huggingface.co/api/models/x?c=0>; rel="prev", <https://huggingface.co/api/models/x?c=2>; rel="next""#
+        #expect(HuggingFaceAPI.nextPage(inLinkHeader: header, base: base)?.query == "c=2")
+    }
+
+    @Test func aLoopingLinkStopsWithAnError() async {
+        let http = LinkedHTTP { _ in
+            (self.page(["a"]), ["Link": #"<https://huggingface.co/api/models/org/m/tree/main?recursive=true>; rel="next""#])
+        }
+        await #expect(throws: LocalModelError.http(status: 508)) { _ = try await HuggingFaceAPI(http: http).listFiles(repo: "org/m") }
+    }
 }

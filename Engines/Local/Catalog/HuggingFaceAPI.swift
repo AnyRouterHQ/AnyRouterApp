@@ -17,24 +17,83 @@ extension HTTPFetching {
 }
 
 extension URLSession: HTTPFetching {
+    /// Reads the body in the delegate's chunks and cancels the transfer once `maxBytes` are in, so a server that ignores
+    /// the Range header cannot make the app download a whole model to read its header.
     func fetchPrefix(_ request: URLRequest, maxBytes: Int) async throws -> (Data, HTTPURLResponse) {
         var ranged = request
-        ranged.setValue("bytes=0-\(maxBytes - 1)", forHTTPHeaderField: "Range")
-        let (bytes, response) = try await self.bytes(for: ranged)
-        guard let http = response as? HTTPURLResponse else { throw LocalModelError.invalidResponse }
-        var data = Data()
-        data.reserveCapacity(min(maxBytes, 1 << 20))
-        for try await byte in bytes {
-            data.append(byte)
-            if data.count >= maxBytes { break }
-        }
-        return (data, http)
+        ranged.setValue("bytes=0-\(max(0, maxBytes - 1))", forHTTPHeaderField: "Range")
+        return try await PrefixCollector(maxBytes: maxBytes).run(ranged, configuration: configuration)
     }
 
     func fetch(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await self.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw LocalModelError.invalidResponse }
         return (data, http)
+    }
+}
+
+/// Collects the first bytes of one response with a data task of its own, then stops the transfer.
+private final class PrefixCollector: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+    private let maxBytes: Int
+    private let lock = NSLock()
+    private var data = Data()
+    private var response: HTTPURLResponse?
+    private var notHTTP = false
+    private var capped = false
+    private var task: URLSessionDataTask?
+    private var continuation: CheckedContinuation<(Data, HTTPURLResponse), Error>?
+
+    init(maxBytes: Int) {
+        self.maxBytes = max(0, maxBytes)
+    }
+
+    func run(_ request: URLRequest, configuration: URLSessionConfiguration) async throws -> (Data, HTTPURLResponse) {
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+                let task = session.dataTask(with: request)
+                lock.withLock {
+                    self.continuation = continuation
+                    self.task = task
+                }
+                task.resume()
+                session.finishTasksAndInvalidate()
+            }
+        } onCancel: {
+            lock.withLock { task }?.cancel()
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
+        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+    ) {
+        lock.withLock {
+            if let http = response as? HTTPURLResponse { self.response = http } else { notHTTP = true }
+        }
+        completionHandler(notHTTP ? .cancel : .allow)
+    }
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive chunk: Data) {
+        let reachedCap = lock.withLock { () -> Bool in
+            data.append(chunk)
+            guard data.count >= maxBytes else { return false }
+            data = data.prefix(maxBytes)
+            capped = true
+            return true
+        }
+        if reachedCap { dataTask.cancel() }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        let (continuation, outcome): (CheckedContinuation<(Data, HTTPURLResponse), Error>?, Result<(Data, HTTPURLResponse), Error>) =
+            lock.withLock {
+                defer { self.continuation = nil }
+                if notHTTP { return (continuation, .failure(LocalModelError.invalidResponse)) }
+                if let response, error == nil || capped { return (continuation, .success((data, response))) }
+                return (continuation, .failure(error ?? LocalModelError.invalidResponse))
+            }
+        continuation?.resume(with: outcome)
     }
 }
 
@@ -134,8 +193,36 @@ struct HuggingFaceAPI: Sendable {
     /// Every file in the repo at `revision`. Directories are dropped, unsafe paths throw.
     func listFiles(repo: String, revision: String = "main") async throws -> [HFFile] {
         guard Self.isValidRepo(repo) else { throw LocalModelError.invalidRepo(repo) }
-        let data = try await get(treeURL(repo: repo, revision: revision), what: repo)
-        return try Self.decodeTree(data)
+        // The listing is paginated: follow the Link header until there is no next page, with a cap against loops.
+        var files: [HFFile] = []
+        var next: URL? = treeURL(repo: repo, revision: revision)
+        var pages = 0
+        while let url = next, pages < Self.maxListingPages {
+            let (data, response) = try await getPage(url, what: repo)
+            files += try Self.decodeTree(data)
+            next = Self.nextPage(inLinkHeader: response.value(forHTTPHeaderField: "Link"), base: baseURL)
+            pages += 1
+        }
+        if next != nil { throw LocalModelError.http(status: 508) }
+        return files
+    }
+
+    /// A repo with more than this many pages of files (1,000 each) is not a model repo.
+    static let maxListingPages = 40
+
+    /// The `rel="next"` URL of an RFC 8288 `Link` header, only when it stays on the API host.
+    static func nextPage(inLinkHeader header: String?, base: URL) -> URL? {
+        guard let header else { return nil }
+        for part in header.split(separator: ",") {
+            let pieces = part.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
+            guard pieces.count >= 2, pieces.dropFirst().contains(where: { $0.replacingOccurrences(of: " ", with: "") == #"rel="next""# }),
+                  let first = pieces.first, first.hasPrefix("<"), first.hasSuffix(">"),
+                  let url = URL(string: String(first.dropFirst().dropLast())),
+                  url.scheme == base.scheme, url.host == base.host, url.path.hasPrefix("/api/models/")
+            else { continue }
+            return url
+        }
+        return nil
     }
 
     static func decodeTree(_ data: Data) throws -> [HFFile] {
@@ -173,12 +260,16 @@ struct HuggingFaceAPI: Sendable {
     }
 
     private func get(_ url: URL, what: String) async throws -> Data {
+        try await getPage(url, what: what).0
+    }
+
+    private func getPage(_ url: URL, what: String) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 30
         let (data, response) = try await http.fetch(request)
         switch response.statusCode {
-        case 200..<300: return data
+        case 200..<300: return (data, response)
         case 401, 403: throw LocalModelError.gatedOrPrivate(what)
         case 404: throw LocalModelError.notFound(what)
         default: throw LocalModelError.http(status: response.statusCode)

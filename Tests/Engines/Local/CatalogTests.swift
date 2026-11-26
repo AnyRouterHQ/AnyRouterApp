@@ -25,7 +25,7 @@ struct CatalogTests {
             #expect(model.revision?.range(of: "^[0-9a-f]{40}$", options: .regularExpression) != nil, "\(model.id) needs a commit sha, not a branch")
             #expect(model.contextLength == 131_072)
             #expect(model.license == "apache-2.0")
-            #expect(model.summary?.contains("RAM") == true, "\(model.id) needs a device-fit hint")
+            #expect(model.summary?.range(of: "RAM|GB", options: .regularExpression) == nil, "\(model.id): memory claims come from the fit check, not prose")
         }
         // The bigger model must never look smaller than the E2B one in the same format.
         for format in LocalModelFormat.allCases {
@@ -427,6 +427,15 @@ struct SharedCatalogTests {
         #expect(CatalogEntry(repo: "org/nosize", format: .mlx, title: "x").memoryProfile == nil)
         let again = try JSONDecoder().decode(CatalogEntry.self, from: JSONEncoder().encode(models[0]))
         #expect(again.memory == models[0].memory)
+    }
+
+    @Test func embeddingTablesThatMmapKeepsOutOfRAMShrinkTheProfile() throws {
+        let json = #"""
+        {"schemaVersion":1,"models":[{"repo":"org/e-GGUF","format":"gguf","file":"e.gguf","title":"E","sizeBytes":3349516256,
+         "memory":{"fullKVBytesPerToken":6144,"lazyWeightBytes":1926758400}}]}
+        """#
+        let profile = try #require(try CatalogDocument.decode(Data(json.utf8)).models[0].memoryProfile)
+        #expect(profile.lazyBytes == 1_926_758_400 && profile.residentBytes == 1_422_757_856)
     }
 
     @Test func everyBundledModelHasRealMemoryFacts() throws {
