@@ -17,6 +17,10 @@ struct InboundChat: Identifiable, Equatable, Sendable {
     var presetID: String?
     var sendNow = false
     var asksForText = false
+    /// Files (PDFs) to attach to the new chat.
+    var files: [URL] = []
+    /// Photos whose text is read on the device; the scan sheet then offers Translate, Split this bill and Summarize.
+    var readsTextFrom: [URL] = []
 }
 
 /// Where App Intents leave a request. An intent runs in the app process but cannot reach the window's `ShellModel`,

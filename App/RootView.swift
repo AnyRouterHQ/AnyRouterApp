@@ -25,6 +25,7 @@ struct RootView: View {
                 if phase == .active {
                     WindowAppearance.apply(appState.settings.appearance)
                     KeyboardDismissal.install()
+                    pickUpShare()
                 }
             }
             .onAppear { KeyboardDismissal.install() }
@@ -37,7 +38,18 @@ struct RootView: View {
                 .environment(appState)
                 .environment(appState.models)
             }
-            .onAppear { showsOnboarding = !appState.settings.hasOnboarded }
+            .onAppear {
+                showsOnboarding = !appState.settings.hasOnboarded
+                pickUpShare()
+            }
+            // The share extension opens `anyrouter://share` (a share waits in the App Group) or `anyrouter://ask?...`.
+            .onOpenURL { url in
+                if let request = ShareImportLogic.request(for: url, presets: appState.presets) {
+                    InboundChatMailbox.shared.post(request)
+                } else {
+                    pickUpShare()
+                }
+            }
             // Siri, Shortcuts and the controls leave a request here; a cold launch has it waiting before the first frame.
             .onChange(of: InboundChatMailbox.shared.pending?.id, initial: true) {
                 if let request = InboundChatMailbox.shared.take() { shell.start(request) }
@@ -65,6 +77,14 @@ struct RootView: View {
 }
 
 extension RootView {
+    /// A share the extension left in the App Group opens a fresh chat. Builds without the App Group have no inbox.
+    private func pickUpShare() {
+        guard !DemoData.isEnabled, let inbox = ShareInbox.appGroup() else { return }
+        ShareImportLogic.pickUp(
+            inbox: inbox, presets: appState.presets, mailbox: .shared,
+            workDirectory: FileManager.default.temporaryDirectory.appending(path: "ShareImport", directoryHint: .isDirectory))
+    }
+
     /// `-ARSizeClass compact|regular` with demo data: forces the size class. Split View and Slide Over cannot be scripted,
     /// so the UI tests use this to check that a compact iPad window takes the iPhone layout.
     private static var forcedSizeClass: UserInterfaceSizeClass? {

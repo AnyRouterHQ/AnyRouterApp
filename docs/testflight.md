@@ -8,6 +8,8 @@ Milestone 1 is an internal TestFlight build uploaded by CI. Xcode creates the ce
 2. Users and Access, Integrations, App Store Connect API, create a key with role **App Manager**. Download the `.p8` once and note the Key ID and Issuer ID.
 3. The app uses the entitlement `com.apple.developer.kernel.increased-memory-limit`. With automatic signing and this key, Xcode enables the Increased Memory Limit capability on the App ID when it builds. If the archive step fails on it, enable the capability by hand on the App ID.
 
+4. The app embeds two extensions, `dev.anyrouter.app.controls` (Control Center controls) and `dev.anyrouter.app.share` (share sheet), and an App Group `group.dev.anyrouter.app` shared by the app and the share extension. With automatic signing and the key above, Xcode registers the two App IDs and the group on the first archive. If the archive fails on them, register the group under Identifiers, App Groups, and enable App Groups on `dev.anyrouter.app` and `dev.anyrouter.app.share` by hand.
+
 ## 2. Repository secrets
 
 ```bash

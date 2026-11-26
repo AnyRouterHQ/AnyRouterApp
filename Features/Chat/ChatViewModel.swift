@@ -312,6 +312,8 @@ final class ChatViewModel {
     /// when the request says so.
     @discardableResult
     func start(_ request: InboundChat, preset: PromptPreset?) -> Task<Void, Never>? {
+        if !request.files.isEmpty { attachFiles(request.files) }
+        if !request.readsTextFrom.isEmpty { readText(from: request.readsTextFrom.compactMap { try? Data(contentsOf: $0) }) }
         if request.asksForText, let preset {
             // The preset's sheet has the system Paste button; the text so far is its message.
             fill(InboundChatLogic.composerText(preset: nil, text: request.text))

@@ -64,6 +64,11 @@ targets:
         SentryDSN: $(SENTRY_DSN)
         ARGitCommit: $(AR_GIT_COMMIT)
         NSCameraUsageDescription: AnyRouter uses the camera to attach a photo to a message.
+        # `anyrouter://share` and `anyrouter://ask`: how the share extension asks the app to open.
+        CFBundleURLTypes:
+          - CFBundleURLName: dev.anyrouter.app
+            CFBundleURLSchemes:
+              - anyrouter
         UILaunchScreen:
           UIImageName: LaunchLogo
           UIColorName: LaunchBackground
@@ -72,6 +77,9 @@ targets:
       path: App/AnyRouter.entitlements
       properties:
         com.apple.developer.kernel.increased-memory-limit: true
+        # Shares from the extension wait here for the app. A build signed without this capability has no inbox.
+        com.apple.security.application-groups:
+          - group.dev.anyrouter.app
     dependencies:
       - package: MarkdownUI
         product: MarkdownUI
@@ -87,8 +95,9 @@ targets:
         product: Jinja
       - package: Sentry
         product: Sentry
-      # The Control Center and Lock Screen controls, embedded in the app's PlugIns folder.
+      # The Control Center and Lock Screen controls and the share extension, embedded in the app's PlugIns folder.
       - target: AnyRouterControls
+      - target: AnyRouterShare
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -104,6 +113,8 @@ targets:
       - path: Controls
       # The intents the controls run, and the mailbox they leave a request in. Also compiled into the app.
       - path: Shared
+        excludes:
+          - ShareHandoff.swift
     info:
       path: Controls/Info.plist
       properties:
@@ -116,6 +127,41 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.anyrouter.app.controls
         INFOPLIST_KEY_CFBundleDisplayName: AnyRouter Controls
         SKIP_INSTALL: YES
+  AnyRouterShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Share
+      # The handoff types the app also compiles.
+      - path: Shared
+        excludes:
+          - ControlIntents.swift
+    info:
+      path: Share/Info.plist
+      properties:
+        CFBundleDisplayName: Ask AnyRouter
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsImageWithMaxCount: 4
+              NSExtensionActivationSupportsFileWithMaxCount: 1
+    entitlements:
+      path: Share/AnyRouterShare.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.dev.anyrouter.app
+    settings:
+      base:
+        PRODUCT_NAME: AnyRouterShare
+        PRODUCT_BUNDLE_IDENTIFIER: dev.anyrouter.app.share
+        INFOPLIST_KEY_CFBundleDisplayName: Ask AnyRouter
+        SKIP_INSTALL: YES
+        # NSItemProvider and the responder chain predate Sendable. The glue stays in Swift 5 mode; the app is Swift 6.
+        SWIFT_VERSION: "5.0"
   AnyRouterTests:
     type: bundle.unit-test
     platform: iOS
