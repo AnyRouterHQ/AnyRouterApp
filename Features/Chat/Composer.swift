@@ -42,6 +42,9 @@ struct Composer: View {
             if let error = app.dictation.errorMessage {
                 ErrorBanner(text: error) { app.dictation.dismissError() }
             }
+            if let notice = app.speaker.notice {
+                ErrorBanner(text: notice) { app.speaker.dismissNotice() }
+            }
             if app.dictation.isActive {
                 DictationBar(dictation: app.dictation, hub: app.voice)
             }
@@ -113,6 +116,8 @@ struct Composer: View {
         .onChange(of: model.input) { old, new in
             model.inputChanged(from: old, to: new)
             if showsPluginList, new != old { showsPluginList = false }
+            // New input cuts off the voice that is reading a reply.
+            if new != old { app.speaker.stop() }
         }
         // Dictation ends with the screen: leaving the chat, or the app going to the background, keeps the words so far.
         .onChange(of: scenePhase) { _, phase in if phase != .active { app.dictation.finish() } }
@@ -279,7 +284,9 @@ struct Composer: View {
         switch action {
         case .stop: model.stop()
         case .send: _ = model.send()
-        case .voice, .stopDictation: app.dictation.toggle(text: $model.input, hub: app.voice)
+        case .voice, .stopDictation:
+            app.speaker.stop()
+            app.dictation.toggle(text: $model.input, hub: app.voice)
         }
     }
 }

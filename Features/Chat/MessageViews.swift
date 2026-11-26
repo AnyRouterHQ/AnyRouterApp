@@ -84,6 +84,7 @@ struct MessageRow: View {
             if !isStreamingThis && !message.content.isEmpty {
                 HStack(spacing: 4) {
                     CopyButton(text: message.content)
+                    ReadAloudButton(message: message)
                     if showsRegenerate {
                         Button(action: onRegenerate) {
                             Label("Regenerate", systemImage: "arrow.clockwise").labelStyle(.iconOnly)

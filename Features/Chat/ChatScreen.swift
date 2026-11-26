@@ -121,6 +121,13 @@ private struct ChatContent: View {
             Composer(model: chat, hasModel: chat.model != nil, presets: presets, focused: $composerFocused)
         }
         .refreshesMemory(app.memory)
+        // A new reply cuts off the voice of the last one; "Read replies aloud" then follows the new reply as it arrives.
+        .onChange(of: chat.isStreaming) { _, streaming in
+            if streaming { app.speaker.stop() }
+            followReply()
+        }
+        .onChange(of: chat.messages.last?.content.count) { followReply() }
+        .onDisappear { app.speaker.stop() }
         // Text read from a photo waits here until the user picks what to do with it.
         .sheet(item: $chat.scannedText) { scan in
             ReadTextSheet(text: scan.text, presets: OCRLogic.scanPresetIDs.compactMap { app.presets.preset(id: $0) }) { preset, selection, text in
@@ -133,6 +140,12 @@ private struct ChatContent: View {
                 chat.finishChoices(preset, selection: selection, message: message)
             }
         }
+    }
+
+    /// "Read replies aloud": feeds the reply being written, and its end, to the speaker.
+    private func followReply() {
+        guard app.voice.settings.readRepliesAloud, let last = chat.messages.last, last.role == .assistant else { return }
+        app.speaker.follow(messageID: last.id, text: last.content, isFinal: !chat.isStreaming, hub: app.voice)
     }
 
     private var emptyState: some View {
