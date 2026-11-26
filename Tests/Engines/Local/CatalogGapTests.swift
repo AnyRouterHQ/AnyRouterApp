@@ -79,7 +79,7 @@ struct CatalogDecodingTests {
 }
 
 /// Answers from a closure, remembers every request and can send response headers.
-final class RecordingHTTP: HTTPFetching, @unchecked Sendable {
+final class GateRecordingHTTP: HTTPFetching, @unchecked Sendable {
     struct Reply: Sendable {
         var status = 200
         var body = ""
@@ -124,7 +124,7 @@ struct CatalogServiceRemoteTests {
     }
 
     @Test func theSharedCatalogIsFetchedWhenTheUserSetNoURL() async throws {
-        let http = RecordingHTTP { _ in .init(body: remoteDoc) }
+        let http = GateRecordingHTTP { _ in .init(body: remoteDoc) }
         let s = service(http: http)
         #expect(try await s.refreshRemote())
         #expect(http.requests.first?.url == CatalogSource.productionURL)
@@ -132,7 +132,7 @@ struct CatalogServiceRemoteTests {
     }
 
     @Test func theDevelopmentSwitchPicksTheDevelopmentCatalog() async throws {
-        let http = RecordingHTTP { _ in .init(body: remoteDoc) }
+        let http = GateRecordingHTTP { _ in .init(body: remoteDoc) }
         let s = service(http: http, settings: CatalogSettings(useDevelopmentCatalog: true))
         _ = try await s.refreshRemote()
         #expect(http.requests.first?.url == CatalogSource.developmentURL)
@@ -154,10 +154,10 @@ struct CatalogServiceRemoteTests {
 
     @Test func anUnchangedCatalogCostsOneNotModifiedAnswerAndKeepsTheCache() async throws {
         let dir = makeTempDirectory()
-        let first = RecordingHTTP { _ in .init(body: remoteDoc, headers: ["ETag": "\"v1\""]) }
+        let first = GateRecordingHTTP { _ in .init(body: remoteDoc, headers: ["ETag": "\"v1\""]) }
         _ = try await service(http: first, settings: custom(), dir: dir).refreshRemote()
 
-        let second = RecordingHTTP { _ in .init(status: 304) }
+        let second = GateRecordingHTTP { _ in .init(status: 304) }
         let s = service(http: second, settings: custom(), dir: dir)
         #expect(try await s.refreshRemote() == false)
         #expect(second.requests.first?.value(forHTTPHeaderField: "If-None-Match") == "\"v1\"")
@@ -166,10 +166,10 @@ struct CatalogServiceRemoteTests {
 
     @Test func aCatalogWithoutAnETagForgetsTheOldOne() async throws {
         let dir = makeTempDirectory()
-        _ = try await service(http: RecordingHTTP { _ in .init(body: remoteDoc, headers: ["ETag": "\"v1\""]) },
+        _ = try await service(http: GateRecordingHTTP { _ in .init(body: remoteDoc, headers: ["ETag": "\"v1\""]) },
                               settings: custom(), dir: dir).refreshRemote()
-        _ = try await service(http: RecordingHTTP { _ in .init(body: remoteDoc) }, settings: custom(), dir: dir).refreshRemote()
-        let third = RecordingHTTP { _ in .init(body: remoteDoc) }
+        _ = try await service(http: GateRecordingHTTP { _ in .init(body: remoteDoc) }, settings: custom(), dir: dir).refreshRemote()
+        let third = GateRecordingHTTP { _ in .init(body: remoteDoc) }
         _ = try await service(http: third, settings: custom(), dir: dir).refreshRemote()
         #expect(third.requests.first?.value(forHTTPHeaderField: "If-None-Match") == nil)
     }
