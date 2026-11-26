@@ -188,6 +188,27 @@ Decision: a small focused client (`Engines/MCP/`) instead of the official MCP Sw
 - [x] T11 Data-out rules for tools that run unasked: an address goes out without asking only when its host is in the user's own messages or attachments of this chat, otherwise a dialog shows the full address (no "always allow"); a `web_search` asks when its query repeats 80 or more characters of the user's text, other searches stay silent (decision: blocking every search would make the tool useless, and a short quote leaks little); `research_*` tools ask like the other acting tools. Fetching a link out of a search result therefore asks each time
 - [ ] T7 Local GGUF and MLX tool calling (Later): needs chat-template tool rendering and parsing of the model's tool-call tokens per model family
 
+## Local agent (device tools)
+
+Research: [docs/research/local-agent.md](docs/research/local-agent.md) (2026-11-26). Keep the engine-owned loop with host-owned approval and execution; add device tools as `BuiltInTool` conformances; ship read-only tools first. Each item is a small push to main.
+
+- [ ] LA1 `BuiltInTool` gets a side-effect class (`read`, `sensitiveRead`, `write`, `external`) and an optional permission; `AgentToolHost` asks per class (writes and external calls every time, no "always allow")
+- [ ] LA2 `DevicePermission` broker (status, request, Settings link) and Settings › Integrations › "On this device" with per-tool switch and status; sensitive tools off by default; our sheet before the system prompt, never at launch
+- [ ] LA3 `ocr_image` (Vision text and document recognition on the chat's image attachments, no permission)
+- [ ] LA4 `calendar_search` and `reminders` search (EventKit full access, 20 results, title/time/place only)
+- [ ] LA5 `reminder_create` and event creation behind a confirmation card with the exact payload (event through `EKEventEditViewController`)
+- [ ] LA6 `contacts_lookup` (one field per call, limited-access aware, `ContactAccessButton`)
+- [ ] LA7 `place_search` (MapKit) and `weather` (WeatherKit, approximate location); operator enables the WeatherKit capability
+- [ ] LA8 `translate_text` (Translation, installed languages; "not installed" comes back as a tool error)
+- [ ] LA9 Taint rule in `ExfiltrationGuard` (after a sensitive read, outbound tools ask for the rest of the turn), spotlighting of tool output for every engine, one-time notice when a sensitive result goes to a cloud model
+- [ ] LA10 Tool selector (groups, at most 4 tools for Apple and local engines), lower `AppleDynamicTool.maxTools` from 8 to 4, result budget from `tokenCount(for:)` on 26.4 and later, 4 rounds on device engines
+- [ ] LA11 Tool-calling eval set (about 20 prompts per engine) in `model-smoke.yml`; no engine gets tools on by default without a pass
+- [ ] LA12 `AskAnyRouterIntent` plus `AppShortcutsProvider` (iOS 26, no entitlement): text in, answer out, read tools only, `requestConfirmation` for anything else
+- [ ] LA13 `run_shortcut`: user-registered shortcut names, `shortcuts://run-shortcut` with x-callback, loop suspends and resumes, asks every time
+- [ ] LA14 T7 for MLX first (mlx-swift-lm tool call processor, strict validation, at most 3 tools), GGUF after `common/` is built or a Swift parser exists
+- [ ] LA15 Later: Siri AI tool-intent variant (`@AppIntent(.tool)`, iOS 27.3, internal TestFlight only, not usable from App Store builds; it removes App Shortcuts from Siri)
+- [ ] LA16 Later: Core Spotlight index of chat threads and a recall tool
+
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
 
 - [ ] F1 Device smoke test on iPhone + iPad: AnyRouter sign-in, Apple FM chat, GGUF download + chat, MLX download + chat. Record results in the status log.
