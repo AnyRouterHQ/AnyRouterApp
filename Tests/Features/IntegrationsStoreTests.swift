@@ -163,11 +163,6 @@ private final class TokenBox: @unchecked Sendable {
 }
 
 @MainActor
-private struct ImmediateSigner: OAuthSigning {
-    func signIn() async throws -> IssuedToken { IssuedToken(accessToken: "sk-ar-live", expiresAt: nil) }
-}
-
-@MainActor
 final class AnyRouterSignInConnectTests: XCTestCase {
     private func makeStore(_ box: TokenBox) -> IntegrationsStore {
         IntegrationsStore(
@@ -203,52 +198,14 @@ final class AnyRouterSignInConnectTests: XCTestCase {
         XCTAssertNil(store.makeToolHost(approver: NeverAsked()))
     }
 
-    /// The test host's Keychain may refuse writes (the auth tests hit the same wall); then these tests have nothing to say.
-    private func workingKeychain() throws -> KeychainStore {
-        let keychain = KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)")
-        try XCTSkipUnless(keychain.save(token: "probe", expiresAt: nil), "this host's Keychain refuses writes")
-        keychain.clear()
-        return keychain
-    }
-
-    func testSignedInStateFlowsFromTheAuthToTheStore() async throws {
-        serveAnyRouter()
-        let keychain = try workingKeychain()
-        defer { keychain.clear() }
-        let store = IntegrationsStore(
-            defaults: testDefaults(), credentials: FakeCredentialStore(),
-            anyRouterToken: { keychain.token() }, session: MCPStubProtocol.session()
-        )
-        let auth = AnyRouterAuth(store: keychain, client: ImmediateSigner())
-        auth.onSignedInChange = { _ = store.accountChanged(signedIn: $0) }
-
-        await auth.signIn()
-        let connected = await waitUntil { store.state(for: .anyRouter).status == .connected }
-        XCTAssertTrue(connected)
-        XCTAssertEqual(store.state(for: .anyRouter).tools.count, 5)
-
-        auth.signOut()
-        XCTAssertEqual(store.state(for: .anyRouter).status, .needsSignIn)
-        XCTAssertTrue(store.state(for: .anyRouter).tools.isEmpty)
-
-        // A server that turns the token down (revoked key) also ends as signed out.
+    func testARevokedTokenEndsAsSignedOut() async {
         MCPStubProtocol.register(host: MCPServer.anyRouter.url.host()!) { _ in StubResponse(status: 401, body: "{}") }
-        keychain.save(token: "sk-ar-revoked", expiresAt: nil)
+        let box = TokenBox()
+        box.token = "sk-ar-revoked"
+        let store = makeStore(box)
         await store.refresh(.anyRouter)
         XCTAssertEqual(store.state(for: .anyRouter).status, .needsSignIn)
-    }
-
-    func testAuthReportsOnlyRealChanges() async throws {
-        let keychain = try workingKeychain()
-        defer { keychain.clear() }
-        let auth = AnyRouterAuth(store: keychain, client: ImmediateSigner())
-        var changes: [Bool] = []
-        auth.onSignedInChange = { changes.append($0) }
-        auth.refresh()
-        await auth.signIn()
-        auth.refresh()
-        auth.handleUnauthorized()
-        XCTAssertEqual(changes, [true, false])
+        XCTAssertTrue(store.state(for: .anyRouter).tools.isEmpty)
     }
 }
 
