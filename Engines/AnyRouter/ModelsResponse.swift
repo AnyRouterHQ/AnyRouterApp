@@ -68,8 +68,6 @@ struct ModelsResponse: Decodable {
             case canRouteReason = "can_route_reason"
         }
 
-        var cloudInfo: CloudInfo { cloudInfo(signedIn: true) }
-
         /// `can_route` is worked out for the caller's key. Without a key it only says what an anonymous caller may use,
         /// so a signed-out list reads every routable model as usable: the sign-in sheet explains the rest.
         func cloudInfo(signedIn: Bool) -> CloudInfo {
