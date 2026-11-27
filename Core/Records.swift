@@ -62,6 +62,11 @@ final class MessageRecord {
     var modelID: String?
     /// Attachments of a user message as JSON. Optional so existing stores migrate without a mapping.
     var attachmentsData: Data?
+    /// Where a user message came from: `clipboardOrigin` for a quick action on a copy. Optional so existing stores migrate.
+    var origin: String?
+
+    static let clipboardOrigin = "clipboard"
+    var fromClipboard: Bool { origin == Self.clipboardOrigin }
 
     init(id: UUID = UUID(), role: ChatMessage.Role, content: String, createdAt: Date = Date(),
          modelName: String? = nil, modelID: String? = nil) {

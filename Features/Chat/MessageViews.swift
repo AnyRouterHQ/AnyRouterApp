@@ -40,6 +40,12 @@ struct MessageRow: View {
         HStack {
             Spacer(minLength: 48)
             VStack(alignment: .trailing, spacing: 8) {
+                if message.fromClipboard {
+                    Label("From clipboard", systemImage: "doc.on.clipboard")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("message.clipboard-badge")
+                }
                 if !message.attachments.isEmpty { MessageAttachments(attachments: message.attachments) }
                 if !message.content.isEmpty {
                     Text(message.content)

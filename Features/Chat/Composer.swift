@@ -84,7 +84,7 @@ struct Composer: View {
             if let presets, let suggestions {
                 ComposerSuggestionsRow(
                     suggestions: suggestions, presets: presets,
-                    onPaste: { text in model.input = text; app.clipboard.dismiss() },
+                    onClipboard: { pasteClipboard($0) },
                     onPreset: { pick($0, mode: suggestions.mode) },
                     onSend: { model.sendNow($0) },
                     onEditPresets: { shell.presentSettings(closeSidebar: false, destination: .presets) },
@@ -193,6 +193,10 @@ struct Composer: View {
     /// A preset was chosen in the row, the More menu or the presets sheet. A phone use case runs its action; any other
     /// preset fills the composer the way its mode says.
     private func pick(_ preset: PromptPreset, mode: ComposerSuggestionMode) {
+        if mode == .clipboard, let kind = app.clipboard.offeredKind {
+            quickSend(preset, kind: kind)
+            return
+        }
         defer { app.clipboard.dismiss() }
         // Reading the clipboard here is the person's own tap. The row itself never reads the text.
         let clipboard = { UIPasteboard.general.string ?? "" }
@@ -211,6 +215,34 @@ struct Composer: View {
         }
     }
 
+    /// The copy's own chip: text or a link goes into the field to edit, an image under it. Reading the clipboard here
+    /// is the person's tap; if they refuse the system's paste question, nothing happens and the offer stays.
+    private func pasteClipboard(_ kind: ClipboardKind) {
+        switch kind {
+        case .text, .link:
+            guard let text = UIPasteboard.general.string, !text.isEmpty else { return }
+            model.input = text
+        case .image:
+            guard let data = UIPasteboard.general.image?.pngData() else { return }
+            model.attachImages([(data: data, filename: "Clipboard.png")])
+        }
+        app.clipboard.dismiss()
+    }
+
+    /// A quick action on the copy: read it in this tap and send at once. A refused read keeps the offer.
+    private func quickSend(_ preset: PromptPreset, kind: ClipboardKind) {
+        switch kind {
+        case .text, .link:
+            guard let text = UIPasteboard.general.string, !text.isEmpty else { return }
+            app.clipboard.dismiss()
+            model.quickSend(preset, text: text, deviceLanguage: Locale.current.language.languageCode?.identifier ?? "en")
+        case .image:
+            guard let data = UIPasteboard.general.image?.pngData() else { return }
+            app.clipboard.dismiss()
+            if preset.action == .readPhoto { model.readText(from: [data]) } else { model.quickSend(preset, image: data) }
+        }
+    }
+
     private func goOffline() {
         switch OfflineLogic.plan(models: models.models, catalog: app.hub.catalog) {
         case .use(let device):
@@ -226,7 +258,7 @@ struct Composer: View {
     /// The chips above the field, or nil. Decided by `ComposerSuggestionLogic`.
     private var suggestions: ComposerSuggestions? {
         guard let presets else { return nil }
-        return model.suggestions(presets: presets, clipboardOffered: app.clipboard.isOffered, isDictating: app.dictation.isActive,
+        return model.suggestions(presets: presets, clipboardKind: app.clipboard.offeredKind, isDictating: app.dictation.isActive,
                                  mentionPanelOpen: mentionQuery != nil || showsPluginList)
     }
 

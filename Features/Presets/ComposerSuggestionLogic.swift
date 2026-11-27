@@ -2,15 +2,15 @@ import Foundation
 
 /// One chip in the row above the composer.
 enum ComposerSuggestion: Identifiable, Equatable, Sendable {
-    /// The system Paste button.
-    case paste
+    /// What was copied, named by kind ("Copied text"). Tapping it puts the copy in the composer to edit first.
+    case clipboard(ClipboardKind)
     case preset(PromptPreset)
     /// A menu with every preset and a way to edit them.
     case more
 
     var id: String {
         switch self {
-        case .paste: "paste"
+        case .clipboard: "clipboard"
         case .preset(let preset): "preset.\(preset.id)"
         case .more: "more"
         }
@@ -21,7 +21,7 @@ enum ComposerSuggestion: Identifiable, Equatable, Sendable {
 enum ComposerSuggestionMode: Equatable, Sendable {
     /// An empty chat: the preset prompt goes into the composer.
     case starters
-    /// Text was copied elsewhere: the preset runs on the clipboard text.
+    /// Something was copied elsewhere: a tap on a preset reads it and sends at once.
     case clipboard
     /// A block was just pasted into the composer: the preset is applied to it.
     case pasted
@@ -37,8 +37,8 @@ struct ComposerSuggestions: Equatable, Sendable {
 struct ComposerSuggestionState: Equatable, Sendable {
     var chatHasMessages: Bool
     var inputIsEmpty: Bool
-    /// Text was copied since the clipboard was last offered (see `ClipboardLauncher`).
-    var clipboardOffered: Bool
+    /// What was copied since the clipboard was last offered, or nil (see `ClipboardLauncher`).
+    var clipboardKind: ClipboardKind?
     /// A block was pasted into the composer and has not been edited since (see `ChatViewModel.pasteOffered`).
     var pasteOffered: Bool
     var isDictating: Bool
@@ -55,22 +55,34 @@ enum ComposerSuggestionLogic {
     /// - nothing while dictating or while the @ list is open;
     /// - a fresh paste in the composer: the text presets, to apply to that text;
     /// - nothing while the composer has text;
-    /// - copied text waiting: the Paste button first, then the text presets;
+    /// - a copy waiting: its chip first, then the quick actions for that kind (`clipboardPresetIDs`);
     /// - an empty chat: the starter presets;
     /// - nothing in a chat that already has messages.
     ///
-    /// `textPresets` are the ones that work on text, `starters` the presets in the order an empty chat offers them.
-    static func visible(_ state: ComposerSuggestionState, textPresets: [PromptPreset], starters: [PromptPreset]) -> ComposerSuggestions? {
+    /// `textPresets` are the ones that work on text, `starters` the presets in the order an empty chat offers them,
+    /// `clipboardPresets` the quick actions for the copied kind.
+    static func visible(
+        _ state: ComposerSuggestionState, textPresets: [PromptPreset], starters: [PromptPreset], clipboardPresets: [PromptPreset] = []
+    ) -> ComposerSuggestions? {
         guard !state.isDictating, !state.mentionPanelOpen else { return nil }
         if state.pasteOffered, !state.inputIsEmpty {
             return chips(.pasted, leading: [], presets: textPresets)
         }
         guard state.inputIsEmpty else { return nil }
-        if state.clipboardOffered {
-            return chips(.clipboard, leading: [.paste], presets: textPresets)
+        if let kind = state.clipboardKind {
+            return chips(.clipboard, leading: [.clipboard(kind)], presets: clipboardPresets)
         }
         guard !state.chatHasMessages else { return nil }
         return chips(.starters, leading: [], presets: starters)
+    }
+
+    /// The quick actions offered for a copy, by preset id, in order. A hidden preset is simply left out.
+    static func clipboardPresetIDs(_ kind: ClipboardKind) -> [String] {
+        switch kind {
+        case .text: ["fix-english", "summarize", "translate", "reply-to-this"]
+        case .link: ["summarize-link", "key-points"]
+        case .image: ["describe-image", "read-photo"]
+        }
     }
 
     private static func chips(_ mode: ComposerSuggestionMode, leading: [ComposerSuggestion], presets: [PromptPreset]) -> ComposerSuggestions? {

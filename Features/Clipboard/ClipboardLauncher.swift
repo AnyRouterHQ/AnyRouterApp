@@ -5,6 +5,8 @@ import UIKit
 struct SystemPasteboard: PasteboardProbe {
     var changeCount: Int { UIPasteboard.general.changeCount }
     var hasStrings: Bool { UIPasteboard.general.hasStrings }
+    var hasURLs: Bool { UIPasteboard.general.hasURLs }
+    var hasImages: Bool { UIPasteboard.general.hasImages }
 }
 
 /// A pasteboard that is always empty, for demo runs and screenshots.
@@ -20,14 +22,16 @@ struct DemoPasteboard: PasteboardProbe {
     var hasStrings: Bool { true }
 }
 
-/// Decides when the chat shows its clipboard row. It only ever reads `changeCount` and `hasStrings`: reading the text
+/// Decides when the chat shows its clipboard row. It only ever reads `changeCount` and the `has…` flags: reading the text
 /// itself shows the system's "Allow Paste" alert every time, so the text is read by the system's Paste button, or by
 /// the person tapping a preset.
 @MainActor @Observable
 final class ClipboardLauncher {
     private static let seenKey = "clipboard.lastOfferedChangeCount"
 
-    private(set) var isOffered = false
+    /// What the offered copy is, or nil when nothing is offered.
+    private(set) var offeredKind: ClipboardKind?
+    var isOffered: Bool { offeredKind != nil }
     @ObservationIgnored private let probe: any PasteboardProbe
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var watcher: (any NSObjectProtocol)?
@@ -41,18 +45,19 @@ final class ClipboardLauncher {
     func check(composerEmpty: Bool) {
         let count = probe.changeCount
         let seen = defaults.object(forKey: Self.seenKey) as? Int
-        guard ClipboardLaunchLogic.shouldOffer(
-            changeCount: count, lastSeen: seen, hasStrings: probe.hasStrings, composerEmpty: composerEmpty) else { return }
+        let kind = ClipboardLaunchLogic.kind(hasStrings: probe.hasStrings, hasURLs: probe.hasURLs, hasImages: probe.hasImages)
+        guard let kind, ClipboardLaunchLogic.shouldOffer(
+            changeCount: count, lastSeen: seen, hasStrings: true, composerEmpty: composerEmpty) else { return }
         defaults.set(count, forKey: Self.seenKey)
-        isOffered = true
+        offeredKind = kind
     }
 
-    func dismiss() { isOffered = false }
+    func dismiss() { offeredKind = nil }
 
     /// The app itself copied something (a reply's Copy button): that text is not offered back.
     func noteOwnCopy() {
         defaults.set(probe.changeCount, forKey: Self.seenKey)
-        isOffered = false
+        offeredKind = nil
     }
 
     /// Treats a pasteboard change while the app is in front as its own.

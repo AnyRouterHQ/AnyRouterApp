@@ -17,15 +17,16 @@ struct ComposerSuggestionTests {
     private let six = ["a", "b", "c", "d", "e", "f"]
 
     private func state(
-        messages: Bool = false, empty: Bool = true, clipboard: Bool = false, pasted: Bool = false,
+        messages: Bool = false, empty: Bool = true, clipboard: ClipboardKind? = nil, pasted: Bool = false,
         dictating: Bool = false, mentions: Bool = false
     ) -> ComposerSuggestionState {
-        ComposerSuggestionState(chatHasMessages: messages, inputIsEmpty: empty, clipboardOffered: clipboard,
+        ComposerSuggestionState(chatHasMessages: messages, inputIsEmpty: empty, clipboardKind: clipboard,
                                 pasteOffered: pasted, isDictating: dictating, mentionPanelOpen: mentions)
     }
 
     private func show(_ state: ComposerSuggestionState, text: [String] = ["fix", "sum"], starters: [String] = ["a", "b", "c"]) -> ComposerSuggestions? {
-        ComposerSuggestionLogic.visible(state, textPresets: text.map { preset($0) }, starters: starters.map { preset($0) })
+        ComposerSuggestionLogic.visible(
+            state, textPresets: text.map { preset($0) }, starters: starters.map { preset($0) }, clipboardPresets: text.map { preset($0) })
     }
 
     private func ids(_ suggestions: ComposerSuggestions?) -> [String] { suggestions?.items.map(\.id) ?? [] }
@@ -49,13 +50,13 @@ struct ComposerSuggestionTests {
 
     @Test func typingHidesEverythingAndAPasteIsTheOnlyTextThatKeepsItShowing() {
         #expect(show(state(empty: false)) == nil)
-        #expect(show(state(empty: false, clipboard: true)) == nil, "the clipboard is offered to an empty composer only")
+        #expect(show(state(empty: false, clipboard: .text)) == nil, "the clipboard is offered to an empty composer only")
         #expect(show(state(empty: false, pasted: true))?.mode == .pasted)
     }
 
     @Test func dictatingAndTheAtListHideEveryMode() {
         for flags in [state(dictating: true), state(mentions: true),
-                      state(clipboard: true, dictating: true), state(clipboard: true, mentions: true),
+                      state(clipboard: .text, dictating: true), state(clipboard: .text, mentions: true),
                       state(empty: false, pasted: true, dictating: true), state(empty: false, pasted: true, mentions: true)] {
             #expect(show(flags) == nil)
         }
@@ -63,14 +64,14 @@ struct ComposerSuggestionTests {
 
     // MARK: - Order
 
-    @Test func theSystemPasteButtonComesFirstWhenTheClipboardChanged() {
-        let shown = show(state(clipboard: true))
+    @Test func theCopyChipComesFirstWhenTheClipboardChanged() {
+        let shown = show(state(clipboard: .text))
         #expect(shown?.mode == .clipboard)
-        #expect(ids(shown) == ["paste", "preset.fix", "preset.sum", "more"], "text presets, not the starters")
+        #expect(ids(shown) == ["clipboard", "preset.fix", "preset.sum", "more"], "the quick actions, not the starters")
     }
 
     @Test func theClipboardIsOfferedInAChatThatAlreadyHasMessages() {
-        #expect(show(state(messages: true, clipboard: true))?.mode == .clipboard)
+        #expect(show(state(messages: true, clipboard: .text))?.mode == .clipboard)
     }
 
     @Test func aFreshPasteShowsTextPresetsWithoutAPasteButton() {
@@ -79,16 +80,16 @@ struct ComposerSuggestionTests {
     }
 
     @Test func aPasteInTheFieldWinsOverTheClipboardOffer() {
-        #expect(show(state(empty: false, clipboard: true, pasted: true))?.mode == .pasted)
+        #expect(show(state(empty: false, clipboard: .text, pasted: true))?.mode == .pasted)
     }
 
     @Test func theClipboardRowCapsPresetsAtFourToo() {
-        let shown = show(state(clipboard: true), text: six)
-        #expect(ids(shown) == ["paste", "preset.a", "preset.b", "preset.c", "preset.d", "more"])
+        let shown = show(state(clipboard: .text), text: six)
+        #expect(ids(shown) == ["clipboard", "preset.a", "preset.b", "preset.c", "preset.d", "more"])
     }
 
     @Test func noPresetsMeansNoMoreMenuAndNoEmptyRow() {
-        #expect(ids(show(state(clipboard: true), text: [])) == ["paste"], "the Paste button still works without presets")
+        #expect(ids(show(state(clipboard: .text), text: [])) == ["clipboard"], "the copy's chip still works without presets")
         #expect(show(state(), starters: []) == nil)
         #expect(show(state(empty: false, pasted: true), text: []) == nil)
     }
@@ -111,8 +112,8 @@ struct ComposerSuggestionTests {
         ])
     }
 
-    private func suggestions(_ vm: ChatViewModel, _ presets: PresetStore, clipboard: Bool = false) -> ComposerSuggestions? {
-        vm.suggestions(presets: presets, clipboardOffered: clipboard, isDictating: false, mentionPanelOpen: false)
+    private func suggestions(_ vm: ChatViewModel, _ presets: PresetStore, clipboard: ClipboardKind? = nil) -> ComposerSuggestions? {
+        vm.suggestions(presets: presets, clipboardKind: clipboard, isDictating: false, mentionPanelOpen: false)
     }
 
     @Test func aNewChatShowsStartersWithTheHelpersFirstAndTheyGoAfterTheFirstMessage() async throws {

@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// The one row above the composer: the system Paste button, a few preset chips and a More menu, all one line, in
+/// The one row above the composer: what was copied, a few preset chips and a More menu, all one line, in
 /// glass like the controls beside the field. What shows, and in what order, is decided by `ComposerSuggestionLogic`.
 struct ComposerSuggestionsRow: View {
     let suggestions: ComposerSuggestions
     let presets: PresetStore
-    var onPaste: (String) -> Void
+    var onClipboard: (ClipboardKind) -> Void
     var onPreset: (PromptPreset) -> Void
     var onSend: (PromptPreset) -> Void
     var onEditPresets: () -> Void
@@ -16,7 +16,7 @@ struct ComposerSuggestionsRow: View {
             HStack(spacing: 8) {
                 ForEach(suggestions.items) { item in
                     switch item {
-                    case .paste: pasteChip
+                    case .clipboard(let kind): clipboardChip(kind)
                     case .preset(let preset): presetChip(preset)
                     case .more: moreMenu
                     }
@@ -35,16 +35,20 @@ struct ComposerSuggestionsRow: View {
         .accessibilityIdentifier("composer.suggestions")
     }
 
-    private var pasteChip: some View {
-        PasteButton(payloadType: String.self) { onPaste($0.joined(separator: "\n")) }
-            .labelStyle(.titleAndIcon)
-            .buttonBorderShape(.capsule)
-            .controlSize(.regular)
-            // The system picks the label color for the tint. The accent is white in dark mode, which left a white label on a light grey pill.
-            .tint(Color(.systemGray5))
-            .chipOutline(.capsule)
-            .frame(minHeight: 44)
-            .accessibilityIdentifier("composer.suggestion.paste")
+    /// What was copied, by kind, in the same glass as the presets. Tapping it puts the copy in the composer.
+    private func clipboardChip(_ kind: ClipboardKind) -> some View {
+        Button { onClipboard(kind) } label: {
+            Label(kind.title, systemImage: kind.symbol)
+                .font(.subheadline)
+                .lineLimit(1)
+        }
+        .buttonStyle(.glass)
+        .buttonBorderShape(.capsule)
+        .controlSize(.regular)
+        .chipOutline(Capsule())
+        .frame(minHeight: 44)
+        .accessibilityHint("Puts it in the message to edit")
+        .accessibilityIdentifier("composer.suggestion.clipboard")
     }
 
     private func presetChip(_ preset: PromptPreset) -> some View {

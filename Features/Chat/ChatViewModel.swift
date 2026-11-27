@@ -415,6 +415,8 @@ final class ChatViewModel {
         context.insert(user)
         user.thread = thread
         user.attachments = adopted
+        if nextSendFromClipboard { user.origin = MessageRecord.clipboardOrigin }
+        nextSendFromClipboard = false
         pending = []
         input = ""
         let named = mentions
@@ -424,6 +426,9 @@ final class ChatViewModel {
 
     /// A preset with pickers (tone, language) waits here for the user's choices. The chat screen shows its sheet.
     var presetNeedingChoices: PromptPreset?
+
+    /// The next send is a quick action on the clipboard: the user message gets the clipboard badge.
+    var nextSendFromClipboard = false
 
     /// True while presets are offered for a paste: set by a paste into the composer, cleared by the next edit that is
     /// not a paste, by a send, and by a choice.
