@@ -721,6 +721,9 @@ final class ChatViewModel {
             var toolContext = Self.toolContext(for: thread, modelSource: model.source)
             toolContext.forcedSourceIDs = ComposerMention.forcedSourceIDs(of: mentions)
             toolContext.isOffline = !isOnline()
+            if model.source == .anyrouter, settings.useMemory, !thread.memoryOff {
+                toolContext.memoryTools = ChatMemoryTools(context: context, thread: thread, reply: assistant, settings: settings).tools
+            }
             host = toolHost(toolContext)
             if skipsToolsOffline(toolContext) { offlineToolNote = OfflineLogic.toolNote }
         }

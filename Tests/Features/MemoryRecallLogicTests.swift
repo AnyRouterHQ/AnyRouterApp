@@ -22,6 +22,11 @@ struct MemoryRecallLogicTests {
         #expect(hits[0].score > hits[1].score)
     }
 
+    @Test func aSmallMemoryWhereEveryItemSharesTheWordStillRecallsThem() {
+        let facts = candidates(["Mochi likes carrots", "Mochi sleeps late"])
+        #expect(MemoryRecallLogic.recall("Mochi", from: facts, budget: 150).count == 2)
+    }
+
     @Test func commonWordsAloneRecallNothing() {
         let facts = candidates(["What is this", "Tôi là ai"] + unrelated)
         #expect(MemoryRecallLogic.recall("What is this? Tôi là gì", from: facts, budget: 150).isEmpty)

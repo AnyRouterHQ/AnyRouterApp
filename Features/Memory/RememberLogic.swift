@@ -92,6 +92,7 @@ enum RememberLogic {
         case .saved: String(localized: "Memory updated")
         case .alreadySaved: String(localized: "Already in memory")
         case .refused: String(localized: "Memory not saved")
+        case .removed: String(localized: "Memory removed")
         case .undone: String(localized: "Memory update undone")
         }
     }

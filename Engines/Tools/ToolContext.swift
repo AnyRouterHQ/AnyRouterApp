@@ -11,4 +11,6 @@ struct ToolContext: Sendable {
     var isOffline = false
     /// Sources the user named with @ for this message. When set, only their tools are offered.
     var forcedSourceIDs: Set<String> = []
+    /// The chat's memory tools (`memory`, `search_chats`): set by the chat for a cloud model while memory is on.
+    var memoryTools: [any BuiltInTool] = []
 }

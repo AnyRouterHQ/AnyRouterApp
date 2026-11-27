@@ -12,22 +12,24 @@ extension MemoryStore {
     ) -> MemoryUpdate? {
         guard settings.useMemory, !thread.memoryOff, let candidate = RememberLogic.candidate(in: text),
               candidate.explicit || settings.saveMemoriesAutomatically else { return nil }
-        return save(candidate.text, kind: candidate.kind, source: source, threadID: thread.id, messageID: messageID)
+        return save(candidate.text, kind: candidate.kind, origin: .askedInChat, source: source, threadID: thread.id, messageID: messageID)
     }
 
     /// "Remember" on text selected in a reply: a pinned note, shown as a row on that reply.
     func pin(_ text: String, from reply: MessageRecord) throws {
         let source = reply.modelID.flatMap { ModelSource(rawValue: String($0.prefix { $0 != "/" })) } ?? .apple
-        let update = save(text, kind: .note, source: source, threadID: reply.thread?.id, messageID: reply.id)
+        let update = save(text, kind: .note, origin: .askedInChat, source: source, threadID: reply.thread?.id, messageID: reply.id)
         reply.memoryUpdates.append(update)
         try context.save()
     }
 
     /// An item from a chat with a model on this device stays off cloud models (`deviceOnly`). A refusal is a row too.
-    private func save(_ text: String, kind: MemoryKind, source: ModelSource, threadID: UUID?, messageID: UUID) -> MemoryUpdate {
+    func save(
+        _ text: String, kind: MemoryKind, origin: MemoryOrigin, source: ModelSource, threadID: UUID?, messageID: UUID
+    ) -> MemoryUpdate {
         let scope: MemoryScope = source == .anyrouter ? .everywhere : .deviceOnly
         do {
-            let record = try add(text, kind: kind, origin: .askedInChat, scope: scope, sourceThreadID: threadID, sourceMessageID: messageID)
+            let record = try add(text, kind: kind, origin: origin, scope: scope, sourceThreadID: threadID, sourceMessageID: messageID)
             return MemoryUpdate(memoryID: record.id, text: record.text, outcome: .saved)
         } catch MemoryError.duplicate {
             return MemoryUpdate(text: text, outcome: .alreadySaved)
@@ -36,9 +38,13 @@ extension MemoryStore {
         }
     }
 
-    /// Deletes the saved item and marks the row undone.
+    /// Deletes the saved item, or saves a removed one again as it was, and marks the row undone.
     func undo(_ update: MemoryUpdate, on message: MessageRecord) throws {
-        if let record = try record(update.memoryID) { context.delete(record) }
+        if update.outcome == .removed {
+            try add(update.text, kind: update.kind ?? .note, origin: .modelTool, scope: update.scope ?? .deviceOnly)
+        } else if let record = try record(update.memoryID) {
+            context.delete(record)
+        }
         message.memoryUpdates = message.memoryUpdates.map {
             $0.id == update.id ? MemoryUpdate(id: $0.id, text: $0.text, outcome: .undone) : $0
         }
@@ -61,7 +67,7 @@ extension MemoryStore {
         try delete(record)
     }
 
-    private func record(_ id: UUID?) throws -> MemoryRecord? {
+    func record(_ id: UUID?) throws -> MemoryRecord? {
         guard let id else { return nil }
         return try context.fetch(FetchDescriptor<MemoryRecord>(predicate: #Predicate { $0.id == id })).first
     }

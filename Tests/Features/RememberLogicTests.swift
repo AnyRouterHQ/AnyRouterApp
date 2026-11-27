@@ -42,6 +42,7 @@ struct RememberLogicTests {
         #expect(RememberLogic.title(of: .saved) == "Memory updated")
         #expect(RememberLogic.title(of: .alreadySaved) == "Already in memory")
         #expect(RememberLogic.title(of: .refused("full")) == "Memory not saved")
+        #expect(RememberLogic.title(of: .removed) == "Memory removed")
         #expect(RememberLogic.title(of: .undone) == "Memory update undone")
     }
 }

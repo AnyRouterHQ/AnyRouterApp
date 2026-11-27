@@ -31,19 +31,21 @@ struct MemoryUpdateRow: View {
                     if let failure {
                         Text(failure).font(.footnote).foregroundStyle(.secondary)
                     }
-                    if update.outcome == .saved {
+                    if update.outcome == .saved || update.outcome == .removed {
                         HStack(spacing: 16) {
                             Button { perform { try MemoryStore(context: context).undo(update, on: message) } } label: {
                                 Text("Undo").frame(minWidth: 44, minHeight: 44)
                             }
                             .accessibilityIdentifier("memory.undo")
-                            Button {
-                                draft = update.text
-                                isEditing = true
-                            } label: {
-                                Text("Edit").frame(minWidth: 44, minHeight: 44)
+                            if update.outcome == .saved {
+                                Button {
+                                    draft = update.text
+                                    isEditing = true
+                                } label: {
+                                    Text("Edit").frame(minWidth: 44, minHeight: 44)
+                                }
+                                .accessibilityIdentifier("memory.edit")
                             }
-                            .accessibilityIdentifier("memory.edit")
                         }
                         .font(.footnote)
                         .buttonStyle(.borderless)
@@ -64,7 +66,7 @@ struct MemoryUpdateRow: View {
         switch update.outcome {
         case .saved: .done
         case .refused: .failed
-        case .alreadySaved, .undone: nil
+        case .alreadySaved, .removed, .undone: nil
         }
     }
 

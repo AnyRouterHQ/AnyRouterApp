@@ -16,8 +16,6 @@ enum MemoryRecallLogic {
     }
 
     static let maxHits = 3
-    /// A starting point: one shared uncommon word passes. The live memory set (unit L1) tunes it.
-    static let minimumScore = 0.2
     static let heading = "Things the user told you before:"
 
     /// Words too common to say what a question is about, as typed: "an" is a stop word, "ăn" (eat) is not.
@@ -40,6 +38,20 @@ enum MemoryRecallLogic {
 
     /// The best items for the question, at most three, whole, within the budget.
     static func recall(_ question: String, from candidates: [Candidate], budget: Int) -> [Hit] {
+        var hits: [Hit] = []
+        var lines = [heading]
+        for hit in rank(question, candidates) where hits.count < maxHits {
+            let candidate = lines + ["- " + hit.candidate.text]
+            guard TokenCountLogic.estimate(candidate.joined(separator: "\n")) <= budget else { continue }
+            lines = candidate
+            hits.append(hit)
+        }
+        return hits
+    }
+
+    /// Every candidate that shares a word with the question, best first. No score floor: BM25 gives a word that every item
+    /// holds a tiny weight, so a floor would drop the only matches of a small memory. The live set (unit L1) checks traps.
+    static func rank(_ question: String, _ candidates: [Candidate]) -> [Hit] {
         let terms = Array(Set(words(question).filter { !stopWords.contains($0) }.map(fold)))
         let documents = candidates.map { words($0.text) }
         let folded = documents.map { $0.map(fold) }
@@ -54,15 +66,7 @@ enum MemoryRecallLogic {
             Hit(candidate: candidates[index], score: score(
                 terms: terms, weights: weights, exact: exact, words: documents[index], folded: folded[index], averageLength: averageLength))
         }
-        var hits: [Hit] = []
-        var lines = [heading]
-        for hit in scored.filter({ $0.score >= minimumScore }).sorted(by: { $0.score > $1.score }) where hits.count < maxHits {
-            let candidate = lines + ["- " + hit.candidate.text]
-            guard TokenCountLogic.estimate(candidate.joined(separator: "\n")) <= budget else { continue }
-            lines = candidate
-            hits.append(hit)
-        }
-        return hits
+        return scored.filter { $0.score > 0 }.sorted { $0.score > $1.score }
     }
 
     /// The footer's words: "Used 1 memory", "Used 3 memories".

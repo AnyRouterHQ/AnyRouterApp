@@ -252,6 +252,8 @@ final class ToolRegistry {
         if deviceOn, !images.isEmpty, isBuiltInEnabled(OCRImageTool.toolName) {
             builtIns.append(OCRImageTool(images: images, store: attachmentStore))
         }
+        // Memory is not a plugin the user switches on here: the chat adds its tools when memory is on for it.
+        if context.forcedSourceIDs.isEmpty { builtIns += context.memoryTools }
         return HostPlan(match: match, scrape: scrape, builtIns: builtIns, mcpTools: mcpTools)
     }
 

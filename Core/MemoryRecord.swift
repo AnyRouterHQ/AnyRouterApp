@@ -24,6 +24,8 @@ struct MemoryUpdate: Codable, Equatable, Sendable, Identifiable {
         case alreadySaved
         /// Not saved; the words say why (too long, the list is full).
         case refused(String)
+        /// The model removed the item; Undo saves it again with its old kind and scope.
+        case removed
         case undone
     }
 
@@ -32,12 +34,17 @@ struct MemoryUpdate: Codable, Equatable, Sendable, Identifiable {
     var memoryID: UUID?
     var text: String
     var outcome: Outcome
+    /// A removed item's kind and scope, so Undo can save it again as it was.
+    var kind: MemoryKind?
+    var scope: MemoryScope?
 
-    init(id: UUID = UUID(), memoryID: UUID? = nil, text: String, outcome: Outcome) {
+    init(id: UUID = UUID(), memoryID: UUID? = nil, text: String, outcome: Outcome, kind: MemoryKind? = nil, scope: MemoryScope? = nil) {
         self.id = id
         self.memoryID = memoryID
         self.text = text
         self.outcome = outcome
+        self.kind = kind
+        self.scope = scope
     }
 }
 
