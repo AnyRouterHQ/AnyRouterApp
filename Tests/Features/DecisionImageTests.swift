@@ -76,11 +76,12 @@ struct DecisionImageTests {
     private func locatedJPEG(side: Int) throws -> Data {
         var bytes = [UInt8](repeating: 0, count: side * side * 4)
         for index in bytes.indices { bytes[index] = UInt8.random(in: 0...255) }
+        // One #require per line: a #require inside another one does not expand.
+        let provider = try #require(CGDataProvider(data: Data(bytes) as CFData))
         let image = try #require(CGImage(
             width: side, height: side, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: side * 4,
             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
-            provider: try #require(CGDataProvider(data: Data(bytes) as CFData)), decode: nil, shouldInterpolate: false,
-            intent: .defaultIntent))
+            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent))
         let output = NSMutableData()
         let destination = try #require(CGImageDestinationCreateWithData(output, UTType.jpeg.identifier as CFString, 1, nil))
         let gps: [CFString: Any] = [kCGImagePropertyGPSLatitude: 1.5, kCGImagePropertyGPSLongitude: 2.5]
