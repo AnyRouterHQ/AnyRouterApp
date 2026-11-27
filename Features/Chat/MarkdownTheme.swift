@@ -179,20 +179,24 @@ struct CopyButton: View {
                 copied = false
             }
         } label: {
-            if showsLabel {
-                Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
-                    .labelStyle(.titleAndIcon)
-                    .font(.footnote)
-            } else {
-                Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
-                    .labelStyle(.iconOnly)
-                    .font(iconFont)
+            Group {
+                if showsLabel {
+                    Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+                        .labelStyle(.titleAndIcon)
+                        .font(.footnote)
+                } else {
+                    Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+                        .labelStyle(.iconOnly)
+                        .font(iconFont)
+                }
             }
+            // The HIG minimum hit area, inside the label: a frame outside a borderless button grows the layout
+            // but not the button, so the audit still found a symbol-sized hit area.
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(.rect)
         }
         .buttonStyle(.borderless)
         .foregroundStyle(.secondary)
-        // The HIG minimum hit area; a borderless button is only as big as its content.
-        .frame(minWidth: 44, minHeight: 44)
         .sensoryFeedback(.impact(weight: .light), trigger: copied) { _, now in now }
         .accessibilityLabel("Copy")
     }

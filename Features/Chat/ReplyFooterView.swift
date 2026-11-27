@@ -44,11 +44,12 @@ struct ReplyFooterRow: View {
             case .share:
                 ShareLink(item: message.content) {
                     Label("Share", systemImage: "square.and.arrow.up").labelStyle(.iconOnly)
+                        // The HIG minimum hit area, inside the label so the button itself is 44 pt.
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
-                // The HIG minimum hit area; a borderless button is only as big as its symbol.
-                .frame(minWidth: 44, minHeight: 44)
                 .hoverEffect(.highlight)
                 .accessibilityIdentifier("reply.share")
             case .readAloud:
@@ -56,10 +57,11 @@ struct ReplyFooterRow: View {
             case .regenerate:
                 Button(action: onRegenerate) {
                     Label("Regenerate", systemImage: "arrow.clockwise").labelStyle(.iconOnly)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
-                .frame(minWidth: 44, minHeight: 44)
                 .hoverEffect(.highlight)
                 .accessibilityLabel("Regenerate")
                 .accessibilityIdentifier("reply.regenerate")

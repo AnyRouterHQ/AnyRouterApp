@@ -12,11 +12,12 @@ struct ReadAloudButton: View {
         } label: {
             Label(speaking ? "Stop reading" : "Read aloud", systemImage: speaking ? "stop" : "play")
                 .labelStyle(.iconOnly)
+                // The HIG minimum hit area, inside the label so the button itself is 44 pt.
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(.rect)
         }
         .buttonStyle(.borderless)
         .foregroundStyle(.secondary)
-        // The HIG minimum hit area; a borderless button is only as big as its symbol.
-        .frame(minWidth: 44, minHeight: 44)
         .hoverEffect(.highlight)
         .accessibilityIdentifier("reply.readAloud")
     }
