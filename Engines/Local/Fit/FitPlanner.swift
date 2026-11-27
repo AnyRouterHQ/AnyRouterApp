@@ -62,6 +62,8 @@ struct DeviceMemory: Equatable, Sendable {
     var budgetBytes: Int64
     /// Installed RAM, for display.
     var physicalBytes: Int64
+    /// The largest file this process can map in one piece. Nil when not measured: no check.
+    var mappableBytes: Int64? = nil
 
     /// The app itself (UI, database, markdown, networking) before any model.
     static let appBaselineBytes: Int64 = 300_000_000
@@ -91,6 +93,8 @@ struct FitEstimate: Equatable, Sendable {
     var isEstimated: Bool
     /// Set on a model that does not fit here but would stream on a device of this class.
     var streamsOn: DeviceClass? = nil
+    /// The file is bigger than the address space this install can map in one piece, whatever the memory.
+    var cannotMap = false
 
     /// Only the experts in use stay in RAM; the rest of the file is read from storage on demand (slower).
     var streamsFromStorage: Bool {
@@ -135,6 +139,11 @@ enum FitPlanner {
                 verdict: verdict, isEstimated: profile.isEstimated, streamsOn: streamsOn)
         }
 
+        if let mappable = memory.mappableBytes, profile.fileBytes > mappable {
+            var estimate = make(.wontFit, context: minContext)
+            estimate.cannotMap = true
+            return estimate
+        }
         if let context = largestContext(profile, resident: profile.residentBytes, limit: comfortable, cap: cap), context >= preferred {
             return make(.runsWell, context: context)
         }
@@ -171,6 +180,9 @@ enum FitPlanner {
         guard profile.projectorBytes > 0 else { return nil }
         var withProjector = profile
         withProjector.fileBytes += profile.projectorBytes + imageEncoderBytes
+        // The projector is read into memory, not mapped: only the model file needs the address space.
+        var memory = memory
+        memory.mappableBytes = memory.mappableBytes.map { $0 + profile.projectorBytes + imageEncoderBytes }
         return estimate(withProjector, memory: memory)
     }
 

@@ -6,15 +6,22 @@ struct DiagnosticsSettings: View {
     @State private var records: [DiagnosticRecord] = []
     @State private var memory: MemoryDiagnostics?
     @State private var stalls: [MainThreadStall] = []
+    @State private var exits: [AppExitCount] = []
 
     private func gigabytes(_ bytes: Int64) -> String { bytes > 0 ? FitFormat.gigabytes(bytes) : "Not reported" }
 
-    private var entitlementText: String {
-        switch memory?.entitlementSigned {
+    private func signedText(_ signed: Bool?) -> String {
+        switch signed {
         case true?: "Signed in"
         case false?: "Not in this install"
         case nil: "Unknown"
         }
+    }
+
+    private func reload() async {
+        stalls = MainThreadWatchdog.shared.recent
+        exits = appState.diagnostics.lastExitCounts()
+        memory = await appState.memory.diagnostics()
     }
 
     var body: some View {
@@ -25,11 +32,35 @@ struct DiagnosticsSettings: View {
                 LabeledContent("App memory in use", value: gigabytes(memory?.footprintBytes ?? 0))
                 LabeledContent("Available to the app", value: gigabytes(memory?.availableBytes ?? 0))
                 LabeledContent("Installed RAM", value: gigabytes(memory?.physicalBytes ?? 0))
-                LabeledContent("Increased memory limit", value: entitlementText)
+                LabeledContent("Increased memory limit", value: signedText(memory?.entitlementSigned))
+                LabeledContent("Extended address space", value: signedText(memory?.extendedAddressingSigned))
+                LabeledContent("Largest file it can open", value: memory?.mappableBytes.map(FitFormat.gigabytes) ?? "Not measured")
             } header: {
                 Text("Memory")
             } footer: {
-                Text("Read from this device just now. The budget is the limit minus 0.3 GB for the app itself; model fit checks use it.")
+                Text("Read from this device just now. The budget is the limit minus 0.3 GB for the app itself; model fit checks use it. A model file must fit the largest file it can open.")
+            }
+            if let checks = memory?.modelChecks, !checks.isEmpty {
+                Section {
+                    ForEach(checks, id: \.name) { check in
+                        LabeledContent(check.name) { Text(check.verdict) }
+                    }
+                } header: {
+                    Text("Large models on this device")
+                }
+            }
+            Section {
+                if exits.isEmpty {
+                    Text("None reported yet. iOS reports these about a day later.")
+                } else {
+                    ForEach(exits, id: \.self) { exit in
+                        LabeledContent("\(exit.reason) (\(exit.phase.lowercased()))") { Text("\(exit.count)") }
+                    }
+                }
+            } header: {
+                Text("Times iOS ended the app")
+            } footer: {
+                Text("From the newest metrics report. Memory resource limit means the app used more memory than iOS allows.")
             }
             Section {
                 if stalls.isEmpty {
@@ -77,12 +108,10 @@ struct DiagnosticsSettings: View {
         .accessibilityIdentifier("diagnostics.list")
         .task {
             records = appState.diagnostics.list()
-            stalls = MainThreadWatchdog.shared.recent
-            memory = await appState.memory.diagnostics()
+            await reload()
         }
         .refreshable {
-            stalls = MainThreadWatchdog.shared.recent
-            memory = await appState.memory.diagnostics()
+            await reload()
         }
     }
 }

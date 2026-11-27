@@ -25,6 +25,36 @@ enum MemoryReading {
     static func physicalBytes() -> Int64 {
         Int64(ProcessInfo.processInfo.physicalMemory)
     }
+
+    /// The largest single region this process can still map, found by reserving address space (no memory, nothing the
+    /// system charges) and releasing it at once. llama.cpp maps a model file in one piece, so a bigger file cannot load.
+    /// Nil on the Simulator, whose address space is the Mac's.
+    static func largestMappableBytes() -> Int64? {
+        #if targetEnvironment(simulator)
+        return nil
+        #else
+        return largestReservable(upTo: 64 << 30, step: 256 << 20, reserve: canReserve)
+        #endif
+    }
+
+    /// Whether `bytes` of address space can be reserved in one piece right now.
+    static func canReserve(_ bytes: Int64) -> Bool {
+        let region = mmap(nil, Int(bytes), PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0)
+        guard let region, region != UnsafeMutableRawPointer(bitPattern: -1) else { return false }
+        munmap(region, Int(bytes))
+        return true
+    }
+
+    /// The largest multiple of `step` up to `limit` that `reserve` accepts, by binary search; 0 when not even one step.
+    static func largestReservable(upTo limit: Int64, step: Int64, reserve: (Int64) -> Bool) -> Int64 {
+        var low: Int64 = 0
+        var high = limit / step
+        while low < high {
+            let middle = (low + high + 1) / 2
+            if reserve(middle * step) { low = middle } else { high = middle - 1 }
+        }
+        return low * step
+    }
 }
 
 /// A reading for the UI: how much the app uses and how much is left.
@@ -52,5 +82,10 @@ struct MemorySnapshot: Equatable, Sendable {
 }
 
 extension DeviceMemory {
-    static func current() -> DeviceMemory { MemorySnapshot.read().deviceMemory }
+    /// `mappable` also measures the address space (a few reservations, no memory), for checks before a download.
+    static func current(mappable: Bool = false) -> DeviceMemory {
+        var memory = MemorySnapshot.read().deviceMemory
+        if mappable { memory.mappableBytes = MemoryReading.largestMappableBytes() }
+        return memory
+    }
 }

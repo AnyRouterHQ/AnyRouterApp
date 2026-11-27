@@ -60,6 +60,7 @@ enum LocalModelsLogic {
     static func reason(for entry: LocalModelEntry, device: String) -> String? {
         if let blocked = entry.unavailableReason { return blocked }
         if let detail = entry.fitDetail, detail.verdict == .wontFit {
+            if let mappable = detail.mappableBytes { return FitText.addressSpaceReason(mappableBytes: mappable) }
             if let gigabytes = detail.streamsWithRAMGigabytes { return "Needs an \(device) with \(gigabytes) GB of memory." }
             return "Needs about \(FitFormat.gigabytes(detail.neededBytes)), this \(device) allows \(FitFormat.gigabytes(detail.budgetBytes))."
         }

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import AnyRouter
 
@@ -48,5 +49,25 @@ struct SettingsLogicTests {
         #expect(names.contains("llama.cpp"))
         #expect(names.contains("MarkdownUI"))
         #expect(LicenseNotice.all.allSatisfy { !$0.copyright.isEmpty && !$0.license.isEmpty })
+    }
+
+    // MARK: Diagnostics
+
+    private let inkling = ModelMemoryProfile(
+        fileBytes: 6_881_463_904, fullKVBytesPerToken: 16_384, windowKVBytesPerToken: 81_920, windowTokens: 1024,
+        trainedContext: 1_048_576, activeFraction: 0.119, lazyBytes: 260_527_104)
+
+    @Test func theFitVerdictNamesHowAModelRunsAndWhyItDoesNot() {
+        func verdict(_ memory: DeviceMemory) -> String { SettingsLogic.fitVerdict(FitPlanner.estimate(inkling, memory: memory)) }
+        #expect(verdict(DeviceClass.gb16.memory(.increased)) == "Runs in memory · 8,192 tokens")
+        #expect(verdict(DeviceClass.gb12.memory(.increased)) == "Runs in memory, tight · 8,192 tokens")
+        #expect(verdict(DeviceClass.gb12.memory(.standard)) == "Streams from storage · 4,096 tokens")
+        #expect(verdict(DeviceClass.gb8.memory(.standard)) == "Not available · needs 12 GB of RAM")
+        var cramped = DeviceClass.gb12.memory(.standard)
+        cramped.mappableBytes = 4_000_000_000
+        #expect(verdict(cramped) == "Not available · the file is bigger than this install can open at once")
+        let dense = ModelMemoryProfile(fileBytes: 9_000_000_000, fullKVBytesPerToken: 100_000, trainedContext: 8192, activeFraction: nil)
+        #expect(SettingsLogic.fitVerdict(FitPlanner.estimate(dense, memory: DeviceClass.gb8.memory(.standard)))
+            .hasPrefix("Not available · needs ~"))
     }
 }

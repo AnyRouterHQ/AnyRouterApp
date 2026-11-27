@@ -94,6 +94,14 @@ struct LocalModelsLogicTests {
         #expect(list[0].reason == "Needs about 3.9 GB, this iPhone allows 3.2 GB.")
     }
 
+    @Test func aFileBiggerThanTheAddressSpaceSaysSoAndWhatSigningFixesIt() {
+        var detail = wontFit(needed: 3_000_000_000, budget: 8_000_000_000)
+        detail.mappableBytes = 4_200_000_000
+        let list = LocalModelsLogic.unavailable(catalog: [entry("big", fit: .wontFit, detail: detail)], state: states([:]), device: "iPhone")
+        #expect(list.first?.reason == "This install can open files up to 4.2 GB at once. \(FitText.addressSpaceFix)",
+                "memory is not the reason here, so it must not be named")
+    }
+
     @Test func aBlockedModelShowsItsOwnReason() {
         let mlx = entry("mlx/x", fit: .fits, blocked: "MLX models need a physical device.", source: .mlx)
         #expect(LocalModelsLogic.unavailable(catalog: [mlx], state: states([:]), device: "iPhone").first?.reason

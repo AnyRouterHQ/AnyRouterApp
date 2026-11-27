@@ -47,14 +47,24 @@ enum FitText {
             if detail.streamsFromStorage { text += " Weights stream from storage, so it is slower." }
             return text
         case .wontFit:
+            if let mappable = detail.mappableBytes { return addressSpaceReason(mappableBytes: mappable) }
             return "Needs ~\(gigabytes(detail.neededBytes)) · this \(device) has ~\(gigabytes(detail.budgetBytes)) for apps"
         }
     }
+
+    /// Why a file bigger than the address space this install can map does not load, whatever the memory.
+    static func addressSpaceReason(mappableBytes: Int64) -> String {
+        "This install can open files up to \(gigabytes(mappableBytes)) at once. \(addressSpaceFix)"
+    }
+
+    /// What gives a larger address space.
+    static let addressSpaceFix = "A build signed with the extended address space entitlement can open more."
 
     /// The warning before a download that will not run, or nil when there is nothing to warn about.
     static func downloadWarning(_ detail: FitDetail?, sizeText: String?, device: String) -> String? {
         guard let detail, detail.verdict == .wontFit else { return nil }
         let size = sizeText.map { " (\($0))" } ?? ""
+        if let mappable = detail.mappableBytes { return "This model\(size) will not load. \(addressSpaceReason(mappableBytes: mappable))" }
         return "This model\(size) needs about \(gigabytes(detail.neededBytes)) of memory. This \(device) can give about \(gigabytes(detail.budgetBytes)), so it will not load."
     }
 

@@ -85,4 +85,13 @@ struct MemoryEntitlementTests {
         // The Simulator test host is ad-hoc signed: any of true, false or nil is fine. It must not trap or hang.
         _ = MemoryEntitlement.isSignedForThisApp()
     }
+
+    @Test func theExtendedAddressSpaceIsReadFromTheSameSignature() throws {
+        let both = try Self.machO(signature: Self.signature([MemoryEntitlement.key: true, MemoryEntitlement.extendedAddressingKey: true]))
+        let entitlements = try #require(MemoryEntitlement.signedEntitlements(executable: try write(both)))
+        #expect(entitlements[MemoryEntitlement.extendedAddressingKey] as? Bool == true)
+        #expect(MemoryEntitlement.extendedAddressingKey == "com.apple.developer.kernel.extended-virtual-addressing")
+        // The Simulator's test host is not signed with entitlements: unknown, never a guess.
+        _ = MemoryEntitlement.kernelEntitlementsForThisApp()
+    }
 }

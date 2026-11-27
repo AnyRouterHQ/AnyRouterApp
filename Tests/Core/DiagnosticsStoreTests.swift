@@ -95,4 +95,32 @@ struct DiagnosticsStoreTests {
         }
         #expect(s.list().count == 1)
     }
+
+    @Test func exitCountsComeFromTheNewestMetricsReportByPhaseAndReason() throws {
+        let s = store()
+        #expect(s.lastExitCounts().isEmpty, "no metrics report yet")
+        let old: [String: Any] = ["applicationExitMetrics": ["foregroundExitData": ["cumulativeAppWatchdogExitCount": 9] as [String: Any]] as [String: Any]]
+        let new: [String: Any] = ["applicationExitMetrics": [
+            "foregroundExitData": [
+                "cumulativeMemoryResourceLimitExitCount": 2, "cumulativeNormalAppExitCount": 0, "cumulativeCPUResourceLimitExitCount": 1,
+            ] as [String: Any],
+            "backgroundExitData": ["cumulativeMemoryPressureExitCount": 3, "someOtherKey": 5, "cumulativeBadAccessExitCount": "x"] as [String: Any],
+        ] as [String: Any]]
+        try s.saveMetrics(try JSONSerialization.data(withJSONObject: old), now: Date(timeIntervalSince1970: 1_800_000_000))
+        try s.saveMetrics(try JSONSerialization.data(withJSONObject: new), now: Date(timeIntervalSince1970: 1_800_000_060))
+        try s.saveModelListFailure(source: "x", message: "y", now: Date(timeIntervalSince1970: 1_800_000_120))
+        #expect(s.lastExitCounts() == [
+            AppExitCount(phase: "Foreground", reason: "CPU resource limit", count: 1),
+            AppExitCount(phase: "Foreground", reason: "Memory resource limit", count: 2),
+            AppExitCount(phase: "Background", reason: "Memory pressure", count: 3),
+        ], "zero counts, other keys and non-numbers are left out; an older report is not read")
+        #expect(DiagnosticsStore.exitCounts(inMetrics: Data("not json".utf8)).isEmpty)
+    }
+
+    @Test func camelCaseReasonsReadAsSentences() {
+        #expect(DiagnosticsStore.sentence(fromCamelCase: "AppWatchdog") == "App watchdog")
+        #expect(DiagnosticsStore.sentence(fromCamelCase: "CPUResourceLimit") == "CPU resource limit")
+        #expect(DiagnosticsStore.sentence(fromCamelCase: "BackgroundURLSessionCompletionTimeout") == "Background URL session completion timeout")
+        #expect(DiagnosticsStore.sentence(fromCamelCase: "") == "")
+    }
 }

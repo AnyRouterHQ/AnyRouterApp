@@ -33,6 +33,15 @@ enum DiagnosticKind: String, Sendable, CaseIterable {
     }
 }
 
+/// Exit counts from the newest MetricKit metrics report: how often iOS ended the app, by reason.
+struct AppExitCount: Hashable, Sendable {
+    /// "Foreground" or "Background".
+    var phase: String
+    /// "Memory resource limit", "App watchdog", …
+    var reason: String
+    var count: Int
+}
+
 struct DiagnosticRecord: Identifiable, Equatable, Sendable {
     let id: String
     let date: Date
@@ -93,6 +102,50 @@ struct DiagnosticsStore: Sendable {
     func modelLoadTrace(of record: DiagnosticRecord) -> ModelLoadTrace? {
         guard record.kind == .modelLoad, let data = try? Data(contentsOf: record.url) else { return nil }
         return try? JSONDecoder().decode(ModelLoadTrace.self, from: data)
+    }
+
+    /// The non-zero exit counts of the newest metrics report, foreground first. Empty when there is none yet.
+    func lastExitCounts() -> [AppExitCount] {
+        guard let record = list().first(where: { $0.kind == .metric }), let data = try? Data(contentsOf: record.url) else { return [] }
+        return Self.exitCounts(inMetrics: data)
+    }
+
+    /// Reads `applicationExitMetrics` of an `MXMetricPayload` JSON. Every `cumulative…ExitCount` key counts, so a reason
+    /// a newer iOS adds shows up without a code change.
+    static func exitCounts(inMetrics json: Data) -> [AppExitCount] {
+        let object = (try? JSONSerialization.jsonObject(with: json)) as? [String: Any]
+        let exits = object?["applicationExitMetrics"] as? [String: Any] ?? [:]
+        return [("Foreground", "foregroundExitData"), ("Background", "backgroundExitData")].flatMap { phase, key in
+            let counts = exits[key] as? [String: Any] ?? [:]
+            return counts.keys.sorted().compactMap { name -> AppExitCount? in
+                guard name.hasPrefix("cumulative"), name.hasSuffix("ExitCount"),
+                      let count = counts[name] as? Int, count > 0 else { return nil }
+                let words = name.dropFirst("cumulative".count).dropLast("ExitCount".count)
+                return AppExitCount(phase: phase, reason: sentence(fromCamelCase: String(words)), count: count)
+            }
+        }
+    }
+
+    /// "MemoryResourceLimit" to "Memory resource limit"; runs of capitals ("CPU") stay together.
+    static func sentence(fromCamelCase text: String) -> String {
+        var words: [String] = []
+        var current = ""
+        let characters = Array(text)
+        for (index, character) in characters.enumerated() {
+            let next = index + 1 < characters.count ? characters[index + 1] : nil
+            let startsWord = character.isUppercase && !current.isEmpty
+                && (!(current.last?.isUppercase ?? false) || (next?.isLowercase ?? false))
+            if startsWord {
+                words.append(current)
+                current = ""
+            }
+            current.append(character)
+        }
+        if !current.isEmpty { words.append(current) }
+        return words.enumerated().map { index, word in
+            if index == 0 || word.allSatisfy(\.isUppercase) { return word }
+            return word.lowercased()
+        }.joined(separator: " ")
     }
 
     /// Newest first.

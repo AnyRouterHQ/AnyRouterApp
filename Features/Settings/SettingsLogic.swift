@@ -4,6 +4,20 @@ enum SettingsLogic {
     /// Taps on the version row that copy diagnostics.
     static let diagnosticsTapCount = 7
 
+    /// Diagnostics: what the fit check decided for a model on this device, and why when it does not load.
+    static func fitVerdict(_ estimate: FitEstimate) -> String {
+        let tokens = estimate.context.formatted(.number.grouping(.automatic))
+        switch estimate.verdict {
+        case .runsWell: return "Runs in memory · \(tokens) tokens"
+        case .tight: return "Runs in memory, tight · \(tokens) tokens"
+        case .streamed: return "Streams from storage · \(tokens) tokens"
+        case .wontFit:
+            if estimate.cannotMap { return "Not available · the file is bigger than this install can open at once" }
+            if let streamsOn = estimate.streamsOn { return "Not available · needs \(streamsOn.rawValue) GB of RAM" }
+            return "Not available · needs ~\(FitFormat.gigabytes(estimate.totalBytes)), the budget is ~\(FitFormat.gigabytes(estimate.deviceBudgetBytes))"
+        }
+    }
+
     static var appVersion: String { Bundle.main.infoString("CFBundleShortVersionString", default: "1.0") }
     static var appBuild: String { Bundle.main.infoString("CFBundleVersion", default: "1") }
 

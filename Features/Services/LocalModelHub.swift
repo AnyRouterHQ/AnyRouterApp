@@ -32,7 +32,7 @@ final class LocalModelHub: ModelHubService {
     init(downloads: ModelDownloadManager = ModelDownloadManager(),
          service: CatalogService = CatalogService(),
          defaults: UserDefaults = .standard,
-         memory: @escaping @Sendable () -> DeviceMemory = { DeviceMemory.current() },
+         memory: @escaping @Sendable () -> DeviceMemory = { DeviceMemory.current(mappable: true) },
          entitlementSigned: @escaping @Sendable () -> Bool? = { MemoryEntitlement.isSignedForThisApp() },
          unloadModel: @escaping @Sendable (String) async -> Void = { _ in }) {
         self.downloads = downloads
@@ -219,7 +219,8 @@ final class LocalModelHub: ModelHubService {
                 verdict: verdict, neededBytes: estimate.totalBytes, budgetBytes: estimate.deviceBudgetBytes,
                 context: estimate.context, maxReply: maxReply, streamsFromStorage: estimate.streamsFromStorage,
                 isEstimate: estimate.isEstimated, acceptsImages: acceptsImages,
-                streamsWithRAMGigabytes: estimate.streamsOn?.rawValue)
+                streamsWithRAMGigabytes: estimate.streamsOn?.rawValue,
+                mappableBytes: estimate.cannotMap ? deviceMemory.mappableBytes : nil)
         }
         let installed = downloads.state(for: entry) == .installed
         var unavailable: String?

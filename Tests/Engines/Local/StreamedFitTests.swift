@@ -75,4 +75,37 @@ struct StreamedFitTests {
         #expect(estimate.verdict == .wontFit)
         #expect(estimate.streamsOn == nil, "only a mixture of experts can stream")
     }
+
+    @Test func aFileBiggerThanTheMappableAddressSpaceDoesNotLoadWhateverTheMemory() {
+        var memory = DeviceClass.gb16.memory(.increased)
+        memory.mappableBytes = 6_000_000_000
+        let estimate = FitPlanner.estimate(inkling, memory: memory)
+        #expect(estimate.verdict == .wontFit, "llama.cpp maps the file in one piece: memory to spare does not help")
+        #expect(estimate.cannotMap)
+        memory.mappableBytes = 8_000_000_000
+        #expect(FitPlanner.estimate(inkling, memory: memory).verdict == .runsWell)
+        #expect(!FitPlanner.estimate(inkling, memory: memory).cannotMap)
+        memory.mappableBytes = nil
+        #expect(FitPlanner.estimate(inkling, memory: memory).verdict == .runsWell, "not measured: no check")
+    }
+
+    @Test func photosNeedAddressSpaceForTheModelFileOnly() throws {
+        var profile = inkling
+        profile.projectorBytes = 345_911_008
+        var memory = DeviceClass.gb16.memory(.increased)
+        // More than the model file, less than the file, the projector and the image encoder together.
+        memory.mappableBytes = 7_000_000_000
+        let estimate = try #require(FitPlanner.imageInputEstimate(profile, memory: memory))
+        #expect(!estimate.cannotMap, "the projector is read into memory, not mapped")
+    }
+
+    @Test func theAddressSpaceProbeFindsTheLargestStepTheSystemAccepts() {
+        #expect(MemoryReading.largestReservable(upTo: 64, step: 4) { $0 <= 37 } == 36)
+        #expect(MemoryReading.largestReservable(upTo: 64, step: 4) { _ in false } == 0)
+        #expect(MemoryReading.largestReservable(upTo: 64, step: 4) { _ in true } == 64)
+        #expect(MemoryReading.canReserve(1 << 20))
+        #expect(!MemoryReading.canReserve(1 << 62), "no process can reserve 4 EB of address space")
+        #expect(MemoryReading.largestMappableBytes() == nil, "the Simulator has the Mac's address space: no check there")
+        #expect(DeviceMemory.current(mappable: true).mappableBytes == nil)
+    }
 }

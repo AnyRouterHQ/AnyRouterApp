@@ -18,6 +18,17 @@ struct MemoryDiagnostics: Equatable, Sendable {
     var limitBytes: Int64
     /// Whether the increased memory limit is signed into this install. Nil when the signature cannot be read.
     var entitlementSigned: Bool?
+    /// Whether the extended address space is signed into this install, read the same way.
+    var extendedAddressingSigned: Bool? = nil
+    /// The largest file the app can open in one piece right now. Nil where it is not measured (the Simulator).
+    var mappableBytes: Int64? = nil
+    /// What the fit check says here for each experimental catalog model, the big ones worth checking on a phone.
+    var modelChecks: [ModelCheck] = []
+
+    struct ModelCheck: Equatable, Sendable {
+        var name: String
+        var verdict: String
+    }
 
     static let empty = MemoryDiagnostics(
         footprintBytes: 0, availableBytes: 0, physicalBytes: 0, budgetBytes: 0, limitBytes: 0, entitlementSigned: nil)

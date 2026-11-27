@@ -49,6 +49,8 @@ struct FitDetail: Hashable, Sendable {
     var acceptsImages = false
     /// Set when the model does not fit here but streams on a device with this much RAM, in GB.
     var streamsWithRAMGigabytes: Int? = nil
+    /// Set when the file is bigger than the address space this install can map in one piece: how much it can map.
+    var mappableBytes: Int64? = nil
 }
 
 /// A local (GGUF or MLX) model shown in the hub and the onboarding picker.

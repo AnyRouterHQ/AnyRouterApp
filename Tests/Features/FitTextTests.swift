@@ -98,4 +98,12 @@ private actor UnloadState {
         isLoaded = false
         unloadCalls += 1
     }
+
+    @Test func aFileTheInstallCannotMapExplainsTheAddressSpaceNotTheMemory() {
+        var big = detail(.wontFit)
+        big.mappableBytes = 4_200_000_000
+        let reason = "This install can open files up to 4.2 GB at once. \(FitText.addressSpaceFix)"
+        #expect(FitText.explanation(big, device: "iPhone") == reason)
+        #expect(FitText.downloadWarning(big, sizeText: "6.9 GB", device: "iPhone") == "This model (6.9 GB) will not load. " + reason)
+    }
 }

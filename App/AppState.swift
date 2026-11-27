@@ -132,10 +132,21 @@ final class AppState {
             },
             diagnostics: {
                 let snapshot = MemorySnapshot.read()
+                let signed = MemoryEntitlement.kernelEntitlementsForThisApp()
+                let memory = DeviceMemory.current(mappable: true)
+                // The big experimental models (Inkling 2 Mini) are the ones whose fit on a phone is worth reading here.
+                let experimental = ((try? BundledCatalog.load())?.models ?? []).filter { $0.badges.contains(.experimental) }
                 return MemoryDiagnostics(
                     footprintBytes: snapshot.footprintBytes, availableBytes: snapshot.availableBytes,
                     physicalBytes: snapshot.physicalBytes, budgetBytes: snapshot.deviceMemory.budgetBytes,
-                    limitBytes: snapshot.processLimitBytes, entitlementSigned: MemoryEntitlement.isSignedForThisApp())
+                    limitBytes: snapshot.processLimitBytes, entitlementSigned: signed?.increasedMemory,
+                    extendedAddressingSigned: signed?.extendedAddressing, mappableBytes: memory.mappableBytes,
+                    modelChecks: experimental.compactMap { entry in
+                        entry.memoryProfile.map {
+                            MemoryDiagnostics.ModelCheck(
+                                name: entry.title, verdict: SettingsLogic.fitVerdict(FitPlanner.estimate($0, memory: memory)))
+                        }
+                    })
             })
         // The Keychain is read off the main thread after launch; the first frame shows the remembered state.
         let authSignpost = Perf.signposter.beginInterval("launch.auth")

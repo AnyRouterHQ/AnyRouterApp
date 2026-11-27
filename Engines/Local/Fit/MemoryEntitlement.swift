@@ -5,6 +5,8 @@ import Foundation
 /// some devices). The entitlement is read from the code signature of the app's own executable.
 enum MemoryEntitlement {
     static let key = "com.apple.developer.kernel.increased-memory-limit"
+    /// A larger address space: what lets one mapping (a model file) be bigger than the default allows.
+    static let extendedAddressingKey = "com.apple.developer.kernel.extended-virtual-addressing"
 
     private static let loadCommandSignature: UInt32 = 0x1D
     private static let machO64Magic: UInt32 = 0xFEED_FACF
@@ -49,6 +51,11 @@ enum MemoryEntitlement {
     /// True or false when the executable's signature says; nil when it has no readable signature (unsigned builds,
     /// the Simulator).
     static func isSigned(executable: URL) -> Bool? {
+        signedEntitlements(executable: executable).map { ($0[key] as? Bool) == true }
+    }
+
+    /// The entitlements in the executable's signature; nil when it has no readable signature.
+    static func signedEntitlements(executable: URL) -> [String: Any]? {
         guard let handle = try? FileHandle(forReadingFrom: executable) else { return nil }
         defer { try? handle.close() }
         guard let head = try? handle.read(upToCount: 32), head.count == 32,
@@ -60,12 +67,18 @@ enum MemoryEntitlement {
               let blob = try? handle.read(upToCount: range.size),
               let entitlements = entitlements(inSignature: blob)
         else { return nil }
-        return (entitlements[key] as? Bool) == true
+        return entitlements
     }
 
     /// The running app. Reads a few hundred KB once; call off the main actor.
     static func isSignedForThisApp() -> Bool? {
         Bundle.main.executableURL.flatMap { isSigned(executable: $0) }
+    }
+
+    /// Each kernel entitlement Diagnostics shows, true or false; nil for all when the signature cannot be read.
+    static func kernelEntitlementsForThisApp() -> (increasedMemory: Bool, extendedAddressing: Bool)? {
+        guard let all = Bundle.main.executableURL.flatMap({ signedEntitlements(executable: $0) }) else { return nil }
+        return ((all[key] as? Bool) == true, (all[extendedAddressingKey] as? Bool) == true)
     }
 
     private static func littleEndian32(_ data: Data, _ offset: Int) -> UInt32 {
