@@ -49,3 +49,23 @@ Send back the step 2 values, the Model load record, and any line under Times iOS
 The IPA carries the Control Center and Lock Screen controls as an embedded extension (`dev.anyrouter.app.controls`, in `AnyRouter.app/PlugIns`). Sideloadly and AltStore re-sign every embedded extension with your Apple ID. Each extension takes one more App ID from the free-account limit, so install it once and renew it, rather than reinstalling. The controls need no App Group: their intents open the app and run there. Add them from Control Center (Edit, Add a Control, AnyRouter) or the Lock Screen.
 
 The IPA also carries the share extension "Ask AnyRouter" (`dev.anyrouter.app.share`). It hands images and PDFs to the app through the App Group `group.dev.anyrouter.app`. The CI build is unsigned and carries no entitlements, so whether the group exists is up to your signing tool. Apple lists App Groups as available to free accounts, but Sideloadly and AltStore may drop or rename the group. When the group is missing the extension still sends **text and links up to 1,500 characters** to the app through an `anyrouter://` link; images and PDFs show a message instead, and you attach them in the app with + (Photos, Files). The TestFlight build has the group.
+
+## Running Inkling 2 Mini on a 12 GB iPhone
+
+Inkling 2 Mini (1-bit, 6.88 GB) is bigger than an app may use, so how it runs depends on the signing:
+
+| Install | Memory limit | How Inkling runs |
+|---|---|---|
+| `AnyRouter-debug-unsigned` signed with a free Apple ID | standard (about 3.5 GB on a 12 GB iPhone) | streams from storage: CPU only, 4,096-token context, slow |
+| `AnyRouter-debug-adhoc` re-signed by a paid team that keeps entitlements, or TestFlight | increased (about 8 GB) | in memory, 8,192-token context |
+
+Either way the file must also fit the largest file the app can open at once. If that is under 6.9 GB, Inkling shows as Not Available with that reason. These tiers come from the app's fit check; a phone has not run them yet.
+
+1. Install the newest **Device IPA** build. The ad-hoc IPA's run summary lists the entitlements it carries.
+2. Open Settings › Diagnostics and take a screenshot of the Memory section and **Large models on this device**: installed RAM, memory limit, both entitlements, the largest file it can open, and what the fit check says for Inkling.
+3. Settings › Local Models › Inkling 2 Mini › Get. It needs about 7.9 GB free. The download goes on in the background and is checked against its sha256.
+4. Start a chat with Inkling and send "What is 2+2? Answer with one number." The first token can take minutes (144 s on the CI Simulator, then 0.3 tokens a second).
+5. Whether it answers or the app closes, open Settings › Diagnostics again. The **Model load** report lists each step with its time and memory: started, mapped, context ready, first token, finished with tokens per second. A report that ends before finished means iOS closed the app at that step.
+6. A day later, **Times iOS ended the app** shows the exit counts iOS reported, such as Memory resource limit.
+
+Send the screenshots of steps 2, 5 and 6 back.
