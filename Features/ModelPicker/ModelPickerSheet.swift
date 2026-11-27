@@ -203,6 +203,11 @@ struct ModelPickerSheet: View {
                     model: model, usage: models.weeklyUsage[model.wireID],
                     onShowRouting: showRouting(for: model))
             }
+            .navigationDestination(isPresented: $showsFilters) {
+                ModelFilterForm(
+                    tab: tab, cloud: $cloudFilter, local: $localFilter,
+                    providers: ModelFilter.providers(in: models.models))
+            }
             .overlay { stateOverlay(shown) }
             .task(id: query) {
                 if query.isEmpty { debouncedQuery = ""; return }
@@ -265,11 +270,6 @@ struct ModelPickerSheet: View {
             CloudSignInSheet(
                 model: model, error: signInError, isWorking: isSigningIn,
                 signIn: { signIn($0, for: model) }, notNow: { signInModel = nil })
-        }
-        .sheet(isPresented: $showsFilters) {
-            ModelFilterSheet(
-                tab: tab, cloud: $cloudFilter, local: $localFilter,
-                providers: ModelFilter.providers(in: models.models))
         }
         .onChange(of: cloudFilter) { filterStore.save(cloud: cloudFilter) }
         .onChange(of: localFilter) { filterStore.save(local: localFilter) }

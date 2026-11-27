@@ -48,7 +48,7 @@
    "files": [
     "Features/ModelPicker/ModelPickerSheet.swift",
     "Features/ModelPicker/PickerRow.swift",
-    "Features/ModelPicker/ModelFilterSheet.swift"
+    "Features/ModelPicker/ModelFilterForm.swift"
    ]
   },
   {

@@ -84,8 +84,8 @@ struct AnyRouterModelsScreen: View {
             CloudModelDetailView(model: model, usage: models.weeklyUsage[model.wireID], onShowRouting: showRouting(for: model))
         }
         .sheet(item: $routerDetail) { RouterDetailSheet(router: $0) }
-        .sheet(isPresented: $showsFilters) {
-            ModelFilterSheet(
+        .navigationDestination(isPresented: $showsFilters) {
+            ModelFilterForm(
                 tab: .anyrouter, cloud: $filter, local: .constant(LocalFilter()),
                 providers: ModelFilter.providers(in: models.models))
         }

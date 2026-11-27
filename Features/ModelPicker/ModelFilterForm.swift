@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Filters of the current tab, as a stock form. Changes apply at once; they are saved per tab.
-struct ModelFilterSheet: View {
+/// Filters of the current tab, as a stock form pushed in the list's own navigation (a sheet on the picker sheet was a
+/// sheet on a sheet, HIG audit 2026-11-28 #16). Changes apply at once; they are saved per tab.
+struct ModelFilterForm: View {
     let tab: PickerTab
     @Binding var cloud: ModelFilter
     @Binding var local: LocalFilter
@@ -10,28 +11,24 @@ struct ModelFilterSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
-            Form {
-                switch tab {
-                case .anyrouter: cloudSections
-                case .local: localSections
-                }
-                Section {
-                    Button("Clear filters", role: .destructive) {
-                        cloud = ModelFilter()
-                        local = LocalFilter()
-                    }
-                    .disabled(!(tab == .local ? local.isActive : cloud.isActive))
-                    .accessibilityIdentifier("filters-clear")
-                }
+        Form {
+            switch tab {
+            case .anyrouter: cloudSections
+            case .local: localSections
             }
-            .navigationTitle("Filters")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            Section {
+                Button("Clear filters", role: .destructive) {
+                    cloud = ModelFilter()
+                    local = LocalFilter()
+                }
+                .disabled(!(tab == .local ? local.isActive : cloud.isActive))
+                .accessibilityIdentifier("filters-clear")
+            }
         }
-        .presentationDetents([.medium, .large])
-        .presentationSizing(.form)
-        .presentationDragIndicator(.visible)
+        .navigationTitle("Filters")
+        .navigationBarTitleDisplayMode(.inline)
+        // Done goes back to the list, like the back button.
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
     }
 
     @ViewBuilder
