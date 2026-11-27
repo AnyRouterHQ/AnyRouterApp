@@ -10,6 +10,7 @@ final class VoiceSettings {
         static let readAloud = "voice.readRepliesAloud"
         static let forced = "voice.dictationLanguage"
         static let last = "voice.lastLanguage"
+        static let modeDeclined = "voice.modeDeclined"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -38,6 +39,13 @@ final class VoiceSettings {
     var forcedLanguage: VoiceLanguage? {
         get { access(keyPath: \.forcedLanguage); return defaults.string(forKey: Key.forced).map(VoiceLanguage.init) }
         set { withMutation(keyPath: \.forcedLanguage) { defaults.set(newValue?.code, forKey: Key.forced) } }
+    }
+
+    /// "Not Now" on the Voice Mode download. The voice button then dictates with the System engine; Settings › Voice
+    /// still offers the download.
+    var voiceModeDeclined: Bool {
+        get { access(keyPath: \.voiceModeDeclined); return defaults.bool(forKey: Key.modeDeclined) }
+        set { withMutation(keyPath: \.voiceModeDeclined) { defaults.set(newValue, forKey: Key.modeDeclined) } }
     }
 
     /// The language dictation settled on last time, tried first next time.

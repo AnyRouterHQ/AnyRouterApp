@@ -180,6 +180,22 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// The voice button on a phone with no speech model downloaded: the Voice Mode cover with the model's real size.
+    func testVoiceModeGate() throws {
+        var offered = true
+        forEachAppearance { app, appearance in
+            let voice = app.buttons["Voice input"]
+            XCTAssertTrue(voice.waitForExistence(timeout: 15))
+            voice.tap()
+            guard app.descendants(matching: .any)["voice-gate.title"].waitForExistence(timeout: 5) else {
+                offered = false
+                return
+            }
+            capture("voice-mode-gate", appearance)
+        }
+        if !offered { throw XCTSkip("No speech model fits this simulator, so the voice button dictates at once") }
+    }
+
     /// The More menu on the empty chat: the phone use cases under "On this device", then the presets.
     func testComposerMoreMenu() {
         forEachAppearance { app, appearance in

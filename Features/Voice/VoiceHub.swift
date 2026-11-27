@@ -55,6 +55,14 @@ final class VoiceHub {
         VoiceFit.recommended(catalog, kind: kind, memory: memory)
     }
 
+    /// The speech model the voice button offers before it listens, or nil to listen at once (`VoiceModeGateLogic`).
+    func voiceModeOffer(memory: DeviceMemory = .current()) -> VoiceModel? {
+        VoiceModeGateLogic.offer(
+            recommended: recommended(.stt, memory: memory),
+            installedSTT: !downloader.installedIDs(in: models(.stt)).isEmpty,
+            declined: settings.voiceModeDeclined)
+    }
+
     // MARK: Selection
 
     func selectedID(_ kind: VoiceModelKind) -> String {

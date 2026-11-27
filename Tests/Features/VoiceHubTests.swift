@@ -127,6 +127,29 @@ struct VoiceHubTests {
         #expect(r.hub.recommended(.stt, memory: DeviceMemory(budgetBytes: 1, physicalBytes: 1)) == nil)
     }
 
+    /// The voice button offers the recommended speech model once: not when one is installed, nothing fits, or after Not Now.
+    @Test func voiceModeOffersTheRecommendedModelUntilOneIsInstalledOrDeclined() throws {
+        let gb8 = DeviceClass.gb8.memory(.standard)
+        let r = rig(catalog: [small, tiny, voice])
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        #expect(r.hub.voiceModeOffer(memory: gb8)?.id == "whisper-small")
+        #expect(r.hub.voiceModeOffer(memory: DeviceMemory(budgetBytes: 1, physicalBytes: 1)) == nil, "nothing fits")
+
+        r.hub.settings.voiceModeDeclined = true
+        #expect(r.hub.voiceModeOffer(memory: gb8) == nil, "Not Now: dictate with the System engine")
+        r.hub.settings.voiceModeDeclined = false
+
+        try install(tiny, in: r)
+        #expect(r.hub.voiceModeOffer(memory: gb8) == nil, "a speech model is already on the phone")
+    }
+
+    @Test func voiceModeShowsTheRealDownloadSize() {
+        let title = VoiceModeGateLogic.downloadTitle(small)
+        #expect(title == "Download (\(ByteCountFormatter.string(fromByteCount: small.sizeBytes, countStyle: .file)))")
+        #expect(VoiceModeGateLogic.offer(recommended: small, installedSTT: false, declined: false) == small)
+        #expect(VoiceModeGateLogic.offer(recommended: nil, installedSTT: false, declined: false) == nil)
+    }
+
     @Test func aBrokenCatalogShowsAsAnEmptyList() {
         let hub = VoiceHub(
             settings: VoiceSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!),

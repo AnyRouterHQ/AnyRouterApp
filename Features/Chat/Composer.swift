@@ -18,6 +18,10 @@ struct Composer: View {
     @State private var readsText = false
     /// "Answer offline" found nothing installed: the smallest model that fits, waiting for a yes.
     @State private var offerDownload: LocalModelEntry?
+    /// The speech model the voice button offered, while its download cover is up.
+    @State private var voiceGate: VoiceModel?
+    /// The cover closed because the model is in: listen as soon as it is gone.
+    @State private var listensAfterGate = false
     /// What "Answer offline" did, said under the field until the next edit.
     @State private var deviceNote: String?
     /// Owned by the chat screen so a tap outside the card can dismiss the keyboard.
@@ -167,6 +171,24 @@ struct Composer: View {
                 readsText = false
             }
             .ignoresSafeArea()
+        }
+        // Dictation starts after the cover is gone, so its first-use permission sheet is not dropped.
+        .fullScreenCover(item: $voiceGate, onDismiss: {
+            guard listensAfterGate else { return }
+            listensAfterGate = false
+            app.dictation.begin(text: $model.input, hub: app.voice)
+        }) { offer in
+            VoiceModeGate(
+                model: offer, downloader: app.voice.downloader,
+                onReady: {
+                    app.voice.select(offer)
+                    listensAfterGate = true
+                    voiceGate = nil
+                },
+                onNotNow: {
+                    app.voice.settings.voiceModeDeclined = true
+                    voiceGate = nil
+                })
         }
         .fileImporter(isPresented: $showsFiles, allowedContentTypes: AttachmentLogic.importableTypes,
                       allowsMultipleSelection: true) { result in
@@ -407,6 +429,10 @@ struct Composer: View {
         case .send: _ = model.send()
         case .voice, .stopDictation:
             app.speaker.stop()
+            if action == .voice, let offer = app.voice.voiceModeOffer() {
+                voiceGate = offer
+                return
+            }
             app.dictation.toggle(text: $model.input, hub: app.voice)
         }
     }
