@@ -15,6 +15,9 @@ struct RootView: View {
 
     var body: some View {
         AppShell()
+            // The one tint, pinned here: left to the default, SwiftUI resolved it from UIKit's tint, and in a chat
+            // with a photo or file card (quickLookPreview, fullScreenCover) the composer button turned system blue.
+            .tint(ARPalette.tint)
             .environment(shell)
             .focusedSceneValue(\.shell, shell)
             .environment(appState.settings)
