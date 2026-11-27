@@ -5,6 +5,15 @@ name: Perf baseline
 # Not on every push: the free plan has 5 macOS runners and main CI must not wait behind this.
 on:
   workflow_dispatch:
+    inputs:
+      only:
+        description: "One PerformanceTests method, like testScrollLongThread. Empty runs the whole class."
+        required: false
+        default: ""
+      profile:
+        description: "Also record a Time Profiler trace of the app during that test and list its heaviest frames"
+        type: boolean
+        default: false
   schedule:
     - cron: "17 3 * * *"
 
@@ -90,6 +99,8 @@ jobs:
           tail -n 3 warmup.log
 
       - name: Run the perf tests three times
+        env:
+          ONLY: ${{ inputs.only }}
         run: |
           set -o pipefail
           xcrun simctl boot "$IPHONE_UDID" || true
@@ -99,10 +110,35 @@ jobs:
               -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots -configuration Release \
               -destination "platform=iOS Simulator,id=$IPHONE_UDID" \
               -derivedDataPath DerivedData \
-              -only-testing:AnyRouterUITests/PerformanceTests \
+              -only-testing:"AnyRouterUITests/PerformanceTests${ONLY:+/$ONLY}" \
               -resultBundlePath "perf/run-$run.xcresult" \
               CODE_SIGNING_ALLOWED=NO 2>&1 | tee "perf/run-$run.log" | grep -E "measured \[|Test Case .*(passed|failed)|error:" || true
           done
+
+      # The trace attaches to the app once the test has launched it, so it covers the measured part, not the launch.
+      - name: Profile the app during one run
+        if: inputs.profile
+        env:
+          ONLY: ${{ inputs.only }}
+        run: |
+          (
+            for _ in $(seq 1 240); do pid=$(pgrep -x AnyRouter) && break; sleep 0.25; done
+            sudo xcrun xctrace record --template 'Time Profiler' --attach "$pid" --time-limit 90s --output perf/profile.trace
+          ) > perf/xctrace.log 2>&1 &
+          recorder=$!
+          xcodebuild test-without-building \
+            -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots -configuration Release \
+            -destination "platform=iOS Simulator,id=$IPHONE_UDID" \
+            -derivedDataPath DerivedData \
+            -only-testing:"AnyRouterUITests/PerformanceTests${ONLY:+/$ONLY}" \
+            CODE_SIGNING_ALLOWED=NO > perf/profile-run.log 2>&1 || true
+          wait "$recorder" || true
+          tail -n 5 perf/xctrace.log
+          sudo chown -R "$(whoami)" perf/profile.trace
+          xcrun xctrace export --input perf/profile.trace \
+            --xpath '/trace-toc/run[@number="1"]/data/table[@schema="time-profile"]' > perf/time-profile.xml
+          python3 -I scripts/trace-summary.py perf/time-profile.xml 40 | tee perf/profile.txt
+          { echo "## Time profile"; echo '```'; cat perf/profile.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Summary
         if: always()
@@ -128,6 +164,8 @@ jobs:
           path: |
             perf/summary.json
             perf/run-*.log
+            perf/profile.txt
+            perf/xctrace.log
           retention-days: 30
 
       - name: Fail when nothing was measured or a test failed
