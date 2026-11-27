@@ -281,7 +281,11 @@ final class ScreenshotTests: XCTestCase {
             let slider = app.sliders["settings-reply-text-size"]
             XCTAssertTrue(slider.waitForExistence(timeout: 10))
             scrollTo(slider, in: app)
-            XCTAssertTrue(app.descendants(matching: .any)["preview.reply-text"].exists, "the preview sits under the font picker")
+            // A form sheet on iPad is short: the preview is a lazy row below the slider, so scroll until it is built.
+            let preview = app.descendants(matching: .any)["preview.reply-text"]
+            var swipes = 0
+            while !preview.exists && swipes < 4 { app.swipeUp(); swipes += 1 }
+            XCTAssertTrue(preview.exists, "the preview sits under the font picker")
             capture("reply-text-settings", appearance)
         }
         forEachAppearance(extra: ["-ARReplyTextStep", "3", "-ARReplyFont", "serif"]) { app, appearance in
