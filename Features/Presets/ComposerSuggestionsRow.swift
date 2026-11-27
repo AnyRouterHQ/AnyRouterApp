@@ -42,7 +42,7 @@ struct ComposerSuggestionsRow: View {
             .controlSize(.regular)
             // The system picks the label color for the tint. The accent is white in dark mode, which left a white label on a light grey pill.
             .tint(Color(.systemGray5))
-            .chipOutline(Capsule())
+            .chipOutline(.capsule)
             .frame(minHeight: 44)
             .accessibilityIdentifier("composer.suggestion.paste")
     }
@@ -56,7 +56,7 @@ struct ComposerSuggestionsRow: View {
         .buttonStyle(.glass)
         .buttonBorderShape(.capsule)
         .controlSize(.regular)
-        .chipOutline(Capsule())
+        .chipOutline(.capsule)
         .frame(minHeight: 44)
         .contextMenu {
             if suggestions.mode == .starters, preset.action == nil {
@@ -92,7 +92,7 @@ struct ComposerSuggestionsRow: View {
         .buttonStyle(.glass)
         .buttonBorderShape(.circle)
         .controlSize(.regular)
-        .chipOutline(Circle())
+        .chipOutline(.circle)
         .frame(minWidth: 44, minHeight: 44)
         .accessibilityIdentifier("composer.suggestion.more")
     }
@@ -116,7 +116,7 @@ struct ComposerSuggestionsRow: View {
 
 private extension View {
     /// A hairline around a chip. Clear glass on a white screen has no edge of its own in light mode.
-    func chipOutline(_ shape: some Shape) -> some View {
+    func chipOutline(_ shape: some InsettableShape) -> some View {
         overlay(shape.strokeBorder(Color(.separator), lineWidth: 0.5).allowsHitTesting(false))
     }
 }
