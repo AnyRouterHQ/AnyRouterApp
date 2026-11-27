@@ -143,4 +143,15 @@ struct DownloadProgressTrackerTests {
         #expect(DownloadTaskTag(encoded: tag.encoded) == tag)
         #expect(DownloadTaskTag(encoded: "no-separator") == nil)
     }
+
+    /// Voice and chat models share one background session; the tag says whose file it is.
+    @Test func voiceTagsAreToldApartFromChatModelTags() {
+        let voice = DownloadTaskTag(voiceModelID: "whisper-base", path: "enc/a.bin")
+        #expect(voice.entryID == "voice/whisper-base" && voice.voiceModelID == "whisper-base")
+        #expect(DownloadTaskTag(encoded: voice.encoded) == voice)
+        #expect(DownloadTaskTag(entryID: "gguf/org/m/m.gguf", path: "m.gguf").voiceModelID == nil)
+        #expect(DownloadTaskTag.voiceModelID(of: "voice/x") == "x")
+        #expect(DownloadCallback.fileFinished(entryID: "voice/x", path: "p").entryID == "voice/x")
+        #expect(DownloadCallback.backgroundEventsFinished.entryID == nil)
+    }
 }

@@ -11,32 +11,21 @@ struct VoiceHubTests {
         let root: URL
     }
 
-    private struct FailingFetcher: VoiceFileFetching {
-        func fetch(_ url: URL, to destination: URL, progress: @escaping @Sendable (Int64) -> Void) async throws {
-            throw URLError(.notConnectedToInternet)
-        }
-    }
-
-    private struct HangingFetcher: VoiceFileFetching {
-        func fetch(_ url: URL, to destination: URL, progress: @escaping @Sendable (Int64) -> Void) async throws {
-            try await Task.sleep(for: .seconds(60))
-        }
-    }
-
-    /// A model with one file, so a fetcher has something to fail or hang on. With no files a download just installs.
+    /// A model with one file, so a transport has something to fail or hang on. With no files a download just installs.
     private func withFile(_ model: VoiceModel) -> VoiceModel {
         var model = model
         model.files = [VoiceModelFile(path: "a.bin", url: URL(string: "https://example.com/a.bin")!, sizeBytes: 1)]
         return model
     }
 
-    private func rig(catalog: [VoiceModel], fetcher: (any VoiceFileFetching)? = nil) -> Rig {
+    private func rig(catalog: [VoiceModel], transport: ((VoiceModelStorage) -> FakeVoiceTransport)? = nil) -> Rig {
         let system = FakeSpeechToText(id: "system")
         let systemVoice = FakeTextToSpeech(id: "system")
         let root = FileManager.default.temporaryDirectory.appending(path: "voice-\(UUID().uuidString)")
+        let storage = VoiceModelStorage(root: root)
         let hub = VoiceHub(
             settings: VoiceSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!),
-            downloader: VoiceModelDownloader(storage: VoiceModelStorage(root: root), fetcher: fetcher ?? URLSessionFileFetcher()),
+            downloader: VoiceModelDownloader(storage: storage, transport: transport?(storage) ?? InertVoiceTransport()),
             catalog: { catalog }, systemSTT: { system }, systemTTS: { systemVoice })
         return Rig(hub: hub, system: system, systemVoice: systemVoice, root: root)
     }
@@ -231,7 +220,7 @@ struct VoiceHubTests {
 
     @Test func cancellingTheVoiceModeDownloadForgetsTheChoice() async throws {
         let model = withFile(tiny)
-        let r = rig(catalog: [model], fetcher: HangingFetcher())
+        let r = rig(catalog: [model], transport: { let t = FakeVoiceTransport(storage: $0); t.hangs = true; return t })
         defer { try? FileManager.default.removeItem(at: r.root) }
         let task = try #require(r.hub.startVoiceModeDownload(model))
         await Task.yield()
@@ -245,7 +234,7 @@ struct VoiceHubTests {
     @Test func aFailedVoiceModeDownloadCanBeRetriedUntilNotNow() async throws {
         let gb8 = DeviceClass.gb8.memory(.standard)
         let model = withFile(tiny)
-        let r = rig(catalog: [model, small], fetcher: FailingFetcher())
+        let r = rig(catalog: [model, small], transport: { let t = FakeVoiceTransport(storage: $0); t.fails = true; return t })
         defer { try? FileManager.default.removeItem(at: r.root) }
         await r.hub.startVoiceModeDownload(model)?.value
         #expect(r.hub.voiceDownload.phase == .failed && r.hub.voiceDownload.canRetry)

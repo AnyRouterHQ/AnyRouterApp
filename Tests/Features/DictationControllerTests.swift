@@ -29,7 +29,7 @@ struct DictationControllerTests {
         let root = FileManager.default.temporaryDirectory.appending(path: "voice-\(UUID().uuidString)")
         let hub = VoiceHub(
             settings: VoiceSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!),
-            downloader: VoiceModelDownloader(storage: VoiceModelStorage(root: root), fetcher: URLSessionFileFetcher()),
+            downloader: VoiceModelDownloader(storage: VoiceModelStorage(root: root)),
             catalog: { [] }, systemSTT: { speech }, systemTTS: { FakeTextToSpeech() })
         let controller = DictationController(
             now: { ticker.tick() }, needsExplanation: { explain },

@@ -45,7 +45,7 @@ final class AppState {
     /// The tool approval sheet's queue.
     let toolApprovals = ToolApprovalCenter()
     /// Voice engines, voice models and their settings, and the one dictation session (there is one microphone).
-    let voice = DemoData.isEnabled ? DemoData.voiceHub() : VoiceHub()
+    let voice: VoiceHub
     let dictation = DictationController()
     /// Reads replies aloud.
     let speaker = ReplySpeaker()
@@ -81,6 +81,7 @@ final class AppState {
             models = demo.models
             account = demo.account
             hub = demo.hub
+            voice = DemoData.voiceHub()
             memory = MemoryMonitor.inert()
             warmUp = { _ in }
             decisions = DecisionsStore(service: DemoDecisionsService())
@@ -171,8 +172,11 @@ final class AppState {
         cloudOCR = { AnyRouterOCRReader(engine: anyRouter, filename: $0) }
         account = accountAdapter
         let hubSignpost = Perf.signposter.beginInterval("launch.hub")
+        // Voice models download on the same background session as chat models, so they finish while the app is away.
+        let downloads = ModelDownloadManager(telemetry: telemetry)
+        voice = VoiceHub(downloader: VoiceModelDownloader(transport: BackgroundVoiceTransport(manager: downloads)))
         hub = LocalModelHub(
-            downloads: ModelDownloadManager(telemetry: telemetry),
+            downloads: downloads,
             unloadModel: { id in
                 await gguf.unload(modelID: id)
                 await mlx.unload(modelID: id)
@@ -186,6 +190,8 @@ final class AppState {
             speechToText: { model, folder in WhisperKitSpeechToText.installed(model: model, folder: folder) }, for: .whisperKit)
         voice.register(
             textToSpeech: { model, folder in TTSKitTextToSpeech.installed(model: model, folder: folder) }, for: .ttsKit)
+        // Takes up a voice download the system kept running (or finished) while the app was gone.
+        Task { [voice] in voice.restoreDownloads() }
         telemetry.track(.appOpen)
     }
 }

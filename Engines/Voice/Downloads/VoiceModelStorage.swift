@@ -18,6 +18,8 @@ struct VoiceInstalledManifest: Codable, Equatable, Sendable {
 /// loads (WhisperKit's `modelFolder`), so file paths inside it are the catalog's paths.
 struct VoiceModelStorage: Sendable {
     static let manifestName = ".installed.json"
+    /// Present while a download of the model is running, so a relaunch knows to take it up again.
+    static let downloadingName = ".downloading"
 
     let root: URL
     private let base: LocalModelStorage
@@ -36,6 +38,26 @@ struct VoiceModelStorage: Sendable {
     }
 
     func fileURL(id: String, path: String) -> URL { directory(for: id).appending(path: path) }
+
+    /// Where a file waits, complete, until the whole model has been checked. The background session puts it there.
+    func partialFileURL(id: String, path: String) -> URL { base.partialFileURL(forEntryID: id, path: path) }
+
+    func isDownloading(_ id: String) -> Bool {
+        FileManager.default.fileExists(atPath: downloadingURL(id).path)
+    }
+
+    func markDownloading(_ id: String) throws {
+        try FileManager.default.createDirectory(at: directory(for: id), withIntermediateDirectories: true)
+        try Data().write(to: downloadingURL(id))
+    }
+
+    func removePartial(_ id: String) {
+        try? FileManager.default.removeItem(at: base.partialDirectory(forEntryID: id))
+    }
+
+    func clearDownloading(_ id: String) {
+        try? FileManager.default.removeItem(at: downloadingURL(id))
+    }
 
     func isInstalled(_ id: String) -> Bool {
         FileManager.default.fileExists(atPath: manifestURL(id).path)
@@ -67,6 +89,10 @@ struct VoiceModelStorage: Sendable {
 
     /// Bytes on disk for an installed model, from its manifest.
     func installedBytes(_ id: String) -> Int64 { manifest(id)?.sizeBytes ?? 0 }
+
+    private func downloadingURL(_ id: String) -> URL {
+        directory(for: id).appending(path: Self.downloadingName)
+    }
 
     private func manifestURL(_ id: String) -> URL {
         directory(for: id).appending(path: Self.manifestName)

@@ -88,6 +88,9 @@ final class VoiceHub {
     /// Stops the Voice Mode download and throws away what was fetched.
     func cancelVoiceModeDownload(_ model: VoiceModel) { downloader.cancel(model) }
 
+    /// Takes up the voice downloads that were running when the app was last open. Call once after launch.
+    func restoreDownloads() { downloader.restore(catalog) }
+
     /// The "ready" state has been shown.
     func dismissReady() { readyModelID = nil }
 

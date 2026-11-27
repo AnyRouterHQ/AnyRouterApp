@@ -25,6 +25,9 @@ final class ModelDownloadManager {
     /// The clean-up of a cancelled attempt. A new `start` of the same model waits for it, so it cannot delete the new files.
     @ObservationIgnored private var discards: [String: Task<Void, Never>] = [:]
     @ObservationIgnored var backgroundCompletionHandler: (@Sendable () -> Void)?
+    /// Receives the callbacks of voice model downloads (tags that start with `voice/`). They share this session and its
+    /// relaunch handling, so a voice download also finishes while the app is suspended.
+    @ObservationIgnored var voiceHandler: (@MainActor (DownloadCallback) -> Void)?
 
     private struct Job {
         var record: DownloadJobRecord
@@ -195,6 +198,31 @@ final class ModelDownloadManager {
         }
     }
 
+    // MARK: Voice model tasks
+
+    func startVoiceTask(modelID: String, file: VoiceModelFile) {
+        guard let session else { return }
+        let task = session.downloadTask(with: file.url)
+        task.taskDescription = DownloadTaskTag(voiceModelID: modelID, path: file.path).encoded
+        task.resume()
+    }
+
+    func cancelVoiceTasks(modelID: String) async {
+        for task in await session?.allTasks ?? [] {
+            if task.taskDescription.flatMap(DownloadTaskTag.init(encoded:))?.voiceModelID == modelID { task.cancel() }
+        }
+    }
+
+    func liveVoicePaths(modelID: String) async -> Set<String> {
+        var paths: Set<String> = []
+        for task in await session?.allTasks ?? [] where task.state == .running || task.state == .suspended {
+            if let tag = task.taskDescription.flatMap(DownloadTaskTag.init(encoded:)), tag.voiceModelID == modelID {
+                paths.insert(tag.path)
+            }
+        }
+        return paths
+    }
+
     // MARK: Internals
 
     private func apply(_ event: ModelDownloadEvent, to id: String) {
@@ -232,6 +260,10 @@ final class ModelDownloadManager {
     }
 
     private func handle(_ callback: DownloadCallback) {
+        if let id = callback.entryID, DownloadTaskTag.voiceModelID(of: id) != nil {
+            voiceHandler?(callback)
+            return
+        }
         switch callback {
         case .progress(let id, let path, let written):
             guard isDownloading(id), var job = jobs[id] else { return }

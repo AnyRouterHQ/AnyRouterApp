@@ -18,6 +18,20 @@ struct DownloadTaskTag: Hashable, Sendable {
     }
 
     var encoded: String { entryID + "\t" + path }
+
+    /// Voice model downloads share this session; their entry ids start with this.
+    static let voicePrefix = "voice/"
+
+    init(voiceModelID: String, path: String) {
+        self.init(entryID: Self.voicePrefix + voiceModelID, path: path)
+    }
+
+    /// The voice model's id when an entry id belongs to a voice download.
+    static func voiceModelID(of entryID: String) -> String? {
+        entryID.hasPrefix(voicePrefix) ? String(entryID.dropFirst(voicePrefix.count)) : nil
+    }
+
+    var voiceModelID: String? { Self.voiceModelID(of: entryID) }
 }
 
 enum DownloadCallback: Sendable {
@@ -27,17 +41,37 @@ enum DownloadCallback: Sendable {
     /// We cancelled the task (pause, cancel). Never an error.
     case fileCancelled(entryID: String, path: String)
     case backgroundEventsFinished
+
+    var entryID: String? {
+        switch self {
+        case .progress(let id, _, _), .fileFinished(let id, _), .fileFailed(let id, _, _), .fileCancelled(let id, _): id
+        case .backgroundEventsFinished: nil
+        }
+    }
 }
 
 /// Runs on the session's delegate queue. Moves each finished file into `.partial` right away
 /// (the system deletes it when the callback returns) and reports everything else to the manager.
 final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
     private let storage: LocalModelStorage
+    /// Where voice model files wait (`VoiceModelStorage.partialFileURL` is the same place).
+    private let voiceStorage: LocalModelStorage
     private let emit: @Sendable (DownloadCallback) -> Void
 
-    init(storage: LocalModelStorage, emit: @escaping @Sendable (DownloadCallback) -> Void) {
+    init(storage: LocalModelStorage, voiceStorage: LocalModelStorage = LocalModelStorage(root: VoiceModelStorage.defaultRoot),
+         emit: @escaping @Sendable (DownloadCallback) -> Void) {
         self.storage = storage
+        self.voiceStorage = voiceStorage
         self.emit = emit
+    }
+
+    private func partialURL(for tag: DownloadTaskTag) -> URL {
+        if let voiceID = tag.voiceModelID { return voiceStorage.partialFileURL(forEntryID: voiceID, path: tag.path) }
+        return storage.partialFileURL(forEntryID: tag.entryID, path: tag.path)
+    }
+
+    private func resumeDataURL(for tag: DownloadTaskTag) -> URL {
+        partialURL(for: tag).appendingPathExtension("resume")
     }
 
     func urlSession(
@@ -58,7 +92,7 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
         }
         do {
             let fm = FileManager.default
-            let destination = storage.partialFileURL(forEntryID: tag.entryID, path: tag.path)
+            let destination = partialURL(for: tag)
             try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
             if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
             try fm.moveItem(at: location, to: destination)
@@ -77,7 +111,7 @@ final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked S
             return
         }
         if let data = nsError.userInfo[NSURLSessionDownloadTaskResumeData] as? Data {
-            let url = storage.resumeDataURL(forEntryID: tag.entryID, path: tag.path)
+            let url = resumeDataURL(for: tag)
             try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? data.write(to: url)
         }
