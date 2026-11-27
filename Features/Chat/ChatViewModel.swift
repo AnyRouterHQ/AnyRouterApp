@@ -219,7 +219,7 @@ final class ChatViewModel {
             contextFraction = nil
             return
         }
-        let live = CompactionLogic.context(messages: thread.orderedMessages, compaction: thread.compactions.last)
+        let live = CompactionLogic.context(messages: Self.turns(of: thread), compaction: thread.compactions.last)
         let prompt = PromptAssembler.assemble(
             instructions: InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt),
             profile: memoryProfile(for: thread, model: model), summary: live.summary, turns: live.messages, context: nil)
@@ -695,7 +695,7 @@ final class ChatViewModel {
         preferredModelID = model.id
         let assistant = MessageRecord(role: .assistant, content: "", modelName: model.shortName, modelID: model.id)
         // What goes out is the summary of the folded part of the chat and the messages after it.
-        let live = CompactionLogic.context(messages: thread.orderedMessages, compaction: thread.compactions.last)
+        let live = CompactionLogic.context(messages: Self.turns(of: thread), compaction: thread.compactions.last)
         // The plugins and files the user named with @, and the memories that match the question, are in this request only;
         // the saved message stays as typed.
         let recalled = memoryRecall(for: thread, model: model)
@@ -766,7 +766,7 @@ final class ChatViewModel {
                 if let plan = autoPlan, let self {
                     if await self.fold(plan, model: model, thread: thread) {
                         let rebuilt = CompactionLogic.context(
-                            messages: thread.orderedMessages.filter { $0.id != assistant.id }, compaction: thread.compactions.last)
+                            messages: Self.turns(of: thread).filter { $0.id != assistant.id }, compaction: thread.compactions.last)
                         // The system message stays as it was: the summary goes with the first kept question.
                         sent = PromptAssembler.assemble(
                             instructions: instructions, profile: profile, summary: rebuilt.summary,
@@ -865,6 +865,11 @@ final class ChatViewModel {
         }
         self.task = task
         return task
+    }
+
+    /// The chat as a model reads it: each reply that used tools ends with its tool digest (agent design 3.4).
+    static func turns(of thread: ThreadRecord) -> [ChatMessage] {
+        ToolDigestLogic.turns(thread.orderedMessages, steps: Dictionary(uniqueKeysWithValues: thread.messages.map { ($0.id, $0.toolSteps) }))
     }
 
     /// A deleted record (or one whose context is gone) must not be read or written: SwiftData traps on it.

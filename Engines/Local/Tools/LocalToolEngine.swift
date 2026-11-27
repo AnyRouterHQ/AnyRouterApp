@@ -68,7 +68,19 @@ struct LocalToolEngine: ChatEngine {
         host: any ToolHost, format: LocalToolFormat, scope: ToolRunScope, makeID: @escaping @Sendable () -> String,
         continuation: AsyncThrowingStream<ChatDelta, Error>.Continuation
     ) async throws {
-        var transcript = messages
+        // The window this run must fit (agent design 3.4): what the device runs, less room for the answer.
+        let window = CompactionLogic.window(for: model) ?? 4096
+        let limit = window - RunBudgetLogic.reserve(window: window)
+        var rounds: [(raw: String, results: [RunBudgetLogic.Result])] = []
+        func transcript(_ results: [[RunBudgetLogic.Result]]) -> [ChatMessage] {
+            messages + zip(rounds, results).flatMap { round, answers in
+                [ChatMessage(role: .assistant, content: round.raw),
+                 ChatMessage(role: .user, content: format.resultMessage(answers.map { ($0.name, $0.text) }))]
+            }
+        }
+        func used(_ sent: [ChatMessage], system: String?) -> Int {
+            sent.reduce(system.map(TokenCountLogic.estimate) ?? 0) { $0 + TokenCountLogic.estimate($1.content) + PromptAssembler.perMessageTokens }
+        }
         var usage: (prompt: Int, completion: Int)?
         var finishReason: String?
         for round in 0..<maxRounds {
@@ -78,9 +90,12 @@ struct LocalToolEngine: ChatEngine {
                 let guide = format.instructions(for: host.specs)
                 roundParams.systemPrompt = [params.systemPrompt, guide].compactMap { $0 }.joined(separator: "\n\n")
             }
+            let system = roundParams.systemPrompt
+            let results = RunBudgetLogic.cleared(rounds.map(\.results)) { used(transcript($0), system: system) <= limit }
+            let sent = transcript(results)
             var parser = LocalToolParser(format: lastRound ? nil : format)
             var raw = ""
-            for try await delta in base.stream(model: model, messages: transcript, params: roundParams) {
+            for try await delta in base.stream(model: model, messages: sent, params: roundParams) {
                 switch delta {
                 case .text(let piece):
                     raw += piece
@@ -99,16 +114,18 @@ struct LocalToolEngine: ChatEngine {
             if !end.text.isEmpty { continuation.yield(.text(end.text)) }
             guard !end.calls.isEmpty, !lastRound else { break }
 
-            var answers: [(name: String, text: String)] = []
+            // Each answer gets a share of what is left after this round's own text.
+            let left = limit - used(sent + [ChatMessage(role: .assistant, content: raw)], system: system)
+            var answers: [RunBudgetLogic.Result] = []
             for call in end.calls {
                 let text = await scope.run(
                     name: call.name, argumentsJSON: call.argumentsJSON, host: host,
                     emit: { _ = continuation.yield($0) }, makeID: makeID)
-                answers.append((call.name, text))
+                let clipped = RunBudgetLogic.clip(text, tokens: RunBudgetLogic.resultCap(window: window, left: left))
+                answers.append(RunBudgetLogic.Result(name: call.name, argumentsJSON: call.argumentsJSON, text: clipped))
             }
             try Task.checkCancellation()
-            transcript.append(ChatMessage(role: .assistant, content: raw))
-            transcript.append(ChatMessage(role: .user, content: format.resultMessage(answers)))
+            rounds.append((raw, answers))
         }
         if let usage { continuation.yield(.usage(prompt: usage.prompt, completion: usage.completion)) }
         continuation.yield(.done(finishReason: finishReason ?? "stop"))

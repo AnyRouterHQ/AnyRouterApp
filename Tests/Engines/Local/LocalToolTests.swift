@@ -265,6 +265,14 @@ private struct AnswerHost: ToolHost {
     }
 }
 
+/// Answers every call with a 6,000-character page, the most a device model's tool profile lets through.
+private struct LongPageHost: ToolHost {
+    var specs: [ToolSpec] = [ToolSpec(name: "web_search_exa", title: nil, description: "Search.", inputSchemaJSON: #"{"type":"object"}"#, isReadOnly: true)]
+    func execute(_ call: ToolCall) async -> ToolResult {
+        ToolResult(callID: call.id, name: call.name, text: String(repeating: "Long page text. ", count: 375), isError: false)
+    }
+}
+
 struct LocalToolEngineTests {
     private let qwen = ModelDescriptor(
         id: "gguf/unsloth/Qwen3.5-4B-GGUF/q4.gguf", source: .gguf, displayName: "Qwen 3.5 4B", contextLength: nil,
@@ -297,6 +305,23 @@ struct LocalToolEngineTests {
         let off = try await engine([], enabled: false).0.availableModels()
         #expect(off.allSatisfy { !$0.capabilities.contains("tools") })
         #expect(engine([]).0.source == .gguf)
+    }
+
+    /// Agent design E4: four rounds of long results at 8,192 tokens. Every request fits the window less the answer's room.
+    @Test func fourRoundsOfLongPagesEachFitTheWindow() async throws {
+        let model = ModelDescriptor(
+            id: qwen.id, source: .gguf, displayName: "Qwen", contextLength: 8192, capabilities: ["chat"], sizeBytes: nil, isInstalled: true)
+        let rounds = Rounds([call, call, call, "Done."])
+        let engine = LocalToolEngine(wrapping: RoundsEngine(rounds: rounds, models: [model]), isEnabled: { true })
+        let question = [ChatMessage(role: .user, content: "news?")]
+        _ = try await collect(engine.stream(model: model, messages: question, params: GenerationParams(systemPrompt: "Be brief."), tools: LongPageHost()))
+        #expect(rounds.messages.count == 4)
+        let window = try #require(CompactionLogic.window(for: model))
+        for (sent, system) in zip(rounds.messages, rounds.systemPrompts) {
+            let used = sent.reduce(TokenCountLogic.estimate(system ?? "")) { $0 + TokenCountLogic.estimate($1.content) + PromptAssembler.perMessageTokens }
+            #expect(used <= window - RunBudgetLogic.reserve(window: window))
+        }
+        #expect(rounds.messages.last?.last?.content.contains("[Cut to fit the model's window.]") == true)
     }
 
     @Test func aCallIsRunThroughTheHostAndTheAnswerComesAfterIt() async throws {
