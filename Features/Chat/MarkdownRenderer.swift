@@ -5,7 +5,7 @@ import Foundation
 enum MarkdownRenderer: String {
     case markdownUI, textual, streaming
 
-    static let defaultKind: MarkdownRenderer = .textual
+    static let defaultKind: MarkdownRenderer = .streaming
 
     static let current: MarkdownRenderer =
         UserDefaults.standard.string(forKey: "ARMarkdownRenderer").flatMap(MarkdownRenderer.init(rawValue:)) ?? defaultKind
