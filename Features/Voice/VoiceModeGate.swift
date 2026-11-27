@@ -83,7 +83,7 @@ struct VoiceModeGate: View {
     }
 
     private func wideButton(_ title: String, id: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Text(title).frame(maxWidth: .infinity) }
+        Button(action: action) { Text(title).frame(maxWidth: .infinity).prominentLabel() }
             .buttonStyle(.glassProminent)
             .controlSize(.large)
             .accessibilityIdentifier(id)
