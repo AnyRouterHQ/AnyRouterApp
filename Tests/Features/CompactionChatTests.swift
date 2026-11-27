@@ -4,17 +4,17 @@ import Testing
 @testable import AnyRouter
 
 /// One request an engine received: is it the summary request, what it carried, and the system prompt.
-private struct EngineCall: Sendable {
+private struct CompactionEngineCall: Sendable {
     let isSummary: Bool
     let messages: [ChatMessage]
     let system: String?
 }
 
-private final class CallLog: @unchecked Sendable {
+private final class CompactionCallLog: @unchecked Sendable {
     private let lock = NSLock()
-    private var raw: [EngineCall] = []
-    var calls: [EngineCall] { lock.withLock { raw } }
-    func add(_ call: EngineCall) { lock.withLock { raw.append(call) } }
+    private var raw: [CompactionEngineCall] = []
+    var calls: [CompactionEngineCall] { lock.withLock { raw } }
+    func add(_ call: CompactionEngineCall) { lock.withLock { raw.append(call) } }
 }
 
 /// Answers the summary request with `summary` (or fails when it is nil) and every other request with "Reply."
@@ -22,14 +22,14 @@ private struct CompactingEngine: ChatEngine {
     var source: ModelSource = .apple
     var model: ModelDescriptor
     var summary: String? = "They talked about actors."
-    let log = CallLog()
+    let log = CompactionCallLog()
 
     func availableModels() async throws -> [ModelDescriptor] { [model] }
 
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
         -> AsyncThrowingStream<ChatDelta, Error> {
         let isSummary = params.systemPrompt == CompactionLogic.summarizerPrompt
-        log.add(EngineCall(isSummary: isSummary, messages: messages, system: params.systemPrompt))
+        log.add(CompactionEngineCall(isSummary: isSummary, messages: messages, system: params.systemPrompt))
         let answer = isSummary ? summary : "Reply."
         return AsyncThrowingStream { continuation in
             if let answer {
