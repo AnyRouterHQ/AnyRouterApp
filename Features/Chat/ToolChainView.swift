@@ -14,22 +14,16 @@ struct ToolChainView: View {
             // The same row as reasoning and subagents: a symbol, one line of words, a chevron. A DisclosureGroup would tint it.
             VStack(alignment: .leading, spacing: 0) {
                 Button { isOpen.toggle() } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "wrench.and.screwdriver")
-                        Text(chain.heading).font(.footnote).lineLimit(2).multilineTextAlignment(.leading)
-                        Spacer(minLength: 8)
-                        Image(systemName: "chevron.right")
-                            .imageScale(.small)
-                            .rotationEffect(.degrees(isOpen ? 90 : 0))
+                    PartRowLabel(symbol: "wrench.and.screwdriver", isExpanded: isOpen) {
+                        Text(chain.heading).lineLimit(2).multilineTextAlignment(.leading)
+                    } trailing: {
+                        EmptyView()
                     }
-                    .foregroundStyle(.secondary)
-                    .frame(minHeight: 44)
-                    .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint(isOpen ? "Hides the steps" : "Shows the steps")
                 .accessibilityIdentifier("tool.chain")
-                if isOpen { rows(chain) }
+                if isOpen { rows(chain).padding(.leading, PartRowMetrics.contentInset) }
             }
             .animation(reduceMotion ? nil : .snappy, value: isOpen)
         } else {

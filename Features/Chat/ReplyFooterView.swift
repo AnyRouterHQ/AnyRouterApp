@@ -19,7 +19,10 @@ struct ReplyFooterRow: View {
                 HStack(spacing: -4) {
                     actions
                     sourcesButton
-                    modelInfo.padding(.leading, 8)
+                    if footer.separatesSourcesAndModel {
+                        Text("·").font(.caption).foregroundStyle(.tertiary).padding(.horizontal, 2).accessibilityHidden(true)
+                    }
+                    modelInfo
                 }
                 .imageScale(.medium)
             }

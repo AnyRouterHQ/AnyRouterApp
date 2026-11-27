@@ -104,6 +104,18 @@ struct ReplyFooterTests {
         #expect(footer.modelLine == "0.4s")
     }
 
+    @Test func aDotSeparatesTheSourcesFromTheModelLineOnlyWhenBothAreThere() throws {
+        let page = search([("One", "https://a.example.com/1")])
+        let both = try #require(make(name: "Claude Sonnet 4.6", metadata: fast(), steps: [page]))
+        #expect(both.sourcesLabel == "1 source")
+        #expect(both.modelLine == "Sonnet 4.6 · 0.4s")
+        #expect(both.separatesSourcesAndModel)
+        let noSources = try #require(make(name: "Claude Sonnet 4.6", metadata: fast()))
+        #expect(!noSources.separatesSourcesAndModel)
+        let noModel = try #require(make(steps: [page]))
+        #expect(!noModel.separatesSourcesAndModel)
+    }
+
     @Test func noNameAndNoTimeMeansNoLine() throws {
         #expect(try #require(make()).modelLine == nil)
     }

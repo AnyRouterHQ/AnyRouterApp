@@ -10,18 +10,11 @@ struct SubagentCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button { expanded.toggle() } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "person.2")
-                    Text(SubagentLogic.heading(subagent)).font(.footnote).lineLimit(2).multilineTextAlignment(.leading)
-                    Spacer(minLength: 8)
+                PartRowLabel(symbol: "person.2", isExpanded: expanded) {
+                    Text(SubagentLogic.heading(subagent)).lineLimit(2).multilineTextAlignment(.leading)
+                } trailing: {
                     status
-                    Image(systemName: "chevron.right")
-                        .imageScale(.small)
-                        .rotationEffect(.degrees(expanded ? 90 : 0))
                 }
-                .foregroundStyle(.secondary)
-                .frame(minHeight: 44)
-                .contentShape(.rect)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(SubagentLogic.heading(subagent))
@@ -39,7 +32,7 @@ struct SubagentCard: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 26)
+                .padding(.leading, PartRowMetrics.contentInset)
                 .padding(.bottom, 8)
                 .transition(.opacity)
             }

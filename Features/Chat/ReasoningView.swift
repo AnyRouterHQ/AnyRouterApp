@@ -12,24 +12,17 @@ struct ReasoningRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button { expanded.toggle() } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "clock")
+                PartRowLabel(symbol: "clock", isExpanded: expanded) {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(ReasoningLogic.title(durationMs: trace.durationMs, isStreaming: isStreaming))
-                            .font(.footnote)
                             .shimmering(isStreaming)
                         if isStreaming, !expanded, let line = ReasoningLogic.latestLine(trace.text) {
                             Text(line).font(.caption).lineLimit(1)
                         }
                     }
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.right")
-                        .imageScale(.small)
-                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                } trailing: {
+                    EmptyView()
                 }
-                .foregroundStyle(.secondary)
-                .frame(minHeight: 44)
-                .contentShape(.rect)
             }
             .buttonStyle(.plain)
             .accessibilityHint(expanded ? "Hides the reasoning" : "Shows the reasoning")
@@ -40,6 +33,7 @@ struct ReasoningRow: View {
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, PartRowMetrics.contentInset)
                     .padding(.bottom, 8)
                     .transition(.opacity)
                     .accessibilityIdentifier("reasoning.text")

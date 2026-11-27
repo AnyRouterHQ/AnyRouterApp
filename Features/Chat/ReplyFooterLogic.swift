@@ -44,6 +44,9 @@ struct ReplyFooter: Equatable {
     /// Time to the first word, "0.4s", when the setting is on and the time was measured. It sits after the model name.
     var ttft: String?
 
+    /// A middle dot goes between "5 sources" and the model line only when both are there.
+    var separatesSourcesAndModel: Bool { sourcesLabel != nil && modelLine != nil }
+
     /// What the row says after the sources: "Sonnet 4.6 · 0.4s", or one of them. Nil when it has neither.
     var modelLine: String? {
         let parts = [modelLabel, ttft].compactMap { $0 }
