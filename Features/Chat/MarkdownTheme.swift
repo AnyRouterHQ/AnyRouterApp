@@ -120,6 +120,8 @@ struct CodeBlockView: View {
                         .textSelection(.enabled)
                 }
                 .font(.system(.callout, design: .monospaced))
+                // Ideal size: a run showed the gutter and code cut to 10 lines ("10…", "Counter()…") when the row was measured short.
+                .fixedSize(horizontal: true, vertical: true)
                 .padding(12)
             }
             // A line that runs on fades at the edge instead of being cut mid-word; the fade goes when the end is reached.
