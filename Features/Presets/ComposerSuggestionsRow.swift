@@ -12,6 +12,8 @@ struct ComposerSuggestionsRow: View {
     var onEditPresets: () -> Void
     var onDismiss: () -> Void
     @ScaledMetric(relativeTo: .subheadline) private var cardRadius: CGFloat = 18
+    /// The row runs on past the trailing edge; it then fades there, so a cut chip reads as "scroll for more".
+    @State private var hasMore = false
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -26,15 +28,37 @@ struct ComposerSuggestionsRow: View {
                 }
                 // Starters belong to the empty chat and go away on their own. A clipboard or paste offer can be waved off.
                 if suggestions.mode != .starters {
-                    Button(role: .close, action: onDismiss)
-                        .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityLabel("Hide suggestions")
-                        .accessibilityIdentifier("composer.suggestion.hide")
+                    // A glyph on every device; the close role drew a "Close" text button on iPad.
+                    Button(action: onDismiss) {
+                        Label("Hide suggestions", systemImage: "xmark").labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.circle)
+                    .controlSize(.regular)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityIdentifier("composer.suggestion.hide")
                 }
             }
         }
-        // The first chip starts at the screen margin, the edge of the + button; the row scrolls out past the trailing edge.
-        .scrollClipDisabled()
+        // Room for the glass edge now that the row clips, without changing the row's height.
+        .contentMargins(.vertical, 4, for: .scrollContent)
+        .padding(.vertical, -4)
+        // Edge to edge, with the first chip on the page margin (the edge of the + button), so the row is cut at the
+        // screen edge, not inside the margin.
+        .contentMargins(.horizontal, ARTheme.pagePadding, for: .scrollContent)
+        .padding(.horizontal, -ARTheme.pagePadding)
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            geometry.contentSize.width - geometry.contentOffset.x - geometry.containerSize.width > 1
+        } action: { _, more in
+            hasMore = more
+        }
+        .mask {
+            HStack(spacing: 0) {
+                Color.black
+                LinearGradient(colors: [.black, hasMore ? .clear : .black], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: 32)
+            }
+        }
         .accessibilityIdentifier("composer.suggestions")
     }
 
