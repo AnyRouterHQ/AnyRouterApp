@@ -11,18 +11,19 @@ struct ComposerLogicTests {
         #expect(ComposerAction.current(isStreaming: false, hasInput: false, hasAttachments: true) == .send)
     }
 
-    @Test func aReplyInProgressAlwaysOffersStop() {
-        for input in [false, true] {
-            for attachments in [false, true] {
-                #expect(ComposerAction.current(isStreaming: true, hasInput: input, hasAttachments: attachments) == .stop)
-            }
-        }
+    @Test func aReplyInProgressOffersStopUntilSomethingIsTyped() {
+        #expect(ComposerAction.current(isStreaming: true, hasInput: false, hasAttachments: false) == .stop)
+    }
+
+    @Test func typingDuringAReplyOffersTheQueue() {
+        #expect(ComposerAction.current(isStreaming: true, hasInput: true, hasAttachments: false) == .queue)
+        #expect(ComposerAction.current(isStreaming: true, hasInput: false, hasAttachments: true) == .queue)
     }
 
     @Test func eachActionHasItsOwnLabelAndSymbol() {
-        let all: [ComposerAction] = [.voice, .send, .stop]
-        #expect(Set(all.map(\.title)).count == 3)
-        #expect(Set(all.map(\.symbol)).count == 3)
+        let all: [ComposerAction] = [.voice, .send, .stop, .queue]
+        #expect(Set(all.map(\.title)).count == 4)
+        #expect(Set(all.map(\.symbol)).count == 4)
     }
 
     @Test func dictationTurnsTheButtonIntoStopDictationUnlessAReplyIsStreaming() {

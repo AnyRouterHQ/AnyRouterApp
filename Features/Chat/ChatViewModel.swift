@@ -62,6 +62,11 @@ final class ChatViewModel {
     /// screen shows (shortcuts, tests) keep the first-message title.
     @ObservationIgnored var generatesTitles = false
     @ObservationIgnored private(set) var titleTask: Task<Void, Never>?
+    /// Queue mode state, used by ChatViewModel+Queue: a "Send now" message that goes out once the stopped reply ends,
+    /// whether the app is active, and whether a queued send waited for it to become active.
+    @ObservationIgnored var promotedItem: QueueItem?
+    @ObservationIgnored var isForeground = true
+    @ObservationIgnored var sendsWhenActive = false
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
          settings: AppSettings, models: ModelStore,
@@ -270,9 +275,13 @@ final class ChatViewModel {
             window: window, keepRecent: CompactionLogic.keepRecentAutomatic)
     }
 
-    var canSend: Bool {
-        phase == .idle && ingesting == 0
-            && (!input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pending.isEmpty)
+    var canSend: Bool { phase == .idle && hasContent }
+
+    /// While a reply streams, Send keeps the message in the queue instead.
+    var canQueue: Bool { phase == .streaming && hasContent }
+
+    private var hasContent: Bool {
+        ingesting == 0 && (!input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pending.isEmpty)
     }
 
     // MARK: Attachments
@@ -449,6 +458,37 @@ final class ChatViewModel {
         let named = mentions
         mentions = []
         return startStream(model: model, thread: thread, mentions: named)
+    }
+
+    /// Keeps the typed message for when the reply ends (see ChatViewModel+Queue).
+    func enqueue() {
+        guard canQueue, let thread, let adopted = adoptPending(into: thread.id) else { return }
+        let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        storeQueue(QueueLogic.enqueue(thread.queue, QueueItem(text: text, attachments: adopted)))
+        pending = []
+        input = ""
+    }
+
+    func storeQueue(_ queue: MessageQueue) {
+        thread?.queue = queue
+        try? save(context)
+    }
+
+    /// Sends a queued message as the next question. False when it cannot start (no model, offline): the caller keeps it.
+    func sendQueued(_ item: QueueItem) -> Bool {
+        guard let thread else { return false }
+        guard let model else {
+            errorMessage = "Choose a model first."
+            return false
+        }
+        if blockedOffline(model) { return false }
+        models.telemetry.track(.messageSent(source: model.source))
+        let user = MessageRecord(role: .user, content: item.text)
+        context.insert(user)
+        user.thread = thread
+        user.attachments = item.attachments
+        _ = startStream(model: model, thread: thread)
+        return true
     }
 
     /// A preset with pickers (tone, language) waits here for the user's choices. The chat screen shows its sheet.
@@ -880,6 +920,7 @@ final class ChatViewModel {
             errorMessage = "Could not save the chat: \(error.localizedDescription)"
         }
         if gotReply, generatesTitles, let chat = model { titleTask = startTitle(for: thread, chat: chat) }
+        queueReplyEnded(failure: failure)
     }
 
     /// Asks for a title while the thread still has the one cut from its first message. A failure keeps that one.

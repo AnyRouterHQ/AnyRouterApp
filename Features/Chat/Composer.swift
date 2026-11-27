@@ -60,6 +60,7 @@ struct Composer: View {
             if let error = model.errorMessage {
                 ErrorBanner(text: error) { model.dismissError() }
             }
+            QueuedMessagesView(model: model)
             if let error = app.dictation.errorMessage {
                 ErrorBanner(text: error) { app.dictation.dismissError() }
             }
@@ -119,8 +120,8 @@ struct Composer: View {
                         .submitLabel(.return)
                         // Hardware keyboards: Return sends, Shift-Return adds a line.
                         .onKeyPress(.return, phases: .down) { press in
-                            guard !press.modifiers.contains(.shift), !model.isStreaming else { return .ignored }
-                            if model.canSend { _ = model.send() }
+                            guard !press.modifiers.contains(.shift) else { return .ignored }
+                            if model.canSend { _ = model.send() } else if model.canQueue { model.enqueue() }
                             return .handled
                         }
                         // As tall as the button on one line, so the placeholder sits in the middle of the field.
@@ -411,7 +412,14 @@ struct Composer: View {
     private var trailingButton: some View {
         let action = ComposerAction.current(isStreaming: model.isStreaming, hasInput: !model.input.isEmpty,
                                             hasAttachments: !model.pending.isEmpty, isDictating: app.dictation.isActive)
-        return Button { perform(action) } label: {
+        return HStack(spacing: 0) {
+            if action == .queue { actionButton(.stop, id: "composer.stop") }
+            actionButton(action, id: "composer.action")
+        }
+    }
+
+    private func actionButton(_ action: ComposerAction, id: String) -> some View {
+        Button { perform(action) } label: {
             Label { Text(action.title) } icon: {
                 Image(systemName: action.symbol)
                     .contentTransition(.symbolEffect(.replace))
@@ -426,9 +434,9 @@ struct Composer: View {
         .controlSize(.regular)
         .frame(minWidth: buttonSize, minHeight: buttonSize)
         .contentShape(.circle)
-        .disabled(action == .send && !model.canSend)
+        .disabled((action == .send && !model.canSend) || (action == .queue && !model.canQueue))
         .accessibilityLabel(action.title)
-        .accessibilityIdentifier("composer.action")
+        .accessibilityIdentifier(id)
     }
 
     private func perform(_ action: ComposerAction) {
@@ -437,6 +445,7 @@ struct Composer: View {
             stopCount += 1
             model.stop()
         case .send: _ = model.send()
+        case .queue: model.enqueue()
         case .voice, .stopDictation:
             app.speaker.stop()
             if action == .voice, let offer = app.voice.voiceModeOffer() {

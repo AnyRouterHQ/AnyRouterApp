@@ -26,6 +26,8 @@ final class ThreadRecord {
     var instructions: String?
     /// Stretches of this chat folded into summaries, as JSON. The messages stay. Optional so existing stores migrate.
     var compactionData: Data?
+    /// Messages typed while a reply streamed, as JSON (`MessageQueue`). Optional so existing stores migrate.
+    var queueData: Data?
     /// `TitleSource` raw value. Optional so existing stores migrate; a chat stored before titles had a source counts as the user's.
     var titleSourceRaw: String?
     @Relationship(deleteRule: .cascade, inverse: \MessageRecord.thread)
@@ -44,6 +46,11 @@ final class ThreadRecord {
     var titleSource: TitleSource {
         get { titleSourceRaw.flatMap(TitleSource.init(rawValue:)) ?? .user }
         set { titleSourceRaw = newValue.rawValue }
+    }
+
+    var queue: MessageQueue {
+        get { queueData.flatMap { try? JSONDecoder().decode(MessageQueue.self, from: $0) } ?? MessageQueue() }
+        set { queueData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
     }
 
     var compactions: [Compaction] {

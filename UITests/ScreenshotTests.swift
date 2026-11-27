@@ -436,6 +436,25 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// A reply streams and two messages wait above the composer.
+    func testQueuedMessages() {
+        forEachAppearance(extra: ["-ARDemoStream", "1000@20"]) { app, appearance in
+            XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
+            let field = app.textViews.firstMatch.exists ? app.textViews.firstMatch : app.textFields.firstMatch
+            field.tap()
+            field.typeText("Plan a weekend in Porto")
+            app.buttons["composer.action"].tap()
+            XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout: 10))
+            for text in ["Add a day trip to Douro", "Keep it under 300 euros"] {
+                field.tap()
+                field.typeText(text)
+                app.buttons["composer.action"].tap()
+            }
+            XCTAssertTrue(app.descendants(matching: .any)["chat.queue.row"].waitForExistence(timeout: 5))
+            capture("queued-messages", appearance)
+        }
+    }
+
     func testComposerWithText() {
         forEachAppearance { app, appearance in
             XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))

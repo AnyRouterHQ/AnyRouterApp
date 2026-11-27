@@ -151,6 +151,7 @@ private struct ChatContent: View {
     let subtitle: String
     let showsDetails: Bool
     @FocusState private var composerFocused: Bool
+    @Environment(\.scenePhase) private var scenePhase
     /// A tapped-in tip that replaces the model subtitle until the chat changes.
     @State private var tip: String?
     /// The list follows the reply while true (see `ScrollFollow`).
@@ -176,6 +177,8 @@ private struct ChatContent: View {
             Composer(model: chat, hasModel: chat.model != nil, presets: presets, focused: $composerFocused)
         }
         .refreshesMemory(app.memory, activity: chat.memoryActivity)
+        // Queued messages never go out while the app is in the background; they go when it is active again.
+        .onChange(of: scenePhase) { _, phase in chat.setForeground(phase == .active) }
         // A new reply cuts off the voice of the last one; "Read replies aloud" then follows the new reply as it arrives.
         .onChange(of: chat.isStreaming) { _, streaming in
             if streaming { app.speaker.stop() }
