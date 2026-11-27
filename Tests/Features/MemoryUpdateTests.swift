@@ -100,7 +100,8 @@ struct MemoryUpdateTests {
         await r.send("Remember that I'm vegetarian")
         await r.send("Remember that i'm VEGETARIAN")
         #expect(r.reply?.memoryUpdates.map(\.outcome) == [.alreadySaved])
-        for index in 0..<60 { try r.store.add("Note \(index)", kind: .note) }
+        // "I'm vegetarian" is an About you item: it counts toward the 60 with the notes.
+        for index in 0..<59 { try r.store.add("Note \(index)", kind: .note) }
         await r.send("From now on, answer briefly.")
         guard case .refused(let reason) = r.reply?.memoryUpdates.first?.outcome else {
             Issue.record("a full list refuses the save")

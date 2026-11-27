@@ -4,15 +4,18 @@ import SwiftData
 /// Writes from the chat: "Remember that …" in a message, "Remember" on selected reply text, and Undo and Edit on the
 /// reply's "Memory updated" row.
 extension MemoryStore {
-    /// Saves what the user's message asks to remember, by the Memory settings. Nil when it asks nothing, memory is off
-    /// (in Settings or for this chat), or it is an automatic save and those are off. An item from a chat with a model on
-    /// this device stays off cloud models.
+    /// Every item, or none when the store cannot be read: reading memory never stops a reply.
+    var items: [MemoryRecord] { (try? all()) ?? [] }
+
+    /// Saves what the user's message asks to remember, by the Memory settings: the rows for the reply. None when it asks
+    /// nothing, memory is off (in Settings or for this chat), or it is an automatic save and those are off. An item from a
+    /// chat with a model on this device stays off cloud models.
     func remember(
         _ text: String, messageID: UUID, thread: ThreadRecord, source: ModelSource, settings: AppSettings
-    ) -> MemoryUpdate? {
+    ) -> [MemoryUpdate] {
         guard settings.useMemory, !thread.memoryOff, let candidate = RememberLogic.candidate(in: text),
-              candidate.explicit || settings.saveMemoriesAutomatically else { return nil }
-        return save(candidate.text, kind: candidate.kind, origin: .askedInChat, source: source, threadID: thread.id, messageID: messageID)
+              candidate.explicit || settings.saveMemoriesAutomatically else { return [] }
+        return [save(candidate.text, kind: candidate.kind, origin: .askedInChat, source: source, threadID: thread.id, messageID: messageID)]
     }
 
     /// "Remember" on text selected in a reply: a pinned note, shown as a row on that reply.

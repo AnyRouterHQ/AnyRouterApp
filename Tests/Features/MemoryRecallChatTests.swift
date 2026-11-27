@@ -81,6 +81,17 @@ struct MemoryRecallChatTests {
         #expect(r.lastQuestion?.contains("My dog is called Mochi") == true)
     }
 
+    @Test func theSummaryOfAnotherChatIsRecalledButNotThisChatsOwn() async throws {
+        let r = try await rig()
+        let vm = r.chat()
+        await r.send("Hello", in: vm)
+        let here = try #require(vm.thread?.id)
+        try r.store.add("Planned three days in Da Lat by bus.", kind: .chatSummary, sourceThreadID: UUID())
+        try r.store.add("This chat is about Da Lat hotels.", kind: .chatSummary, sourceThreadID: here)
+        await r.send("Da Lat again?", in: vm)
+        #expect(vm.messages.last?.memoryHits.map(\.text) == ["Planned three days in Da Lat by bus."])
+    }
+
     @Test func noRecallWithMemoryOffForTheChat() async throws {
         let r = try await rig()
         try r.store.add("My dog is called Mochi", kind: .fact)

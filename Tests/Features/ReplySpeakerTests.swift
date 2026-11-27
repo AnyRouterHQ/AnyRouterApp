@@ -128,7 +128,7 @@ struct ReplySpeakerTests {
             r.voice.release()
             return r.voice.spoken.count == 3
         }
-        #expect(r.voice.spoken.map(\.text) == [english, "And these are the last words", vietnamese])
+        #expect(r.voice.spoken.map(\.text) == [english, "And these are the last words.", vietnamese])
         r.speaker.stop()
     }
 

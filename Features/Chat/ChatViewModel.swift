@@ -471,7 +471,7 @@ final class ChatViewModel {
         let named = mentions
         mentions = []
         let memory = MemoryStore(context: context).remember(text, messageID: user.id, thread: thread, source: model.source, settings: settings)
-        return startStream(model: model, thread: thread, mentions: named, memory: memory.map { [$0] } ?? [])
+        return startStream(model: model, thread: thread, mentions: named, memory: memory)
     }
 
     /// Keeps the typed message for when the reply ends (see ChatViewModel+Queue).
@@ -502,7 +502,7 @@ final class ChatViewModel {
         user.thread = thread
         user.attachments = item.attachments
         let memory = MemoryStore(context: context).remember(item.text, messageID: user.id, thread: thread, source: model.source, settings: settings)
-        _ = startStream(model: model, thread: thread, memory: memory.map { [$0] } ?? [])
+        _ = startStream(model: model, thread: thread, memory: memory)
         return true
     }
 
@@ -966,7 +966,7 @@ final class ChatViewModel {
 
     /// The always-on memory profile for this request. The chat's first send freezes which items it uses.
     private func memoryProfile(for thread: ThreadRecord, model: ModelDescriptor) -> String? {
-        let items = ((try? MemoryStore(context: context).all()) ?? []).map {
+        let items = MemoryStore(context: context).items.map {
             MemoryProfileLogic.Item(id: $0.id, kind: $0.kind, text: $0.text, scope: $0.scope, createdAt: $0.createdAt)
         }
         if thread.profileSnapshot == nil { thread.profileSnapshot = MemoryProfileLogic.frozenIDs(items) }
@@ -981,7 +981,7 @@ final class ChatViewModel {
     private func memoryRecall(for thread: ThreadRecord, model: ModelDescriptor) -> [MemoryRecallLogic.Hit] {
         guard settings.useMemory, !thread.memoryOff,
               let question = thread.messages.filter({ $0.role == .user }).max(by: { $0.createdAt < $1.createdAt }) else { return [] }
-        let records = ((try? MemoryStore(context: context).all()) ?? []).filter { record in
+        let records = MemoryStore(context: context).items.filter { record in
             (record.kind == .fact || (record.kind == .chatSummary && record.sourceThreadID != thread.id))
                 && record.sourceMessageID != question.id
                 && MemoryProfileLogic.allows(record.scope, source: model.source, deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats)

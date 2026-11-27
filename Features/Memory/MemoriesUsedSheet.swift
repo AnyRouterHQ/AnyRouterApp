@@ -13,13 +13,13 @@ struct MemoriesUsedSheet: View {
         NavigationStack {
             List {
                 Section {
-                    ForEach(hits) { hit in
+                    ForEach(hits, id: \.memoryID) { hit in
                         HStack {
                             Text(hit.text)
-                                .foregroundStyle(forgotten.contains(hit.id) ? .secondary : .primary)
-                                .strikethrough(forgotten.contains(hit.id))
+                                .foregroundStyle(forgotten.contains(hit.memoryID) ? .secondary : .primary)
+                                .strikethrough(forgotten.contains(hit.memoryID))
                             Spacer()
-                            if !forgotten.contains(hit.id) {
+                            if !forgotten.contains(hit.memoryID) {
                                 Button("Forget", role: .destructive) { forget(hit) }
                                     .buttonStyle(.borderless)
                                     .accessibilityIdentifier("memory.forget")
@@ -42,7 +42,7 @@ struct MemoriesUsedSheet: View {
     private func forget(_ hit: MemoryHit) {
         do {
             try MemoryStore(context: context).forget(hit.memoryID)
-            forgotten.insert(hit.id)
+            forgotten.insert(hit.memoryID)
             failure = nil
         } catch {
             failure = error.localizedDescription

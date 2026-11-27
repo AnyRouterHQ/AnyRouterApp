@@ -49,10 +49,9 @@ struct MemoryUpdate: Codable, Equatable, Sendable, Identifiable {
 }
 
 /// A memory put in front of a question (agent design 2.4). The reply's footer lists it with Forget.
-struct MemoryHit: Codable, Equatable, Sendable, Identifiable {
+struct MemoryHit: Codable, Equatable, Sendable {
     var memoryID: UUID
     var text: String
-    var id: UUID { memoryID }
 }
 
 /// One short thing the app remembers about the user. Lives in the same store as the chats; nothing syncs.
