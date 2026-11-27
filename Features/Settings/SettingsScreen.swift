@@ -5,6 +5,7 @@ import UIKit
 /// Settings as a native drill-down: a sheet with a navigation stack and a grouped inset list.
 struct SettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(ShellModel.self) private var shell
     @State private var path: [SettingsDestination] = []
 
     var body: some View {
@@ -20,6 +21,11 @@ struct SettingsScreen: View {
                 .navigationDestination(for: SettingsDestination.self) { destination in
                     SettingsDestinationView(destination: destination)
                 }
+        }
+        .onAppear {
+            guard let destination = shell.settingsDestination else { return }
+            shell.settingsDestination = nil
+            path = [destination]
         }
     }
 }

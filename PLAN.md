@@ -37,6 +37,7 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that follows a reference 
 | D19 | iPhone keeps a wide sidebar drawer (82% of the screen, cap 360pt) that the chat slides away from, with interactive drag and edge swipe. This is an operator request and deviates from U10a for iPhone only. iPad uses `NavigationSplitView`. Settings and its pages already follow U10b (sheet, `NavigationStack`, grouped list). | The operator wants the drawer look of the reference screenshots; the system compact split view cannot slide the chat aside. |
 | D21 | iPad uses `NavigationSplitView` with automatic column visibility: the sidebar sits beside the chat in landscape, floats over it in portrait (iPad mini included) and closes after a pick. A compact-width iPad window (Slide Over, one-third Split View) takes the iPhone drawer path. The chat column, empty state and composer share `readableWidth()` (720pt cap, margins included). The model picker is a popover under the model title on iPad and the usual sheet on iPhone. Settings and small sheets are `.presentationSizing(.form)`, Browse models a page. | The system gives Stage Manager resizing, the toolbar toggle and pointer behavior for free; a toggle made in one orientation is not carried into the other. |
 | D22 | The Mac app is the iOS app "Designed for iPad" (`SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD`), not Mac Catalyst. | `llama.xcframework` has only `ios-arm64` and the iOS Simulator slice (llama-xcframework.yml builds `ios-sim ios-device`), so a Catalyst or macOS link fails; `mlx-swift-lm` lists macOS and iOS but not Mac Catalyst. Designed for iPad runs the iOS device slices on Apple silicon, so local GGUF and MLX models keep working with no source change. Catalyst would also mean cutting local models behind `#if`. No Settings scene: the SwiftUI `Settings` scene is macOS only, so Settings stays the Cmd-comma sheet. |
+| D23 | One row above the composer for starters, clipboard and paste offers: capsule glass chips (SF Symbol, one line, `.subheadline`), at most 4 presets, then a More menu (all presets by category, "Edit Presets…" opens Settings › Presets). `ComposerSuggestionLogic` is the only place that decides what shows. The shuffle button, the two-line starter cards, `PasteOfferRow` and `ClipboardLauncherRow` are deleted. | The old stack was three rows plus a shuffle button, heavy and card-like. One compact row follows HIG and the leading chat apps. |
 | D15 | UI boundary: native SwiftUI containers and behaviors skinned with the reference design's tokens (colors, radii, spacing, type scale). Per-screen deviations are listed in § Native UX & performance. | The reference is a web app; native containers give edge-swipe back, restoration, Liquid Glass, Dynamic Type, keyboard and pointer support that custom views cannot. |
 | D16 | Chat stays one `ChatEngine`; images, video frames and audio ride on `ChatMessage.parts`. Image generation, speech-to-text and text-to-speech are separate protocols (`ImageGenerationEngine`, `SpeechRecognizer`, `SpeechSynthesizer`) behind the same registry. | Their input and output are progress, previews and audio streams, not text deltas. Overloading `ChatDelta` would make every chat engine handle them. |
 | D17 | Speech uses system frameworks first (`SpeechTranscriber`, `AVSpeechSynthesizer`). Open speech models are opt-in extras later. | No download, no model upkeep, no app-size cost. |
@@ -576,6 +577,21 @@ Note (closed-drawer layer): with the iPhone drawer closed it sits under the chat
 ## Native UX & performance
 
 Audit of main at 00dee3c (2026-11-26). Every finding cites file:line on that commit. Nothing here was run on a device. Local checks were skipped (no Xcode on the maintainer Mac); numbers come from CI only, see § Measurement. Items marked "inference" are reasoned from the code and must be confirmed by the baseline (U1) before a fix claims a gain.
+
+### Composer suggestions (decision D23)
+
+Research, 2026-11-27 (HIG pages and WWDC25 "Meet Liquid Glass" via search summaries; no screenshots of other apps were captured, so the chat-app patterns are from design write-ups and unverified on device):
+
+1. HIG Buttons and Layout: the visible control may be smaller than 44 pt but the hit area may not. Equal spacing, and the first control lines up with the field it belongs to.
+2. WWDC25 Liquid Glass: glass is for the controls layer floating over content, never inside content, and never glass on glass. Our chips sit beside the glass field, not on it, so glass is right; on top of glass use fills.
+3. HIG Text fields: the field stays the one prominent thing at the bottom. Anything above it must read as secondary and leave when the person types.
+4. HIG Menus: put the long tail in a `Menu` with sections and a trailing edit action, not in more visible chips.
+5. HIG Typography: one text style per chip (`.subheadline`), no custom sizes, Dynamic Type grows the chip and the row scrolls.
+6. Leading chat apps show starter prompts only on an empty chat. A tap drops the prompt into the composer, editable, not sent.
+7. They show 2 to 4 short one-line chips, with the rest behind a more control. Two-line cards compete with the composer and push the greeting up.
+8. Follow-up and action chips are dismissible, never block input, and disappear while typing or dictating.
+9. A clipboard offer is a single leading chip (the system Paste button), then actions that work on text. It is never a second row.
+10. Motion: a short fade and slide from the bottom edge as the row comes and goes; fade only under Reduce Motion.
 
 ### Boundary (decision D15)
 

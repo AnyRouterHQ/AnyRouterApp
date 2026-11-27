@@ -38,6 +38,9 @@ enum DemoData {
     /// without driving the system file picker.
     static var attachesSampleFile: Bool { isEnabled && UserDefaults.standard.bool(forKey: "ARDemoAttachFile") }
 
+    /// `-ARDemoClipboard YES` makes the chat offer the clipboard row, so the screenshot test can capture it.
+    static var offersClipboard: Bool { isEnabled && UserDefaults.standard.bool(forKey: "ARDemoClipboard") }
+
     static func sampleAttachmentURL() -> URL {
         let url = FileManager.default.temporaryDirectory.appending(path: "notes.txt")
         try? Data("Pick up the keys.\nCall the bank on Monday.\n".utf8).write(to: url)

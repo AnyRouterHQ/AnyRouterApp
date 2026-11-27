@@ -22,6 +22,9 @@ struct Composer: View {
     @Environment(AppState.self) private var app
     @Environment(ShellModel.self) private var shell
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Where the text field starts (the width of the + button and the gap), so the chips above it line up with it.
+    @State private var fieldInset: CGFloat = 52
     @ScaledMetric(relativeTo: .body) private var fieldRadius: CGFloat = 26
     /// The round button keeps its 44 pt minimum at the default size and grows with Dynamic Type.
     @ScaledMetric(relativeTo: .body) private var buttonSize: CGFloat = 44
@@ -75,19 +78,19 @@ struct Composer: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 4)
             }
-            if model.pasteOffered, let presets, !presets.pasteOffered.isEmpty {
-                PasteOfferRow(presets: presets.pasteOffered, onPick: { model.applyToPaste($0) }, onDismiss: { model.dismissPasteOffer() })
-            }
-            if app.clipboard.isOffered, model.input.isEmpty, let presets {
-                ClipboardLauncherRow(
-                    presets: presets.pasteOffered,
+            if let presets, let suggestions {
+                ComposerSuggestionsRow(
+                    suggestions: suggestions, presets: presets, leadingInset: fieldInset,
                     onPaste: { text in model.input = text; app.clipboard.dismiss() },
                     onPreset: { preset in
-                        // This read is the person's own tap on a preset. The row itself never reads the text.
-                        model.useClipboard(preset, text: UIPasteboard.general.string ?? "")
+                        // For the clipboard this read is the person's own tap. The row itself never reads the text.
+                        model.choose(preset, mode: suggestions.mode, clipboardText: { UIPasteboard.general.string ?? "" })
                         app.clipboard.dismiss()
                     },
-                    onDismiss: { app.clipboard.dismiss() })
+                    onSend: { model.sendNow($0) },
+                    onEditPresets: { shell.presentSettings(closeSidebar: false, destination: .presets) },
+                    onDismiss: { model.dismissPasteOffer(); app.clipboard.dismiss() })
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
             }
             if !model.mentions.isEmpty {
                 MentionChips(mentions: model.mentions) { model.removeMention($0) }
@@ -122,6 +125,7 @@ struct Composer: View {
                 .onTapGesture { focused.wrappedValue = true }
             }
         }
+        .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: suggestions)
         .readableWidth()
         .padding(.bottom, 8)
         // Send, stop and the buttons beside the field keep the keyboard up.
@@ -172,6 +176,13 @@ struct Composer: View {
             shell.didFocusComposerOnLaunch = true
             focused.wrappedValue = true
         }
+    }
+
+    /// The chips above the field, or nil. Decided by `ComposerSuggestionLogic`.
+    private var suggestions: ComposerSuggestions? {
+        guard let presets else { return nil }
+        return model.suggestions(presets: presets, clipboardOffered: app.clipboard.isOffered, isDictating: app.dictation.isActive,
+                                 mentionPanelOpen: mentionQuery != nil || showsPluginList)
     }
 
     /// The words after an @ the user is typing, when the list has something to offer this model.
@@ -275,6 +286,7 @@ struct Composer: View {
         .buttonBorderShape(.circle)
         .controlSize(.large)
         .accessibilityLabel("Add")
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { fieldInset = $0 + 8 }
     }
 
     /// The round button at the end of the field. 44 pt, the system's prominent glass: voice while empty, send with

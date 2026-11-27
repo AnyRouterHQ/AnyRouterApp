@@ -200,8 +200,6 @@ private struct ChatContent: View {
             .animation(.easeInOut(duration: 0.25), value: tip)
             .accessibilityIdentifier("home.subtitle")
             Spacer()
-            PresetSuggestions(store: presets, onPick: { chat.usePreset($0) }, onSend: { chat.sendNow($0) })
-                .padding(.bottom, 8)
         }
         .readableWidth()
         .sensoryFeedback(.selection, trigger: tip)

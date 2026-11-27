@@ -63,7 +63,7 @@ enum PresetLogic {
         }
     }
 
-    /// Same day and salt give the same order. The salt moves on each "Shuffle" tap.
+    /// Same day and seed give the same order.
     static func shuffled(_ items: [PromptPreset], seed: UInt64) -> [PromptPreset] {
         var rng = SplitMix64(seed: seed)
         return items.shuffled(using: &rng)

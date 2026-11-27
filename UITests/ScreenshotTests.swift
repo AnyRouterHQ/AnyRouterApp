@@ -161,6 +161,25 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// The row above the composer when text was copied (Paste button and presets), and after the Paste button is tapped
+    /// (text presets for what was pasted). `-ARDemoClipboard` makes the app offer the row; the runner puts the text on
+    /// the system pasteboard, which the system Paste button reads without an alert.
+    func testComposerSuggestions() {
+        let sample = "Hi team, can you send me the revised budget by Friday? I need to review it before the meeting, thanks."
+        UIPasteboard.general.string = sample
+        forEachAppearance(extra: ["-ARDemoClipboard", "YES"]) { app, appearance in
+            XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
+            let paste = app.descendants(matching: .any)["composer.suggestion.paste"]
+            XCTAssertTrue(paste.waitForExistence(timeout: 10), "the Paste button leads the row")
+            capture("composer-clipboard", appearance)
+            paste.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["composer.suggestions"].waitForExistence(timeout: 5))
+            sleep(1)
+            XCTAssertFalse(paste.exists, "the Paste button is gone after a paste")
+            capture("composer-after-paste", appearance)
+        }
+    }
+
     func testThreadList() {
         forEachAppearance { app, appearance in
             showSidebar(app)

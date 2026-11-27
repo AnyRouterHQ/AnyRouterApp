@@ -26,7 +26,11 @@ final class ShellModel {
     /// An outside request (Siri, Shortcuts, a control) waiting for the chat screen to pick it up.
     private(set) var inbound: InboundChat?
 
-    func presentSettings(closeSidebar: Bool) {
+    /// The page Settings opens on instead of its list, taken once by `SettingsScreen`.
+    var settingsDestination: SettingsDestination?
+
+    func presentSettings(closeSidebar: Bool, destination: SettingsDestination? = nil) {
+        settingsDestination = destination
         isSettingsPresented = true
         if closeSidebar { isSidebarOpen = false }
     }

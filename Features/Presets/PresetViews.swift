@@ -1,54 +1,5 @@
 import SwiftUI
 
-/// Empty-chat starters as one scrolling row of buttons just above the composer, plus Shuffle.
-/// Tap fills the composer; long-press offers "Send now". Categories live in the presets sheet.
-struct PresetSuggestions: View {
-    let store: PresetStore
-    var onPick: (PromptPreset) -> Void
-    var onSend: (PromptPreset) -> Void
-
-    @State private var salt: UInt64 = 0
-    /// Grows with Dynamic Type so a large text size does not truncate every chip.
-    @ScaledMetric(relativeTo: .subheadline) private var chipWidth: CGFloat = 190
-
-    private var items: [PromptPreset] {
-        PresetLogic.featured(store.all, customIDs: store.customIDs, category: nil,
-                             seed: PresetLogic.daySeed(for: .now) &+ salt, limit: 8)
-    }
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                Button { salt &+= 1 } label: {
-                    Label("Shuffle presets", systemImage: "shuffle").labelStyle(.iconOnly)
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.circle)
-                .controlSize(.large)
-                ForEach(items) { chip($0) }
-            }
-            .padding(.horizontal, ARTheme.pagePadding)
-        }
-    }
-
-    private func chip(_ preset: PromptPreset) -> some View {
-        Button { onPick(preset) } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(preset.title).font(.subheadline.weight(.semibold)).lineLimit(1)
-                Text(PresetOptionsLogic.summary(preset)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            }
-            .frame(width: chipWidth, alignment: .leading)
-        }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.roundedRectangle(radius: ARTheme.radiusLarge))
-        .controlSize(.large)
-        .contextMenu {
-            Button("Send now", systemImage: "arrow.up.circle") { onSend(preset) }
-            Button("Edit in composer", systemImage: "square.and.pencil") { onPick(preset) }
-        }
-    }
-}
-
 /// All presets with search and a category filter, opened from the composer's sparkles button.
 struct PresetSheet: View {
     let store: PresetStore

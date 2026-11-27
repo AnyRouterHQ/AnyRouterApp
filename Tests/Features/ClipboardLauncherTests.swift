@@ -83,6 +83,13 @@ struct ClipboardLauncherTests {
         #expect(l.isOffered)
     }
 
+    @Test func theDemoPasteboardOffersTheRowOnEveryLaunch() {
+        #expect(DemoPasteboard().hasStrings)
+        let l = ClipboardLauncher(probe: DemoPasteboard(), defaults: testDefaults())
+        l.check(composerEmpty: true)
+        #expect(l.isOffered)
+    }
+
     @Test func offDeviceProbesAreInert() {
         #expect(!EmptyPasteboard().hasStrings)
         #expect(EmptyPasteboard().changeCount == 0)

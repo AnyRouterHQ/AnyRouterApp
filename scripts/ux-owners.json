@@ -70,6 +70,7 @@
    "lane": "native-ux-research",
    "files": [
     "Features/Chat/ChatScreen.swift",
+    "Features/Presets/ComposerSuggestionsRow.swift",
     "Features/Presets/PresetViews.swift"
    ]
   },
@@ -78,6 +79,7 @@
    "lane": "chat-chrome",
    "files": [
     "Features/Chat/Composer.swift",
+    "Features/Presets/ComposerSuggestionsRow.swift",
     "Features/Chat/ChatScreen.swift"
    ]
   },

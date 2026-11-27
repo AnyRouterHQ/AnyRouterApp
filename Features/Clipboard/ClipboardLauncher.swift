@@ -13,6 +13,13 @@ struct EmptyPasteboard: PasteboardProbe {
     var hasStrings: Bool { false }
 }
 
+/// A pasteboard that always has text and a count that differs on every launch, so a demo run offers the clipboard row.
+/// The text itself is not here: the screenshot test puts it on the system pasteboard for the Paste button to read.
+struct DemoPasteboard: PasteboardProbe {
+    var changeCount: Int { Int(ProcessInfo.processInfo.systemUptime) }
+    var hasStrings: Bool { true }
+}
+
 /// Decides when the chat shows its clipboard row. It only ever reads `changeCount` and `hasStrings`: reading the text
 /// itself shows the system's "Allow Paste" alert every time, so the text is read by the system's Paste button, or by
 /// the person tapping a preset.

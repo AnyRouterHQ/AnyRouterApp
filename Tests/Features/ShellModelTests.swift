@@ -75,6 +75,14 @@ struct ShellModelTests {
         #expect(!shell.isHubPresented)
     }
 
+    @Test func settingsCanOpenOnAPageAndAnotherOpenForgetsIt() {
+        let shell = ShellModel()
+        shell.presentSettings(closeSidebar: false, destination: .presets)
+        #expect(shell.settingsDestination == .presets)
+        shell.presentSettings(closeSidebar: false)
+        #expect(shell.settingsDestination == nil, "Settings opened from the sidebar starts on its list")
+    }
+
     @Test func deletingSelectedThreadResetsSelection() {
         let shell = ShellModel()
         let id = UUID()
