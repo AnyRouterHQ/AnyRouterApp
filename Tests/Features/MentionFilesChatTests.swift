@@ -25,8 +25,10 @@ struct MentionFilesChatTests {
         return Rig(vm: vm, temp: temp)
     }
 
-    private func settle(_ vm: ChatViewModel) async throws {
-        for _ in 0..<250 where vm.ingesting > 0 { try await Task.sleep(for: .milliseconds(20)) }
+    /// Waits for the readers themselves: no polling, no deadline to outrun on a slow runner.
+    private func settle(_ vm: ChatViewModel) async {
+        await vm.finishIngesting()
+        #expect(vm.ingesting == 0)
     }
 
     private func textFile(_ name: String) throws -> URL {
@@ -47,7 +49,7 @@ struct MentionFilesChatTests {
         let r = try await rig()
         defer { r.temp.cleanup() }
         r.vm.attachFiles([try textFile("first.txt")])
-        try await settle(r.vm)
+        await settle(r.vm)
         #expect(r.vm.mentionableFiles.map(\.filename) == ["first.txt"])
 
         r.vm.input = "read it"
@@ -56,7 +58,7 @@ struct MentionFilesChatTests {
         #expect(r.vm.mentionableFiles.map(\.filename) == ["first.txt"], "now it belongs to the chat")
 
         r.vm.attachFiles([try textFile("second.txt")])
-        try await settle(r.vm)
+        await settle(r.vm)
         #expect(r.vm.mentionableFiles.map(\.filename) == ["second.txt", "first.txt"])
     }
 

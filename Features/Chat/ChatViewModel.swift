@@ -31,6 +31,8 @@ final class ChatViewModel {
     private(set) var pending: [ChatAttachment] = []
     /// Attachments still being read (images are shrunk, text and OCR are read off the main actor).
     private(set) var ingesting = 0
+    /// The readers behind `ingesting`, so a caller can wait for them instead of polling.
+    @ObservationIgnored private var ingestTasks: [Task<Void, Never>] = []
     /// Pending files that could not be moved into the thread at the last send. They stay pending, marked.
     private(set) var failedAttachmentIDs: Set<UUID> = []
     /// Id of the thread a first send creates, so files moved by a send that failed halfway are found again.
@@ -189,10 +191,17 @@ final class ChatViewModel {
     func readText(from images: [Data]) {
         guard !images.isEmpty else { return }
         ingesting += 1
-        Task { [weak self] in
+        ingestTasks.append(Task { [weak self] in
             let texts = await TextExtraction.texts(inImages: images)
             self?.finishReading(texts)
-        }
+        })
+    }
+
+    /// Returns when every attachment and scan started so far has been read, or has failed.
+    func finishIngesting() async {
+        let running = ingestTasks
+        ingestTasks.removeAll()
+        for task in running { await task.value }
     }
 
     private func finishReading(_ texts: [String]) {
@@ -262,14 +271,14 @@ final class ChatViewModel {
         let store = attachmentStore
         for index in 0..<min(count, room) {
             ingesting += 1
-            Task { [weak self] in
+            ingestTasks.append(Task { [weak self] in
                 do {
                     let attachment = try await read(store, index)
                     self?.finishIngest(.success(attachment))
                 } catch {
                     self?.finishIngest(.failure(error))
                 }
-            }
+            })
         }
     }
 

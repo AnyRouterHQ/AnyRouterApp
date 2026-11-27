@@ -26,8 +26,10 @@ struct AttachmentChatTests {
         return Rig(vm: vm, temp: temp, models: store, context: context, container: container)
     }
 
-    private func settle(_ vm: ChatViewModel) async throws {
-        for _ in 0..<250 where vm.ingesting > 0 { try await Task.sleep(for: .milliseconds(20)) }
+    /// Waits for the readers themselves: no polling, no deadline to outrun on a slow runner.
+    private func settle(_ vm: ChatViewModel) async {
+        await vm.finishIngesting()
+        #expect(vm.ingesting == 0)
     }
 
     private func textFile(_ name: String = "notes.txt", _ text: String = "Pick up the keys.") throws -> URL {
@@ -44,7 +46,7 @@ struct AttachmentChatTests {
         #expect(!r.vm.canSend)
         r.vm.attachFiles([try textFile()])
         #expect(r.vm.ingesting == 1 && !r.vm.canSend)
-        try await settle(r.vm)
+        await settle(r.vm)
         #expect(r.vm.pending.map(\.filename) == ["notes.txt"] && r.vm.canSend)
 
         await r.vm.send()?.value
@@ -62,7 +64,7 @@ struct AttachmentChatTests {
         let r = try await rig()
         defer { r.temp.cleanup() }
         r.vm.attachFiles([try textFile()])
-        try await settle(r.vm)
+        await settle(r.vm)
         r.vm.input = "Summarise this"
         await r.vm.send()?.value
         #expect(r.vm.messages.first?.content == "Summarise this")
@@ -74,7 +76,7 @@ struct AttachmentChatTests {
         let r = try await rig()
         defer { r.temp.cleanup() }
         r.vm.attachFiles([try textFile()])
-        try await settle(r.vm)
+        await settle(r.vm)
         let file = try #require(r.vm.pending.first)
         r.vm.removePending(file)
         #expect(r.vm.pending.isEmpty && !r.temp.exists(file))
@@ -86,7 +88,7 @@ struct AttachmentChatTests {
         let r = try await rig()
         defer { r.temp.cleanup() }
         r.vm.attachFiles([try textFile("good.txt"), try textFile("bad.txt")])
-        try await settle(r.vm)
+        await settle(r.vm)
         let bad = try #require(r.vm.pending.first { $0.filename == "bad.txt" })
         r.temp.store.remove(bad)
         r.vm.input = "Read both"
@@ -109,7 +111,7 @@ struct AttachmentChatTests {
         let r = try await rig()
         defer { r.temp.cleanup() }
         r.vm.attachFiles([try textFile("a.txt")])
-        try await settle(r.vm)
+        await settle(r.vm)
         // A plain file where the thread folder must go: creating the folder fails.
         try FileManager.default.createDirectory(at: r.temp.store.root, withIntermediateDirectories: true)
         try Data().write(to: r.temp.store.root.appending(path: r.vm.draftThreadID.uuidString))
@@ -122,7 +124,7 @@ struct AttachmentChatTests {
         let r = try await rig()
         defer { r.temp.cleanup() }
         r.vm.attachFiles(try (0..<11).map { try textFile("f\($0).txt") })
-        try await settle(r.vm)
+        await settle(r.vm)
         #expect(r.vm.pending.count == AttachmentLogic.maxPerMessage)
         #expect(r.vm.errorMessage?.contains("up to 10") == true)
         r.vm.attachFiles([try textFile("extra.txt")])
@@ -133,7 +135,7 @@ struct AttachmentChatTests {
         let r = try await rig()
         defer { r.temp.cleanup() }
         r.vm.attachFiles([try textFile("a.zip", "x")])
-        try await settle(r.vm)
+        await settle(r.vm)
         #expect(r.vm.pending.isEmpty && r.vm.errorMessage == "a.zip is not a type the app can read.")
     }
 
@@ -141,7 +143,7 @@ struct AttachmentChatTests {
         let r = try await rig()
         defer { r.temp.cleanup() }
         r.vm.attachImages([(data: pngData(width: 100, height: 100), filename: "Photo 1.jpg")])
-        try await settle(r.vm)
+        await settle(r.vm)
         #expect(r.vm.pending.first?.kind == .image)
     }
 
@@ -153,7 +155,7 @@ struct AttachmentChatTests {
         r.vm.choose(testModel(id: "apple/foundation"))
         #expect(r.vm.attachmentNote == nil && r.vm.visionAlternative == nil)
         r.vm.attachImages([(data: pngData(width: 100, height: 100), filename: "p.png")])
-        try await settle(r.vm)
+        await settle(r.vm)
         #expect(r.vm.model?.id == "apple/foundation")
         #expect(r.vm.attachmentNote == "\(AttachmentLogic.visionNote) Try Eyes.", "the note names the vision model on offer")
         #expect(r.vm.visionAlternative?.id == "apple/eyes")
@@ -168,7 +170,7 @@ struct AttachmentChatTests {
         let r = try await rig()
         defer { r.temp.cleanup() }
         r.vm.attachImages([(data: pngData(width: 100, height: 100), filename: "p.png")])
-        try await settle(r.vm)
+        await settle(r.vm)
         #expect(r.vm.attachmentNote != nil && r.vm.visionAlternative == nil)
         r.vm.switchToVisionModel()
         #expect(r.vm.model?.id == "apple/foundation")
