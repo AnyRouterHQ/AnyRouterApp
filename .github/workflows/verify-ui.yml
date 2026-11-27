@@ -34,8 +34,8 @@ permissions:
 jobs:
   verify:
     runs-on: macos-26
-    # iPhone leg up to 60 minutes, iPad legs up to 60 more.
-    timeout-minutes: 120
+    # Each device leg has its own limit (LEG_MINUTES in "Run journeys"): iPhone 50, each iPad 25. This is the backstop.
+    timeout-minutes: 130
     env:
       JOURNEYS: ${{ inputs.journeys || 'all' }}
       FLOWS: ${{ inputs.flows || (github.event_name == 'schedule' && 'all' || 'none') }}
@@ -139,6 +139,18 @@ jobs:
           if [ ${#only[@]} -eq 0 ] && [ "$WITH_IPAD" != "true" ]; then echo "nothing selected: set journeys or flows"; exit 2; fi
           devices="IPHONE"
           [ "$WITH_IPAD" = "true" ] && devices="IPHONE IPAD IPADMINI"
+          # A leg that hangs (the iPad mini once sat past the job's 2 h limit, run 45933670046) is stopped at its own
+          # limit with SIGINT, so xcodebuild still writes the result bundle, and the next legs and the upload still run.
+          run_leg() {
+            local minutes=$1; shift
+            "$@" & local pid=$!
+            ( sleep $((minutes * 60)); echo "leg over $minutes minutes, stopping it" >&2; kill -INT "$pid" 2>/dev/null
+              sleep 60; kill -KILL "$pid" 2>/dev/null ) &
+            local watcher=$!
+            wait "$pid"; local status=$?
+            kill "$watcher" 2>/dev/null || true
+            return $status
+          }
           for device in $devices; do
             # The iPad layout tests run on every iPad leg; an iPhone leg with nothing selected is skipped.
             extra=()
@@ -146,12 +158,13 @@ jobs:
             if [ ${#only[@]} -eq 0 ] && [ ${#extra[@]} -eq 0 ]; then continue; fi
             udid_var="${device}_UDID"; name_var="${device}_NAME"
             udid="${!udid_var}"; name="${!name_var}"
+            case "$device" in IPHONE) LEG_MINUTES=50 ;; *) LEG_MINUTES=25 ;; esac
             # The simulator sometimes disappears between boot and test ("Unable to find a device"): retry from a clean boot.
             for attempt in 1 2 3; do
               xcrun simctl bootstatus "$udid" -b
               rm -rf "TestResults-$name.xcresult"
               TEST_RUNNER_SCREENSHOT_DIR="$PWD/evidence/$name" \
-              xcodebuild test-without-building \
+              run_leg "$LEG_MINUTES" xcodebuild test-without-building \
                 -project AnyRouter.xcodeproj -scheme AnyRouterVerify \
                 -destination "platform=iOS Simulator,id=$udid" \
                 -derivedDataPath DerivedData \
@@ -161,6 +174,7 @@ jobs:
                 -maximum-test-execution-time-allowance 900 \
                 "${only[@]}" "${extra[@]}" "${skip[@]}" \
                 CODE_SIGNING_ALLOWED=NO > "test-$name.log" 2>&1 && failed_leg=0 || failed_leg=1
+              grep -q "leg over" "test-$name.log" && echo "TIMEOUT=$name after $LEG_MINUTES minutes" >> failed.txt
               if grep -q "Unable to find a device" "test-$name.log"; then
                 echo "attempt $attempt: simulator not found, retrying"
                 xcrun simctl shutdown all || true
