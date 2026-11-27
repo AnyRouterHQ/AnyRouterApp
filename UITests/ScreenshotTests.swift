@@ -209,6 +209,47 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// A markdown reply that cites pages: the footer row with its favicon chain and "5 sources", then the list behind it.
+    func testReplyWithSources() {
+        forEachAppearance(extra: ["-ARDemoSources", "YES"]) { app, appearance in
+            showSidebar(app)
+            tapRow(app.staticTexts["Swift actors with sources"])
+            XCTAssertTrue(app.staticTexts["Key points:"].waitForExistence(timeout: 10))
+            let sources = app.buttons["reply.sources"].firstMatch
+            XCTAssertTrue(sources.waitForExistence(timeout: 5))
+            XCTAssertEqual(sources.label, "5 sources", "six results, one of them the same page twice")
+            XCTAssertTrue(app.buttons["reply.share"].firstMatch.exists, "share sits in the row next to copy")
+            capture("reply-sources", appearance)
+            sources.tap()
+            XCTAssertTrue(app.navigationBars["Sources"].waitForExistence(timeout: 5))
+            let first = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "docs.example.com")).firstMatch
+            XCTAssertTrue(first.waitForExistence(timeout: 5), "the list names each page and its host")
+            capture("sources-sheet", appearance)
+        }
+    }
+
+    /// Settings, Response Customization: the text size slider, the font picker and the live preview; then the same
+    /// markdown reply at the largest step in the serif font.
+    func testReplyTextSettings() {
+        forEachAppearance { app, appearance in
+            open(app, footer: "Settings")
+            let row = button(app, containing: "Response Customization")
+            scrollTo(row, in: app)
+            row.tap()
+            let slider = app.sliders["settings-reply-text-size"]
+            XCTAssertTrue(slider.waitForExistence(timeout: 10))
+            scrollTo(slider, in: app)
+            XCTAssertTrue(app.descendants(matching: .any)["preview.reply-text"].exists, "the preview sits under the font picker")
+            capture("reply-text-settings", appearance)
+        }
+        forEachAppearance(extra: ["-ARReplyTextStep", "3", "-ARReplyFont", "serif"]) { app, appearance in
+            showSidebar(app)
+            tapRow(app.staticTexts["Explain Swift actors"])
+            XCTAssertTrue(app.staticTexts["Key points:"].waitForExistence(timeout: 10))
+            capture("chat-markdown-large-serif", appearance)
+        }
+    }
+
     func testResponseDetailsAndSwitchNote() {
         forEachAppearance { app, appearance in
             showSidebar(app)

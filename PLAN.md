@@ -593,6 +593,16 @@ Research, 2026-11-27 (HIG pages and WWDC25 "Meet Liquid Glass" via search summar
 9. A clipboard offer is a single leading chip (the system Paste button), then actions that work on text. It is never a second row.
 10. Motion: a short fade and slide from the bottom edge as the row comes and goes; fade only under Reduce Motion.
 
+### Reply footer and reply text (decision D24)
+
+Goal: a reply reads like one in a leading AI chat app. Calm markdown, a text size and font the reader picks, and one quiet row under the reply. Not run on a device; CI and screenshots only.
+
+- One row: copy, share, read aloud, regenerate (system symbols, 44 pt hit areas), then the short model name, then up to three overlapping site icons with "N sources". When it does not fit one line, the model and sources drop to a second line instead of scrolling.
+- `ReplyFooter.make` (Features/Chat/ReplyFooterLogic.swift) decides what shows and in what order. `ModelShortLabel` shortens names ("Gemma 4 E2B", "Haiku 4.5", "Apple").
+- The model name opens cost, first token, total time, speed and tokens (cost and first token moved off the line to keep it quiet). "$0" stays "$0".
+- Sources come from the reply's search and page-read tool calls, one per page (www, trailing slash and case do not make two). Icons come from each site's own `/favicon.ico` over HTTPS, never a favicon service (docs/privacy.md). A letter circle stands in until it loads.
+- Text size is -2 to +3 steps of 6% on top of Dynamic Type; font is System, Serif or Rounded. Both live in `AppSettings` with the other settings keys (not `@AppStorage`, which this app does not use) and show a live preview in Settings, Response Customization.
+
 ### Boundary (decision D15)
 
 The reference design is a web app. "Match it 100%" cannot mean pixel-copying web widgets onto iOS. The boundary is:

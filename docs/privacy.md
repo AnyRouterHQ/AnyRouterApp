@@ -28,6 +28,10 @@ Settings of the SDK: no personal data (`sendDefaultPii` off), no IP address coll
 
 Sentry is the only third-party service. There is no analytics SDK.
 
+## Source icons
+
+When a reply used web search, the row under it shows up to three small site icons. The app asks each site itself for its `/favicon.ico` over HTTPS, so that site sees a normal request from your device. No favicon service is involved, and nothing is sent to anyone else. Icons for the list of sources load only when you open it. The icons are not downloaded in demo mode.
+
 ## Turn it off
 
 - **Settings, Privacy, Share anonymous diagnostics** off. Events and crash reports are dropped from then on. The SDK itself stops at the next launch. Turning the switch on (or answering Share) starts it at the next launch.
