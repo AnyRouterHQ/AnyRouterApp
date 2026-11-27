@@ -14,6 +14,19 @@ struct MentionItem: Identifiable, Hashable, Sendable {
     /// Grey text at the end of the row.
     var trailing: String
     var icon: ToolSource.Icon
+    /// A plugin's switch: on or off. Nil for rows that have none.
+    var isOn: Bool? = nil
+    /// Why the row cannot be chosen, shown in place of the grey text. Nil when it can.
+    var unavailableReason: String? = nil
+
+    var isAvailable: Bool { unavailableReason == nil }
+
+    /// The grey text at the end of the row: the reason, else the kind and a plugin's switch.
+    var detail: String {
+        if let unavailableReason { return unavailableReason }
+        guard let isOn else { return trailing }
+        return "\(trailing) · \(isOn ? "On" : "Off")"
+    }
 
     var id: String {
         switch kind {
@@ -42,6 +55,8 @@ enum ComposerMention {
     static let fileLabel = "File"
     /// The files the list offers at most.
     static let maxFiles = 8
+    /// In place of the kind on plugin and file rows when the model cannot call tools.
+    static let noToolsReason = "This model has no tools"
 
     /// The words typed after an @ that ends the text and starts a word (not the @ of an address).
     /// Nil when the text has no such @ or a space ended the word.
@@ -54,9 +69,15 @@ enum ComposerMention {
     }
 
     /// Plugins first, then presets with pickers, then the newest files.
-    static func items(sources: [ToolSource], files: [ChatAttachment], presets: [PromptPreset] = []) -> [MentionItem] {
+    /// `isOn` reads a plugin's switch. `unavailableReason` disables the plugin and file rows (a file is read by a tool).
+    static func items(
+        sources: [ToolSource], files: [ChatAttachment], presets: [PromptPreset] = [],
+        isOn: ((ToolSource) -> Bool)? = nil, unavailableReason: String? = nil
+    ) -> [MentionItem] {
         let plugins = sources.map {
-            MentionItem(kind: .plugin(sourceID: $0.id), title: $0.title, trailing: pluginLabel, icon: $0.icon)
+            MentionItem(
+                kind: .plugin(sourceID: $0.id), title: $0.title, trailing: pluginLabel, icon: $0.icon,
+                isOn: isOn?($0), unavailableReason: unavailableReason)
         }
         let helpers = presets.filter(\.hasOptions).map {
             MentionItem(kind: .preset(presetID: $0.id), title: $0.title, trailing: presetLabel, icon: .symbol($0.symbol))
@@ -64,7 +85,7 @@ enum ComposerMention {
         let recent = files.suffix(maxFiles).reversed().map {
             MentionItem(
                 kind: .file(attachmentID: $0.id, filename: $0.filename), title: $0.filename, trailing: fileLabel,
-                icon: .symbol(symbol(for: $0.kind)))
+                icon: .symbol(symbol(for: $0.kind)), unavailableReason: unavailableReason)
         }
         return plugins + helpers + recent
     }

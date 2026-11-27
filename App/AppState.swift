@@ -98,8 +98,10 @@ final class AppState {
         let gguf = GGUFEngine(telemetry: telemetry, residency: residency)
         let mlx = MLXEngine(telemetry: telemetry, residency: residency)
         registry.register(AppleFoundationEngine())
-        registry.register(gguf)
-        registry.register(mlx)
+        // The on-device engines only write text; the wrapper gives them a tool loop when the person turns it on.
+        let onDeviceTools: @Sendable () -> Bool = { UserDefaults.standard.bool(forKey: AppSettings.onDeviceToolsKey) }
+        registry.register(LocalToolEngine(wrapping: gguf, isEnabled: onDeviceTools))
+        registry.register(LocalToolEngine(wrapping: mlx, isEnabled: onDeviceTools))
         Perf.signposter.endInterval("launch.engines", enginesSignpost)
         // A loaded model is several GB; hand it back when the system is short on memory.
         // A running generation keeps its own reference, so this never cuts a reply short.

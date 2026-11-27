@@ -42,10 +42,10 @@ final class ToolSourceRegistryTests: XCTestCase {
 
     func testSignedOutStartsWithDeviceToolsAndExaForEveryModel() {
         let registry = makeRegistry()
-        for source in [ModelSource.gguf, .mlx, .anyrouter] {
-            XCTAssertEqual(names(registry, source), device + exa, "\(source)")
+        XCTAssertEqual(names(registry, .anyrouter), device + exa)
+        for source in [ModelSource.gguf, .mlx, .apple] {
+            XCTAssertEqual(names(registry, source), apple, "\(source) gets the four a small context holds")
         }
-        XCTAssertEqual(names(registry, .apple), apple)
         XCTAssertEqual(names(registry, nil), device + exa)
     }
 
@@ -57,10 +57,9 @@ final class ToolSourceRegistryTests: XCTestCase {
 
     func testSignedInOnADeviceModelStillGetsExa() {
         let registry = makeRegistry(signedIn: true)
-        for source in [ModelSource.gguf, .mlx] {
-            XCTAssertEqual(names(registry, source), device + exa, "\(source)")
+        for source in [ModelSource.gguf, .mlx, .apple] {
+            XCTAssertEqual(names(registry, source), apple, "\(source)")
         }
-        XCTAssertEqual(names(registry, .apple), apple)
     }
 
     func testOtherPublicServicesStartOffAndOnlyTheirMainToolIsOn() {
@@ -226,7 +225,7 @@ final class ToolSourceRegistryTests: XCTestCase {
 
     // MARK: Small models
 
-    func testLocalModelsGetEightToolsAndAppleFourWithShortDescriptions() {
+    func testLocalModelsAndAppleGetFourToolsWithShortDescriptions() {
         let registry = makeRegistry()
         registry.setSource(ToolSourceCatalog.deepWiki, on: true)
         registry.setSource(ToolSourceCatalog.microsoftLearn, on: true)
@@ -235,11 +234,7 @@ final class ToolSourceRegistryTests: XCTestCase {
         }
         let host = registry.makeHost(approver: Refuses(), context: ToolContext(modelSource: .gguf))!
         let list = host.specs.map(\.name)
-        XCTAssertEqual(list.count, 8)
-        XCTAssertEqual(list.prefix(5), [
-            "current_date_time", "calculator", "web_search_exa", "microsoft_docs_search", "microsoft_code_sample_search",
-        ])
-        XCTAssertTrue(list.contains("fetch_url"))
+        XCTAssertEqual(list, ["current_date_time", "calculator", "web_search_exa", "microsoft_docs_search"])
         XCTAssertFalse(list.contains("microsoft_docs_fetch"))
         XCTAssertTrue(host.specs.allSatisfy { $0.description.count <= 160 })
 

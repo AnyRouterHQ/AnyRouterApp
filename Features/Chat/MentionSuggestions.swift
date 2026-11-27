@@ -36,12 +36,14 @@ struct MentionSuggestions: View {
                         HStack {
                             Label { Text(item.title) } icon: { ToolSourceIcon(icon: item.icon) }
                             Spacer()
-                            Text(item.trailing).foregroundStyle(.secondary)
+                            // The reason or the switch is words, not only a dimmed row.
+                            Text(item.detail).font(.subheadline).foregroundStyle(.secondary)
                         }
                         .frame(minHeight: rowHeight)
                         .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
+                    .disabled(!item.isAvailable)
                     .accessibilityIdentifier("mention.\(item.id)")
                     .listRowBackground(Color.clear)
                 }

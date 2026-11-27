@@ -5,6 +5,7 @@ import SwiftUI
 /// Pushed from the Settings list, so it relies on that NavigationStack.
 struct IntegrationsSettingsView: View {
     @Environment(AppState.self) private var app
+    @Environment(AppSettings.self) private var settings
 
     @State private var showsAdd = false
     @State private var detail: ToolSource?
@@ -27,10 +28,25 @@ struct IntegrationsSettingsView: View {
                     }
                 }
             }
+            onDeviceModelsSection
         }
+        // The model list carries the tools capability, so it is read again when the switch moves.
+        .onChange(of: settings.onDeviceTools) { Task { await app.models.refresh() } }
         .navigationDestination(item: $detail) { ToolSourceScreen(source: $0) }
         .sheet(isPresented: $showsAdd) { AddMCPServerSheet() }
         .task { await store.refreshAll() }
+    }
+
+    private var onDeviceModelsSection: some View {
+        Section {
+            ToolToggleRow(
+                icon: .symbol("cpu"), title: "Tools on this device's models",
+                subtitle: "Qwen, Llama 3 and Gemma models can call the tools above. Uses part of their small context.",
+                isOn: Bindable(settings).onDeviceTools)
+                .accessibilityIdentifier("tools.on-device-models")
+        } footer: {
+            Text("Off by default. Models that cannot call tools show them as unavailable in the @ list.")
+        }
     }
 
     private func customSection(_ sources: [ToolSource]) -> some View {

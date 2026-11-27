@@ -14,13 +14,13 @@ struct ToolProfileTests {
         #expect(ToolProfile.full.shaped(specs) == specs)
     }
 
-    @Test func smallModelsGetEightToolsAndTheClockThenTheCalculatorThenSearchComeFirst() {
+    @Test func smallModelsGetFourToolsAndTheClockThenTheCalculatorThenSearchComeFirst() {
         let filler = (0..<9).map { spec("other\($0)") }
         let specs = filler + [spec("calculator"), spec("web_fetch_exa"), spec("web_search_exa")]
         let shaped = ToolProfile.compact.shaped(specs)
-        #expect(shaped.count == 8)
+        #expect(shaped.count == 4)
         #expect(shaped.map(\.name).prefix(3) == ["calculator", "web_search_exa", "web_fetch_exa"])
-        #expect(shaped.map(\.name).dropFirst(3) == ["other0", "other1", "other2", "other3", "other4"])
+        #expect(shaped.map(\.name).dropFirst(3) == ["other0"])
     }
 
     /// The one cap on Apple's four-tool window: the clock, the calculator, search and one page reader.
@@ -36,9 +36,9 @@ struct ToolProfileTests {
         ])
     }
 
-    @Test func localModelsKeepEightAndAppleFour() {
+    @Test func localModelsAndAppleBothKeepFour() {
         #expect(ToolProfile.apple.maxTools == 4)
-        #expect(ToolProfile.compact.maxTools == 8)
+        #expect(ToolProfile.compact.maxTools == 4)
         #expect(ToolProfile.apple.maxResultCharacters == ToolProfile.compact.maxResultCharacters)
     }
 

@@ -237,14 +237,15 @@ struct Composer: View {
         mentionRows.isEmpty ? nil : ComposerMention.query(in: model.input)
     }
 
-    /// Plugins that are on and the files of this chat (when this model can use tools), and the presets with pickers,
-    /// minus what is already chosen.
+    /// Every plugin with its switch and the files of this chat, and the presets with pickers, minus what is already
+    /// chosen. A model without tools sees the plugins and files disabled, with the reason.
     private var mentionRows: [MentionItem] {
-        let tools = model.supportsTools
         let modelSource = model.model?.source
-        let sources = tools ? app.tools.menuSources.filter { app.tools.isOn($0, modelSource: modelSource) } : []
         let chosen = Set(model.mentions.map(\.id))
-        return ComposerMention.items(sources: sources, files: tools ? model.mentionableFiles : [], presets: presets?.all ?? [])
+        return ComposerMention.items(
+            sources: app.tools.menuSources, files: model.mentionableFiles, presets: presets?.all ?? [],
+            isOn: { app.tools.isOn($0, modelSource: modelSource) },
+            unavailableReason: model.supportsTools ? nil : ComposerMention.noToolsReason)
             .filter { !chosen.contains($0.id) }
     }
 

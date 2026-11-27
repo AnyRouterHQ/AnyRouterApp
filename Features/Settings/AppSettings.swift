@@ -36,10 +36,20 @@ final class AppSettings {
         static let backgroundedAt = "settings.backgroundedAt"
     }
 
+    /// The key behind `onDeviceTools`, so an engine can read the switch without the main actor.
+    static let onDeviceToolsKey = "settings.onDeviceTools"
+
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+    }
+
+    /// Tools for models that run on this device (llama.cpp and MLX). Off until the person turns it on: a small model
+    /// spends part of its context on the tool list, and tool calling there is not checked on every model.
+    var onDeviceTools: Bool {
+        get { access(keyPath: \.onDeviceTools); return defaults.bool(forKey: Self.onDeviceToolsKey) }
+        set { withMutation(keyPath: \.onDeviceTools) { defaults.set(newValue, forKey: Self.onDeviceToolsKey) } }
     }
 
     var temperature: Double {

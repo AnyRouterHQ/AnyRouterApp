@@ -520,7 +520,7 @@ final class ChatViewModel {
         let tools = host?.specs.isEmpty == false ? host : nil
         // A model without a tool loop gets a search run for it when its question needs the web.
         var grounding: (query: String, context: ToolContext)?
-        if toolsEnabled, WebGrounding.appliesTo(model.source), webSearch.isOn(model.source),
+        if toolsEnabled, tools == nil, WebGrounding.appliesTo(model.source), webSearch.isOn(model.source),
             let question = thread.orderedMessages.last(where: { $0.role == .user })?.content,
             WebGrounding.needsFreshInfo(question) {
             var searchContext = Self.toolContext(for: thread, modelSource: model.source)
