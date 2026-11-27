@@ -5,17 +5,22 @@ import SwiftUI
 struct FaviconView: View {
     let source: ReplyFooter.Source
     var size: CGFloat
+    @State private var loaded: UIImage?
 
     var body: some View {
-        // Demo data never touches the network, so the screenshots always show the letter.
-        AsyncImage(url: DemoData.isEnabled ? nil : source.faviconURL) { phase in
-            if let image = phase.image {
-                image.resizable().scaledToFit()
+        Group {
+            if let image = loaded ?? FaviconCache.shared.cached(source.faviconURL) {
+                Image(uiImage: image).resizable().scaledToFit()
             } else {
                 Text(source.host.prefix(1).uppercased())
                     .font(.system(size: size * 0.5, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
+        }
+        // Demo data never touches the network, so the screenshots always show the letter.
+        .task(id: source.faviconURL) {
+            guard !DemoData.isEnabled else { return }
+            loaded = await FaviconCache.shared.image(for: source.faviconURL)
         }
         .frame(width: size, height: size)
         .background(Color(.secondarySystemFill))
