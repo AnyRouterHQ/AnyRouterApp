@@ -45,6 +45,38 @@ final class ScreenshotTests: XCTestCase {
     /// iPhone: the sidebar is a drawer behind the menu button. iPad: a column, open in landscape only.
     private func showSidebar(_ app: XCUIApplication) {
         app.revealSidebar(whenVisible: app.buttons["Settings"].firstMatch)
+        logFrames(app)
+    }
+
+    /// Frames of the gear, the chat panel, its + button and the scrim with the sidebar open, written to frames.txt.
+    private func logFrames(_ app: XCUIApplication) {
+        func frame(_ element: XCUIElement) -> String {
+            element.exists ? NSCoder.string(for: element.frame) + (element.isHittable ? " hittable" : " not-hittable") : "missing"
+        }
+        let text = [
+            "window=" + NSCoder.string(for: app.windows.firstMatch.frame),
+            "gear=" + frame(app.buttons["Settings"].firstMatch),
+            "compose=" + frame(app.buttons["sidebar.compose"]),
+            "scrim=" + frame(app.buttons["Close sidebar"]),
+            "chatPlus=" + frame(app.buttons["Add"]),
+            "chat=" + frame(app.descendants(matching: .any)["chat.detail"]),
+        ].joined(separator: "\n")
+        let attachment = XCTAttachment(string: text)
+        attachment.name = "frames-\(name)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        guard let dir = ProcessInfo.processInfo.environment["SCREENSHOT_DIR"], !dir.isEmpty else { return }
+        let short = name.split(separator: " ").last.map { String($0).trimmingCharacters(in: CharacterSet(charactersIn: "]")) } ?? "test"
+        try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: dir).appendingPathComponent("drawer-open-\(short).png"))
+        let url = URL(fileURLWithPath: dir).appendingPathComponent("frames.txt")
+        let entry = "[\(name)]\n\(text)\n\n"
+        if let handle = try? FileHandle(forWritingTo: url) {
+            handle.seekToEndOfFile()
+            handle.write(Data(entry.utf8))
+            try? handle.close()
+        } else {
+            try? Data(entry.utf8).write(to: url)
+        }
     }
 
     private func open(_ app: XCUIApplication, footer title: String) {
@@ -52,10 +84,11 @@ final class ScreenshotTests: XCTestCase {
         tapRow(button(app, containing: title))
     }
 
-    /// Taps by coordinate: rows in the open drawer can report "not hittable" while they are visible.
+    /// Taps a drawer row like a finger would, after checking it exists.
     private func tapRow(_ element: XCUIElement) {
         XCTAssertTrue(element.waitForExistence(timeout: 10), "row \(element)")
-        element.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).tap()
+        // A normal tap: if something covers the row, the test must say so, not tap through it.
+        element.tap()
     }
 
     private func scrollTo(_ element: XCUIElement, in app: XCUIApplication) {

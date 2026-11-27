@@ -168,9 +168,37 @@ class JourneyCase: XCTestCase {
         }
         let end = Date().addingTimeInterval(5)
         while Date() < end, !sidebarIsOpen(app) { usleep(200_000) }
-        if !sidebarIsOpen(app) { fail(app, "sidebar-did-not-open", "sidebar did not open") }
+        if !sidebarIsOpen(app) {
+            logSidebarFrames(app, "did-not-open")
+            fail(app, "sidebar-did-not-open", "sidebar did not open")
+        }
         // The drawer springs in; a tap while it moves lands on the old position.
         sleep(1)
+        logSidebarFrames(app, "drawer-open")
+    }
+
+    /// Frames of the gear, the chat panel, its + button and the scrim with the drawer open, to tell a real overlap
+    /// from a test mistake: what covers what is visible in the numbers. Written to frames.tsv and attached.
+    func logSidebarFrames(_ app: XCUIApplication, _ context: String) {
+        func frame(_ element: XCUIElement) -> String {
+            element.exists ? NSCoder.string(for: element.frame) + (element.isHittable ? " hittable" : " not-hittable") : "missing"
+        }
+        let parts = [
+            "window=" + NSCoder.string(for: app.windows.firstMatch.frame),
+            "gear=" + frame(app.buttons["Settings"].firstMatch),
+            "compose=" + frame(app.buttons["sidebar.compose"]),
+            "search=" + frame(app.buttons["sidebar.search"]),
+            "scrim=" + frame(app.buttons["Close sidebar"]),
+            "chatPlus=" + frame(app.buttons["Add"]),
+            "menu=" + frame(app.buttons["Menu"]),
+            "chat=" + frame(app.descendants(matching: .any)["chat.detail"]),
+        ]
+        let line = "\(journey)\t\(currentPass.rawValue)\t\(context)\t" + parts.joined(separator: "\t")
+        append(line, to: "frames.tsv")
+        let attachment = XCTAttachment(string: parts.joined(separator: "\n"))
+        attachment.name = "frames-\(journey)-\(currentPass.rawValue)-\(context)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     /// A button that is on screen. Closed-drawer buttons stay in the tree, so plain label lookups can pick them.
