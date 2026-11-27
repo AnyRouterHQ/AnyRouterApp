@@ -287,7 +287,7 @@ Entry points (reach AnyRouter from anywhere on the phone; owner sonnet-medium-lo
 Units from `docs/research/agent-design.md` § 6, in this order. Each is one push to main ending in a green CI run.
 
 - [ ] M1 `MemoryRecord`, `MemoryStore` (add, edit, delete, caps, scope), Settings › Memory with its three switches
-- [ ] A1 Token counter replaces `CompactionLogic.tokens` (English, Vietnamese, Chinese tests; Apple counter behind `#available(iOS 26.4, *)`)
+- [x] A1 (8cb2708; Apple's own counter comes with A2, where a request is assembled) Token counter replaces `CompactionLogic.tokens` (English, Vietnamese, Chinese tests; Apple counter behind `#available(iOS 26.4, *)`)
 - [ ] M2 Always-on profile in the prompt, frozen per thread; "Don't use memory in this chat"
 - [ ] M3 "Remember that" classifier (English, Vietnamese), "Remember this" action, "Memory updated" row with Undo and Edit
 - [ ] M4 Pre-send lexical recall, top 3, "Used N memories" in the footer with Forget
@@ -296,7 +296,7 @@ Units from `docs/research/agent-design.md` § 6, in this order. Each is one push
 - [ ] A2 `PromptAssembler` with sections and budgets; the context meter reads its report
 - [ ] A3 In-run result caps, stubs for old results, tool digest for the next turn
 - [ ] A4 Structured cloud summary; compact once and retry on Apple's context error
-- [ ] G1 `interrupted` marker on a reply, set at insert and cleared when it finishes (builds on lane A's stored failure)
+- [x] G1 (3ad8787) `interrupted` marker on a reply, set at insert and cleared when it finishes (builds on lane A's stored failure)
 - [ ] G2 `AgentRunRecord`, saved at step boundaries
 - [ ] G3 One app loop for AnyRouter and local models (`StepFunction`); LA1 side-effect classes drive its approvals; `decide` as a tool
 - [ ] G4 Approval interrupt saved and resumed
