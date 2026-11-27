@@ -64,18 +64,30 @@ final class LlamaModel: @unchecked Sendable {
         #if targetEnvironment(simulator)
         params.n_gpu_layers = 0
         #else
-        // A streamed model stays on the CPU: Metal would map the whole file into GPU buffers, which the system charges
-        // to the app, and the point of streaming is that only the experts in use are resident.
-        params.n_gpu_layers = estimate.streamsFromStorage ? 0 : GPUOffload.layers(
-            blockCount: info?.blockCount ?? 0, fileBytes: fileBytes,
-            gpuBudgetBytes: MTLCreateSystemDefaultDevice().map { Int64($0.recommendedMaxWorkingSetSize) })
+        if estimate.streamsFromStorage {
+            // A streamed model runs on the CPU alone, so only the experts in use are resident. Zero GPU layers is not
+            // enough: with the Metal device in the list, llama.cpp still sends long prompts' matrix work to the GPU,
+            // which copies weights into memory the system charges to the app. No GPU device (single-device mode with
+            // no main GPU) rules that out, and no repacking keeps weights in the mapped file instead of copies.
+            params.n_gpu_layers = 0
+            params.split_mode = LLAMA_SPLIT_MODE_NONE
+            params.main_gpu = -1
+            params.use_extra_bufts = false
+        } else {
+            params.n_gpu_layers = GPUOffload.layers(
+                blockCount: info?.blockCount ?? 0, fileBytes: fileBytes,
+                gpuBudgetBytes: MTLCreateSystemDefaultDevice().map { Int64($0.recommendedMaxWorkingSetSize) })
+        }
         #endif
-        guard let model = llama_model_load_from_file(path, params) else {
-            throw GGUFError.loadFailed(name)
+        LlamaLoadLog.begin()
+        let loaded = llama_model_load_from_file(path, params)
+        let log = LlamaLoadLog.end()
+        guard let model = loaded else {
+            throw GGUFError.loadFailed(name: name, reason: LlamaLoadLog.reason(from: log))
         }
         guard let vocab = llama_model_get_vocab(model) else {
             llama_model_free(model)
-            throw GGUFError.loadFailed(name)
+            throw GGUFError.loadFailed(name: name, reason: "the file has no vocabulary")
         }
         self.model = model
         self.vocab = vocab
