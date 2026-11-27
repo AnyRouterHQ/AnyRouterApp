@@ -38,7 +38,13 @@ private struct SettingsList: View {
             Section { AccountCard() }
             ForEach(SettingsDestination.Group.allCases, id: \.self) { group in
                 Section {
-                    ForEach(group.destinations, id: \.self) { SettingsRow(destination: $0, subtitle: subtitle(for: $0)) }
+                    ForEach(group.destinations, id: \.self) { destination in
+                        NavigationLink(value: destination) {
+                            ListRow(destination.title, subtitle: subtitle(for: destination)) {
+                                SettingsIcon(glyph: destination.glyph, color: destination.tileColor)
+                            }
+                        }
+                    }
                 } header: {
                     Text(group.title)
                 } footer: {

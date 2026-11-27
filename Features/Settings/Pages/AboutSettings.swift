@@ -10,7 +10,11 @@ struct AboutSettings: View {
         List {
             Section { versionRow }
             Section {
-                ForEach(SettingsDestination.aboutPages, id: \.self) { SettingsRow(destination: $0, subtitle: nil) }
+                ForEach(SettingsDestination.aboutPages, id: \.self) { destination in
+                    NavigationLink(value: destination) {
+                        ListRow(destination.title) { SettingsIcon(glyph: destination.glyph, color: destination.tileColor) }
+                    }
+                }
             }
         }
     }

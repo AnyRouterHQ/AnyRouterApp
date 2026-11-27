@@ -84,7 +84,11 @@ struct AccountCard: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
             .accessibilityElement(children: .combine)
-            ExternalLinkRow(title: "Verify on anyrouter.dev", systemImage: "envelope", destination: Self.emailSettingsURL)
+            Link(destination: Self.emailSettingsURL) {
+                ListRow("Verify on anyrouter.dev", icon: { Image(systemName: "envelope") }) { OutboundArrow() }
+            }
+            .foregroundStyle(.primary)
+            .accessibilityHint("Opens in Safari")
         }
     }
 

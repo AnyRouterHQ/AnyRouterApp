@@ -35,7 +35,11 @@ struct PrivacySettings: View {
                     : "This build has no remote reporting set up, so nothing is shared. Crash reports stay on this device under Diagnostics.")
             }
             Section {
-                ExternalLinkRow(title: "Read the full text on anyrouter.dev", systemImage: "hand.raised", destination: LegalPage.Kind.privacy.url)
+                Link(destination: LegalPage.Kind.privacy.url) {
+                    ListRow("Read the full text on anyrouter.dev", icon: { Image(systemName: "hand.raised") }) { OutboundArrow() }
+                }
+                .foregroundStyle(.primary)
+                .accessibilityHint("Opens in Safari")
             }
         }
         .confirmationDialog("Delete all conversations?", isPresented: $confirmsDelete, titleVisibility: .visible) {
