@@ -1,6 +1,5 @@
 import SwiftData
 import SwiftUI
-import UIKit
 
 /// Settings as a native drill-down: a sheet with a navigation stack and a grouped inset list.
 struct SettingsScreen: View {
@@ -31,47 +30,19 @@ struct SettingsScreen: View {
 }
 
 private struct SettingsList: View {
-    @Environment(AppSettings.self) private var settings
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models
 
-    @State private var versionTaps = 0
-    @State private var copiedDiagnostics = false
-
     var body: some View {
-        @Bindable var settings = settings
         List {
             Section { AccountCard() }
             ForEach(SettingsDestination.Group.allCases, id: \.self) { group in
                 Section {
-                    ForEach(group.destinations, id: \.self) { destination in
-                        NavigationLink(value: destination) {
-                            LabeledContent {
-                                if let subtitle = subtitle(for: destination) { Text(subtitle) }
-                            } label: {
-                                Label(destination.title, systemImage: destination.systemImage)
-                            }
-                        }
-                    }
-                    if group == .chat {
-                        Toggle(isOn: $settings.showKeyboardOnLaunch) {
-                            Label("Show keyboard on launch", systemImage: "keyboard")
-                        }
-                        .accessibilityIdentifier("settings-show-keyboard")
-                        Picker(selection: $settings.newChatDelay) {
-                            ForEach(NewChatDelay.allCases) { Text($0.title).tag($0) }
-                        } label: {
-                            Label("Start a new chat after", systemImage: "clock.arrow.circlepath")
-                        }
-                        .accessibilityIdentifier("settings-new-chat-after")                    }
-                    if group == .about { versionRow }
+                    ForEach(group.destinations, id: \.self) { SettingsRow(destination: $0, subtitle: subtitle(for: $0)) }
                 } header: {
                     Text(group.title)
                 } footer: {
                     if group == .models, let note = models.defaultNote { Text(note) }
-                    if group == .chat {
-                        Text("The keyboard opens when you start the app. Leave the app for the time above and it opens on a new chat; a shorter break keeps your conversation.")
-                    }
                 }
             }
         }
@@ -93,35 +64,6 @@ private struct SettingsList: View {
             return nil
         }
     }
-
-    private var versionRow: some View {
-        Button {
-            versionTaps += 1
-            if versionTaps >= SettingsLogic.diagnosticsTapCount {
-                versionTaps = 0
-                UIPasteboard.general.string = SettingsLogic.diagnostics(
-                    version: SettingsLogic.appVersion, build: SettingsLogic.appBuild,
-                    system: UIDevice.current.systemVersion
-                )
-                copiedDiagnostics = true
-            }
-        } label: {
-            HStack {
-                Label("Version", systemImage: "info.circle")
-                Spacer()
-                Text(SettingsLogic.versionText(version: SettingsLogic.appVersion, build: SettingsLogic.appBuild, commit: SettingsLogic.appCommit))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .foregroundStyle(.primary)
-        .sensoryFeedback(.success, trigger: copiedDiagnostics)
-        .overlay(alignment: .bottomTrailing) {
-            if copiedDiagnostics {
-                Text("Diagnostics copied").font(.caption2).foregroundStyle(.secondary)
-                    .task { try? await Task.sleep(for: .seconds(2)); copiedDiagnostics = false }
-            }
-        }
-    }
 }
 
 /// The single routing switch. Add a case to `SettingsDestination` and a branch here.
@@ -136,7 +78,10 @@ struct SettingsDestinationView: View {
             case .responseCustomization: ResponseCustomizationSettings()
             case .presets: PresetsSettingsView()
             case .integrations: IntegrationsSettingsView()
+            case .chatBehavior: ChatBehaviorSettings()
+            case .shortcuts: ShortcutsSettings()
             case .theme: ThemeSettings()
+            case .about: AboutSettings()
             case .diagnostics: DiagnosticsSettings()
             case .privacy: PrivacySettings()
             case .terms: LegalPage(kind: .terms)

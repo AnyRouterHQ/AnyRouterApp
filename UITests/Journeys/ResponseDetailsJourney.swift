@@ -1,6 +1,6 @@
 import XCTest
 
-/// Settings, Response Customization, "Show response details": the line under each reply (model, first token, speed)
+/// Settings, Responses, "Show response details": the line under each reply (model, first token, speed)
 /// is there by default, goes away when the toggle is off and stays away after a relaunch.
 @MainActor
 final class ResponseDetailsJourney: JourneyCase {
@@ -14,7 +14,7 @@ final class ResponseDetailsJourney: JourneyCase {
 
     private func setToggle(_ on: Bool, _ app: XCUIApplication) {
         openSettings(app)
-        let row = button(app, containing: "Response Customization")
+        let row = button(app, containing: "Responses")
         reveal(row, in: app)
         row.tap()
         let toggle = app.switches["settings-show-response-details"]

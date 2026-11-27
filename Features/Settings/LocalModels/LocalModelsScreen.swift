@@ -52,14 +52,13 @@ struct LocalModelsScreen: View {
                     .accessibilityIdentifier("local.installed")
             }
             voiceSection
-            Section("Sources") {
-                NavigationLink {
-                    CatalogSourcesScreen()
-                } label: {
-                    LabeledContent("Catalog Sources", value: "\(sourceCount)")
-                }
-            }
             storageSection
+            Section {
+                NavigationLink("Advanced") { LocalModelsAdvancedScreen(sourceCount: sourceCount) }
+                    .accessibilityIdentifier("local.advanced")
+            } footer: {
+                Text("Where the model list comes from.")
+            }
         }
         .listStyle(.insetGrouped)
         .accessibilityIdentifier("local.list")
@@ -204,6 +203,25 @@ struct LocalModelsScreen: View {
         }
         .swipeActions(edge: .trailing) { actions.swipe(entry, state: state) }
         .contextMenu { actions.menu(entry, state: state) }
+    }
+}
+
+/// Where the catalog comes from, kept off the main page: most people never change it.
+struct LocalModelsAdvancedScreen: View {
+    let sourceCount: Int
+
+    var body: some View {
+        List {
+            Section("Sources") {
+                NavigationLink {
+                    CatalogSourcesScreen()
+                } label: {
+                    LabeledContent("Catalog Sources", value: "\(sourceCount)")
+                }
+            }
+        }
+        .navigationTitle("Advanced")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

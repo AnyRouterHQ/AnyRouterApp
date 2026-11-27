@@ -184,6 +184,32 @@ Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel 
 - [x] G12 (9afeb77) Custom Instructions screen (templates Concise, Teacher, Vietnamese replies, Code reviewer; count; which models use it) and "Instructions for this chat" in the chat's more menu, saved on `ThreadRecord.instructions`, header tag "Custom instructions". Precedence: chat, then global, then none (`InstructionsLogic.effective`).
 - [ ] G7 Open: Local Models › Catalog Sources has no "last refresh" line (the catalog service does not expose it); the paste offer is covered by unit tests only (the system paste prompt cannot be driven in UI tests).
 
+
+### Settings IA v2
+
+Operator: "nest more info into deeper levels so Settings stays simple". The root list fits one iPhone screen: the account card, three sections, ten rows.
+
+Before: Account card; Models (Local Models, AnyRouter Models); Chat (Response Customization, Presets, Integrations, Show keyboard on launch, Start a new chat after, footer); Appearance (Theme); About (Diagnostics, Privacy, Terms, Licenses, Version). 14 rows, 4 headers.
+
+After:
+
+```
+Account card
+Models   Local Models (> Advanced > Catalog Sources) · AnyRouter Models
+Chat     Responses (> Advanced: length, sampling) · Presets · Integrations · Chat Behavior (keyboard on launch, new chat after)
+App      Shortcuts & Controls · Theme · Privacy · About (Version, Diagnostics, Terms, Licenses)
+```
+
+- Moved off the root: the keyboard toggle and "Start a new chat after" (now Chat Behavior, identifiers `settings-show-keyboard` and `settings-new-chat-after` kept); Version, Diagnostics, Terms, Licenses (now About; the seven-tap diagnostics copy stays on the Version row); Privacy and Theme share the App section with About.
+- New: Shortcuts & Controls (`ShortcutsLogic.features`: Siri and Shortcuts with a ShortcutsLink, Control Center and Lock Screen, Action Button, Share sheet, Read text from a photo, each with a "How to add" line). "Response Customization" is now titled "Responses".
+- Advanced: Responses already had it. Local Models gets one (Catalog Sources moved there, `local.advanced`). Privacy, Theme, Integrations and Presets are short and stay flat.
+- Row icons: colored tiles from `SettingsIcon` and `ARPalette` (see Color and icons).
+- Tests: `SettingsDestinationTests` (root rows and order), UI tests that tapped moved rows, `testSettingsPages` screenshots.
+
+### Color and icons
+
+Operator: "nice color, nice icon, nice design". `Design/ARPalette.swift` holds the one tint (the AccentColor asset: black in light, white in dark), the semantic colors and the tile color per Settings page. `SettingsIcon` draws the iOS Settings style tile (white medium-weight symbol on a 29 pt rounded square, scaled with Dynamic Type). `scripts/source-check.sh` fails on `Color(red:`, `Color(hex`, `UIColor(red:` and `.foregroundColor(` in Features/; exceptions go in `scripts/color-allowlist.txt` with a reason. Rubric version 2 adds `color` and `iconography`.
+
 ## Lane H: diagnostics
 
 - [x] H1 `Telemetry` boundary in Core/ (events, no-op, logging), MetricKit crash/hang/metric store (newest 20) with Settings, Diagnostics, optional Sentry behind `SENTRY_DSN`, Settings, Privacy opt-out, `docs/privacy.md` (9707f88)

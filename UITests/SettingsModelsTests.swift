@@ -87,7 +87,7 @@ final class SettingsModelsTests: XCTestCase {
         app.launch()
         app.revealSidebar(whenVisible: button(app, "Settings"))
         button(app, "Settings").tap()
-        let row = button(app, "Response Customization")
+        let row = button(app, "Responses")
         var tries = 0
         while !(row.exists && row.isHittable) && tries < 8 {
             app.swipeUp()

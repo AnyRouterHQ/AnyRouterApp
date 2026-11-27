@@ -298,12 +298,12 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
-    /// Settings, Response Customization: the text size slider, the font picker and the live preview; then the same
+    /// Settings, Responses: the text size slider, the font picker and the live preview; then the same
     /// markdown reply at the largest step in the serif font.
     func testReplyTextSettings() {
         forEachAppearance { app, appearance in
             open(app, footer: "Settings")
-            let row = button(app, containing: "Response Customization")
+            let row = button(app, containing: "Responses")
             scrollTo(row, in: app)
             row.tap()
             let slider = app.sliders["settings-reply-text-size"]
@@ -412,9 +412,23 @@ final class ScreenshotTests: XCTestCase {
             open(app, footer: "Settings")
             XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
             capture("settings", appearance)
-            app.swipeUp()
-            app.swipeUp()
-            capture("settings-more", appearance)
+        }
+    }
+
+    /// The pages that moved off the root list: Chat Behavior, Shortcuts & Controls and About.
+    func testSettingsPages() {
+        forEachAppearance { app, appearance in
+            open(app, footer: "Settings")
+            XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+            for (row, shot) in [("Chat Behavior", "settings-chat-behavior"), ("Shortcuts & Controls", "settings-shortcuts"), ("About", "settings-about")] {
+                let element = button(app, containing: row)
+                scrollTo(element, in: app)
+                element.tap()
+                XCTAssertTrue(app.navigationBars[row].waitForExistence(timeout: 5), "\(row) page")
+                capture(shot, appearance)
+                app.buttons["BackButton"].tap()
+                XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+            }
         }
     }
 
@@ -429,9 +443,12 @@ final class ScreenshotTests: XCTestCase {
     func testLicenses() {
         forEachAppearance { app, appearance in
             open(app, footer: "Settings")
-            let licenses = app.buttons["Licenses"]
             XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
-            scrollTo(licenses, in: app)
+            let about = button(app, containing: "About")
+            scrollTo(about, in: app)
+            about.tap()
+            let licenses = app.buttons["Licenses"]
+            XCTAssertTrue(licenses.waitForExistence(timeout: 5))
             licenses.tap()
             XCTAssertTrue(app.staticTexts["Licenses"].waitForExistence(timeout: 5))
             capture("licenses", appearance)

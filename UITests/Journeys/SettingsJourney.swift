@@ -5,6 +5,9 @@ import XCTest
 final class SettingsJourney: JourneyCase {
     private func setKeyboardToggle(_ on: Bool, _ app: XCUIApplication) {
         openSettings(app)
+        let row = button(app, containing: "Chat Behavior")
+        reveal(row, in: app)
+        row.tap()
         let toggle = app.switches["settings-show-keyboard"]
         reveal(toggle, in: app)
         if (toggle.value as? String == "1") != on {
