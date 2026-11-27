@@ -6,15 +6,15 @@ extension XCUIApplication {
         buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
     }
 
-    /// Whether the thread list can be used. iPhone: the drawer sits under the chat and its views stay in the tree
-    /// while it is closed (not hittable), so the sign is the "Close sidebar" scrim that exists only while it is open.
-    /// iPad: the column's compose button is on screen.
+    /// Whether the thread list is on screen. iPhone: the chat slides right by the drawer width, so the Menu button sits in
+    /// the right half; "Close sidebar" and the drawer's own views stay in the tree while it is closed, so they prove nothing
+    /// (a run showed them "open" over a chat at full width). iPad: the column's compose button is on screen.
     var sidebarIsOpen: Bool {
-        if buttons["Close sidebar"].exists { return true }
-        if buttons["Menu"].exists { return false }
+        let window = windows.firstMatch.frame
+        let menu = buttons["Menu"]
+        if menu.exists { return menu.frame.minX > window.width / 2 }
         let compose = buttons["sidebar.compose"]
         let frame = compose.frame
-        let window = windows.firstMatch.frame
         return compose.exists && !frame.isEmpty && frame.midX > window.minX && frame.midX < window.maxX
     }
 

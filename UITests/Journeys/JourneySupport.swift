@@ -149,12 +149,13 @@ class JourneyCase: XCTestCase {
         return isOnScreen(app, element)
     }
 
-    /// Whether the thread list can be used. iPhone: the drawer sits under the chat and its views stay in the tree
-    /// while it is closed, so the only reliable sign is the "Close sidebar" scrim that exists while it is open.
+    /// Whether the thread list is on screen. iPhone: the chat slides right by the drawer width, so the Menu button sits in
+    /// the right half; "Close sidebar" and the drawer's own views stay in the tree while it is closed, so they prove nothing.
     /// iPad: the column's compose button is on screen.
     func sidebarIsOpen(_ app: XCUIApplication) -> Bool {
-        if app.buttons["Close sidebar"].exists { return true }
-        if app.buttons["Menu"].exists { return false }
+        let window = app.windows.firstMatch.frame
+        let menu = app.buttons["Menu"]
+        if menu.exists { return menu.frame.minX > window.width / 2 }
         let compose = app.buttons["sidebar.compose"]
         return compose.exists && isOnScreen(app, compose)
     }
