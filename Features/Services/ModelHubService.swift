@@ -47,6 +47,8 @@ struct FitDetail: Hashable, Sendable {
     var isEstimate: Bool
     /// The model has a vision projector and this device has room for it as well, so photos work.
     var acceptsImages = false
+    /// Set when the model does not fit here but streams on a device with this much RAM, in GB.
+    var streamsWithRAMGigabytes: Int? = nil
 }
 
 /// A local (GGUF or MLX) model shown in the hub and the onboarding picker.

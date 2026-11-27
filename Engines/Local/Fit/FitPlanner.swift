@@ -72,6 +72,9 @@ struct FitEstimate: Equatable, Sendable {
         case runsWell
         /// It loads, but only with a smaller context and shorter replies than the model supports.
         case tight(maxContext: Int, maxReply: Int)
+        /// A mixture-of-experts file too big for the budget runs from mmap: only the experts in use are resident, the rest
+        /// is read from storage through the page cache. Slow, and only offered where RAM can cache most of the file.
+        case streamed(maxContext: Int, maxReply: Int)
         case wontFit
     }
 
@@ -85,9 +88,15 @@ struct FitEstimate: Equatable, Sendable {
     /// The context this estimate is for: the largest that fits, up to `FitPlanner.maxContext`.
     var context: Int
     var verdict: Verdict
-    /// Only the experts in use stay in RAM; the rest of the file is read from storage on demand (slower).
-    var streamsFromStorage: Bool
     var isEstimated: Bool
+    /// Set on a model that does not fit here but would stream on a device of this class.
+    var streamsOn: DeviceClass? = nil
+
+    /// Only the experts in use stay in RAM; the rest of the file is read from storage on demand (slower).
+    var streamsFromStorage: Bool {
+        if case .streamed = verdict { return true }
+        return false
+    }
 }
 
 /// The fit math, with no device calls: give it a profile and a budget.
@@ -104,18 +113,26 @@ enum FitPlanner {
     static let maxContext = 8192
     /// A model "runs well" only when it leaves this share of the budget unused.
     static let headroom = 0.85
+    /// RAM that iOS, other apps and this app's own pages keep from the page cache. A streamed model needs the rest to hold
+    /// its whole file, or every token reads experts from flash and replies crawl. A guess until a device measures it.
+    static let streamingSystemBytes: Int64 = 4_000_000_000
+
+    /// The smallest device class whose RAM caches the file of a streamed model, nil when none does.
+    static func streamingClass(_ profile: ModelMemoryProfile) -> DeviceClass? {
+        DeviceClass.allCases.first { Int64($0.rawValue) * 1_000_000_000 >= profile.residentBytes + streamingSystemBytes }
+    }
 
     static func estimate(_ profile: ModelMemoryProfile, memory: DeviceMemory) -> FitEstimate {
         let budget = memory.budgetBytes
         let cap = contextCap(profile)
         let comfortable = Int64(Double(budget) * headroom)
         let preferred = min(cap, preferredContext)
-        func make(_ verdict: FitEstimate.Verdict, context: Int, streams: Bool = false) -> FitEstimate {
+        func make(_ verdict: FitEstimate.Verdict, context: Int, streamsOn: DeviceClass? = nil) -> FitEstimate {
             let kv = profile.kvBytes(context: context)
             return FitEstimate(
                 fileBytes: profile.fileBytes, kvBytes: kv, overheadBytes: overheadBytes,
                 totalBytes: profile.residentBytes + kv + overheadBytes, deviceBudgetBytes: budget, context: context,
-                verdict: verdict, streamsFromStorage: streams, isEstimated: profile.isEstimated)
+                verdict: verdict, isEstimated: profile.isEstimated, streamsOn: streamsOn)
         }
 
         if let context = largestContext(profile, resident: profile.residentBytes, limit: comfortable, cap: cap), context >= preferred {
@@ -123,11 +140,16 @@ enum FitPlanner {
         }
         let inMemory = largestContext(profile, resident: profile.residentBytes, limit: budget, cap: cap)
         // A mixture-of-experts model can also run from mmap: only the experts in use are resident, the rest is paged in
-        // from storage (slower). It wins when the whole file would leave less than the preferred context.
-        let streamed = profile.activeFraction == nil
-            ? nil : largestContext(profile, resident: profile.activeBytes, limit: budget, cap: cap)
-        if let streamed, streamed > (inMemory ?? 0), (inMemory ?? 0) < preferred {
-            return make(.tight(maxContext: streamed, maxReply: maxReply(forContext: streamed)), context: streamed, streams: true)
+        // from storage (slower). It wins when the whole file would leave less than the preferred context. Its context
+        // stays at the preferred size: every prompt token also reads experts from storage.
+        if profile.activeFraction != nil, (inMemory ?? 0) < preferred {
+            let needed = streamingClass(profile)
+            let capable = needed.map { DeviceClass.nearest(physicalBytes: memory.physicalBytes).rawValue >= $0.rawValue } ?? false
+            if capable, let streamed = largestContext(profile, resident: profile.activeBytes, limit: budget, cap: preferred),
+               streamed > (inMemory ?? 0) {
+                return make(.streamed(maxContext: streamed, maxReply: maxReply(forContext: streamed)), context: streamed)
+            }
+            if !capable, inMemory == nil { return make(.wontFit, context: minContext, streamsOn: needed) }
         }
         if let inMemory {
             return make(.tight(maxContext: inMemory, maxReply: maxReply(forContext: inMemory)), context: inMemory)

@@ -94,7 +94,7 @@ struct DeviceClassTests {
         func rank(_ verdict: FitEstimate.Verdict) -> Int {
             switch verdict {
             case .wontFit: 0
-            case .tight: 1
+            case .tight, .streamed: 1
             case .runsWell: 2
             }
         }

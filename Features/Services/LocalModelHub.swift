@@ -207,17 +207,19 @@ final class LocalModelHub: ModelHubService {
         var detail: FitDetail?
         if let profile = entry.memoryProfile {
             let estimate = FitPlanner.estimate(profile, memory: deviceMemory)
+            var maxReply = FitPlanner.maxReply(forContext: estimate.context)
             switch estimate.verdict {
             case .runsWell: verdict = .fits
-            case .tight: verdict = .tight
+            case .tight(_, let reply), .streamed(_, let reply):
+                verdict = .tight
+                maxReply = reply
             case .wontFit: verdict = .wontFit
             }
-            var maxReply = FitPlanner.maxReply(forContext: estimate.context)
-            if case .tight(_, let reply) = estimate.verdict { maxReply = reply }
             detail = FitDetail(
                 verdict: verdict, neededBytes: estimate.totalBytes, budgetBytes: estimate.deviceBudgetBytes,
                 context: estimate.context, maxReply: maxReply, streamsFromStorage: estimate.streamsFromStorage,
-                isEstimate: estimate.isEstimated, acceptsImages: acceptsImages)
+                isEstimate: estimate.isEstimated, acceptsImages: acceptsImages,
+                streamsWithRAMGigabytes: estimate.streamsOn?.rawValue)
         }
         let installed = downloads.state(for: entry) == .installed
         var unavailable: String?

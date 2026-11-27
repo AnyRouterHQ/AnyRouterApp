@@ -15,8 +15,9 @@ struct FitPlannerTests {
         fileBytes: 6_880_000_000, fullKVBytesPerToken: 4 * 4096, windowKVBytesPerToken: 20 * 4096, windowTokens: 1024,
         trainedContext: 1_000_000, activeFraction: ModelMemoryProfile.activeFraction(expertCount: 128, expertsUsed: 8))
 
+    /// A budget on a 16 GB device, so the RAM rule for streaming never decides these cases.
     private func memory(_ gigabytes: Double) -> DeviceMemory {
-        DeviceMemory(budgetBytes: Int64(gigabytes * 1_000_000_000), physicalBytes: 0)
+        DeviceMemory(budgetBytes: Int64(gigabytes * 1_000_000_000), physicalBytes: 16_000_000_000)
     }
 
     private func verdict(_ profile: ModelMemoryProfile, _ gigabytes: Double) -> FitEstimate.Verdict {
@@ -148,10 +149,10 @@ struct FitPlannerTests {
         #expect(!estimate.streamsFromStorage)
     }
 
-    @Test func aMixtureOfExpertsFileThatLeavesOnlyAShortContextStreamsInsteadForALongOne() {
-        // 8 GB: the whole file fits, but with only 2,048 tokens. Streaming the active experts allows 8,192.
+    @Test func aMixtureOfExpertsFileThatLeavesOnlyAShortContextStreamsInsteadForALongerOne() {
+        // 8 GB: the whole file fits, but with only 2,048 tokens. Streaming the active experts allows the preferred 4,096.
         let estimate = FitPlanner.estimate(moe, memory: memory(8))
-        #expect(estimate.verdict == .tight(maxContext: 8192, maxReply: 512))
+        #expect(estimate.verdict == .streamed(maxContext: 4096, maxReply: 512))
         #expect(estimate.streamsFromStorage)
     }
 
@@ -165,7 +166,7 @@ struct FitPlannerTests {
     @Test func aMixtureOfExpertsFileLargerThanMemoryRunsFromMmapOnItsActiveExperts() {
         for gigabytes in [3.0, 4.5, 6] {
             let estimate = FitPlanner.estimate(moe, memory: memory(gigabytes))
-            #expect(estimate.verdict == .tight(maxContext: 8192, maxReply: 512), "\(gigabytes) GB")
+            #expect(estimate.verdict == .streamed(maxContext: 4096, maxReply: 512), "\(gigabytes) GB")
             #expect(estimate.streamsFromStorage)
             #expect(estimate.totalBytes > estimate.deviceBudgetBytes, "the file alone does not fit; only the active experts are resident")
         }
@@ -233,7 +234,7 @@ struct FitPlannerTests {
         func rank(_ verdict: FitEstimate.Verdict) -> Int {
             switch verdict {
             case .wontFit: 0
-            case .tight: 1
+            case .tight, .streamed: 1
             case .runsWell: 2
             }
         }
