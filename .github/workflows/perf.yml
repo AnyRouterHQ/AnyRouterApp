@@ -123,11 +123,20 @@ jobs:
         run: |
           # An app left from the runs above must not be the one the trace attaches to (run 45999561239 caught a
           # pid that was gone a moment later), so stop it, wait for the test's own launch, then take the newest.
+          # Run 46067127411 attached to a pid that was gone: the test runner took longer than the old 60 s wait to launch
+          # the app, so the loop ended on a process from before. Wait up to 5 min for a pid that was not there at the start.
           pkill -x AnyRouter || true
+          sleep 2
+          before=" $(pgrep -x AnyRouter | tr '\n' ' ') "
           (
-            for _ in $(seq 1 240); do pgrep -x AnyRouter > /dev/null && break; sleep 0.25; done
+            pid=""
+            for _ in $(seq 1 1200); do
+              for p in $(pgrep -x AnyRouter); do case "$before" in *" $p "*) ;; *) pid=$p ;; esac; done
+              [ -n "$pid" ] && break
+              sleep 0.25
+            done
             sleep 8
-            pid=$(pgrep -nx AnyRouter)
+            kill -0 "$pid" 2>/dev/null || pid=$(pgrep -nx AnyRouter)
             echo "attaching to $pid"
             sudo xcrun xctrace record --template 'Time Profiler' --attach "$pid" --time-limit 90s --output perf/profile.trace
           ) > perf/xctrace.log 2>&1 &
