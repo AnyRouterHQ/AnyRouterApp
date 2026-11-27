@@ -38,8 +38,9 @@ final class ReplyFailureTests: XCTestCase {
         row.tap()
         XCTAssertTrue(app.buttons["reply-failure"].waitForExistence(timeout: 10), "the failure is still there after a relaunch")
         app.buttons["reply-failure.retry"].tap()
-        XCTAssertTrue(app.staticTexts["This is a demo reply."].waitForExistence(timeout: 10))
+        // Reply text is a selectable text view, found by its value (ReplyTextSupport in JourneySupport).
+        XCTAssertTrue(app.replyText("This is a demo reply.").waitForExistence(timeout: 10), "Retry got an answer")
         XCTAssertFalse(app.buttons["reply-failure"].exists, "Retry replaced the failed reply")
-        XCTAssertEqual(app.staticTexts.matching(identifier: "This is a demo reply.").count, 1, "one reply, not a second one under the failure")
+        XCTAssertEqual(app.replyTexts("This is a demo reply.").count, 1, "one reply, not a second one under the failure")
     }
 }

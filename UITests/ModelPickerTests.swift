@@ -65,7 +65,10 @@ final class ModelPickerTests: XCTestCase {
         app.buttons["model-filter"].tap()
         let free = app.switches["filter-free-only"]
         XCTAssertTrue(free.waitForExistence(timeout: 5))
-        free.tap()
+        // The switch element spans the row; a tap at its center lands on the label and does not flip it (the free filter
+        // was never on in screenshots 46052222870 and 46075429647).
+        free.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+        XCTAssertEqual(free.value as? String, "1", "Free only is on")
         app.buttons["Done"].tap()
 
         let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'model-row.'"))

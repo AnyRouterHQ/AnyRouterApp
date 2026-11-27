@@ -430,7 +430,8 @@ final class ScreenshotTests: XCTestCase {
             app.buttons["model-filter"].tap()
             XCTAssertTrue(app.switches["filter-free-only"].waitForExistence(timeout: 5))
             capture("model-filters", appearance)
-            app.switches["filter-free-only"].tap()
+            // A tap at the switch row's center lands on the label; tap the switch itself.
+            app.switches["filter-free-only"].coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
             app.buttons["Done"].tap()
             capture("model-picker-free", appearance)
         }

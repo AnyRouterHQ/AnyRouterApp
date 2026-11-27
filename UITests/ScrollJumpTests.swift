@@ -5,6 +5,16 @@ import XCTest
 /// Uses the 200-message demo thread, which opens at launch.
 @MainActor
 final class ScrollJumpTests: XCTestCase {
+    /// A fast drag inside the window, right of the iPad sidebar column. Not `chat.content.swipe…`: that container is as
+    /// tall as the whole thread, so its center is far off screen and the swipe did not scroll (verify-ui 46067163702).
+    private func swipe(_ app: XCUIApplication, towardsTheTop: Bool) {
+        let window = app.windows.firstMatch
+        let upper = window.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.3))
+        let lower = window.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.75))
+        let (from, to) = towardsTheTop ? (upper, lower) : (lower, upper)
+        from.press(forDuration: 0.01, thenDragTo: to, withVelocity: .fast, thenHoldForDuration: 0)
+    }
+
     func testJumpButtonAppearsOnlyAwayFromTheBottom() {
         let app = XCUIApplication()
         app.launchArguments = ["-ARDemoData", "YES", "-ARDemoLongThread", "200"]
@@ -15,7 +25,7 @@ final class ScrollJumpTests: XCTestCase {
         sleep(1)
         XCTAssertFalse(jump.exists, "at the bottom the button must not show")
 
-        for _ in 0..<3 { content.swipeDown(velocity: .fast) }
+        for _ in 0..<3 { swipe(app, towardsTheTop: true) }
         XCTAssertTrue(jump.waitForExistence(timeout: 5), "scrolled up, the button should show")
 
         jump.tap()
@@ -38,7 +48,9 @@ final class ScrollJumpTests: XCTestCase {
         sleep(1)
 
         // The bubble is not a plain static text (verify-ui 46031167020): match any element that carries the words.
-        let question = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "anchor check")).firstMatch
+        // A selectable text view carries its words as the value, not the label.
+        let question = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "anchor check", "anchor check")).firstMatch
         XCTAssertTrue(question.exists, "the sent question is on screen")
         let window = app.windows.firstMatch.frame
         XCTAssertLessThan(question.frame.minY, window.height * 0.35, "the question sits near the top after the reply ended")
@@ -54,10 +66,10 @@ final class ScrollJumpTests: XCTestCase {
         let content = app.descendants(matching: .any)["chat.content"]
         XCTAssertTrue(content.waitForExistence(timeout: 20))
         let jump = app.buttons["jump-to-latest"]
-        for _ in 0..<3 { content.swipeDown(velocity: .fast) }
+        for _ in 0..<3 { swipe(app, towardsTheTop: true) }
         XCTAssertTrue(jump.waitForExistence(timeout: 5), "scrolled up, the button should show")
 
-        for _ in 0..<8 { content.swipeUp(velocity: .fast) }
+        for _ in 0..<8 { swipe(app, towardsTheTop: false) }
         XCTAssertTrue(jump.waitForNonExistence(timeout: 5), "at the bottom again the button must go away without a tap")
     }
 }
