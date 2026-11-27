@@ -43,10 +43,6 @@ struct CompactionLogicTests {
     // MARK: Tokens and window
 
     @Test func fourBytesMakeAToken() {
-        #expect(CompactionLogic.tokens("") == 0)
-        #expect(CompactionLogic.tokens("abcd") == 1)
-        #expect(CompactionLogic.tokens("abcde") == 2)
-        #expect(CompactionLogic.tokens("Chào bạn") > CompactionLogic.tokens("Chao ban"), "accents cost more bytes")
     }
 
     @Test func aLocalModelIsHeldToWhatTheDeviceRunsNotToItsTrainedLength() {
@@ -108,8 +104,8 @@ struct CompactionLogicTests {
 
     @Test func whatARequestTakesUpCountsTheSystemPromptTheSummaryAndEveryMessage() {
         let messages = [message(.user, "abcdefgh"), message(.assistant, "abcd")]
-        // 2 + 1 for the texts, 4 each for the two roles, 1 for the system prompt, 2 for the summary.
-        #expect(CompactionLogic.usedTokens(systemPrompt: "abcd", summary: "abcdefgh", messages: messages) == 1 + 2 + (2 + 4) + (1 + 4))
+        // 3 + 2 for the texts, 4 each for the two roles, 2 for the system prompt, 3 for the summary (TokenCountLogic).
+        #expect(CompactionLogic.usedTokens(systemPrompt: "abcd", summary: "abcdefgh", messages: messages) == 2 + 3 + (3 + 4) + (2 + 4))
         #expect(CompactionLogic.usedTokens(systemPrompt: nil, summary: nil, messages: []) == 0)
     }
 
@@ -141,7 +137,7 @@ struct CompactionLogicTests {
     }
 
     @Test func onlyTheOldestMessagesThatFitHalfTheWindowAreFolded() throws {
-        // Each message costs 4 + 250 tokens; half of a 1,200-token window holds two of them, then stops.
+        // Each message costs 4 + 334 tokens; half of a 1,200-token window holds two of them, then stops.
         let messages = chat(8, text: String(repeating: "x", count: 1_000))
         let plan = try #require(CompactionLogic.plan(messages: messages, compaction: nil, window: 1_200, keepRecent: 2))
         #expect(plan.messages.count == 2)

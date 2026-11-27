@@ -43,8 +43,7 @@ enum CompactionLogic {
         Reply with the summary only.
         """
 
-    /// A cheap estimate: four bytes to a token, a few more per message for its role.
-    static func tokens(_ text: String) -> Int { (text.utf8.count + 3) / 4 }
+    /// A few tokens per message for its role.
     private static let perMessageTokens = 4
 
     /// The room a model has for one chat, in tokens. A local model is held to what the device can run (`FitPlanner`),
@@ -83,8 +82,8 @@ enum CompactionLogic {
     /// What a request would take up.
     static func usedTokens(systemPrompt: String?, summary: String?, messages: [ChatMessage]) -> Int {
         var total = 0
-        for text in [systemPrompt, summary].compactMap({ $0 }) { total += tokens(text) }
-        for message in messages { total += tokens(message.content) + perMessageTokens }
+        for text in [systemPrompt, summary].compactMap({ $0 }) { total += TokenCountLogic.estimate(text) }
+        for message in messages { total += TokenCountLogic.estimate(message.content) + perMessageTokens }
         return total
     }
 
@@ -127,12 +126,12 @@ enum CompactionLogic {
         var used = 0
         var previousDropped = 0
         if let applied {
-            used = tokens(applied.summary)
+            used = TokenCountLogic.estimate(applied.summary)
             previousDropped = applied.droppedCount
         }
         var chosen: [ChatMessage] = []
         for message in candidates {
-            let cost = tokens(clipped(message.content)) + perMessageTokens
+            let cost = TokenCountLogic.estimate(clipped(message.content)) + perMessageTokens
             if chosen.count >= minimumToFold, used + cost > budget { break }
             chosen.append(message)
             used += cost

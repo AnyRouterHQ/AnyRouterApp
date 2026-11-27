@@ -70,8 +70,8 @@ struct CompactionChatTests {
         await vm.send()?.value
     }
 
-    /// About 63 tokens, so five of them fill most of a 400-token window.
-    private let long = String(repeating: "word ", count: 50)
+    /// 64 tokens (TokenCountLogic), so five of them fill most of a 400-token window.
+    private let long = String(repeating: "word ", count: 38)
 
     // MARK: By hand
 
