@@ -42,6 +42,8 @@ struct ComposerSuggestionsRow: View {
             .labelStyle(.titleAndIcon)
             .buttonBorderShape(.capsule)
             .controlSize(.regular)
+            // The system picks the label color for the tint. The accent is white in dark mode, which left a white label on a light grey pill.
+            .tint(Color(.systemGray5))
             .frame(minHeight: 44)
             .accessibilityIdentifier("composer.suggestion.paste")
     }
