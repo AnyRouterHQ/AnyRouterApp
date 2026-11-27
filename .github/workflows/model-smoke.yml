@@ -24,6 +24,10 @@ on:
         description: "Take the repo and file from the SMOKE_HF_REPO and SMOKE_HF_FILE secrets instead. Values are masked in logs."
         type: boolean
         default: false
+      mmproj_file:
+        description: "A projector file in the model's repo for the photo test, for a size whose catalog entry has none yet, like mmproj-Inkling-2-Mini-Q8_0.gguf with inkling-2."
+        required: false
+        default: ""
   schedule:
     - cron: "17 3 * * *"
   pull_request:
@@ -69,6 +73,7 @@ jobs:
       - name: Pick the GGUF to run (the input, else the smallest in the bundled catalog)
         env:
           INPUT_MODEL_ID: ${{ inputs.model_id }}
+          INPUT_MMPROJ_FILE: ${{ inputs.mmproj_file }}
         run: |
           python3 - <<'PY'
           import json, os, re, sys, urllib.request
@@ -126,6 +131,15 @@ jobs:
           repo, file, rev = entry["repo"], entry["file"], entry["revision"]
           listing = json.load(urllib.request.urlopen(f"https://huggingface.co/api/models/{repo}/tree/{rev}?recursive=true"))
           sha = next(f["lfs"]["oid"] for f in listing if f["path"] == file)
+          # A projector the catalog does not list yet: the photo test runs it as if the entry named it.
+          extra = os.environ.get("INPUT_MMPROJ_FILE", "").strip()
+          if extra:
+              found = next((f for f in listing if f["path"] == extra), None)
+              if not found or not found.get("lfs"):
+                  sys.exit("the projector is not in the model's repo, or is not an LFS file")
+              if external:
+                  print(f"::add-mask::{extra}", flush=True)
+              entry["vision"] = {"mmprojFile": extra, "mmprojSize": found["size"]}
           put(f"MODEL_REPO={repo}")
           put(f"MODEL_FILE={file}")
           put(f"MODEL_REV={rev}")
