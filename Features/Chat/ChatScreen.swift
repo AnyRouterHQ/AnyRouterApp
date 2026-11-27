@@ -81,7 +81,6 @@ struct ChatScreen: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .background { if chat?.messages.isEmpty ?? true { ARHomeBackground().transition(.opacity) } }
         .animation(.easeInOut(duration: 0.3), value: chat?.messages.isEmpty)
         .task(id: shell.selectedThreadID) {
             prepare()

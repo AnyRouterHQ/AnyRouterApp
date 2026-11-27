@@ -63,32 +63,4 @@ struct HomeTests {
         let stored = try reload.fetch(FetchDescriptor<ThreadRecord>(predicate: #Predicate { $0.id == id })).first
         #expect(stored?.thinkingEnabled == false)
     }
-
-    @Test func labelsKeepContrastOnTheTopWash() {
-        func channel(_ v: Double) -> Double { v <= 0.03928 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
-        func luminance(_ rgb: (Double, Double, Double)) -> Double {
-            0.2126 * channel(rgb.0) + 0.7152 * channel(rgb.1) + 0.0722 * channel(rgb.2)
-        }
-        func hex(_ v: UInt32) -> (Double, Double, Double) {
-            (Double((v >> 16) & 0xFF) / 255, Double((v >> 8) & 0xFF) / 255, Double(v & 0xFF) / 255)
-        }
-        func blend(_ top: (Double, Double, Double), _ base: (Double, Double, Double), _ alpha: Double) -> (Double, Double, Double) {
-            (top.0 * alpha + base.0 * (1 - alpha), top.1 * alpha + base.1 * (1 - alpha), top.2 * alpha + base.2 * (1 - alpha))
-        }
-        func contrast(_ a: (Double, Double, Double), _ b: (Double, Double, Double)) -> Double {
-            let (x, y) = (luminance(a), luminance(b))
-            return (max(x, y) + 0.05) / (min(x, y) + 0.05)
-        }
-        // The mono accent and label values, over the system background at the darkest point of the wash.
-        let light = blend(hex(0x0A0A0A), hex(0xFFFFFF), ARHomeWash.topOpacityLight)
-        let dark = blend(hex(0xFAFAFA), hex(0x000000), ARHomeWash.topOpacityDark)
-        #expect(contrast(hex(0x0A0A0A), light) >= 4.5)
-        #expect(contrast(hex(0xFAFAFA), dark) >= 4.5)
-    }
-
-    @Test func washIsSubtleAndFadesBeforeTheMiddle() {
-        #expect(ARHomeWash.topOpacityLight <= 0.14 && ARHomeWash.topOpacityDark <= 0.22)
-        #expect(ARHomeWash.topOpacityDark > ARHomeWash.topOpacityLight)
-        #expect(ARHomeWash.fadeEnd <= 0.5)
-    }
 }
