@@ -28,8 +28,6 @@ struct Composer: View {
     @Environment(ShellModel.self) private var shell
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Where the text field starts (the width of the + button and the gap), so the chips above it line up with it.
-    @State private var fieldInset: CGFloat = 52
     @ScaledMetric(relativeTo: .body) private var fieldRadius: CGFloat = 26
     /// The round button keeps its 44 pt minimum at the default size and grows with Dynamic Type.
     @ScaledMetric(relativeTo: .body) private var buttonSize: CGFloat = 44
@@ -85,7 +83,7 @@ struct Composer: View {
             }
             if let presets, let suggestions {
                 ComposerSuggestionsRow(
-                    suggestions: suggestions, presets: presets, leadingInset: fieldInset,
+                    suggestions: suggestions, presets: presets,
                     onPaste: { text in model.input = text; app.clipboard.dismiss() },
                     onPreset: { pick($0, mode: suggestions.mode) },
                     onSend: { model.sendNow($0) },
@@ -334,7 +332,6 @@ struct Composer: View {
         .buttonBorderShape(.circle)
         .controlSize(.large)
         .accessibilityLabel("Add")
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { fieldInset = $0 + 8 }
     }
 
     /// The round button at the end of the field. 44 pt, the system's prominent glass: voice while empty, send with

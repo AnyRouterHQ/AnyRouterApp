@@ -5,8 +5,6 @@ import SwiftUI
 struct ComposerSuggestionsRow: View {
     let suggestions: ComposerSuggestions
     let presets: PresetStore
-    /// Where the first chip starts, so it lines up with the text field. The row scrolls out to the screen edge.
-    let leadingInset: CGFloat
     var onPaste: (String) -> Void
     var onPreset: (PromptPreset) -> Void
     var onSend: (PromptPreset) -> Void
@@ -32,7 +30,7 @@ struct ComposerSuggestionsRow: View {
                 }
             }
         }
-        .contentMargins(.leading, leadingInset, for: .scrollContent)
+        // The first chip starts at the screen margin, the edge of the + button; the row scrolls out past the trailing edge.
         .scrollClipDisabled()
         .accessibilityIdentifier("composer.suggestions")
     }
@@ -44,6 +42,7 @@ struct ComposerSuggestionsRow: View {
             .controlSize(.regular)
             // The system picks the label color for the tint. The accent is white in dark mode, which left a white label on a light grey pill.
             .tint(Color(.systemGray5))
+            .chipOutline(Capsule())
             .frame(minHeight: 44)
             .accessibilityIdentifier("composer.suggestion.paste")
     }
@@ -57,6 +56,7 @@ struct ComposerSuggestionsRow: View {
         .buttonStyle(.glass)
         .buttonBorderShape(.capsule)
         .controlSize(.regular)
+        .chipOutline(Capsule())
         .frame(minHeight: 44)
         .contextMenu {
             if suggestions.mode == .starters, preset.action == nil {
@@ -92,6 +92,7 @@ struct ComposerSuggestionsRow: View {
         .buttonStyle(.glass)
         .buttonBorderShape(.circle)
         .controlSize(.regular)
+        .chipOutline(Circle())
         .frame(minWidth: 44, minHeight: 44)
         .accessibilityIdentifier("composer.suggestion.more")
     }
@@ -110,5 +111,12 @@ struct ComposerSuggestionsRow: View {
                 Button(preset.title, systemImage: preset.symbol) { onPreset(preset) }
             }
         }
+    }
+}
+
+private extension View {
+    /// A hairline around a chip. Clear glass on a white screen has no edge of its own in light mode.
+    func chipOutline(_ shape: some Shape) -> some View {
+        overlay(shape.strokeBorder(Color(.separator), lineWidth: 0.5).allowsHitTesting(false))
     }
 }
