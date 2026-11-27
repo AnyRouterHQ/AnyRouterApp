@@ -15,7 +15,7 @@ final class ScrollJumpTests: XCTestCase {
         sleep(1)
         XCTAssertFalse(jump.exists, "at the bottom the button must not show")
 
-        for _ in 0..<3 { app.swipeDown(velocity: .fast) }
+        for _ in 0..<3 { content.swipeDown(velocity: .fast) }
         XCTAssertTrue(jump.waitForExistence(timeout: 5), "scrolled up, the button should show")
 
         jump.tap()
@@ -51,12 +51,13 @@ final class ScrollJumpTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-ARDemoData", "YES", "-ARDemoLongThread", "200"]
         app.launch()
-        XCTAssertTrue(app.descendants(matching: .any)["chat.content"].waitForExistence(timeout: 20))
+        let content = app.descendants(matching: .any)["chat.content"]
+        XCTAssertTrue(content.waitForExistence(timeout: 20))
         let jump = app.buttons["jump-to-latest"]
-        for _ in 0..<3 { app.swipeDown(velocity: .fast) }
+        for _ in 0..<3 { content.swipeDown(velocity: .fast) }
         XCTAssertTrue(jump.waitForExistence(timeout: 5), "scrolled up, the button should show")
 
-        for _ in 0..<8 { app.swipeUp(velocity: .fast) }
+        for _ in 0..<8 { content.swipeUp(velocity: .fast) }
         XCTAssertTrue(jump.waitForNonExistence(timeout: 5), "at the bottom again the button must go away without a tap")
     }
 }

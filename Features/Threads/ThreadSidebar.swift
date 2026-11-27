@@ -137,8 +137,10 @@ struct ThreadSidebar: View {
                 Button { shell.newChat(closeSidebar: isDrawer) } label: {
                     Label("New chat", systemImage: "plus")
                         .font(.body.weight(.medium))
+                        // Never cut: at large text the capsule grows instead (the audit flagged "New chat" clipped).
+                        .fixedSize()
                         .padding(.horizontal, 16)
-                        .frame(height: barButtonHeight)
+                        .frame(minHeight: barButtonHeight)
                         .glassEffect(.regular.interactive(), in: .capsule)
                         .barHitArea()
                 }
