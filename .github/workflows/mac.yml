@@ -6,7 +6,8 @@ name: Mac
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 3 * * *"
+    # 90 minutes after the nightly verify-ui run, so the two don't bump each other in the shared queue.
+    - cron: "47 4 * * *"
 
 concurrency:
   group: extra-macos-${{ github.ref }}
