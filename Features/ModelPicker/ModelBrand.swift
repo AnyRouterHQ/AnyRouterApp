@@ -85,7 +85,7 @@ enum ModelBrand: Equatable {
     /// The full-color variant of a bundled mark for this appearance, or nil to draw the single-color template.
     static func colorAsset(for asset: String, dark: Bool) -> String? {
         guard asset.hasPrefix("Logo-"), let mode = table.colorMarks[String(asset.dropFirst("Logo-".count))] else { return nil }
-        return dark && mode == .light ? nil : asset + "-color"
+        return dark && mode == .light ? nil : "LogoColor-" + String(asset.dropFirst("Logo-".count))
     }
 
     private static func logo(_ slug: String?) -> ModelBrand? {
@@ -115,7 +115,7 @@ struct BrandTable: Decodable, Equatable, Sendable {
     let noMark: [String]
     /// Model families with no lobe-icons mark, shown as an SF Symbol tile. The coverage script accepts them.
     let symbols: [SymbolFamily]
-    /// Slugs that also ship a full-color mark (`Logo-<slug>-color`), written by `scripts/logo-add.py`.
+    /// Slugs that also ship a full-color mark (`LogoColor-<slug>`), written by `scripts/logo-add.py`.
     let colorMarks: [String: ColorMode]
 
     enum ColorMode: String, Decodable, Sendable {

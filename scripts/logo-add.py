@@ -7,7 +7,8 @@ Usage: scripts/logo-add.py <slug> <lobe-icon-name> "<Display name>"
 Fetches the single-color SVG from the pinned @lobehub/icons-static-svg package, normalizes it for an
 asset catalog (fixed 24x24, black fill, template rendering, vector preserved), writes
 Design/Assets.xcassets/Logo-<slug>.imageset and adds the slug to the brand table. When the package has a
-<lobe-icon-name>-color.svg too, it is written as Logo-<slug>-color.imageset (original colors) and listed under
+<lobe-icon-name>-color.svg too, it is written as LogoColor-<slug>.imageset (original colors; not "Logo-<slug>-color",
+because Xcode drops a "Color" suffix when it names asset symbols and the two sets would clash) and listed under
 "colorMarks": "any" draws it in light and dark mode, "light" (the mark has black in it, which vanishes on a dark
 background) draws the single-color mark in dark mode instead. Do not draw logos by hand.
 """
@@ -63,10 +64,9 @@ def has_dark_fill(svg: str) -> bool:
     return False
 
 
-def write_set(name: str, svg: str, template: bool) -> None:
+def write_set(name: str, filename: str, svg: str, template: bool) -> None:
     folder = ASSETS / f"{name}.imageset"
     folder.mkdir(parents=True, exist_ok=True)
-    filename = f"{name.removeprefix('Logo-')}.svg"
     (folder / filename).write_text(svg, encoding="utf-8")
     (folder / "Contents.json").write_text(json.dumps(contents(filename, template), indent=2) + "\n", encoding="utf-8")
 
@@ -83,7 +83,7 @@ def main() -> None:
     svg = normalize(mono)
     if "currentColor" in svg or "1em" in svg:
         sys.exit(f"{lobe}.svg still has unnormalized values")
-    write_set(f"Logo-{slug}", svg, template=True)
+    write_set(f"Logo-{slug}", f"{slug}.svg", svg, template=True)
 
     table = json.loads(TABLE.read_text(encoding="utf-8"))
     table["brands"][slug] = display
@@ -91,7 +91,7 @@ def main() -> None:
     marks = table.setdefault("colorMarks", {})
     if color is not None:
         color = sized(color)
-        write_set(f"Logo-{slug}-color", color, template=False)
+        write_set(f"LogoColor-{slug}", f"{slug}-color.svg", color, template=False)
         marks[slug] = "light" if has_dark_fill(color) else "any"
     table["colorMarks"] = dict(sorted(marks.items()))
     TABLE.write_text(json.dumps(table, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
