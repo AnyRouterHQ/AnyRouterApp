@@ -935,3 +935,9 @@ Reviewer passes over main up to 8e275cd (2026-11-27). Fixed items are in `fix(..
 - Inkling smoke 46009068758 failed: finish length at 32 tokens (budget, not the model) and cancel 3.25 s at 0.2-0.3 tok/s (cancel is checked every decode step). 8082d69 sets the smoke cancel limit to max(2 s, 1.5 steps). Rerun REQUESTed on the board with max_tokens 256.
 - Next: if the rerun passes, move inkling-2 from dev-models.json to models.json with subtitle "1-bit · Experimental · slow" (symbol fallback drop.fill landed in 308f525). Projector add-on not started.
 - Needs a device: resume after iOS kills the app in the background; the Inkling decode speed on a phone.
+
+### Lane handoff: chat-polish (2026-11-27)
+- Done on main: tools on by default with the four-tool cap fix (d4a7984, CI 46010220509 green); two-line starter cards and the 48 pt composer field (a83d755, same run); Voice Mode download cover (e9501a5, CI 46012807214 green; source-check fix 39ea4b8, Gitleaks 46013134713 green). Select Text was already on main (a30f85b).
+- No migration code: every stored tool switch is a person's choice, so new defaults reach untouched installs and kept choices stay (test `testAnInstallFromBeforeToolsWereOnKeepsItsChoicesAndGetsTheRest`). "Anonymous AnyRouter MCP" still needs the server change in T12; DeepWiki and Microsoft Learn stand in.
+- Waiting on lane A: screenshots after 39ea4b8 (voice-mode-gate, home, composer-clipboard, composer-after-paste) and verify-ui AccessibilityAuditTests; then the markdown bakeoff runs, after which D26 is written with the numbers and one recommendation, and nothing is merged.
+- Needs a device: a real Whisper download from the cover and the first dictation after it; tool calls from local models with tools now on by default.
