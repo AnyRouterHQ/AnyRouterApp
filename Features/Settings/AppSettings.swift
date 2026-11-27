@@ -37,7 +37,7 @@ final class AppSettings {
     }
 
     /// The key behind `onDeviceTools`, so an engine can read the switch without the main actor.
-    static let onDeviceToolsKey = "settings.onDeviceTools"
+    nonisolated static let onDeviceToolsKey = "settings.onDeviceTools"
 
     @ObservationIgnored private let defaults: UserDefaults
 
