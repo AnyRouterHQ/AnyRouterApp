@@ -470,7 +470,8 @@ final class ChatViewModel {
         input = ""
         let named = mentions
         mentions = []
-        return startStream(model: model, thread: thread, mentions: named)
+        let memory = MemoryStore(context: context).remember(text, messageID: user.id, thread: thread, source: model.source, settings: settings)
+        return startStream(model: model, thread: thread, mentions: named, memory: memory.map { [$0] } ?? [])
     }
 
     /// Keeps the typed message for when the reply ends (see ChatViewModel+Queue).
@@ -500,7 +501,8 @@ final class ChatViewModel {
         context.insert(user)
         user.thread = thread
         user.attachments = item.attachments
-        _ = startStream(model: model, thread: thread)
+        let memory = MemoryStore(context: context).remember(item.text, messageID: user.id, thread: thread, source: model.source, settings: settings)
+        _ = startStream(model: model, thread: thread, memory: memory.map { [$0] } ?? [])
         return true
     }
 
@@ -608,9 +610,14 @@ final class ChatViewModel {
     func regenerate() -> Task<Void, Never>? {
         guard canRegenerate, let thread, let model = self.model else { return nil }
         if blockedOffline(model) { return nil }
-        if let last = messages.last, last.role == .assistant { remove(last) }
+        // The new reply keeps the rows of what the question saved to memory, so Undo stays at hand.
+        var memory: [MemoryUpdate] = []
+        if let last = messages.last, last.role == .assistant {
+            memory = last.memoryUpdates
+            remove(last)
+        }
         guard messages.last?.role == .user else { return nil }
-        return startStream(model: model, thread: thread)
+        return startStream(model: model, thread: thread, memory: memory)
     }
 
     // MARK: - Private
@@ -674,7 +681,10 @@ final class ChatViewModel {
         return ToolContext(attachments: all, userTexts: texts, modelSource: modelSource)
     }
 
-    private func startStream(model: ModelDescriptor, thread: ThreadRecord, mentions: [MentionItem] = []) -> Task<Void, Never> {
+    /// `memory` is what the user's message saved; its rows lead the reply.
+    private func startStream(
+        model: ModelDescriptor, thread: ThreadRecord, mentions: [MentionItem] = [], memory: [MemoryUpdate] = []
+    ) -> Task<Void, Never> {
         phase = .streaming
         errorMessage = nil
         // A local model serves one request at a time: the title waits for a quieter moment (the next reply asks again).
@@ -689,6 +699,7 @@ final class ChatViewModel {
         let history = ComposerMention.applying(mentions, to: live.messages)
         context.insert(assistant)
         assistant.thread = thread
+        assistant.memoryUpdates = memory
         // Saved with the reply before anything streams, and cleared by `finish`: if the app is closed mid-reply, the marker
         // is what the chat finds after the next launch (agent design 1.3, unit G1). The chat ignores it while it streams.
         assistant.failure = ReplyFailure(kind: .interrupted, detail: String(localized: "The app closed while this reply was being written."))
@@ -929,7 +940,7 @@ final class ChatViewModel {
             assistant.failure = failure
         } else {
             assistant.failure = nil
-            if assistant.content.isEmpty && steps.isEmpty && assistant.reasoning == nil { remove(assistant) }
+            if assistant.content.isEmpty && steps.isEmpty && assistant.reasoning == nil && assistant.memoryUpdates.isEmpty { remove(assistant) }
         }
         thread.updatedAt = Date()
         phase = .idle

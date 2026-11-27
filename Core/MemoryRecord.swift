@@ -17,6 +17,30 @@ enum MemoryScope: String, Codable, CaseIterable, Sendable {
     case everywhere, deviceOnly
 }
 
+/// One write to memory as the reply shows it: a "Memory updated" row with Undo and Edit (agent design 2.3).
+struct MemoryUpdate: Codable, Equatable, Sendable, Identifiable {
+    enum Outcome: Codable, Equatable, Sendable {
+        case saved
+        case alreadySaved
+        /// Not saved; the words say why (too long, the list is full).
+        case refused(String)
+        case undone
+    }
+
+    var id: UUID
+    /// The saved item, while it exists.
+    var memoryID: UUID?
+    var text: String
+    var outcome: Outcome
+
+    init(id: UUID = UUID(), memoryID: UUID? = nil, text: String, outcome: Outcome) {
+        self.id = id
+        self.memoryID = memoryID
+        self.text = text
+        self.outcome = outcome
+    }
+}
+
 /// One short thing the app remembers about the user. Lives in the same store as the chats; nothing syncs.
 @Model final class MemoryRecord {
     @Attribute(.unique) var id: UUID

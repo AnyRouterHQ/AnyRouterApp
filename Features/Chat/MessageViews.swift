@@ -95,6 +95,8 @@ struct MessageRow: View {
                     .padding(.bottom, 6)
                     .accessibilityIdentifier("switch-note")
             }
+            // What the question saved to memory leads the reply's trace.
+            ForEach(message.memoryUpdates) { update in MemoryUpdateRow(update: update, message: message) }
             ForEach(parts) { part in
                 switch part {
                 case .reasoning(let trace, let isStreaming): ReasoningRow(trace: trace, isStreaming: isStreaming)

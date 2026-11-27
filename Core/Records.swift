@@ -98,6 +98,8 @@ final class MessageRecord {
     var origin: String?
     /// Why this reply did not finish, as JSON. Optional so existing stores migrate without a mapping.
     var failureData: Data?
+    /// What this turn saved to memory, as JSON (`MemoryUpdate`). Optional so existing stores migrate.
+    var memoryUpdatesData: Data?
 
     static let clipboardOrigin = "clipboard"
     var fromClipboard: Bool { origin == Self.clipboardOrigin }
@@ -141,6 +143,11 @@ final class MessageRecord {
     var failure: ReplyFailure? {
         get { failureData.flatMap { try? JSONDecoder().decode(ReplyFailure.self, from: $0) } }
         set { failureData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+    }
+
+    var memoryUpdates: [MemoryUpdate] {
+        get { memoryUpdatesData.flatMap { try? JSONDecoder().decode([MemoryUpdate].self, from: $0) } ?? [] }
+        set { memoryUpdatesData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
     }
 
     var toolSteps: [ToolStep] {
