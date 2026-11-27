@@ -74,6 +74,7 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild build-for-testing \
+            -skipMacroValidation \
             -project AnyRouter.xcodeproj -scheme AnyRouter \
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
             -derivedDataPath DerivedData \

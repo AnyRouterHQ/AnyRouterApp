@@ -25,6 +25,13 @@ packages:
   MarkdownUI:
     url: https://github.com/gonzalezreal/swift-markdown-ui
     from: 2.4.1
+  # Markdown renderer bakeoff (D26), branch exp/markdown-renderer only.
+  Textual:
+    url: https://github.com/gonzalezreal/textual
+    exactVersion: 0.5.0
+  SwiftStreamingMarkdown:
+    url: https://github.com/microsoft/SwiftStreamingMarkdown
+    exactVersion: 0.7.0
   LlamaBinary:
     path: Packages/LlamaBinary
   mlx-swift-lm:
@@ -94,6 +101,10 @@ targets:
     dependencies:
       - package: MarkdownUI
         product: MarkdownUI
+      - package: Textual
+        product: Textual
+      - package: SwiftStreamingMarkdown
+        product: SwiftStreamingMarkdown
       - package: LlamaBinary
         product: llama
       - package: mlx-swift-lm

@@ -40,10 +40,17 @@ private struct MarkdownBlock: View, Equatable {
     let font: ReplyFont
 
     var body: some View {
-        Markdown(text)
-            .markdownTheme(.anyRouter(size: size, font: font))
-            .markdownImageProvider(BlockedImageProvider())
-            .markdownInlineImageProvider(BlockedInlineImageProvider())
-            .textSelection(.enabled)
+        switch MarkdownRenderer.current {
+        case .markdownUI:
+            Markdown(text)
+                .markdownTheme(.anyRouter(size: size, font: font))
+                .markdownImageProvider(BlockedImageProvider())
+                .markdownInlineImageProvider(BlockedInlineImageProvider())
+                .textSelection(.enabled)
+        case .textual:
+            TextualMarkdownBlock(text: text, size: size, font: font)
+        case .streaming:
+            StreamingMarkdownBlock(text: text, size: size, font: font)
+        }
     }
 }

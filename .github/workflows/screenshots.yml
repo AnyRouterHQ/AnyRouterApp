@@ -55,6 +55,7 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild build-for-testing \
+            -skipMacroValidation \
             -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots \
             -destination "generic/platform=iOS Simulator" \
             -derivedDataPath DerivedData \
