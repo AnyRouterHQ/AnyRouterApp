@@ -434,11 +434,24 @@ struct ModelPickerSheet: View {
             .hoverEffect(.highlight)
             .disabled(skipped)
             if skipped { Text(OfflineLogic.label).font(.footnote).foregroundStyle(.secondary) }
+        }
+        // One trailing accessory, the checkmark: details open with a swipe or a long press, not a second ⓘ that cut
+        // the row's details short (HIG audit 2026-11-28 #15).
+        .swipeActions(edge: .trailing) {
             if model.source == .anyrouter {
-                Button { detailModel = model } label: { Image(systemName: "info.circle") }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel("Details for \(model.shortName)")
+                Button("Details", systemImage: "info.circle") { detailModel = model }
+                    .tint(.gray)
                     .accessibilityIdentifier("model-info.\(model.id)")
+            }
+        }
+        .contextMenu {
+            if model.source == .anyrouter {
+                Button("Details", systemImage: "info.circle") { detailModel = model }
+            }
+        }
+        .accessibilityActions {
+            if model.source == .anyrouter {
+                Button("Details") { detailModel = model }
             }
         }
     }

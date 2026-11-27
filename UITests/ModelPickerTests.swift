@@ -27,15 +27,19 @@ final class ModelPickerTests: XCTestCase {
         XCTAssertEqual(app.buttons["Model"].value as? String, "GPT-5")
     }
 
-    func testInfoButtonPushesTheModelDetail() {
+    func testASwipeOnARowPushesTheModelDetail() {
         let app = launch()
         XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
         app.buttons["Model"].tap()
         let tabs = app.segmentedControls.firstMatch
         XCTAssertTrue(tabs.waitForExistence(timeout: 5))
         tabs.buttons["AnyRouter"].tap()
-        let info = app.buttons["model-info.anyrouter/openai/gpt-5"]
-        XCTAssertTrue(info.waitForExistence(timeout: 5))
+        let row = app.buttons["model-row.anyrouter/openai/gpt-5"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["model-info.anyrouter/openai/gpt-5"].exists, "one trailing accessory: no ⓘ beside the checkmark")
+        row.swipeLeft()
+        let info = app.buttons["Details"].firstMatch
+        XCTAssertTrue(info.waitForExistence(timeout: 5), "a swipe shows Details")
         info.tap()
         XCTAssertTrue(app.descendants(matching: .any)["model-detail"].waitForExistence(timeout: 5))
     }
