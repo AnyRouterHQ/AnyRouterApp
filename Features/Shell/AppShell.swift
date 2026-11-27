@@ -97,12 +97,12 @@ private struct PhoneShell: View {
         ZStack(alignment: .leading) {
             Color(.systemBackground)
             if reduceMotion {
-                chat(progress: progress, width: width)
+                chat(progress: progress, width: width, shifted: false)
                 sidebar(width: width).opacity(progress)
             } else {
                 // Fully out of the tree while closed: accessibilityHidden alone left the List cells reachable.
                 sidebar(width: width).opacity(progress > 0.001 ? 1 : 0)
-                chat(progress: progress, width: width).offset(x: progress * width)
+                chat(progress: progress, width: width, shifted: true)
             }
         }
         .ignoresSafeArea(.container)
@@ -124,7 +124,9 @@ private struct PhoneShell: View {
             .accessibilityHidden(!shell.isSidebarOpen)
     }
 
-    private func chat(progress: CGFloat, width: CGFloat) -> some View {
+    /// `shifted`: slide the chat right by the drawer width. The offset is applied here, before the accessibility container,
+    /// so the container's frame follows the drawn chat; applied outside, it kept covering the whole drawer in the tree.
+    private func chat(progress: CGFloat, width: CGFloat, shifted: Bool) -> some View {
         Detail()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemBackground))
@@ -148,6 +150,7 @@ private struct PhoneShell: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
+            .offset(x: shifted ? progress * width : 0)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("main.container")
     }
