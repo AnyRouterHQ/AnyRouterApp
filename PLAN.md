@@ -289,12 +289,12 @@ Units from `docs/research/agent-design.md` § 6, in this order. Each is one push
 
 - [x] M1 (f08e1c9; unit and gate tests green in CI 46065997695, Memory files at 100%; UI test and screenshots pending on the board) `MemoryRecord`, `MemoryStore` (add, edit, delete, caps, scope), Settings › Memory with its three switches
 - [x] A1 (8cb2708; Apple's own counter comes with A2, where a request is assembled) Token counter replaces `CompactionLogic.tokens` (English, Vietnamese, Chinese tests; Apple counter behind `#available(iOS 26.4, *)`)
-- [ ] M2 Always-on profile in the prompt, frozen per thread; "Don't use memory in this chat"
-- [ ] M3 "Remember that" classifier (English, Vietnamese), "Remember this" action, "Memory updated" row with Undo and Edit
-- [ ] M4 Pre-send lexical recall, top 3, "Used N memories" in the footer with Forget
-- [ ] M5 Cloud `memory` and `search_chats` tools with scope rules
+- [x] M2 (b64cf0e; green in CI 46080437151) Always-on profile in the prompt, frozen per thread by item id (a deleted item leaves the next request); "Don't use memory in this chat"
+- [x] M3 (3f15b73, d622e53, 9642e43; green in CI 46080437151; UI test MemoryRowTests not run yet) "Remember that" classifier (English, Vietnamese), "Remember" on selected reply text, "Memory updated" row with Undo and Edit. Open: "Remember this" on the user's own bubble
+- [x] M4 (7d50cd0, aa1010b; green in CI 46080437151) Pre-send lexical recall, top 3, "Used N memories" in the footer with Forget
+- [x] M5 (8577f63; green in CI 46080437151) Cloud `memory` (search, add, remove with Undo) and `search_chats` tools with scope rules
 - [ ] M6 Chat summaries; Apple extraction after the reply
-- [ ] A2 `PromptAssembler` with sections and budgets; the context meter reads its report
+- [x] A2 (e7afaa8; green in CI 46080437151) `PromptAssembler` with sections and budgets; the context meter reads its report
 - [ ] A3 In-run result caps, stubs for old results, tool digest for the next turn
 - [ ] A4 Structured cloud summary; compact once and retry on Apple's context error
 - [x] G1 (3ad8787) `interrupted` marker on a reply, set at insert and cleared when it finishes (builds on lane A's stored failure)
