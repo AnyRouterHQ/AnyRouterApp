@@ -10,7 +10,8 @@ struct ToolSourceIcon: View {
         Group {
             switch icon {
             case .symbol(let name):
-                Image(systemName: name).imageScale(.large)
+                // Fitted like the logos, so a wide symbol takes the same 20 pt tile as a narrow one and the titles line up.
+                Image(systemName: name).resizable().scaledToFit()
             case .asset(let name):
                 Image(name).resizable().renderingMode(.template).scaledToFit()
             }

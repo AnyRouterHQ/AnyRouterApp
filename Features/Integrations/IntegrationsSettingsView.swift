@@ -45,7 +45,7 @@ struct IntegrationsSettingsView: View {
                 isOn: Bindable(settings).onDeviceTools)
                 .accessibilityIdentifier("tools.on-device-models")
         } footer: {
-            Text("Off by default. Models that cannot call tools show them as unavailable in the @ list.")
+            Text("Off by default: tool descriptions use part of a small model's context, and calls from these models are not yet checked on a device.")
         }
     }
 
