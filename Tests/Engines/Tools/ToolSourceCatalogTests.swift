@@ -39,11 +39,12 @@ struct ToolSourceCatalogTests {
         }
     }
 
-    @Test func otherPublicSourcesAreOptIn() {
+    /// Tools are on out of the box: a new person gets the device tools and the no-account services without a trip to Settings.
+    @Test func everyOtherSourceStartsOn() {
         for signedIn in [true, false] {
             let situation = ToolSituation(signedIn: signedIn, modelSource: .apple)
-            #expect(!ToolSourceCatalog.deepWiki.isOnByDefault(in: situation))
-            #expect(!ToolSourceCatalog.microsoftLearn.isOnByDefault(in: situation))
+            #expect(ToolSourceCatalog.deepWiki.isOnByDefault(in: situation))
+            #expect(ToolSourceCatalog.microsoftLearn.isOnByDefault(in: situation))
             #expect(ToolSourceCatalog.device.isOnByDefault(in: situation))
             #expect(ToolSourceCatalog.anyRouter.isOnByDefault(in: situation))
         }

@@ -45,11 +45,16 @@ final class AppSettings {
         self.defaults = defaults
     }
 
-    /// Tools for models that run on this device (llama.cpp and MLX). Off until the person turns it on: a small model
-    /// spends part of its context on the tool list, and tool calling there is not checked on every model.
+    /// Tools for models that run on this device (llama.cpp and MLX). On until the person turns it off; such a model is
+    /// offered four tools at most (`ToolProfile.compact`), so the list fits its small context.
     var onDeviceTools: Bool {
-        get { access(keyPath: \.onDeviceTools); return defaults.bool(forKey: Self.onDeviceToolsKey) }
+        get { access(keyPath: \.onDeviceTools); return Self.onDeviceToolsOn(defaults: defaults) }
         set { withMutation(keyPath: \.onDeviceTools) { defaults.set(newValue, forKey: Self.onDeviceToolsKey) } }
+    }
+
+    /// The same switch without an instance, for the engines that run off the main actor.
+    nonisolated static func onDeviceToolsOn(defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: onDeviceToolsKey) as? Bool ?? true
     }
 
     var temperature: Double {

@@ -125,7 +125,7 @@ enum ToolSourceCatalog {
     static let deepWiki = ToolSource(
         id: "deepwiki", group: .web, title: "DeepWiki",
         subtitle: "Ask about public GitHub projects. No account needed.",
-        icon: .symbol("books.vertical"), auth: .none, defaultState: .off,
+        icon: .symbol("books.vertical"), auth: .none, defaultState: .on,
         recipient: ToolRecipient(name: "DeepWiki", site: "deepwiki.com"),
         server: MCPServer(id: "deepwiki", name: "DeepWiki", url: URL(string: "https://mcp.deepwiki.com/mcp")!, auth: .none),
         tools: [
@@ -149,7 +149,7 @@ enum ToolSourceCatalog {
     static let microsoftLearn = ToolSource(
         id: "mslearn", group: .web, title: "Microsoft Learn",
         subtitle: "Search Microsoft and Azure documentation. No account needed.",
-        icon: .asset("Logo-microsoft"), auth: .none, defaultState: .off,
+        icon: .asset("Logo-microsoft"), auth: .none, defaultState: .on,
         recipient: ToolRecipient(name: "Microsoft Learn", site: "learn.microsoft.com"),
         server: MCPServer(id: "mslearn", name: "Microsoft Learn", url: URL(string: "https://learn.microsoft.com/api/mcp")!, auth: .none),
         tools: [

@@ -36,6 +36,19 @@ struct ToolProfileTests {
         ])
     }
 
+    /// With every source on, the four are still one of each kind: a docs search or a second page reader waits its turn.
+    @Test func aSecondSearchOrPageReaderDoesNotTakeASlotFromAnotherKind() {
+        let names = ["fetch_url", "current_date_time", "calculator", "web_search_exa", "web_fetch_exa",
+                     "ask_wiki_question", "microsoft_docs_search", "microsoft_docs_fetch"]
+        let expected = ["current_date_time", "calculator", "web_search_exa", "fetch_url"]
+        #expect(ToolProfile.apple.shaped(names.map { spec($0) }).map(\.name) == expected)
+        #expect(ToolProfile.compact.shaped(names.map { spec($0) }).map(\.name) == expected)
+        let noSearch = ["microsoft_docs_search", "web_fetch_exa", "fetch_url", "current_date_time", "ask_wiki_question"]
+        #expect(ToolProfile.apple.shaped(noSearch.map { spec($0) }).map(\.name) == [
+            "current_date_time", "web_fetch_exa", "microsoft_docs_search", "fetch_url",
+        ])
+    }
+
     @Test func localModelsAndAppleBothKeepFour() {
         #expect(ToolProfile.apple.maxTools == 4)
         #expect(ToolProfile.compact.maxTools == 4)

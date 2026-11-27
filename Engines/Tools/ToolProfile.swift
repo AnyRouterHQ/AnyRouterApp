@@ -24,16 +24,15 @@ struct ToolProfile: Equatable, Sendable {
     }
 
     /// At most `maxTools` specs with short descriptions. This is the only cap on the tools a model sees. When tools must
-    /// be dropped, the clock comes first, then the calculator, web search, reading a page, then the rest, each group in its
-    /// given order. Four tools (Apple) are therefore the clock, the calculator, search and one page reader.
+    /// be dropped, the first clock comes first, then the first calculator, web search and page reader, then the rest in
+    /// their given order. Four tools (Apple) are therefore the clock, the calculator, search and one page reader, even
+    /// when a docs search or a second page reader is on too.
     func shaped(_ specs: [ToolSpec]) -> [ToolSpec] {
         var list = specs
         if list.count > maxTools {
-            let ranked = list.enumerated().sorted { lhs, rhs in
-                let (a, b) = (Self.priority(of: lhs.element.name), Self.priority(of: rhs.element.name))
-                return a != b ? a < b : lhs.offset < rhs.offset
-            }
-            list = ranked.prefix(maxTools).map { $0.element }
+            let ranks = Self.ranks(of: list.map(\.name))
+            let order = list.indices.sorted { ranks[$0] != ranks[$1] ? ranks[$0] < ranks[$1] : $0 < $1 }
+            list = order.prefix(maxTools).map { list[$0] }
         }
         guard let limit = maxDescriptionCharacters else { return list }
         return list.map { spec in
@@ -47,11 +46,20 @@ struct ToolProfile: Equatable, Sendable {
         MCPToolHost.clip(text, limit: maxResultCharacters)
     }
 
-    private static func priority(of name: String) -> Int {
+    /// Only the first tool of each kind keeps its kind's rank; a second one ranks with the rest.
+    private static func ranks(of names: [String]) -> [Int] {
+        var taken = Set<Int>()
+        return names.map { name in
+            let rank = Self.kind(of: name)
+            return rank < 4 && taken.insert(rank).inserted ? rank : 4
+        }
+    }
+
+    private static func kind(of name: String) -> Int {
         let lowered = name.lowercased()
         if lowered.contains("date") { return 0 }
         if lowered.contains("calculator") { return 1 }
-        if lowered.contains("search") { return 2 }
+        if lowered.contains("web_search") || lowered.hasSuffix("firecrawl_search") { return 2 }
         if ["fetch_url", "web_fetch", "scrape", "read_url"].contains(where: { lowered.contains($0) }) { return 3 }
         return 4
     }

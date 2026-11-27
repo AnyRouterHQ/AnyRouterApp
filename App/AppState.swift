@@ -99,8 +99,8 @@ final class AppState {
         let gguf = GGUFEngine(telemetry: telemetry, residency: residency)
         let mlx = MLXEngine(telemetry: telemetry, residency: residency)
         registry.register(AppleFoundationEngine())
-        // The on-device engines only write text; the wrapper gives them a tool loop when the person turns it on.
-        let onDeviceTools: @Sendable () -> Bool = { UserDefaults.standard.bool(forKey: AppSettings.onDeviceToolsKey) }
+        // The on-device engines only write text; the wrapper gives them a tool loop unless the person turned it off.
+        let onDeviceTools: @Sendable () -> Bool = { AppSettings.onDeviceToolsOn() }
         registry.register(LocalToolEngine(wrapping: gguf, isEnabled: onDeviceTools))
         registry.register(LocalToolEngine(wrapping: mlx, isEnabled: onDeviceTools))
         Perf.signposter.endInterval("launch.engines", enginesSignpost)

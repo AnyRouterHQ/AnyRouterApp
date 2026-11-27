@@ -35,24 +35,26 @@ final class ToolSourceRegistryTests: XCTestCase {
 
     private let device = ["fetch_url", "current_date_time", "calculator"]
     private let exa = ["web_search_exa", "web_fetch_exa"]
+    /// The main tool of DeepWiki and of Microsoft Learn, on out of the box.
+    private let docs = ["ask_wiki_question", "microsoft_docs_search", "microsoft_docs_fetch"]
     /// Apple's model gets four tools: the clock, the calculator, search and one page reader.
     private let apple = ["current_date_time", "calculator", "web_search_exa", "fetch_url"]
 
     // MARK: Defaults per sign-in state and model source
 
-    func testSignedOutStartsWithDeviceToolsAndExaForEveryModel() {
+    func testSignedOutStartsWithDeviceToolsExaAndTheDocsServicesForEveryModel() {
         let registry = makeRegistry()
-        XCTAssertEqual(names(registry, .anyrouter), device + exa)
+        XCTAssertEqual(names(registry, .anyrouter), device + exa + docs)
         for source in [ModelSource.gguf, .mlx, .apple] {
             XCTAssertEqual(names(registry, source), apple, "\(source) gets the four a small context holds")
         }
-        XCTAssertEqual(names(registry, nil), device + exa)
+        XCTAssertEqual(names(registry, nil), device + exa + docs)
     }
 
     func testSignedInOnACloudModelLeavesWebSearchToAnyRouter() {
         let registry = makeRegistry(signedIn: true)
-        XCTAssertEqual(names(registry, .anyrouter), device)
-        XCTAssertEqual(names(registry, nil), device)
+        XCTAssertEqual(names(registry, .anyrouter), device + docs)
+        XCTAssertEqual(names(registry, nil), device + docs)
     }
 
     func testSignedInOnADeviceModelStillGetsExa() {
@@ -62,19 +64,31 @@ final class ToolSourceRegistryTests: XCTestCase {
         }
     }
 
-    func testOtherPublicServicesStartOffAndOnlyTheirMainToolIsOn() {
+    func testOtherPublicServicesStartOnWithOnlyTheirMainTool() {
         let registry = makeRegistry()
         let deepWiki = ToolSourceCatalog.deepWiki
-        XCTAssertFalse(registry.isOn(deepWiki))
-        registry.setSource(deepWiki, on: true)
-        XCTAssertEqual(names(registry, .anyrouter), device + exa + ["ask_wiki_question"])
+        let learn = ["microsoft_docs_search", "microsoft_docs_fetch"]
+        XCTAssertTrue(registry.isOn(deepWiki))
+        XCTAssertTrue(registry.isOn(ToolSourceCatalog.microsoftLearn))
         let server = deepWiki.server!
         let structure = deepWiki.tools[1].mcpTool
         registry.integrations.setEnabled(true, tool: structure, on: server)
-        XCTAssertEqual(names(registry, .anyrouter), device + exa + ["ask_wiki_question", "read_wiki_structure"])
+        XCTAssertEqual(names(registry, .anyrouter), device + exa + ["ask_wiki_question", "read_wiki_structure"] + learn)
         let ask = deepWiki.tools[0].mcpTool
         registry.integrations.setEnabled(false, tool: ask, on: server)
-        XCTAssertEqual(names(registry, .anyrouter), device + exa + ["read_wiki_structure"])
+        XCTAssertEqual(names(registry, .anyrouter), device + exa + ["read_wiki_structure"] + learn)
+    }
+
+    /// The defaults moved from off to on. Only a switch someone flipped is stored, so an install from before the move
+    /// gets the new defaults for everything it never touched, and keeps every switch it did.
+    func testAnInstallFromBeforeToolsWereOnKeepsItsChoicesAndGetsTheRest() {
+        let defaults = testDefaults()
+        defaults.set(["mslearn": false, "device": true], forKey: "tools.sourceChoices")
+        defaults.set(["calculator"], forKey: "tools.disabledBuiltIns")
+        let registry = makeRegistry(defaults: defaults)
+        XCTAssertTrue(registry.isOn(ToolSourceCatalog.deepWiki), "never chosen, so it follows the new default")
+        XCTAssertFalse(registry.isOn(ToolSourceCatalog.microsoftLearn), "turned off by the person, so it stays off")
+        XCTAssertEqual(names(registry, .anyrouter), ["fetch_url", "current_date_time"] + exa + ["ask_wiki_question"])
     }
 
     // MARK: Named with @
@@ -88,10 +102,10 @@ final class ToolSourceRegistryTests: XCTestCase {
         XCTAssertEqual(forcedNames(registry, ["exa"]), exa)
         registry.setSource(ToolSourceCatalog.exa, on: false)
         XCTAssertEqual(forcedNames(registry, ["exa"]), exa, "named, so on for this message")
-        XCTAssertEqual(names(registry, .anyrouter), device, "the switch still decides the other messages")
+        XCTAssertEqual(names(registry, .anyrouter), device + docs, "the switch still decides the other messages")
     }
 
-    func testANamedSourceThatIsOffByDefaultKeepsItsOwnToolSwitches() {
+    func testANamedSourceKeepsItsOwnToolSwitches() {
         let registry = makeRegistry()
         XCTAssertEqual(forcedNames(registry, ["deepwiki"]), ["ask_wiki_question"])
         XCTAssertEqual(forcedNames(registry, ["deepwiki", "mslearn"]), ["ask_wiki_question", "microsoft_docs_search", "microsoft_docs_fetch"])
@@ -174,19 +188,19 @@ final class ToolSourceRegistryTests: XCTestCase {
         let defaults = testDefaults()
         let registry = makeRegistry(defaults: defaults)
         registry.setSource(ToolSourceCatalog.exa, on: false)
-        XCTAssertEqual(names(registry, .apple), device)
-        XCTAssertEqual(names(makeRegistry(defaults: defaults), .apple), device, "kept after a restart")
+        XCTAssertEqual(names(registry, .anyrouter), device + docs)
+        XCTAssertEqual(names(makeRegistry(defaults: defaults), .anyrouter), device + docs, "kept after a restart")
 
         let signedIn = makeRegistry(signedIn: true, defaults: testDefaults())
         signedIn.setSource(ToolSourceCatalog.exa, on: true)
-        XCTAssertEqual(names(signedIn, .anyrouter), device + exa)
+        XCTAssertEqual(names(signedIn, .anyrouter), device + exa + docs)
     }
 
     func testTurningTheDeviceOffRemovesItsToolsOnly() {
         let registry = makeRegistry()
         registry.setSource(ToolSourceCatalog.device, on: false)
-        XCTAssertEqual(names(registry, .apple), exa)
-        registry.setSource(ToolSourceCatalog.exa, on: false)
+        XCTAssertEqual(names(registry, .anyrouter), exa + docs)
+        for source in ToolSourceCatalog.publicSources { registry.setSource(source, on: false) }
         XCTAssertNil(names(registry, .apple))
     }
 
@@ -227,19 +241,16 @@ final class ToolSourceRegistryTests: XCTestCase {
 
     func testLocalModelsAndAppleGetFourToolsWithShortDescriptions() {
         let registry = makeRegistry()
-        registry.setSource(ToolSourceCatalog.deepWiki, on: true)
-        registry.setSource(ToolSourceCatalog.microsoftLearn, on: true)
         for source in [ToolSourceCatalog.deepWiki, ToolSourceCatalog.microsoftLearn] {
             for pin in source.tools { registry.integrations.setEnabled(true, tool: pin.mcpTool, on: source.server!) }
         }
         let host = registry.makeHost(approver: Refuses(), context: ToolContext(modelSource: .gguf))!
         let list = host.specs.map(\.name)
-        XCTAssertEqual(list, ["current_date_time", "calculator", "web_search_exa", "microsoft_docs_search"])
-        XCTAssertFalse(list.contains("microsoft_docs_fetch"))
+        XCTAssertEqual(list, apple, "a docs search does not push the page reader out")
         XCTAssertTrue(host.specs.allSatisfy { $0.description.count <= 160 })
 
         let onApple = registry.makeHost(approver: Refuses(), context: ToolContext(modelSource: .apple))!
-        XCTAssertEqual(onApple.specs.map(\.name), ["current_date_time", "calculator", "web_search_exa", "microsoft_docs_search"])
+        XCTAssertEqual(onApple.specs.map(\.name), apple)
 
         let cloud = registry.makeHost(approver: Refuses(), context: ToolContext(modelSource: .anyrouter))!
         XCTAssertEqual(cloud.specs.count, 11, "a cloud model is offered every tool that is on")

@@ -37,6 +37,16 @@ struct AppSettingsTests {
         #expect(AppSettings(defaults: d).showKeyboardOnLaunch)
     }
 
+    /// Tools on this device's models start on; a person who turned them off keeps that, and the engines read the same answer.
+    @Test func onDeviceToolsAreOnUntilTurnedOff() {
+        let d = testDefaults()
+        #expect(AppSettings(defaults: d).onDeviceTools)
+        #expect(AppSettings.onDeviceToolsOn(defaults: d))
+        AppSettings(defaults: d).onDeviceTools = false
+        #expect(!AppSettings(defaults: d).onDeviceTools)
+        #expect(!AppSettings.onDeviceToolsOn(defaults: d))
+    }
+
     @Test func valuesPersistInTheirDefaults() {
         let d = testDefaults()
         AppSettings(defaults: d).temperature = 0.2
