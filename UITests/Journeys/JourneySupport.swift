@@ -271,7 +271,8 @@ class JourneyCase: XCTestCase {
 
 extension XCUIApplication {
     /// A reply's text block. Headings, lists and paragraphs are selectable text views, so their words are the value.
-    /// (The UI test target has the same helper in ReplyTextSupport.swift; the two targets share no files.)
+    /// One copy for both UI test targets: AnyRouterUITests compiles UITests/Journeys too (perf 46064983090 failed on a
+    /// second copy in ReplyTextSupport.swift with "invalid redeclaration of 'replyText'").
     func replyText(_ text: String) -> XCUIElement { replyTexts(text).firstMatch }
 
     func replyTexts(_ text: String) -> XCUIElementQuery {
