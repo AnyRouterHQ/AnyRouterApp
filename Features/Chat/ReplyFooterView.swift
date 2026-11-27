@@ -19,7 +19,7 @@ struct ReplyFooterRow: View {
                 HStack(spacing: -4) {
                     actions
                     sourcesButton
-                    modelInfo
+                    modelInfo.padding(.leading, 8)
                 }
                 .imageScale(.medium)
             }

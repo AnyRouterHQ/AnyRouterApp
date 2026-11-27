@@ -18,7 +18,7 @@ struct AttachmentCard: View {
         }
         .padding(10)
         .frame(maxWidth: 300, alignment: .leading)
-        .background(.quaternary, in: .rect(cornerRadius: 14))
+        .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 14))
         .contentShape(.rect(cornerRadius: 14))
     }
 }
@@ -43,7 +43,7 @@ struct FileThumbnail: View {
             }
         }
         .frame(width: side, height: side)
-        .background(.quaternary)
+        .background(Color(.tertiarySystemFill))
         .clipShape(.rect(cornerRadius: 8))
         .task(id: attachment.id) {
             image = await ThumbnailMaker.image(for: attachment.url(in: store.root), side: side, scale: displayScale)

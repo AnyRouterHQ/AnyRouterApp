@@ -32,7 +32,7 @@ struct CompactionDivider: View {
                 .foregroundStyle(.secondary)
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.quaternary, in: .rect(cornerRadius: 14))
+                .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 14))
                 .transition(.opacity)
                 .accessibilityIdentifier("compaction.summary")
             }

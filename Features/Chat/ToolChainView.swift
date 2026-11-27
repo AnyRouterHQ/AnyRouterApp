@@ -1,24 +1,37 @@
 import SwiftUI
 
 /// The tool calls of a reply, in order. While a call runs, or before the answer starts, every call is a row.
-/// Once the answer has started they fold into one "Used 3 tools" line that opens to the rows.
+/// Once the answer has started they fold into one sentence ("Searched the web and read 3 pages") that opens to the rows.
 struct ToolChainView: View {
     let steps: [ToolStep]
     let answerStarted: Bool
     @State private var isOpen = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let chain = ToolChain(steps: steps, answerStarted: answerStarted)
         if chain.isCollapsed {
-            DisclosureGroup(isExpanded: $isOpen) {
-                rows(chain)
-            } label: {
-                Label(chain.heading, systemImage: "wrench.and.screwdriver")
-                    .font(.footnote)
+            // The same row as reasoning and subagents: a symbol, one line of words, a chevron. A DisclosureGroup would tint it.
+            VStack(alignment: .leading, spacing: 0) {
+                Button { isOpen.toggle() } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "wrench.and.screwdriver")
+                        Text(chain.heading).font(.footnote).lineLimit(2).multilineTextAlignment(.leading)
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .imageScale(.small)
+                            .rotationEffect(.degrees(isOpen ? 90 : 0))
+                    }
                     .foregroundStyle(.secondary)
                     .frame(minHeight: 44)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(isOpen ? "Hides the steps" : "Shows the steps")
+                .accessibilityIdentifier("tool.chain")
+                if isOpen { rows(chain) }
             }
-            .accessibilityIdentifier("tool.chain")
+            .animation(reduceMotion ? nil : .snappy, value: isOpen)
         } else {
             rows(chain)
         }
@@ -62,12 +75,14 @@ struct ToolStepRow: View {
                 Spacer(minLength: 8)
                 status
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.secondary)
             .frame(minHeight: 44)
             // One element that reads the full sentence, so VoiceOver and the UI tests get the same words as before.
             .accessibilityElement(children: .combine)
             .accessibilityLabel(row.title)
         }
+        // A disclosure group tints its label and chevron with the accent; the row is quiet like the others.
+        .tint(Color.secondary)
         .accessibilityIdentifier("tool.row")
     }
 
