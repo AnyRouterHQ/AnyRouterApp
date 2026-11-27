@@ -31,9 +31,9 @@ struct AboutSettings: View {
                 copiedDiagnostics = true
             }
         } label: {
-            HStack {
-                Label("Version", systemImage: "info.circle")
-                Spacer()
+            ListRow("Version") {
+                SettingsIcon(glyph: .symbol("info"), color: .gray)
+            } accessory: {
                 Text(SettingsLogic.versionText(version: SettingsLogic.appVersion, build: SettingsLogic.appBuild, commit: SettingsLogic.appCommit))
                     .foregroundStyle(.secondary)
             }

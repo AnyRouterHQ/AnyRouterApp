@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The icon tile of a Settings row, drawn like the system Settings app: a white glyph on a 29 pt rounded square of one
-/// system color, the symbol at the body size (17 pt). A custom view because `Label` has no tile style; it scales with
-/// Dynamic Type.
+/// The icon tile of a Settings row, drawn like the system Settings app: a white glyph fitted inside a 19 pt box centred
+/// on a 29 pt rounded square of one system color, so even wide symbols keep a clear margin (a 17 pt font size let them
+/// reach 22 pt and touch the edges). A custom view because `Label` has no tile style; it scales with Dynamic Type.
 struct SettingsIcon: View {
     /// An SF Symbol, or a template image from the asset catalog (the AnyRouter mark).
     enum Glyph: Hashable, Sendable {
@@ -13,7 +13,7 @@ struct SettingsIcon: View {
     let glyph: Glyph
     let color: Color
     @ScaledMetric(relativeTo: .body) private var side: CGFloat = 29
-    @ScaledMetric(relativeTo: .body) private var assetSide: CGFloat = 17
+    @ScaledMetric(relativeTo: .body) private var glyphSide: CGFloat = 19
 
     var body: some View {
         image
@@ -26,9 +26,9 @@ struct SettingsIcon: View {
     @ViewBuilder private var image: some View {
         switch glyph {
         case .symbol(let name):
-            Image(systemName: name).font(.body.weight(.medium))
+            Image(systemName: name).resizable().fontWeight(.medium).scaledToFit().frame(width: glyphSide, height: glyphSide)
         case .asset(let name):
-            Image(name).resizable().renderingMode(.template).scaledToFit().frame(width: assetSide, height: assetSide)
+            Image(name).resizable().renderingMode(.template).scaledToFit().frame(width: glyphSide, height: glyphSide)
         }
     }
 }
