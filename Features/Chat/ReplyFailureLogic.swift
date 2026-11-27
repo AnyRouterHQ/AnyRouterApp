@@ -18,6 +18,8 @@ struct ReplyFailure: Codable, Equatable, Sendable {
     /// What the reply offers to do about it.
     enum Action: Hashable, Sendable {
         case retry, signIn, chooseModel, shortenChat, openSettings
+        /// A reply from a model on this device asks a cloud model instead, after a notice (agent design X1).
+        case askCloudModel
     }
 
     var kind: Kind
@@ -81,8 +83,15 @@ enum ReplyFailureLogic {
         }
     }
 
-    /// The action that fixes it, then Retry when that is something else and the reply can still be retried.
-    static func actions(for kind: ReplyFailure.Kind, canRetry: Bool) -> [ReplyFailure.Action] {
+    /// The action that fixes it, then Retry when that is something else and the reply can still be retried. A device
+    /// model that could not answer (too long a chat, too little memory, not loaded) can hand the question to a cloud
+    /// model when `canAskCloud`; the app never does that by itself.
+    static func actions(for kind: ReplyFailure.Kind, canRetry: Bool, canAskCloud: Bool = false) -> [ReplyFailure.Action] {
+        let escalates = canAskCloud && [.contextTooLong, .localOutOfMemory, .localLoadFailed, .modelUnavailable].contains(kind)
+        return fixes(for: kind, canRetry: canRetry) + (escalates ? [.askCloudModel] : [])
+    }
+
+    private static func fixes(for kind: ReplyFailure.Kind, canRetry: Bool) -> [ReplyFailure.Action] {
         let primary: ReplyFailure.Action = switch kind {
         case .signedOut: .signIn
         case .outOfCredits, .modelUnavailable, .localOutOfMemory: .chooseModel
@@ -101,6 +110,7 @@ enum ReplyFailureLogic {
         case .chooseModel: String(localized: "Choose another model")
         case .shortenChat: String(localized: "Shorten chat")
         case .openSettings: String(localized: "Open Local Models")
+        case .askCloudModel: String(localized: "Ask a cloud model")
         }
     }
 

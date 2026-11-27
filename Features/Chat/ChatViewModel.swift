@@ -1087,6 +1087,17 @@ final class ChatViewModel {
         }
     }
 
+    /// The cloud model "Ask a cloud model" would use, or nil when none is usable.
+    var escalationModel: ModelDescriptor? { EscalationLogic.cloudModel(in: models.models) }
+
+    /// "Ask a cloud model": the question goes to a cloud model, after the chat showed the notice. Nil when none is usable.
+    @discardableResult
+    func askCloudModel() -> Task<Void, Never>? {
+        guard let cloud = escalationModel else { return nil }
+        choose(cloud)
+        return regenerate()
+    }
+
     /// Asks for a title while the thread still has the one cut from its first message. A failure keeps that one.
     private func startTitle(for thread: ThreadRecord, chat: ModelDescriptor) -> Task<Void, Never>? {
         let plan = TitleLogic.plan(

@@ -89,6 +89,10 @@ struct ReplyFailureLogicTests {
         #expect(ReplyFailureLogic.actions(for: .signedOut, canRetry: true) == [.signIn, .retry])
         #expect(ReplyFailureLogic.actions(for: .signedOut, canRetry: false) == [.signIn])
         #expect(ReplyFailureLogic.actions(for: .contextTooLong, canRetry: true).first == .shortenChat)
+        #expect(ReplyFailureLogic.actions(for: .contextTooLong, canRetry: true, canAskCloud: true) == [.shortenChat, .retry, .askCloudModel])
+        #expect(ReplyFailureLogic.actions(for: .localOutOfMemory, canRetry: false, canAskCloud: true) == [.chooseModel, .askCloudModel])
+        #expect(ReplyFailureLogic.actions(for: .offline, canRetry: true, canAskCloud: true) == [.retry], "a cloud model needs the connection too")
+        #expect(ReplyFailureLogic.title(of: .askCloudModel) == "Ask a cloud model")
         #expect(ReplyFailureLogic.actions(for: .localLoadFailed, canRetry: true).first == .openSettings)
         for kind: ReplyFailure.Kind in [.outOfCredits, .modelUnavailable, .localOutOfMemory] {
             #expect(ReplyFailureLogic.actions(for: kind, canRetry: true) == [.chooseModel, .retry])

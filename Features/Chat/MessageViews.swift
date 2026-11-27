@@ -18,6 +18,8 @@ struct MessageRow: View {
     var statusNote: String?
     /// Retry, Sign in, Choose another model, … from a failed reply.
     var onFailureAction: (ReplyFailure.Action) -> Void
+    /// A cloud model can take over a device reply that failed ("Ask a cloud model").
+    var canAskCloud: Bool
     @Environment(AppState.self) private var app
     @Environment(AppSettings.self) private var settings
     @Environment(\.modelContext) private var context
@@ -25,8 +27,9 @@ struct MessageRow: View {
     init(message: MessageRecord, isStreamingThis: Bool, showsRegenerate: Bool,
          onRegenerate: @escaping () -> Void, switchNote: String? = nil, showsDetails: Bool = true,
          loadingModelName: String? = nil, statusNote: String? = nil,
-         onFailureAction: @escaping (ReplyFailure.Action) -> Void = { _ in }) {
+         onFailureAction: @escaping (ReplyFailure.Action) -> Void = { _ in }, canAskCloud: Bool = false) {
         self.onFailureAction = onFailureAction
+        self.canAskCloud = canAskCloud
         self.loadingModelName = loadingModelName
         self.statusNote = statusNote
         self.showsDetails = showsDetails
@@ -148,7 +151,10 @@ struct MessageRow: View {
             if !isStreamingThis, let failure = message.failure {
                 // Retry only on the last reply: it replaces that reply.
                 ReplyFailureView(
-                    failure: failure, actions: ReplyFailureLogic.actions(for: failure.kind, canRetry: showsRegenerate),
+                    failure: failure,
+                    actions: ReplyFailureLogic.actions(
+                        for: failure.kind, canRetry: showsRegenerate,
+                        canAskCloud: canAskCloud && EscalationLogic.isDeviceReply(modelID: message.modelID)),
                     onAction: onFailureAction)
             }
             if let footer = ReplyFooter.make(

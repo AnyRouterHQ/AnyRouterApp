@@ -171,6 +171,8 @@ private struct ChatContent: View {
     @Environment(\.scenePhase) private var scenePhase
     /// A tapped-in tip that replaces the model subtitle until the chat changes.
     @State private var tip: String?
+    /// The notice before a question leaves the device for a cloud model ("Ask a cloud model").
+    @State private var showsCloudNotice = false
     /// The list follows the reply while true (see `ScrollFollow`).
     @State private var following = true
     /// The end marker of the list is on screen.
@@ -209,6 +211,15 @@ private struct ChatContent: View {
             ReadTextSheet(text: scan.text, presets: OCRLogic.scanPresetIDs.compactMap { app.presets.preset(id: $0) }) { preset, selection, text in
                 chat.useScan(preset, selection: selection, text: text)
             }
+        }
+        .confirmationDialog(EscalationLogic.noticeTitle, isPresented: $showsCloudNotice, titleVisibility: .visible) {
+            if let cloud = chat.escalationModel {
+                Button(EscalationLogic.confirmTitle(for: cloud)) { chat.askCloudModel() }
+                    .accessibilityIdentifier("reply.askCloud.confirm")
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(EscalationLogic.noticeMessage)
         }
         // A preset with pickers (Reply to this) asks for its choices before it sends.
         .sheet(item: $chat.presetNeedingChoices) { preset in
@@ -270,6 +281,7 @@ private struct ChatContent: View {
         case .retry: chat.regenerate()
         case .chooseModel: shell.isModelPickerPresented = true
         case .shortenChat: chat.compactConversation()
+        case .askCloudModel: showsCloudNotice = true
         // The only reason to open Settings from a reply is a model on this device that did not load.
         case .openSettings: shell.presentSettings(closeSidebar: true, destination: .localModels)
         case .signIn:
@@ -317,7 +329,8 @@ private struct ChatContent: View {
                         showsDetails: showsDetails,
                         loadingModelName: message.id == lastID ? chat.loadingModelName : nil,
                         statusNote: message.id == lastID ? chat.statusNote : nil,
-                        onFailureAction: handle
+                        onFailureAction: handle,
+                        canAskCloud: message.id == lastID && chat.escalationModel != nil
                     )
                     // The last turn is at least one view tall, so a new question can settle at the top (decision D27).
                     if message.id == lastID {
