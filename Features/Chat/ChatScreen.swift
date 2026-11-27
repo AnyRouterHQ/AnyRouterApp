@@ -74,7 +74,9 @@ struct ChatScreen: View {
         }
         // On a window that already shows the fresh chat the task above does not run again.
         .onChange(of: shell.inbound?.id) { applyInbound() }
-        .toolApprovalDialog(app.toolApprovals)
+        .toolApprovalDialog(app.toolApprovals) { callID in
+            chat?.messages.last?.toolSteps.contains { $0.call.id == callID } ?? false
+        }
         .sheet(isPresented: $showsInstructions) {
             ChatInstructionsSheet(current: chat?.chatInstructions, global: settings.systemPrompt) { chat?.setChatInstructions($0) }
         }

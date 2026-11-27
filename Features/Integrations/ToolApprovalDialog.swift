@@ -41,13 +41,15 @@ enum ToolApprovalPrompt {
 
 extension View {
     /// Asks before a tool that is not read-only runs. Dismissing the dialog without a choice denies the call.
-    func toolApprovalDialog(_ center: ToolApprovalCenter) -> some View {
-        modifier(ToolApprovalDialog(center: center))
+    /// `isInline` says a call id already shows its approval card in the chat (decision D27); those skip the dialog.
+    func toolApprovalDialog(_ center: ToolApprovalCenter, isInline: @escaping (String) -> Bool = { _ in false }) -> some View {
+        modifier(ToolApprovalDialog(center: center, isInline: isInline))
     }
 }
 
 private struct ToolApprovalDialog: ViewModifier {
     let center: ToolApprovalCenter
+    let isInline: (String) -> Bool
     /// A button just answered; the dismissal that follows in the same turn must not deny the next request in the queue.
     @State private var answered = false
 
@@ -55,7 +57,7 @@ private struct ToolApprovalDialog: ViewModifier {
         content.confirmationDialog(
             center.pending.map { ToolApprovalPrompt.title(for: $0.request) } ?? "",
             isPresented: Binding(
-                get: { center.pending != nil },
+                get: { center.pending.map { !isInline($0.request.call.id) } ?? false },
                 set: { shown in
                     guard !shown else { return }
                     if !answered { center.resolveCurrent(.deny) }

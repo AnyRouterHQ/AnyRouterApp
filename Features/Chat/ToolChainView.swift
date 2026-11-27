@@ -49,6 +49,15 @@ struct ToolStepRow: View {
     let row: ToolChain.Row
     let step: ToolStep
     @State private var isOpen = false
+    @Environment(AppState.self) private var app
+
+    /// The approval the app waits for on this call, if any.
+    private var approval: ToolApprovalRequest? {
+        guard let request = app.toolApprovals.pending?.request, request.call.id == step.call.id else { return nil }
+        return request
+    }
+
+    private var status: TraceStatus { approval == nil ? row.status : .awaitingApproval }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -57,6 +66,10 @@ struct ToolStepRow: View {
                 .buttonStyle(.plain)
                 .accessibilityHint(isOpen ? "Hides the arguments and result" : "Shows the arguments and result")
                 .accessibilityIdentifier("tool.row")
+            if let approval {
+                ToolApprovalCard(request: approval) { app.toolApprovals.resolveCurrent($0) }
+                    .padding(.bottom, 8)
+            }
             if isOpen {
                 VStack(alignment: .leading, spacing: 8) {
                     ToolDetailText(title: "Arguments", text: ToolRowLogic.prettyJSON(step.call.argumentsJSON))
@@ -71,7 +84,7 @@ struct ToolStepRow: View {
     }
 
     private var label: some View {
-        TraceRow(status: row.status, isExpanded: isOpen) {
+        TraceRow(status: status, isExpanded: isOpen) {
             ToolSourceIcon(icon: row.icon)
         } title: {
             VStack(alignment: .leading, spacing: 0) {
@@ -84,7 +97,7 @@ struct ToolStepRow: View {
         // One element that reads the full sentence, so VoiceOver and the UI tests get the same words as before.
         .accessibilityElement(children: .combine)
         .accessibilityLabel(row.title)
-        .accessibilityValue(row.status.accessibilityText)
+        .accessibilityValue(status.accessibilityText)
     }
 }
 
