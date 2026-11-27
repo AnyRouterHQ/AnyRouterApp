@@ -48,6 +48,27 @@ final class ScreenshotTests: XCTestCase {
         logFrames(app)
     }
 
+    /// With the drawer closed: is its gear still in the XCUITest tree, and where? (opacity 0 hides it on screen only)
+    private func logClosedDrawer(_ app: XCUIApplication) {
+        let gear = app.buttons["sidebar.settings"]
+        let text = "closed drawer: gear " + (gear.exists ? "IN the tree at " + NSCoder.string(for: gear.frame) : "not in the tree")
+            + ", main.container " + NSCoder.string(for: app.descendants(matching: .any)["main.container"].frame)
+        let attachment = XCTAttachment(string: text)
+        attachment.name = "closed-drawer"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        guard let dir = ProcessInfo.processInfo.environment["SCREENSHOT_DIR"], !dir.isEmpty else { return }
+        let url = URL(fileURLWithPath: dir).appendingPathComponent("frames.txt")
+        let entry = "[closed drawer]\n\(text)\n\n"
+        if let handle = try? FileHandle(forWritingTo: url) {
+            handle.seekToEndOfFile()
+            handle.write(Data(entry.utf8))
+            try? handle.close()
+        } else {
+            try? Data(entry.utf8).write(to: url)
+        }
+    }
+
     /// Frames of the gear, the chat panel, its + button and the scrim with the sidebar open, written to frames.txt.
     private func logFrames(_ app: XCUIApplication) {
         func frame(_ element: XCUIElement) -> String {
@@ -117,9 +138,23 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// What a finger does: a tap at the gear's centre with the drawer open, independent of XCUITest's hittability.
+    /// If Settings opens, the drawer works and a "not hittable" report is an accessibility-tree problem.
+    func testDrawerGearOpensSettingsByCoordinate() {
+        forEachAppearance { app, appearance in
+            showSidebar(app)
+            let gear = app.buttons["Settings"].firstMatch
+            XCTAssertTrue(gear.exists, "gear is in the tree")
+            gear.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10), "a tap at the gear's centre opens Settings")
+            capture("drawer-gear-coordinate-tap", appearance)
+        }
+    }
+
     func testEmptyChat() {
         forEachAppearance { app, appearance in
             XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
+            logClosedDrawer(app)
             capture("empty-chat", appearance)
         }
     }

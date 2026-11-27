@@ -562,6 +562,8 @@ Source: `performAccessibilityAudit` in the verify journeys, run 45825631128 (iPh
 | 8 | Contrast failed: home subtitle and chip text on the tinted wash | Features/Chat/ChatScreen.swift:168-174, Features/Presets/PresetViews.swift:37-38 | native-ux-research | re-audit |
 | 9 | Contrast failed: "Manage models" title, "Search models" placeholder, picker "Model" title | Features/Hub/HubScreen.swift, Features/ModelPicker/ModelPickerSheet.swift | weekly-usage, settings-ia | re-audit |
 
+Note (closed-drawer layer): with the iPhone drawer closed it sits under the chat at opacity 0 and still appears in XCUITest's tree, so `AccessibilityAuditTests` on Home, chat, picker and settings used to report the drawer's contrast and clipping (rows 6, 8 and parts of 1 are the drawer's, seen only when it is open). Those audits now leave out the closed drawer's labels and say how many; `testDrawer` audits it open.
+
 ## Open questions (operator)
 
 - Q1 Add GitHub secrets: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_BASE64` (API key role App Manager).

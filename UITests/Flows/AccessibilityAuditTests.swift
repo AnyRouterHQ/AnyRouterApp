@@ -8,13 +8,34 @@ final class AccessibilityAuditTests: XCTestCase {
     private let auditTypes: XCUIAccessibilityAuditType = [.hitRegion, .contrast, .textClipped, .dynamicType]
     private let appearances = ["light", "dark"]
 
+    /// Labels of the views in the iPhone drawer while it is CLOSED. The drawer then sits under the chat at opacity 0 and
+    /// still shows up in XCUITest's tree (a run found the gear there), so the audit reports its contrast and clipping on
+    /// Home. Those are the drawer's findings, audited in `testDrawer` with the drawer open; they are left out here.
+    private func closedDrawerLabels(_ app: XCUIApplication) -> Set<String> {
+        let menu = app.buttons["Menu"]
+        guard menu.exists, menu.frame.minX < app.windows.firstMatch.frame.width / 2 else { return [] }
+        let list = app.collectionViews.firstMatch
+        guard list.exists, list.frame.minX == 0, list.frame.width < 345 else { return [] }
+        var labels = Set<String>()
+        for kind in [XCUIElement.ElementType.staticText, .button] {
+            for element in list.descendants(matching: kind).allElementsBoundByIndex { labels.insert(element.label) }
+        }
+        for id in ["sidebar.header", "sidebar.settings", "sidebar.compose"] {
+            let element = app.descendants(matching: .any)[id]
+            if element.exists { labels.insert(element.label) }
+        }
+        labels.remove("")
+        return labels
+    }
+
     /// One audit pass: the issues as "type | description | id | label" lines.
-    private func issues(_ app: XCUIApplication) -> [String]? {
+    private func issues(_ app: XCUIApplication, skipping drawer: Set<String> = []) -> [String]? {
         var found: [String] = []
         do {
             try app.performAccessibilityAudit(for: auditTypes) { issue in
                 let id = issue.element?.identifier ?? ""
                 let label = (issue.element?.label ?? "").replacingOccurrences(of: "\n", with: " ")
+                if !drawer.isEmpty, drawer.contains(label) || id.hasPrefix("sidebar") { return true }
                 found.append("\(issue.auditType.rawValue) | \(issue.compactDescription) | id=\(id) label=\(label)")
                 return true
             }
@@ -28,18 +49,20 @@ final class AccessibilityAuditTests: XCTestCase {
     /// one that shows in a single pass came from a screen still animating (drawer, sheet, tab switch).
     private func audit(_ app: XCUIApplication, _ screen: String, _ appearance: String) {
         sleep(1)
-        guard let first = issues(app) else {
+        let drawer = closedDrawerLabels(app)
+        guard let first = issues(app, skipping: drawer) else {
             XCTFail("\(screen) (\(appearance)): the audit itself failed")
             return
         }
         sleep(1)
-        guard let second = issues(app) else {
+        guard let second = issues(app, skipping: drawer) else {
             XCTFail("\(screen) (\(appearance)): the audit itself failed")
             return
         }
         let stable = first.filter(second.contains)
         let transient = Set(first).symmetricDifference(Set(second)).count
         let note = "\(stable.count) stable issue(s), \(transient) seen in only one pass (animation)"
+            + (drawer.isEmpty ? "" : ", \(drawer.count) closed-drawer labels left out")
         let attachment = XCTAttachment(string: note + "\n" + stable.joined(separator: "\n"))
         attachment.name = "audit-\(screen)-\(appearance)"
         attachment.lifetime = .keepAlways
