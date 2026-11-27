@@ -118,6 +118,8 @@ struct AccountCard: View {
 private struct Avatar: View {
     let url: URL?
     let initials: String
+    /// Grows with the name beside it (the audit flagged a fixed 48 pt as Dynamic Type unsupported).
+    @ScaledMetric(relativeTo: .headline) private var size: CGFloat = 48
 
     var body: some View {
         AsyncImage(url: url) { phase in
@@ -130,7 +132,7 @@ private struct Avatar: View {
                     .background(ARPalette.tint)
             }
         }
-        .frame(width: 48, height: 48)
+        .frame(width: size, height: size)
         .clipShape(Circle())
         .accessibilityHidden(true)
     }
