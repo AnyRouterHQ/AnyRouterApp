@@ -33,7 +33,7 @@ extension Theme {
                 BackgroundColor(Color(.secondarySystemFill))
             }
             .strong { FontWeight(.semibold) }
-            .link { ForegroundColor(.accentColor) }
+            .link { ForegroundColor(ARPalette.tint) }
             .heading1 { configuration in
                 configuration.label
                     .markdownMargin(top: 20, bottom: 12)
