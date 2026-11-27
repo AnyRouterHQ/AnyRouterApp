@@ -337,7 +337,10 @@ private struct ChatContent: View {
             .padding(.vertical, listPadding)            .readableWidth()
         }
         .scrollDismissesKeyboard(.interactively)
-        .scrollEdgeEffectStyle(.soft, for: .all)
+        // Hard at the bottom: under the floating composer a soft edge let reply text and trace rows read through the
+        // field and beside the + button (HIG audit 2026-11-28 #4).
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        .scrollEdgeEffectStyle(.hard, for: .bottom)
         .defaultScrollAnchor(.bottom, for: .initialOffset)
         .defaultScrollAnchor(.bottom, for: .alignment)
         // While following, rows that finish their layout late (lazy rows, photos) keep the end on screen; after a send the
