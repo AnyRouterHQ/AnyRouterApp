@@ -363,6 +363,10 @@ struct Composer: View {
                 .accessibilityIdentifier("composer.read-text")
                 Button("Extract fields", systemImage: "doc.text.magnifyingglass") { openExtract() }
                     .accessibilityIdentifier("composer.extract")
+                // The composer text becomes the state of a custom decision.
+                Button("Decide about this", systemImage: "checklist") { shell.decide(about: model.input) }
+                    .disabled(model.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityIdentifier("composer.decide")
             }
             Section {
                 if presets != nil {

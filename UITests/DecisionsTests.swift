@@ -39,6 +39,25 @@ final class DecisionsTests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["decisions-result-line"].waitForExistence(timeout: 10))
     }
 
+    func testDecideAboutThisCarriesTheComposerTextIntoTheCustomDecision() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ARDemoData", "YES"]
+        app.launch()
+        let input = app.descendants(matching: .any)["composer.input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 15))
+        input.tap()
+        input.typeText("Should I reply today")
+        XCTAssertTrue(app.buttons["Add"].waitForExistence(timeout: 5))
+        app.buttons["Add"].tap()
+        let item = app.buttons["composer.decide"]
+        XCTAssertTrue(item.waitForExistence(timeout: 5), "Decide about this is in the + menu")
+        item.tap()
+        XCTAssertTrue(app.navigationBars["Custom decision"].waitForExistence(timeout: 10))
+        let state = app.descendants(matching: .any)["decisions-state"]
+        XCTAssertTrue(state.waitForExistence(timeout: 5))
+        XCTAssertEqual(state.value as? String, "Should I reply today")
+    }
+
     func testAddingAYesNoQuestionEnablesRunInTheCustomDecision() {
         let app = XCUIApplication()
         app.launchArguments = ["-ARDemoData", "YES"]
