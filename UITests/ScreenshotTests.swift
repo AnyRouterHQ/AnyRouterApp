@@ -248,6 +248,18 @@ final class ScreenshotTests: XCTestCase {
             reasoning.tap()
             XCTAssertTrue(app.descendants(matching: .any)["reasoning.text"].firstMatch.waitForExistence(timeout: 5))
             capture("reply-parts-reasoning-open", appearance)
+
+            // The folded part of the chat is above: the divider, then the summary it stands for.
+            let divider = app.buttons["compaction.divider"].firstMatch
+            var tries = 0
+            while !(divider.exists && divider.isHittable) && tries < 6 {
+                app.swipeDown()
+                tries += 1
+            }
+            XCTAssertTrue(divider.exists, "the divider between the folded messages and the rest")
+            divider.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["compaction.summary"].firstMatch.waitForExistence(timeout: 5))
+            capture("reply-parts-compaction", appearance)
         }
     }
 

@@ -5,7 +5,7 @@ import SwiftData
 /// Send, stream, stop and regenerate for one thread. A new chat has no thread until the first send.
 @MainActor @Observable
 final class ChatViewModel {
-    enum Phase: Equatable { case idle, streaming }
+    enum Phase: Equatable { case idle, streaming, compacting }
 
     var input = ""
     private(set) var phase: Phase = .idle
@@ -151,6 +151,93 @@ final class ChatViewModel {
         } catch {
             errorMessage = "Could not save the chat: \(error.localizedDescription)"
         }
+    }
+
+    // MARK: Compaction
+
+    /// A summary is being written, by hand or because the chat is filling the model's window.
+    private(set) var isCompacting = false
+    /// Said under the messages when the chat could not be shortened and goes out as it is. Cleared by the next send.
+    private(set) var compactionNote: String?
+
+    /// What the last reply row says while the chat is being shortened, in place of the typing dots.
+    var statusNote: String? { isCompacting ? String(localized: "Shortening the conversation…") : nil }
+
+    var compactions: [Compaction] { thread?.compactions ?? [] }
+
+    private var windowTokens: Int? { model.flatMap { CompactionLogic.window(for: $0) } }
+
+    /// The messages a compaction by hand would fold, or nil when the chat is too short to gain from it.
+    private func manualPlan() -> CompactionPlan? {
+        guard let thread else { return nil }
+        return CompactionLogic.plan(
+            messages: thread.orderedMessages, compaction: thread.compactions.last, window: windowTokens,
+            keepRecent: CompactionLogic.keepRecentManual)
+    }
+
+    var canCompact: Bool { phase == .idle && model != nil && manualPlan() != nil }
+
+    /// "Compact conversation" in the chat menu: folds the older messages into a summary written by the current model.
+    @discardableResult
+    func compactConversation() -> Task<Void, Never>? {
+        guard phase == .idle, let thread, let model = self.model, let plan = manualPlan() else { return nil }
+        if blockedOffline(model) { return nil }
+        phase = .compacting
+        errorMessage = nil
+        let task = Task { [weak self] in
+            guard let self else { return }
+            let folded = await self.fold(plan, model: model, thread: thread)
+            if !folded, !Task.isCancelled { self.errorMessage = String(localized: "Could not shorten the conversation.") }
+            self.phase = .idle
+            self.task = nil
+        }
+        self.task = task
+        return task
+    }
+
+    /// Asks the model for the summary of `plan` and keeps it with the thread. False when nothing came back.
+    private func fold(_ plan: CompactionPlan, model: ModelDescriptor, thread: ThreadRecord) async -> Bool {
+        isCompacting = true
+        defer { isCompacting = false }
+        guard let summary = await summarize(plan, model: model), !Self.isGone(thread) else { return false }
+        thread.compactions = thread.compactions + [CompactionLogic.record(summary: summary, plan: plan, now: Date())]
+        do {
+            try save(context)
+        } catch {
+            errorMessage = "Could not save the chat: \(error.localizedDescription)"
+        }
+        return true
+    }
+
+    private func summarize(_ plan: CompactionPlan, model: ModelDescriptor) async -> String? {
+        let request = CompactionLogic.request(for: plan)
+        var params = GenerationParams()
+        params.temperature = 0.2
+        params.maxTokens = CompactionLogic.summaryTokens
+        params.systemPrompt = request.system
+        var splitter = ReasoningSplitter()
+        var text = ""
+        do {
+            for try await delta in registry.engine(for: model).stream(
+                model: model, messages: request.messages, params: params, tools: nil) {
+                if Task.isCancelled { return nil }
+                if case .text(let piece) = delta { text += splitter.feed(piece).text }
+            }
+        } catch {
+            return nil
+        }
+        text += splitter.finish().text
+        return Task.isCancelled ? nil : CompactionLogic.cleanSummary(text)
+    }
+
+    /// The chat is about to fill the model's window: what to fold first, so the reply has room.
+    private func automaticPlan(thread: ThreadRecord, model: ModelDescriptor, systemPrompt: String?, sent: [ChatMessage]) -> CompactionPlan? {
+        let window = CompactionLogic.window(for: model)
+        let used = CompactionLogic.usedTokens(systemPrompt: systemPrompt, summary: nil, messages: sent)
+        guard CompactionLogic.needsCompaction(used: used, window: window) else { return nil }
+        return CompactionLogic.plan(
+            messages: thread.orderedMessages, compaction: thread.compactions.last, window: window,
+            keepRecent: CompactionLogic.keepRecentAutomatic)
     }
 
     var canSend: Bool {
@@ -504,12 +591,17 @@ final class ChatViewModel {
         thread.modelID = model.id
         preferredModelID = model.id
         let assistant = MessageRecord(role: .assistant, content: "", modelName: model.shortName, modelID: model.id)
+        // What goes out is the summary of the folded part of the chat and the messages after it.
+        let live = CompactionLogic.context(messages: thread.orderedMessages, compaction: thread.compactions.last)
         // The plugins and files the user named with @ are asked for in this request only; the saved message stays as typed.
-        let history = ComposerMention.applying(mentions, to: thread.orderedMessages)
+        let history = ComposerMention.applying(mentions, to: live.messages)
         context.insert(assistant)
         assistant.thread = thread
         var params = settings.generationParams
-        params.systemPrompt = InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt)
+        let basePrompt = InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt)
+        params.systemPrompt = CompactionLogic.systemPrompt(base: basePrompt, summary: live.summary)
+        let autoPlan = automaticPlan(thread: thread, model: model, systemPrompt: params.systemPrompt, sent: history)
+        compactionNote = nil
         var host: (any ToolHost)?
         offlineToolNote = nil
         if (toolsEnabled || !mentions.isEmpty) && model.capabilities.contains("tools") {
@@ -543,17 +635,29 @@ final class ChatViewModel {
         let knownModels = models.models
         let groundingPlan = grounding
         // Without a search the engine is asked now, as it always was; with one it is asked once the results are in.
-        let earlyStream = groundingPlan == nil ? engine.stream(model: model, messages: history, params: params, tools: tools) : nil
+        // A chat that is filling the window is shortened first, so the engine is asked once the summary is in.
+        let earlyStream = groundingPlan == nil && autoPlan == nil
+            ? engine.stream(model: model, messages: history, params: params, tools: tools) : nil
         let task = Task { [weak self] in
             let stream: AsyncThrowingStream<ChatDelta, Error>
             if let earlyStream {
                 stream = earlyStream
             } else {
                 var sent = history
-                if let plan = groundingPlan, let self {
-                    sent = await self.ground(history, query: plan.query, context: plan.context, assistant: assistant)
+                var sentParams = params
+                if let plan = autoPlan, let self {
+                    if await self.fold(plan, model: model, thread: thread) {
+                        let rebuilt = CompactionLogic.context(messages: thread.orderedMessages, compaction: thread.compactions.last)
+                        sent = ComposerMention.applying(mentions, to: rebuilt.messages)
+                        sentParams.systemPrompt = CompactionLogic.systemPrompt(base: basePrompt, summary: rebuilt.summary)
+                    } else {
+                        self.compactionNote = String(localized: "Could not shorten the conversation. It was sent as it is.")
+                    }
                 }
-                stream = engine.stream(model: model, messages: sent, params: params, tools: tools)
+                if let plan = groundingPlan, let self {
+                    sent = await self.ground(sent, query: plan.query, context: plan.context, assistant: assistant)
+                }
+                stream = engine.stream(model: model, messages: sent, params: sentParams, tools: tools)
             }
             var failure: String?
             var firstTokenSeen = false
@@ -566,14 +670,14 @@ final class ChatViewModel {
             var splitter = ReasoningSplitter()
             var thoughts = ReasoningRecorder()
             var thoughtsShownAt: TimeInterval?
-            func showThoughts(_ piece: String) {
+            @MainActor func showThoughts(_ piece: String) {
                 thoughts.add(piece, at: clock())
                 let time = clock()
                 if let last = thoughtsShownAt, time - last < Self.textInterval { return }
                 thoughtsShownAt = time
                 assistant.reasoning = thoughts.trace
             }
-            func endThoughts() {
+            @MainActor func endThoughts() {
                 guard !thoughts.hasEnded, thoughts.trace != nil else { return }
                 thoughts.end(at: clock())
                 assistant.reasoning = thoughts.trace

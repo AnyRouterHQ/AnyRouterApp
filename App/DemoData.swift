@@ -191,6 +191,25 @@ enum DemoData {
         let thread = ThreadRecord(title: partsThreadTitle, createdAt: now.addingTimeInterval(180),
                                   modelID: "anyrouter/anthropic/claude-sonnet-4-6")
         context.insert(thread)
+        // Four older messages, folded into a summary: the divider sits between them and the question below.
+        var older: [MessageRecord] = []
+        for (offset, line) in [
+            (ChatMessage.Role.user, "What is structured concurrency?"),
+            (.assistant, "Tasks that start and end inside one scope, so no work is left running by accident."),
+            (.user, "And what is an actor?"),
+            (.assistant, "A type that protects its own mutable state: one task runs inside it at a time."),
+        ].enumerated() {
+            let record = MessageRecord(role: line.0, content: line.1, createdAt: thread.createdAt.addingTimeInterval(Double(offset - 8)))
+            context.insert(record)
+            record.thread = thread
+            older.append(record)
+        }
+        if let last = older.last {
+            thread.compactions = [Compaction(
+                lastMessageID: last.id,
+                summary: "The reader asked what structured concurrency and actors are. Structured concurrency keeps tasks inside one scope. An actor guards its mutable state so only one task runs in it at a time.",
+                droppedCount: older.count, createdAt: thread.createdAt.addingTimeInterval(-1))]
+        }
         let question = MessageRecord(role: .user, content: "Why do Swift actors need await?", createdAt: thread.createdAt)
         let answer = MessageRecord(
             role: .assistant,

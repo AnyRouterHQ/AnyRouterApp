@@ -12,11 +12,14 @@ struct MessageRow: View {
     var showsDetails: Bool
     /// A local model that is loading: shown instead of the typing dots until its first token.
     var loadingModelName: String?
+    /// What the model is doing before the answer starts, when it is not just waiting: "Shortening the conversation…".
+    var statusNote: String?
 
     init(message: MessageRecord, isStreamingThis: Bool, showsRegenerate: Bool,
          onRegenerate: @escaping () -> Void, switchNote: String? = nil, showsDetails: Bool = true,
-         loadingModelName: String? = nil) {
+         loadingModelName: String? = nil, statusNote: String? = nil) {
         self.loadingModelName = loadingModelName
+        self.statusNote = statusNote
         self.showsDetails = showsDetails
         self.message = message
         self.isStreamingThis = isStreamingThis
@@ -88,6 +91,14 @@ struct MessageRow: View {
                     .padding(.vertical, 8)
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("model-loading")
+                } else if let statusNote {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text(statusNote).font(.footnote).foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("status-note")
                 } else {
                     TypingDots()
                         .padding(.vertical, 8)

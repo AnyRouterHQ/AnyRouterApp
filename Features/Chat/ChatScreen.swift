@@ -57,6 +57,9 @@ struct ChatScreen: View {
                 Menu {
                     Button("Instructions for this chat", systemImage: "text.badge.star") { showsInstructions = true }
                         .accessibilityIdentifier("chat.instructions")
+                    Button("Compact conversation", systemImage: "rectangle.compress.vertical") { chat?.compactConversation() }
+                        .disabled(!(chat?.canCompact ?? false))
+                        .accessibilityIdentifier("chat.compact")
                 } label: {
                     Image(systemName: "ellipsis")
                 }
@@ -209,6 +212,7 @@ private struct ChatContent: View {
         let messages = chat.messages
         let lastID = messages.last?.id
         let switchNotes = SwitchNotes.make(messages)
+        let compactions = Dictionary(chat.compactions.map { ($0.lastMessageID, $0) }, uniquingKeysWith: { first, _ in first })
         // ScrollViewReader, not a ScrollPosition binding: the binding is written on every scroll frame, which
         // re-evaluates the whole list (the perf baseline showed the scroll CPU more than doubling).
         return ScrollViewReader { proxy in
@@ -222,8 +226,17 @@ private struct ChatContent: View {
                         onRegenerate: { chat.regenerate() },
                         switchNote: switchNotes[message.id],
                         showsDetails: showsDetails,
-                        loadingModelName: message.id == lastID ? chat.loadingModelName : nil
+                        loadingModelName: message.id == lastID ? chat.loadingModelName : nil,
+                        statusNote: message.id == lastID ? chat.statusNote : nil
                     )
+                    if let compaction = compactions[message.id] { CompactionDivider(compaction: compaction) }
+                }
+                if let note = chat.compactionNote {
+                    Text(note)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .accessibilityIdentifier("compaction-note")
                 }
                 if let note = chat.offlineToolNote {
                     Text(note)

@@ -16,6 +16,8 @@ final class ThreadRecord {
     var toolsDisabled: Bool = false
     /// Instructions for this chat only. They replace the global custom instructions. Optional so existing stores migrate.
     var instructions: String?
+    /// Stretches of this chat folded into summaries, as JSON. The messages stay. Optional so existing stores migrate.
+    var compactionData: Data?
     @Relationship(deleteRule: .cascade, inverse: \MessageRecord.thread)
     var messages: [MessageRecord] = []
 
@@ -27,6 +29,11 @@ final class ThreadRecord {
         self.updatedAt = createdAt
         self.isPinned = isPinned
         self.modelID = modelID
+    }
+
+    var compactions: [Compaction] {
+        get { compactionData.flatMap { try? JSONDecoder().decode([Compaction].self, from: $0) } ?? [] }
+        set { compactionData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
     }
 
     /// Messages in creation order.
