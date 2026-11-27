@@ -104,13 +104,35 @@ struct ChatViewModelTests {
         #expect(r.vm.phase == .idle)
     }
 
-    @Test func engineFailureKeepsPartialAndShowsError() async throws {
-        let r = try await rig(ScriptedEngine(chunks: ["half"], failure: "boom"))
+    @Test func engineFailureKeepsPartialAndPutsTheFailureOnTheReply() async throws {
+        let r = try await rig(ScriptedEngine(chunks: ["half"], failure: "rate limit exceeded"))
         r.vm.input = "Hi"
         await r.vm.send()?.value
         #expect(r.vm.messages.last?.content == "half")
-        #expect(r.vm.errorMessage == "boom")
+        #expect(r.vm.messages.last?.failure == ReplyFailure(kind: .rateLimited, detail: "rate limit exceeded"))
+        #expect(r.vm.errorMessage == nil, "the failure shows in the reply, not in the banner over the composer")
         #expect(r.vm.phase == .idle)
+    }
+
+    @Test func aFailedReplyIsStillThereWhenTheChatIsOpenedAgain() async throws {
+        let r = try await rig(ScriptedEngine(failure: "boom"))
+        r.vm.input = "Hi"
+        await r.vm.send()?.value
+        let again = r.reopen()
+        #expect(again.messages.map(\.role) == [.user, .assistant])
+        #expect(again.messages.last?.failure == ReplyFailure(kind: .unknown, detail: "boom"))
+        #expect(again.canRegenerate)
+    }
+
+    @Test func aSendAfterAFailedReplyLeavesTheEmptyFailedReplyOutOfTheHistory() async throws {
+        let r = try await rig(ScriptedEngine(failure: "boom"))
+        r.vm.input = "First"
+        await r.vm.send()?.value
+        r.vm.input = "Second"
+        await r.vm.send()?.value
+        // `orderedMessages` is what every send builds its history from.
+        #expect(r.vm.thread?.orderedMessages.map(\.role) == [.user, .user], "an empty failed reply is not sent as an assistant turn")
+        #expect(r.vm.messages.map(\.role) == [.user, .assistant, .user, .assistant], "but it stays in the chat")
     }
 
     @Test func cannotSendWhileStreaming() async throws {

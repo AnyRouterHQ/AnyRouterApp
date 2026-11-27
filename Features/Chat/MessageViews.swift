@@ -14,10 +14,14 @@ struct MessageRow: View {
     var loadingModelName: String?
     /// What the model is doing before the answer starts, when it is not just waiting: "Shortening the conversation…".
     var statusNote: String?
+    /// Retry, Sign in, Choose another model, … from a failed reply.
+    var onFailureAction: (ReplyFailure.Action) -> Void
 
     init(message: MessageRecord, isStreamingThis: Bool, showsRegenerate: Bool,
          onRegenerate: @escaping () -> Void, switchNote: String? = nil, showsDetails: Bool = true,
-         loadingModelName: String? = nil, statusNote: String? = nil) {
+         loadingModelName: String? = nil, statusNote: String? = nil,
+         onFailureAction: @escaping (ReplyFailure.Action) -> Void = { _ in }) {
+        self.onFailureAction = onFailureAction
         self.loadingModelName = loadingModelName
         self.statusNote = statusNote
         self.showsDetails = showsDetails
@@ -110,6 +114,12 @@ struct MessageRow: View {
                     TypingDots()
                         .padding(.vertical, 8)
                 }
+            }
+            if !isStreamingThis, let failure = message.failure {
+                // Retry only on the last reply: it replaces that reply.
+                ReplyFailureView(
+                    failure: failure, actions: ReplyFailureLogic.actions(for: failure.kind, canRetry: showsRegenerate),
+                    onAction: onFailureAction)
             }
             if let footer = ReplyFooter.make(
                 content: message.content, isStreaming: isStreamingThis, showsRegenerate: showsRegenerate,

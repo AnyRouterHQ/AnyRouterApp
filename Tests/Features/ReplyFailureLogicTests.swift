@@ -96,7 +96,7 @@ struct ReplyFailureLogicTests {
             #expect(ReplyFailureLogic.actions(for: kind, canRetry: true) == [.retry])
         }
         let titles = [ReplyFailure.Action.retry, .signIn, .chooseModel, .shortenChat, .openSettings].map(ReplyFailureLogic.title)
-        #expect(titles == ["Retry", "Sign in", "Choose another model", "Shorten chat", "Open Settings"])
+        #expect(titles == ["Retry", "Sign in", "Choose another model", "Shorten chat", "Open Local Models"])
     }
 
     @Test func aStoredFailureReadsBackAndAnUnknownKindIsNotLost() throws {

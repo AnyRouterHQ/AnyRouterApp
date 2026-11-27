@@ -36,9 +36,9 @@ final class ThreadRecord {
         set { compactionData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
     }
 
-    /// Messages in creation order.
+    /// Messages in creation order, as a model reads them. A failed reply with no text is left out: it holds nothing to read.
     var orderedMessages: [ChatMessage] {
-        messages.sorted { $0.createdAt < $1.createdAt }.map(\.chatMessage)
+        messages.filter { $0.failureData == nil || !$0.content.isEmpty }.sorted { $0.createdAt < $1.createdAt }.map(\.chatMessage)
     }
 }
 
@@ -64,6 +64,8 @@ final class MessageRecord {
     var attachmentsData: Data?
     /// Where a user message came from: `clipboardOrigin` for a quick action on a copy. Optional so existing stores migrate.
     var origin: String?
+    /// Why this reply did not finish, as JSON. Optional so existing stores migrate without a mapping.
+    var failureData: Data?
 
     static let clipboardOrigin = "clipboard"
     var fromClipboard: Bool { origin == Self.clipboardOrigin }
@@ -101,6 +103,12 @@ final class MessageRecord {
     var reasoning: ReasoningTrace? {
         get { reasoningData.flatMap { try? JSONDecoder().decode(ReasoningTrace.self, from: $0) } }
         set { reasoningData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+    }
+
+    /// Nil for every reply that finished, without decoding anything.
+    var failure: ReplyFailure? {
+        get { failureData.flatMap { try? JSONDecoder().decode(ReplyFailure.self, from: $0) } }
+        set { failureData = newValue.flatMap { try? JSONEncoder().encode($0) } }
     }
 
     var toolSteps: [ToolStep] {

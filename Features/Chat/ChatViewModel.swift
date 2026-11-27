@@ -687,7 +687,7 @@ final class ChatViewModel {
                 }
                 stream = engine.stream(model: model, messages: sent, params: sentParams, tools: tools)
             }
-            var failure: String?
+            var failure: ReplyFailure?
             var firstTokenSeen = false
             var reported: ResponseMetadata?
             var tokens: (prompt: Int, completion: Int)?
@@ -748,7 +748,8 @@ final class ChatViewModel {
             } catch is CancellationError {
                 // Stopped by the user.
             } catch {
-                failure = error.localizedDescription
+                // Stop can also end the request with a URL error; only a reply the user did not stop has failed.
+                if !Task.isCancelled { failure = ReplyFailureLogic.classify(error) }
             }
             if Self.isGone(assistant) || Self.isGone(thread) {
                 self?.abandon()
@@ -838,7 +839,9 @@ final class ChatViewModel {
         assistant.toolSteps = steps
     }
 
-    private func finish(_ assistant: MessageRecord, in thread: ThreadRecord, failure: String?) {
+    /// A failed reply stays, even empty, with its failure on it: the chat shows it in place, also after a relaunch, and
+    /// Retry replaces it.
+    private func finish(_ assistant: MessageRecord, in thread: ThreadRecord, failure: ReplyFailure?) {
         // Nothing is running any more, so a step without a result was cut off.
         var steps = assistant.toolSteps
         for index in steps.indices where steps[index].result == nil {
@@ -848,12 +851,15 @@ final class ChatViewModel {
         }
         if steps != assistant.toolSteps { assistant.toolSteps = steps }
         let gotReply = failure == nil && !assistant.content.isEmpty
-        if assistant.content.isEmpty && steps.isEmpty && assistant.reasoning == nil { remove(assistant) }
+        if let failure {
+            assistant.failure = failure
+        } else if assistant.content.isEmpty && steps.isEmpty && assistant.reasoning == nil {
+            remove(assistant)
+        }
         thread.updatedAt = Date()
         phase = .idle
         task = nil
         loadingModelName = nil
-        errorMessage = failure
         refreshContextFraction()
         if gotReply { settings.noteSuccessfulChat() }
         do {

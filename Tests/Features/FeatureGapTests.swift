@@ -46,13 +46,19 @@ struct ChatViewModelGapTests {
         #expect(vm.errorMessage == "Could not save the chat: disk full")
     }
 
-    @Test func dismissingTheErrorClearsIt() async throws {
+    @Test func dismissingTheBannerClearsIt() async throws {
         let (vm, _) = try await make(ThrowingEngine(error: TestFailure(message: "boom")))
-        vm.input = "Hi"
-        await vm.send()?.value
+        vm.showError("boom")
         #expect(vm.errorMessage == "boom")
         vm.dismissError()
         #expect(vm.errorMessage == nil)
+    }
+
+    @Test func aFailedReplyThatTheUserStoppedIsNotAFailure() async throws {
+        let (vm, _) = try await make(ThrowingEngine(error: URLError(.cancelled)))
+        vm.input = "Hi"
+        await vm.send()?.value
+        #expect(vm.messages.last?.failure?.kind == .cancelled, "not stopped by the user: the reply says it stopped")
     }
 
     @Test func aFailedSendCanBeRetriedWithRegenerate() async throws {
@@ -60,11 +66,15 @@ struct ChatViewModelGapTests {
         let (vm, _) = try await make(engine)
         vm.input = "Hi"
         await vm.send()?.value
-        #expect(vm.messages.map(\.role) == [.user])
+        #expect(vm.messages.map(\.role) == [.user, .assistant])
+        let failed = try #require(vm.messages.last)
+        #expect(failed.failure == ReplyFailure(kind: .unknown, detail: "offline"))
         #expect(vm.canRegenerate)
         await vm.regenerate()?.value
         #expect(engine.calls.next() == 3, "send and retry each asked the engine once")
-        #expect(vm.errorMessage == "offline")
+        #expect(vm.messages.map(\.role) == [.user, .assistant], "Retry replaces the failed reply instead of adding one")
+        #expect(vm.messages.last?.id != failed.id)
+        #expect(vm.errorMessage == nil)
     }
 
     @Test func regenerateNeedsAThreadAndSomethingToRegenerate() async throws {

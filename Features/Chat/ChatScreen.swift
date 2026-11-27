@@ -217,6 +217,20 @@ private struct ChatContent: View {
         .sensoryFeedback(.selection, trigger: tip)
     }
 
+    private func handle(_ action: ReplyFailure.Action) {
+        switch action {
+        case .retry: chat.regenerate()
+        case .chooseModel: shell.isModelPickerPresented = true
+        case .shortenChat: chat.compactConversation()
+        // The only reason to open Settings from a reply is a model on this device that did not load.
+        case .openSettings: shell.presentSettings(closeSidebar: true, destination: .localModels)
+        case .signIn:
+            Task {
+                do { try await app.account.signIn(mode: .signIn) } catch { chat.showError(error.localizedDescription) }
+            }
+        }
+    }
+
     private func settle(_ proxy: ScrollViewProxy, _ event: ScrollFollow.Event, _ lastQuestionID: UUID?) {
         switch ScrollFollow.settle(after: event, lastQuestionID: lastQuestionID) {
         case .question(let id):
@@ -253,7 +267,8 @@ private struct ChatContent: View {
                         switchNote: switchNotes[message.id],
                         showsDetails: showsDetails,
                         loadingModelName: message.id == lastID ? chat.loadingModelName : nil,
-                        statusNote: message.id == lastID ? chat.statusNote : nil
+                        statusNote: message.id == lastID ? chat.statusNote : nil,
+                        onFailureAction: handle
                     )
                     // The last turn is at least one view tall, so a new question can settle at the top (decision D27).
                     if message.id == lastID {

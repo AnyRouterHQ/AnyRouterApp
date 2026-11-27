@@ -14,7 +14,7 @@ struct ReplyFailure: Codable, Equatable, Sendable {
     }
 
     /// What the reply offers to do about it.
-    enum Action: Equatable, Sendable {
+    enum Action: Hashable, Sendable {
         case retry, signIn, chooseModel, shortenChat, openSettings
     }
 
@@ -96,7 +96,7 @@ enum ReplyFailureLogic {
         case .signIn: String(localized: "Sign in")
         case .chooseModel: String(localized: "Choose another model")
         case .shortenChat: String(localized: "Shorten chat")
-        case .openSettings: String(localized: "Open Settings")
+        case .openSettings: String(localized: "Open Local Models")
         }
     }
 
