@@ -688,7 +688,7 @@
       "publisher": "Thinking Machines",
       "line": "inkling",
       "logo": "thinkingmachines",
-      "summary": "Mixture-of-experts model with a looped core, cut to 1-bit weights. Experimental: replies are slow and less accurate than the full model.",
+      "summary": "A community 1-bit build of the mixture-of-experts model with a looped core. Experimental: replies are slow and less accurate than the full model.",
       "website": "https://huggingface.co/thinkingmachines/Inkling-2-Mini",
       "tags": [
         "thinking"
@@ -700,16 +700,16 @@
       "order": 9,
       "variants": [
         {
-          "repo": "unsloth/Inkling-2-Mini-GGUF",
+          "repo": "AtomicChat/Inkling-2-Mini-GGUF",
           "engine": "gguf",
-          "file": "Mainline_Support/Inkling-2-Mini-UD-IQ1_S.gguf_file",
+          "file": "Inkling-2-Mini-AD-IQ1_S.gguf",
           "params": "26B",
-          "quant": "IQ1_S",
-          "sizeBytes": 7764293056,
+          "quant": "1-bit",
+          "sizeBytes": 6881463904,
           "contextLength": 1048576,
           "license": "apache-2.0",
-          "revision": "8078d149286eec7193795413b9e0643da6d11fa1",
-          "sha256": "17a7ff34acb0e1fe878309962458e0633172c7f93ffe3b1c4f5f6b317dc317db",
+          "revision": "309509848b3151419aa26d069eb03db57fd29a00",
+          "sha256": "4d3cab7e88016548136e13f7ec465db7fc49ab8cf9559a60f3daad1f3f15c9d5",
           "sampling": {
             "temperature": 1.0,
             "topP": 1.0,
@@ -722,7 +722,7 @@
             "windowKVBytesPerToken": 81920,
             "windowTokens": 1024,
             "activeFraction": 0.119,
-            "lazyWeightBytes": 246053376
+            "lazyWeightBytes": 260527104
           },
           "createdAt": "2026-11-27",
           "updatedAt": "2026-11-27"

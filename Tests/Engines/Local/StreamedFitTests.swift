@@ -3,12 +3,12 @@ import Testing
 @testable import AnyRouter
 
 /// The streamed tier: a mixture-of-experts file too big for the app's memory limit runs from mmap, but only on a device
-/// whose RAM can cache the whole file. Inkling 2 Mini IQ1_S is the case it was built for.
+/// whose RAM can cache the whole file. The Inkling 2 Mini 1-bit build is the case it was built for.
 struct StreamedFitTests {
     // Numbers from catalog/dev-models.json (written by scripts/catalog-add.sh from the GGUF header).
     private let inkling = ModelMemoryProfile(
-        fileBytes: 7_764_293_056, fullKVBytesPerToken: 16_384, windowKVBytesPerToken: 81_920, windowTokens: 1024,
-        trainedContext: 1_048_576, activeFraction: 0.119, lazyBytes: 246_053_376)
+        fileBytes: 6_881_463_904, fullKVBytesPerToken: 16_384, windowKVBytesPerToken: 81_920, windowTokens: 1024,
+        trainedContext: 1_048_576, activeFraction: 0.119, lazyBytes: 260_527_104)
 
     @Test func inklingNeedsATwelveGigabyteDeviceToStream() {
         #expect(FitPlanner.streamingClass(inkling) == .gb12)
@@ -25,7 +25,7 @@ struct StreamedFitTests {
     }
 
     @Test func fromTwelveGigabytesInklingStreamsWithAFourThousandTokenContext() {
-        let cases: [(DeviceClass, MemoryLimitKind)] = [(.gb12, .standard), (.gb12, .increased), (.gb16, .standard)]
+        let cases: [(DeviceClass, MemoryLimitKind)] = [(.gb12, .standard), (.gb16, .standard)]
         for (deviceClass, kind) in cases {
             let estimate = FitPlanner.estimate(inkling, memory: deviceClass.memory(kind))
             #expect(estimate.verdict == .streamed(maxContext: 4096, maxReply: 512), "\(deviceClass.rawValue) GB \(kind)")
@@ -33,6 +33,13 @@ struct StreamedFitTests {
             #expect(estimate.streamsOn == nil)
             #expect(FitPlanner.pickContext(inkling, memory: deviceClass.memory(kind)) == 4096)
         }
+    }
+
+    @Test func aTwelveGigabytePhoneWithTheIncreasedLimitHoldsTheFileInMemory() {
+        // 8.1 GB for a model: the file, 8,192 tokens of KV cache and 1 GB of buffers fit, without the 15% headroom.
+        let estimate = FitPlanner.estimate(inkling, memory: DeviceClass.gb12.memory(.increased))
+        #expect(estimate.verdict == .tight(maxContext: 8192, maxReply: 512))
+        #expect(!estimate.streamsFromStorage)
     }
 
     @Test func anIPadProWithTheIncreasedLimitHoldsTheWholeFile() {
