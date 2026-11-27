@@ -9,7 +9,7 @@ struct Subagent: Equatable, Identifiable {
     let steps: [ToolStep]
     /// What it answered, once it is done.
     let result: String?
-    let status: ToolRowLogic.Status
+    let status: TraceStatus
 }
 
 /// Reads a subagent out of the delegate tool call that started it. Pure, so the card is tested without a model.

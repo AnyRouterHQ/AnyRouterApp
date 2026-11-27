@@ -2,6 +2,7 @@ import SwiftUI
 
 /// The tool calls of a reply, in order. While a call runs, or before the answer starts, every call is a row.
 /// Once the answer has started they fold into one sentence ("Searched the web and read 3 pages") that opens to the rows.
+/// A failed or denied call stays as its own row under the sentence.
 struct ToolChainView: View {
     let steps: [ToolStep]
     let answerStarted: Bool
@@ -14,27 +15,29 @@ struct ToolChainView: View {
             // The same row as reasoning and subagents: a symbol, one line of words, a chevron. A DisclosureGroup would tint it.
             VStack(alignment: .leading, spacing: 0) {
                 Button { isOpen.toggle() } label: {
-                    PartRowLabel(symbol: "wrench.and.screwdriver", isExpanded: isOpen) {
+                    TraceRow(symbol: "wrench.and.screwdriver", isExpanded: isOpen) {
                         Text(chain.heading).lineLimit(2).multilineTextAlignment(.leading)
-                    } trailing: {
-                        EmptyView()
                     }
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint(isOpen ? "Hides the steps" : "Shows the steps")
                 .accessibilityIdentifier("tool.chain")
-                if isOpen { rows(chain).padding(.leading, PartRowMetrics.contentInset) }
+                if isOpen {
+                    rows(chain.rows).padding(.leading, TraceRowMetrics.contentInset)
+                } else {
+                    rows(chain.foldedRows).padding(.leading, TraceRowMetrics.contentInset)
+                }
             }
             .animation(reduceMotion ? nil : .snappy, value: isOpen)
         } else {
-            rows(chain)
+            rows(chain.rows)
         }
     }
 
-    private func rows(_ chain: ToolChain) -> some View {
+    private func rows(_ rows: [ToolChain.Row]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(zip(chain.rows, steps)), id: \.0.id) { row, step in
-                ToolStepRow(row: row, step: step)
+            ForEach(rows) { row in
+                if let step = steps.first(where: { $0.id == row.id }) { ToolStepRow(row: row, step: step) }
             }
         }
     }
@@ -68,40 +71,20 @@ struct ToolStepRow: View {
     }
 
     private var label: some View {
-        HStack(spacing: 8) {
-            Label {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(row.name).font(.footnote.weight(.medium))
-                    if let summary = row.summary {
-                        Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    }
+        TraceRow(status: row.status, isExpanded: isOpen) {
+            ToolSourceIcon(icon: row.icon)
+        } title: {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(row.name).font(.footnote.weight(.medium))
+                if let summary = row.summary {
+                    Text(summary).font(.caption).lineLimit(1)
                 }
-            } icon: {
-                ToolSourceIcon(icon: row.icon)
             }
-            Spacer(minLength: 8)
-            status
-            Image(systemName: "chevron.right")
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
-                .rotationEffect(.degrees(isOpen ? 90 : 0))
         }
-        .foregroundStyle(Color.secondary)
-        .frame(minHeight: 44)
-        .contentShape(.rect)
         // One element that reads the full sentence, so VoiceOver and the UI tests get the same words as before.
         .accessibilityElement(children: .combine)
         .accessibilityLabel(row.title)
-    }
-
-    @ViewBuilder
-    private var status: some View {
-        switch row.status {
-        case .running: ProgressView().controlSize(.small)
-        case .done: Image(systemName: "checkmark.circle")
-        case .failed: Image(systemName: "exclamationmark.triangle").foregroundStyle(.red)
-        case .cancelled: Image(systemName: "xmark.circle")
-        }
+        .accessibilityValue(row.status.accessibilityText)
     }
 }
 

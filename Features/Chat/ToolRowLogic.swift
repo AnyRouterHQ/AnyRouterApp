@@ -7,11 +7,10 @@ enum ToolRowLogic {
     /// Longest result text a row shows.
     static let maxResultCharacters = 2_000
 
-    enum Status: Equatable { case running, done, failed, cancelled }
-
-    static func status(of step: ToolStep) -> Status {
+    static func status(of step: ToolStep) -> TraceStatus {
         guard let result = step.result else { return .running }
         if !result.isError { return .done }
+        if result.text == ToolResult.deniedText { return .denied }
         return result.text == cancelledText ? .cancelled : .failed
     }
 
@@ -24,8 +23,9 @@ enum ToolRowLogic {
         let running = state == .running
         let phrase = phrase(for: step.call, running: running)
         switch state {
-        case .running, .done: return phrase
+        case .running, .awaitingApproval, .done: return phrase
         case .failed: return phrase + " failed"
+        case .denied: return phrase + " not allowed"
         case .cancelled: return phrase + " cancelled"
         }
     }

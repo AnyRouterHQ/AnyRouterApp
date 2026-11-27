@@ -2,6 +2,7 @@ import Foundation
 
 /// How the tool calls of one reply are shown: a compact row per call in call order, folded into
 /// one line ("Searched the web and read 3 pages") once the answer has started and no call is still running.
+/// Failed and denied calls are never folded away: they stay as rows under the sentence.
 struct ToolChain: Equatable {
     struct Row: Equatable, Identifiable {
         let id: String
@@ -10,12 +11,14 @@ struct ToolChain: Equatable {
         let summary: String?
         /// The full sentence ("Searched the web for “swift 7”"), read by VoiceOver.
         let title: String
-        let status: ToolRowLogic.Status
+        let status: TraceStatus
     }
 
     let rows: [Row]
     let isCollapsed: Bool
     let heading: String
+    /// The rows still shown while the chain is folded.
+    var foldedRows: [Row] { isCollapsed ? rows.filter { $0.status.staysVisible } : rows }
 
     init(steps: [ToolStep], answerStarted: Bool) {
         rows = steps.map { step in

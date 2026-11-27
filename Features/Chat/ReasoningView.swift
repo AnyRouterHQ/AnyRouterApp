@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The reasoning of a reply as one quiet row: a clock, "Thinking…" with a shimmer while it writes and "Thought for 12s"
 /// after, and a chevron. Tap it for the full text in secondary style. While it writes, the collapsed row also shows the
-/// line written last.
+/// line written last. Opened while it writes, it folds back to "Thought for 12s" when the reasoning ends.
 struct ReasoningRow: View {
     let trace: ReasoningTrace
     let isStreaming: Bool
@@ -12,7 +12,7 @@ struct ReasoningRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button { expanded.toggle() } label: {
-                PartRowLabel(symbol: "clock", isExpanded: expanded) {
+                TraceRow(symbol: "clock", isExpanded: expanded) {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(ReasoningLogic.title(durationMs: trace.durationMs, isStreaming: isStreaming))
                             .shimmering(isStreaming)
@@ -20,8 +20,6 @@ struct ReasoningRow: View {
                             Text(line).font(.caption).lineLimit(1)
                         }
                     }
-                } trailing: {
-                    EmptyView()
                 }
             }
             .buttonStyle(.plain)
@@ -33,13 +31,16 @@ struct ReasoningRow: View {
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, PartRowMetrics.contentInset)
+                    .padding(.leading, TraceRowMetrics.contentInset)
                     .padding(.bottom, 8)
                     .transition(.opacity)
                     .accessibilityIdentifier("reasoning.text")
             }
         }
         .animation(reduceMotion ? nil : .snappy, value: expanded)
+        .onChange(of: isStreaming) { _, streaming in
+            if !streaming { expanded = false }
+        }
     }
 }
 

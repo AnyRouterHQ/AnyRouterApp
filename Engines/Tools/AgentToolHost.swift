@@ -62,7 +62,7 @@ struct AgentToolHost: ToolHost {
     func execute(_ call: ToolCall) async -> ToolResult {
         if let request = approvalRequest(for: call) {
             guard let approver, await approver.decide(request) != .deny else {
-                return ToolResult(callID: call.id, name: call.name, text: "The user did not allow this tool call.", isError: true)
+                return ToolResult(callID: call.id, name: call.name, text: ToolResult.deniedText, isError: true)
             }
         }
         var result = await run(call)

@@ -10,15 +10,13 @@ struct SubagentCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button { expanded.toggle() } label: {
-                PartRowLabel(symbol: "person.2", isExpanded: expanded) {
+                TraceRow(symbol: "person.2", status: subagent.status == .done ? nil : subagent.status, isExpanded: expanded) {
                     Text(SubagentLogic.heading(subagent)).lineLimit(2).multilineTextAlignment(.leading)
-                } trailing: {
-                    status
                 }
             }
             .buttonStyle(.plain)
             .accessibilityLabel(SubagentLogic.heading(subagent))
-            .accessibilityValue(statusText)
+            .accessibilityValue(subagent.status.accessibilityText)
             .accessibilityHint(expanded ? "Hides its steps" : "Shows its steps")
             .accessibilityIdentifier("subagent.card")
             if expanded {
@@ -32,30 +30,11 @@ struct SubagentCard: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, PartRowMetrics.contentInset)
+                .padding(.leading, TraceRowMetrics.contentInset)
                 .padding(.bottom, 8)
                 .transition(.opacity)
             }
         }
         .animation(reduceMotion ? nil : .snappy, value: expanded)
-    }
-
-    @ViewBuilder
-    private var status: some View {
-        switch subagent.status {
-        case .running: ProgressView().controlSize(.small)
-        case .failed: Image(systemName: "exclamationmark.triangle")
-        case .cancelled: Image(systemName: "xmark.circle")
-        case .done: EmptyView()
-        }
-    }
-
-    private var statusText: String {
-        switch subagent.status {
-        case .running: String(localized: "Running")
-        case .failed: String(localized: "Failed")
-        case .cancelled: String(localized: "Cancelled")
-        case .done: String(localized: "Done")
-        }
     }
 }

@@ -22,13 +22,38 @@ struct ToolChainTests {
     }
 
     @Test func aCallWithoutAResultIsRunningThenDoneOrFailedOrCancelled() {
-        func status(_ result: ToolResult?) -> ToolRowLogic.Status {
+        func status(_ result: ToolResult?) -> TraceStatus {
             ToolChain(steps: [makeStep("1", result: result)], answerStarted: false).rows[0].status
         }
         #expect(status(nil) == .running)
         #expect(status(ok("1")) == .done)
         #expect(status(failed("1")) == .failed)
         #expect(status(failed("1", text: ToolRowLogic.cancelledText)) == .cancelled)
+    }
+
+    @Test func aDeniedCallIsItsOwnStatusAndSaysSo() {
+        let step = makeStep("1", result: failed("1", text: ToolResult.deniedText))
+        #expect(ToolChain(steps: [step], answerStarted: false).rows[0].status == .denied)
+        #expect(ToolRowLogic.title(for: step).hasSuffix(" not allowed"))
+    }
+
+    /// A folded chain hides the calls that worked, never the ones that failed or were not allowed.
+    @Test func failedAndDeniedCallsStayVisibleAfterTheChainFolds() {
+        let steps = [
+            makeStep("ok", result: ok("ok")), makeStep("bad", result: failed("bad")),
+            makeStep("no", result: failed("no", text: ToolResult.deniedText)),
+            makeStep("stop", result: failed("stop", text: ToolRowLogic.cancelledText)),
+        ]
+        let folded = ToolChain(steps: steps, answerStarted: true)
+        #expect(folded.isCollapsed)
+        #expect(folded.foldedRows.map(\.id) == ["bad", "no"])
+        #expect(ToolChain(steps: steps, answerStarted: false).foldedRows.count == 4, "open, every call is a row")
+    }
+
+    @Test func everyTraceStatusHasWordsForVoiceOver() {
+        let all: [TraceStatus] = [.running, .awaitingApproval, .done, .failed, .denied, .cancelled]
+        #expect(Set(all.map(\.accessibilityText)).count == all.count)
+        #expect(all.filter(\.staysVisible) == [.failed, .denied])
     }
 
     @Test func theChainStaysOpenUntilTheAnswerStarts() {

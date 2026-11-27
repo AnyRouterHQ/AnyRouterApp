@@ -139,7 +139,7 @@ struct MCPToolHost: ToolHost {
                 reason: "\(recipient.name) (\(recipient.site)) receives what this tool sends, such as your search words. Your AnyRouter sign-in is never sent.",
                 canRemember: true)
             switch await approver.decide(request) {
-            case .deny: return failure("The user did not allow this tool call.")
+            case .deny: return failure(ToolResult.deniedText)
             case .alwaysAllow: permissions.agree(serverID: entry.server.id)
             case .allowOnce: break
             }
@@ -149,7 +149,7 @@ struct MCPToolHost: ToolHost {
             !permissions.isAlwaysAllowed(serverID: entry.server.id, toolName: entry.tool.name) {
             let request = ToolApprovalRequest(serverName: entry.server.name, spec: entry.spec, call: call)
             switch await approver.decide(request) {
-            case .deny: return failure("The user did not allow this tool call.")
+            case .deny: return failure(ToolResult.deniedText)
             case .alwaysAllow: permissions.allow(serverID: entry.server.id, toolName: entry.tool.name)
             case .allowOnce: break
             }

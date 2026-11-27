@@ -26,6 +26,9 @@ struct ToolResult: Hashable, Codable, Sendable {
     var name: String
     var text: String
     var isError: Bool
+
+    /// What a tool host answers when the user denies a call. The chat reads it back to show the call as denied.
+    static let deniedText = "The user did not allow this tool call."
 }
 
 enum ToolDecision: String, Codable, Sendable {
