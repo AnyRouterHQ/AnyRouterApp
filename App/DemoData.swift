@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SwiftData
+import UIKit
 
 /// Offline sample data for screenshots and UI tests. Active only with the launch argument `-ARDemoData YES`.
 /// Optional flags: `-ARDemoParts YES` (a reply with reasoning, tools, files, a subagent and a compacted history), `-ARDemoSources YES` (a markdown reply that cites five pages), `-ARReplyTextStep -2...3`, `-ARReplyFont serif|rounded`, `-ARDemoSignedOut YES`, `-ARDemoOnboarding YES`, `-ARDemoTools YES` (a thread with a web search step), `-ARAppearance light|dark`.
@@ -151,6 +152,39 @@ enum DemoData {
 
     static let partsThreadTitle = "Reply parts"
 
+    /// A drawn photo and a one-page PDF in the attachments folder, for the cards and the viewer.
+    @MainActor
+    private static func demoAttachments(forThread id: UUID) -> [ChatAttachment] {
+        let store = AttachmentStore.shared
+        let size = CGSize(width: 600, height: 400)
+        let photo = UIGraphicsImageRenderer(size: size).jpegData(withCompressionQuality: 0.9) { context in
+            UIColor.systemIndigo.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            UIColor.systemTeal.setFill()
+            context.cgContext.fillEllipse(in: CGRect(x: 80, y: 60, width: 280, height: 280))
+            UIColor.systemYellow.setFill()
+            context.fill(CGRect(x: 380, y: 140, width: 140, height: 140))
+        }
+        let page = CGRect(x: 0, y: 0, width: 612, height: 792)
+        let document = UIGraphicsPDFRenderer(bounds: page).pdfData { context in
+            context.beginPage()
+            let text = "Swift actors\n\nAn actor protects its own mutable state: one task runs inside it at a time."
+            (text as NSString).draw(
+                in: CGRect(x: 48, y: 48, width: 516, height: 300), withAttributes: [.font: UIFont.systemFont(ofSize: 24)])
+        }
+        var result: [ChatAttachment] = []
+        for (name, type, kind, data, ext) in [
+            ("diagram.jpg", "public.jpeg", ChatAttachment.Kind.image, photo, "jpg"),
+            ("Actors.pdf", "com.adobe.pdf", ChatAttachment.Kind.pdf, document, "pdf"),
+        ] {
+            let attachmentID = UUID()
+            guard let path = try? store.write(data, id: attachmentID, fileExtension: ext, folder: id.uuidString) else { continue }
+            result.append(ChatAttachment(
+                id: attachmentID, kind: kind, filename: name, utType: type, byteCount: Int64(data.count), relativePath: path))
+        }
+        return result
+    }
+
     /// The newest thread: one answer that thought for 12 seconds, searched the web and cited five pages.
     @MainActor
     private static func insertPartsThread(in context: ModelContext, at now: Date) {
@@ -167,6 +201,7 @@ enum DemoData {
             requestID: "req_parts", servedModelID: "anthropic/claude-sonnet-4-6", servedModelName: "Claude Sonnet 4.6",
             provider: "Anthropic", costUSD: Decimal(string: "0.0123"), promptTokens: 1210, completionTokens: 188,
             upstreamLatencyMs: 900, ttftMs: 900, totalMs: 14_000)
+        answer.attachments = demoAttachments(forThread: thread.id)
         answer.reasoning = ReasoningTrace(
             text: """
             The question is about isolation. An actor serializes access to its state.

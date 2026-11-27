@@ -50,6 +50,25 @@ enum AttachmentLogic {
         }
     }
 
+    /// What a card calls the file: "Photo", "Document", "Text", "Audio".
+    static func kindLabel(_ kind: ChatAttachment.Kind) -> String {
+        switch kind {
+        case .image: String(localized: "Photo")
+        case .pdf: String(localized: "Document")
+        case .text: String(localized: "Text")
+        case .audio: String(localized: "Audio")
+        }
+    }
+
+    /// The line under a file's name on its card: "Document · PDF · 16 KB". The type is the file extension, when it has one.
+    static func subtitle(for attachment: ChatAttachment) -> String {
+        var parts = [kindLabel(attachment.kind)]
+        let fileExtension = (attachment.filename as NSString).pathExtension.uppercased()
+        if !fileExtension.isEmpty { parts.append(fileExtension) }
+        parts.append(sizeText(attachment.byteCount))
+        return parts.joined(separator: " · ")
+    }
+
     /// "12 KB". Short and locale aware.
     static func sizeText(_ bytes: Int64) -> String { ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file) }
 

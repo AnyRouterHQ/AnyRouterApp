@@ -221,7 +221,8 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
-    /// One reply with its parts: the reasoning row (collapsed, then open), the tool line, the answer and the footer.
+    /// One reply with its parts: the reasoning row, the tool line, the answer, a photo and a file card, and the footer.
+    /// The photo opens full screen and a double tap zooms it; the reasoning row opens to its text.
     func testReplyParts() {
         forEachAppearance(extra: ["-ARDemoParts", "YES"]) { app, appearance in
             showSidebar(app)
@@ -229,10 +230,23 @@ final class ScreenshotTests: XCTestCase {
             let reasoning = app.buttons["reasoning.row"].firstMatch
             XCTAssertTrue(reasoning.waitForExistence(timeout: 10), "the reasoning row is there")
             XCTAssertTrue(reasoning.label.contains("Thought for 12s"), "it says how long the model thought: \(reasoning.label)")
+            let photo = app.buttons["attachment.diagram.jpg"].firstMatch
+            XCTAssertTrue(photo.waitForExistence(timeout: 10), "the photo sits under the answer")
+            XCTAssertTrue(app.buttons["attachment.Actors.pdf"].firstMatch.exists, "and so does the file card")
             capture("reply-parts", appearance)
+
+            photo.tap()
+            let viewer = app.descendants(matching: .any)["image-viewer.image"]
+            XCTAssertTrue(viewer.waitForExistence(timeout: 10), "a tap on the photo opens the viewer")
+            capture("image-viewer", appearance)
+            viewer.doubleTap()
+            sleep(1)
+            capture("image-viewer-zoomed", appearance)
+            app.buttons["Close"].firstMatch.tap()
+            XCTAssertTrue(reasoning.waitForExistence(timeout: 10), "the viewer closes back to the chat")
+
             reasoning.tap()
-            XCTAssertTrue(app.staticTexts["reasoning.text"].firstMatch.waitForExistence(timeout: 5)
-                || app.descendants(matching: .any)["reasoning.text"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.descendants(matching: .any)["reasoning.text"].firstMatch.waitForExistence(timeout: 5))
             capture("reply-parts-reasoning-open", appearance)
         }
     }

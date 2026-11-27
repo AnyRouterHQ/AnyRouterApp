@@ -97,23 +97,36 @@ struct AttachmentThumbnail: View {
     }
 }
 
-/// Attachments inside the user's bubble: photo thumbnails and file rows. A tap opens a Quick Look preview.
+/// Attachments of a message: a photo is a thumbnail that opens a full-screen viewer, anything else is a card that opens
+/// Quick Look. User messages align them to the trailing edge, replies to the leading edge.
 struct MessageAttachments: View {
     let attachments: [ChatAttachment]
     var store: AttachmentStore = .shared
+    var alignment: HorizontalAlignment = .trailing
     @State private var preview: URL?
+    @State private var viewing: ChatAttachment?
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 8) {
+        VStack(alignment: alignment, spacing: 8) {
             ForEach(attachments) { attachment in
-                Button { preview = attachment.url(in: store.root) } label: { content(attachment) }
+                Button { open(attachment) } label: { content(attachment) }
                     .buttonStyle(.plain)
                     .hoverEffect(.highlight)
                     .accessibilityLabel(attachment.kind == .image ? "Photo \(attachment.filename)" : attachment.filename)
-                    .accessibilityHint("Opens a preview")
+                    .accessibilityHint(attachment.kind == .image ? "Opens the photo. Pinch to zoom." : "Opens a preview")
+                    .accessibilityIdentifier("attachment.\(attachment.filename)")
             }
         }
         .quickLookPreview($preview)
+        .fullScreenCover(item: $viewing) { ImageViewer(attachment: $0, store: store) }
+    }
+
+    private func open(_ attachment: ChatAttachment) {
+        if attachment.kind == .image {
+            viewing = attachment
+        } else {
+            preview = attachment.url(in: store.root)
+        }
     }
 
     @ViewBuilder
@@ -122,16 +135,7 @@ struct MessageAttachments: View {
             AttachmentThumbnail(attachment: attachment, store: store, side: 160)
                 .clipShape(.rect(cornerRadius: 16))
         } else {
-            HStack(spacing: 10) {
-                Image(systemName: AttachmentLogic.systemImage(for: attachment.kind)).font(.title3)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(attachment.filename).font(.subheadline).lineLimit(1)
-                    Text(AttachmentLogic.sizeText(attachment.byteCount)).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            .padding(12)
-            .frame(maxWidth: 260, alignment: .leading)
-            .background(.quaternary, in: .rect(cornerRadius: 14))
+            AttachmentCard(attachment: attachment, store: store)
         }
     }
 }

@@ -56,7 +56,8 @@ struct MessageRow: View {
         defer { Perf.signposter.endInterval("row.assistant", signpost) }
         let steps = message.toolSteps
         let parts = ReplyParts.make(
-            reasoning: message.reasoning, steps: steps, content: message.content, isStreaming: isStreamingThis)
+            reasoning: message.reasoning, steps: steps, content: message.content, isStreaming: isStreamingThis,
+            attachments: message.attachments)
         let answerStarted = !message.content.isEmpty
         let thinking = parts.contains { if case .reasoning(_, true) = $0 { true } else { false } }
         return VStack(alignment: .leading, spacing: 6) {
@@ -73,6 +74,8 @@ struct MessageRow: View {
                 case .reasoning(let trace, let isStreaming): ReasoningRow(trace: trace, isStreaming: isStreaming)
                 case .toolStep(let calls): ToolChainView(steps: calls, answerStarted: answerStarted)
                 case .text(let text): MarkdownReply(text: text)
+                case .file(let attachment), .image(let attachment):
+                    MessageAttachments(attachments: [attachment], alignment: .leading)
                 }
             }
             // The model is loading, or has not started the answer, and nothing else on the row says it is working.

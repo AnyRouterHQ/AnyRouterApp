@@ -145,6 +145,25 @@ struct ReplyPartsTests {
     }
 }
 
+struct ReplyPartsAttachmentTests {
+    private func attachment(_ kind: ChatAttachment.Kind, _ name: String) -> ChatAttachment {
+        ChatAttachment(id: UUID(), kind: kind, filename: name, utType: "public.data", byteCount: 10, relativePath: "t/\(name)")
+    }
+
+    @Test func filesAndPhotosComeAfterTheAnswerInTheirOwnOrder() {
+        let photo = attachment(.image, "a.jpg")
+        let doc = attachment(.pdf, "b.pdf")
+        let parts = ReplyParts.make(reasoning: nil, steps: [], content: "See these.", isStreaming: false, attachments: [photo, doc])
+        #expect(parts == [.text("See these."), .image(photo), .file(doc)])
+        #expect(Set(parts.map(\.id)).count == 3, "every part has its own id")
+    }
+
+    @Test func aReplyOfOnlyAFileHasOnlyThatPart() {
+        let doc = attachment(.text, "notes.txt")
+        #expect(ReplyParts.make(reasoning: nil, steps: [], content: "", isStreaming: false, attachments: [doc]) == [.file(doc)])
+    }
+}
+
 struct ReasoningRecordTests {
     @Test func theReasoningIsKeptWithTheReply() {
         let record = MessageRecord(role: .assistant, content: "x")
