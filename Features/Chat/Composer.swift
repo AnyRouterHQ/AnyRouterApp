@@ -44,6 +44,12 @@ struct Composer: View {
     /// The + circle is as tall as the one-line field (48 pt), so the two read as one row.
     private var plusSize: CGFloat { buttonSize + 2 * fieldInset }
 
+    // Outside `body`: inline, this binding put the modifier chain past the type checker's time limit (CI 46059650902).
+    private var offerDownloadTitle: String { offerDownload.map(OfflineLogic.downloadQuestion) ?? "" }
+    private var offerDownloadShown: Binding<Bool> {
+        Binding(get: { offerDownload != nil }, set: { if !$0 { offerDownload = nil } })
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             if let query = mentionQuery ?? (showsPluginList ? "" : nil) {
@@ -204,9 +210,7 @@ struct Composer: View {
             if case .success(let urls) = result { model.attachFiles(urls) }
         }
         .confirmationDialog(
-            offerDownload.map(OfflineLogic.downloadQuestion) ?? "", isPresented: Binding(
-                get: { offerDownload != nil }, set: { if !$0 { offerDownload = nil } }),
-            titleVisibility: .visible, presenting: offerDownload
+            offerDownloadTitle, isPresented: offerDownloadShown, titleVisibility: .visible, presenting: offerDownload
         ) { entry in
             Button("Download") {
                 app.hub.download(entry)
