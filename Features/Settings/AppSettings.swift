@@ -30,6 +30,8 @@ final class AppSettings {
         static let shareDiagnostics = "settings.shareDiagnostics"
         static let diagnosticsAsked = "settings.diagnosticsAsked"
         static let showResponseDetails = "settings.showResponseDetails"
+        static let replyTextStep = "settings.replyTextStep"
+        static let replyFont = "settings.replyFont"
         static let newChatDelay = "settings.newChatDelay"
         static let backgroundedAt = "settings.backgroundedAt"
     }
@@ -117,6 +119,21 @@ final class AppSettings {
     var showResponseDetails: Bool {
         get { access(keyPath: \.showResponseDetails); return defaults.object(forKey: Key.showResponseDetails) as? Bool ?? true }
         set { withMutation(keyPath: \.showResponseDetails) { defaults.set(newValue, forKey: Key.showResponseDetails) } }
+    }
+
+    /// Reply text size, in steps around the system size (`ReplyText.steps`). 0 is the system size.
+    var replyTextStep: Int {
+        get { access(keyPath: \.replyTextStep); return ReplyText.clamped(defaults.integer(forKey: Key.replyTextStep)) }
+        set { withMutation(keyPath: \.replyTextStep) { defaults.set(ReplyText.clamped(newValue), forKey: Key.replyTextStep) } }
+    }
+
+    /// Typeface of reply text.
+    var replyFont: ReplyFont {
+        get {
+            access(keyPath: \.replyFont)
+            return defaults.string(forKey: Key.replyFont).flatMap(ReplyFont.init(rawValue:)) ?? .system
+        }
+        set { withMutation(keyPath: \.replyFont) { defaults.set(newValue.rawValue, forKey: Key.replyFont) } }
     }
 
     /// How long the app can stay in the background before it opens on a new chat. One minute by default.

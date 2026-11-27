@@ -3,21 +3,27 @@ import SwiftUI
 import UIKit
 
 extension Theme {
-    /// Markdown look in system colors. `size` is the body size at the current Dynamic Type setting
-    /// (MarkdownUI takes points, so the view passes a scaled value); themes are cached per size.
-    @MainActor static func anyRouter(size: CGFloat) -> Theme {
-        let key = Int(size.rounded())
+    /// Markdown look in system colors. `size` is the body size at the current Dynamic Type setting and reply text size
+    /// (MarkdownUI takes points, so the view passes a scaled value); themes are cached per size and typeface.
+    @MainActor static func anyRouter(size: CGFloat, font: ReplyFont = .system) -> Theme {
+        let key = ThemeKey(size: Int(size.rounded()), font: font)
         if let cached = themes[key] { return cached }
-        let theme = make(size: CGFloat(key))
+        let theme = make(size: CGFloat(key.size), font: font)
         themes[key] = theme
         return theme
     }
 
-    @MainActor private static var themes: [Int: Theme] = [:]
+    private struct ThemeKey: Hashable {
+        let size: Int
+        let font: ReplyFont
+    }
 
-    @MainActor private static func make(size: CGFloat) -> Theme {
+    @MainActor private static var themes: [ThemeKey: Theme] = [:]
+
+    @MainActor private static func make(size: CGFloat, font: ReplyFont) -> Theme {
         Theme()
             .text {
+                FontFamily(.system(font.design))
                 ForegroundColor(.primary)
                 FontSize(size)
             }
@@ -142,6 +148,8 @@ struct CodeBlockView: View {
 struct CopyButton: View {
     let text: String
     var showsLabel = false
+    /// The symbol's size when there is no label.
+    var iconFont: Font = .footnote
 
     @State private var copied = false
 
@@ -161,7 +169,7 @@ struct CopyButton: View {
             } else {
                 Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
                     .labelStyle(.iconOnly)
-                    .font(.footnote)
+                    .font(iconFont)
             }
         }
         .buttonStyle(.borderless)

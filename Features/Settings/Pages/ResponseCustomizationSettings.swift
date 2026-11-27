@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// How replies are shaped and shown: system prompt, max tokens, temperature, top P, and the line under each reply.
+/// How replies are shaped and shown: system prompt, max tokens, temperature, top P, the reply text, and the line under each reply.
 struct ResponseCustomizationSettings: View {
     @Environment(AppSettings.self) private var settings
 
@@ -32,13 +32,45 @@ struct ResponseCustomizationSettings: View {
                 slider("Top P", value: $settings.topP, range: 0...1, step: 0.01)
             }
             Section {
+                VStack(spacing: 4) {
+                    HStack {
+                        Text("Text size")
+                        Spacer()
+                        Text(ReplyText.label(step: settings.replyTextStep)).foregroundStyle(.secondary)
+                    }
+                    Slider(
+                        value: Binding(
+                            get: { Double(settings.replyTextStep) },
+                            set: { settings.replyTextStep = Int($0.rounded()) }),
+                        in: Double(ReplyText.steps.lowerBound)...Double(ReplyText.steps.upperBound), step: 1
+                    ) {
+                        Text("Text size")
+                    } minimumValueLabel: {
+                        Text("A").font(.footnote)
+                    } maximumValueLabel: {
+                        Text("A").font(.title3)
+                    }
+                    .accessibilityValue(ReplyText.label(step: settings.replyTextStep))
+                    .accessibilityIdentifier("settings-reply-text-size")
+                }
+                Picker("Font", selection: $settings.replyFont) {
+                    ForEach(ReplyFont.allCases) { Text($0.title).tag($0) }
+                }
+                .accessibilityIdentifier("settings-reply-font")
+                ReplyTextPreview()
+            } header: {
+                Text("Reply text")
+            } footer: {
+                Text("Adds to your system text size. Code stays monospaced.")
+            }
+            Section {
                 Toggle("Show response details", isOn: $settings.showResponseDetails)
                     .accessibilityIdentifier("settings-show-response-details")
                 ResponseDetailsPreview(showsDetails: settings.showResponseDetails)
             } header: {
                 Text("Replies")
             } footer: {
-                Text("The model, cost and speed under each reply.")
+                Text("Cost, speed and tokens open under the model name below each reply.")
             }
             Section {
                 Button("Reset to defaults", role: .destructive) { settings.resetGenerationDefaults() }
