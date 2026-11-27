@@ -38,7 +38,12 @@ struct ChatScreen: View {
             }
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 0) {
-                    ModelTitle(name: chat?.model?.shortName, isLoading: models.isLoading) { shell.isModelPickerPresented = true }
+                    ModelTitle(
+                        name: chat?.model?.shortName,
+                        title: ChatHeaderLogic.title(
+                            chat?.thread?.title, hasReply: chat?.thread?.messages.contains(where: { $0.role == .assistant }) ?? false),
+                        isLoading: models.isLoading
+                    ) { shell.isModelPickerPresented = true }
                         // A popover under the title on iPad. On iPhone and in a compact iPad window the system turns it into the sheet.
                         .popover(isPresented: Bindable(shell).isModelPickerPresented, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
                             // Regular width shows a popover, which closes with a tap outside; compact shows a sheet.
