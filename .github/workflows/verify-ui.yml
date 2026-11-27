@@ -161,6 +161,8 @@ jobs:
             tail -n 40 "test-$name.log"
             grep -E "Test Case .* (passed|failed)" "test-$name.log" | sed 's/^.*Test Case //' > "evidence/results-$name.txt" || true
             xcrun xcresulttool get test-results summary --path "TestResults-$name.xcresult" --compact > "evidence/summary-$name.json" || true
+            # Free the simulator before the next device boots; a mini booted on top of a running Pro vanished once.
+            xcrun simctl shutdown "$udid" || true
           done
           test ! -e failed.txt || { cat failed.txt; exit 1; }
 
