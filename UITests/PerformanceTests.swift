@@ -74,7 +74,7 @@ final class PerformanceTests: XCTestCase {
         // Manual start/stop makes XCTCPUMetric fail to harvest on the Simulator (checked in CI), so the whole block is
         // measured: about 3 s of tapping and typing plus the stream. The idle control has the same length.
         measure(metrics: metrics, options: options(iterations: 3)) {
-            let newChat = app.buttons.matching(NSPredicate(format: "label == 'New chat' AND hittable == true")).firstMatch
+            let newChat = app.buttons.matching(NSPredicate(format: "label == 'New chat' AND isHittable == true")).firstMatch
             if newChat.exists { newChat.tap() }
             send("Write something long", in: app)
             XCTAssertTrue(app.buttons["Regenerate"].waitForExistence(timeout: 90), "reply did not finish")
