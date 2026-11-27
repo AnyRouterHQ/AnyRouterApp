@@ -70,6 +70,11 @@ enum SettingsDestination: Hashable, CaseIterable, Sendable {
         }
     }
 
+    /// The tile glyph: the page's symbol, except AnyRouter Models, which shows the AnyRouter mark.
+    var glyph: SettingsIcon.Glyph {
+        self == .anyRouterModels ? .asset(ModelBrand.anyRouterMark) : .symbol(systemImage)
+    }
+
     /// The root section that lists this destination, or nil for a page that opens from another page.
     var group: Group? { Group.allCases.first { $0.destinations.contains(self) } }
 }

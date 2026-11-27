@@ -73,6 +73,15 @@ struct ModelBrandTests {
         #expect(ModelBrand.resolve(localModel("gguf/org/unknown-model-GGUF/x.gguf")) == .symbol("u.circle.fill"))
     }
 
+    @Test func aFamilyWithoutAPublicMarkShowsItsSymbolTile() {
+        #expect(ModelBrand.resolve(localModel("gguf/org/Inkling-2-Mini-GGUF/x.gguf")) == .tile("drop.fill"))
+        #expect(brand("some-host/inkling-2") == .tile("drop.fill"))
+        #expect(UIImage(systemName: "drop.fill") != nil)
+        for family in ModelBrand.table.symbols {
+            #expect(UIImage(systemName: family.symbol) != nil, "no system symbol \(family.symbol) for \(family.prefix)")
+        }
+    }
+
     @Test func aLogoFromTheAPIWins() throws {
         var model = cloudModel("openai/gpt-5")
         model.cloud?.logoURL = URL(string: "https://example.com/openai.png")
@@ -112,7 +121,9 @@ struct ModelBrandTests {
         let repos = try JSONDecoder().decode(CatalogRepos.self, from: data).families.flatMap(\.variants).map(\.repo)
         try #require(!repos.isEmpty)
         for repo in repos {
-            guard case .asset = ModelBrand.resolve(localModel("gguf/\(repo)/x.gguf")) else {
+            switch ModelBrand.resolve(localModel("gguf/\(repo)/x.gguf")) {
+            case .asset, .tile: continue
+            case .remote, .symbol:
                 Issue.record("local catalog repo without a logo: \(repo)")
                 continue
             }

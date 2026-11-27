@@ -12,6 +12,12 @@ struct ModelLogo: View {
                 Image(name).resizable().renderingMode(.template).scaledToFit()
             case .symbol(let name):
                 Image(systemName: name).resizable().scaledToFit()
+            case .tile(let name):
+                Image(systemName: name)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(size * 0.2)
+                    .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: size * 0.22))
             case .remote(let url):
                 AsyncImage(url: url) { phase in
                     if let image = phase.image {

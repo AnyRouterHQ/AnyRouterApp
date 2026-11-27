@@ -48,6 +48,11 @@ struct SettingsDestinationTests {
         }
     }
 
+    @Test func anyRouterModelsShowsTheAnyRouterMarkAndOtherPagesTheirSymbol() {
+        #expect(SettingsDestination.anyRouterModels.glyph == .asset(ModelBrand.anyRouterMark))
+        #expect(SettingsDestination.localModels.glyph == .symbol("cube"))
+    }
+
     @Test func versionAndDiagnosticsText() {
         #expect(SettingsLogic.versionText(version: "1.2", build: "7") == "1.2 (7)")
         #expect(SettingsLogic.versionText(version: "1.2", build: "7", commit: "abc1234") == "1.2 (7) · abc1234")

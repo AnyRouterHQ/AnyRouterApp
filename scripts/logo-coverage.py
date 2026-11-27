@@ -43,6 +43,11 @@ def family_mark(table: dict, bare: str):
     return next((f["slug"] for f in table["families"] if name.startswith(f["prefix"])), None)
 
 
+def symbol_family(table: dict, bare: str):
+    name = bare.lower()
+    return next((f["symbol"] for f in table["symbols"] if name.startswith(f["prefix"])), None)
+
+
 def main() -> int:
     if "--refresh" in sys.argv:
         refresh()
@@ -84,7 +89,7 @@ def main() -> int:
     for family in json.loads(CATALOG.read_text(encoding="utf-8"))["families"]:
         for variant in family["variants"]:
             owner, _, repo = variant["repo"].partition("/")
-            if not (family_mark(table, repo) or owner_mark(table, owner)):
+            if not (family_mark(table, repo) or owner_mark(table, owner) or symbol_family(table, repo)):
                 local.append(variant["repo"])
     if local:
         failed = True

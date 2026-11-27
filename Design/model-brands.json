@@ -221,5 +221,11 @@
     "undi95",
     "writer",
     "xingchen-agi"
+  ],
+  "symbols": [
+    {
+      "prefix": "inkling",
+      "symbol": "drop.fill"
+    }
   ]
 }

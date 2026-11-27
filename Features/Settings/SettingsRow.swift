@@ -11,9 +11,10 @@ struct SettingsRow: View {
                 if let subtitle { Text(subtitle) }
             } label: {
                 Label {
-                    Text(destination.title)
+                    // Separators start under the title, not under the tile, as in iOS Settings.
+                    Text(destination.title).alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
                 } icon: {
-                    SettingsIcon(symbol: destination.systemImage, color: destination.tileColor)
+                    SettingsIcon(glyph: destination.glyph, color: destination.tileColor)
                 }
             }
         }

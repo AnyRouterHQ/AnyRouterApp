@@ -3,14 +3,17 @@ import Foundation
 /// Which logo a model shows. Pure, so the mapping is tested without a view.
 ///
 /// Slugs follow the AnyRouter web app (provider aliases and model families), so both apps agree.
-/// A logo URL from the API wins. The bundled monochrome set is the fallback, then a letter monogram
-/// (an owner without a public mark), then a generic symbol.
+/// A logo URL from the API wins. The bundled monochrome set is the fallback, then a symbol tile for a family that
+/// has no public mark (`symbols` in the table), then a letter monogram (an owner without a public mark), then a
+/// generic symbol.
 enum ModelBrand: Equatable {
     /// A bundled template image in the asset catalog.
     case asset(String)
     /// A logo served by the API.
     case remote(URL)
     case symbol(String)
+    /// An SF Symbol on a neutral rounded tile: a model family with no public mark.
+    case tile(String)
 
     static let anyRouterMark = "BrandMark"
     static let unknown = ModelBrand.symbol("cube")
@@ -44,7 +47,7 @@ enum ModelBrand: Equatable {
             let wire = id.hasPrefix("anyrouter/") ? String(id.dropFirst("anyrouter/".count)) : id
             let owner = wire.split(separator: "/").first.map(String.init) ?? ""
             if owner == "anyrouter" { return .asset(anyRouterMark) }
-            return logo(slug(owner: owner, bareName: bare(wire))) ?? monogram(owner)
+            return logo(slug(owner: owner, bareName: bare(wire))) ?? tile(bare(wire)) ?? monogram(owner)
         case .gguf, .mlx:
             // "gguf/org/repo/file.gguf" and "mlx/org/repo": the repo name carries the family.
             let parts = id.split(separator: "/").map(String.init)
@@ -52,7 +55,7 @@ enum ModelBrand: Equatable {
             let owner = parts.count > 1 ? parts[1] : ""
             let byFamily = logo(slug(owner: "", bareName: repo.lowercased()))
             let byOwner = logo(slug(owner: owner, bareName: ""))
-            return byFamily ?? byOwner ?? monogram(repo)
+            return byFamily ?? byOwner ?? tile(repo) ?? monogram(repo)
         }
     }
 
@@ -71,6 +74,12 @@ enum ModelBrand: Equatable {
     static func monogram(_ name: String) -> ModelBrand {
         guard let first = name.lowercased().first, first.isASCII, first.isLetter else { return unknown }
         return .symbol("\(first).circle.fill")
+    }
+
+    /// The symbol tile of a family listed under `symbols` in the table, by the bare model or repo name.
+    static func tile(_ name: String) -> ModelBrand? {
+        let name = name.lowercased()
+        return table.symbols.first { name.hasPrefix($0.prefix) }.map { .tile($0.symbol) }
     }
 
     private static func logo(_ slug: String?) -> ModelBrand? {
@@ -98,6 +107,13 @@ struct BrandTable: Decodable, Equatable, Sendable {
     let families: [Family]
     /// Owners reviewed as having no public mark. They show a monogram. Read by the coverage test and script.
     let noMark: [String]
+    /// Model families with no lobe-icons mark, shown as an SF Symbol tile. The coverage script accepts them.
+    let symbols: [SymbolFamily]
+
+    struct SymbolFamily: Decodable, Equatable, Sendable {
+        let prefix: String
+        let symbol: String
+    }
 
     /// A missing or malformed file is a build defect, so it stops loudly; every test run loads it.
     static let bundled: BrandTable = {
