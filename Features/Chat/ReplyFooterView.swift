@@ -22,7 +22,7 @@ struct ReplyFooterRow: View {
                 }
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 0) { actions }
-                    HStack(spacing: 0) { info }
+                    HStack(spacing: 0) { info }.padding(.leading, 10)
                 }
             }
             if expanded, let metadata = message.metadata {
@@ -84,7 +84,7 @@ struct ReplyFooterRow: View {
                 .lineLimit(1)
                 .fixedSize()
                 .frame(minHeight: 44)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 4)
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
@@ -98,17 +98,17 @@ struct ReplyFooterRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .fixedSize()
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 4)
                 .accessibilityLabel(modelAccessibilityLabel)
         }
         if let sourcesLabel = footer.sourcesLabel {
             Button { showsSources = true } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     FaviconChain(sources: footer.faviconSources)
                     Text(sourcesLabel).font(.caption).foregroundStyle(.secondary).lineLimit(1).fixedSize()
                 }
                 .frame(minHeight: 44)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 4)
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
