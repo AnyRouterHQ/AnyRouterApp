@@ -74,6 +74,8 @@ final class ChatViewModel {
     @ObservationIgnored var sendsWhenActive = false
     /// The question being answered was already retried once after folding the chat for Apple's window.
     @ObservationIgnored private var retriedAfterCompaction = false
+    /// The run of the reply being written, saved at its step boundaries.
+    @ObservationIgnored private var run: AgentRunRecord?
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
          settings: AppSettings, models: ModelStore,
@@ -715,6 +717,10 @@ final class ChatViewModel {
         let history = prompt.messages
         context.insert(assistant)
         assistant.thread = thread
+        // The run is saved at its step boundaries (agent design 1.3, unit G2) and deleted when it ends.
+        let run = AgentRunRecord(threadID: thread.id, messageID: replyID, modelID: model.id)
+        context.insert(run)
+        self.run = run
         assistant.memoryUpdates = memory
         assistant.memoryHits = recalled.map { MemoryHit(memoryID: $0.candidate.id, text: $0.candidate.text) }
         // Saved with the reply before anything streams, and cleared by `finish`: if the app is closed mid-reply, the marker
@@ -810,6 +816,7 @@ final class ChatViewModel {
                 thoughts.end(at: clock())
                 assistant.reasoning = thoughts.trace
             }
+            var checkpoint = AgentRunLogic.Checkpoint(node: .generate, round: 0)
             do {
                 for try await delta in stream {
                     // A chunk that was already buffered when the user pressed stop is dropped.
@@ -843,6 +850,14 @@ final class ChatViewModel {
                     case .usage(let prompt, let completion): tokens = (prompt, completion)
                     case .metadata(let metadata): reported = metadata
                     case .done: break
+                    }
+                    // A tool call and its result are step boundaries: the run is saved there, never per token.
+                    if let next = AgentRunLogic.checkpoint(after: delta, from: checkpoint) {
+                        checkpoint = next
+                        run.node = next.node
+                        run.round = next.round
+                        run.updatedAt = Date()
+                        if let self { try? self.save(self.context) }
                     }
                 }
             } catch is CancellationError {
@@ -887,9 +902,16 @@ final class ChatViewModel {
     /// The thread was deleted during the reply: nothing to save, the view model just returns to idle.
     private func abandon(_ replyID: UUID) {
         LiveReplies.shared.end(replyID)
+        endRun()
         phase = .idle
         task = nil
         loadingModelName = nil
+    }
+
+    /// A run that ended has nothing left to resume.
+    private func endRun() {
+        if let run, !Self.isGone(run) { context.delete(run) }
+        run = nil
     }
 
     /// Seconds between screen updates while text streams in.
@@ -949,6 +971,7 @@ final class ChatViewModel {
     /// Retry replaces it.
     private func finish(_ assistant: MessageRecord, in thread: ThreadRecord, failure: ReplyFailure?) {
         LiveReplies.shared.end(assistant.id)
+        endRun()
         // Nothing is running any more, so a step without a result was cut off.
         var steps = assistant.toolSteps
         for index in steps.indices where steps[index].result == nil {

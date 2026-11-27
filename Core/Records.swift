@@ -172,7 +172,7 @@ extension ModelContainer {
     static func anyRouter(inMemory: Bool = false, storeURL: URL? = nil) throws -> ModelContainer {
         let configuration = storeURL.map { ModelConfiguration(url: $0) } ?? ModelConfiguration(isStoredInMemoryOnly: inMemory)
         return try ModelContainer(
-            for: ThreadRecord.self, MessageRecord.self, DecisionRunRecord.self, MemoryRecord.self,
+            for: ThreadRecord.self, MessageRecord.self, DecisionRunRecord.self, MemoryRecord.self, AgentRunRecord.self,
             configurations: configuration
         )
     }

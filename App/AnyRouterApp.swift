@@ -18,6 +18,7 @@ struct AnyRouterApp: App {
                 container = outcome.container
                 StoreOpening.post(note: outcome.note)
             }
+            AgentRunSweep.run(container.mainContext)
         } catch {
             // Only an in-memory container failing lands here, which no data on disk can cause.
             fatalError("Could not create the data store: \(error)")
