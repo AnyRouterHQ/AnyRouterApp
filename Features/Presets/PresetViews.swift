@@ -112,8 +112,8 @@ struct PresetsSettingsSheet: View {
         }
         .navigationTitle("Presets")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $creating) { PresetEditor(store: store, preset: nil).presentationSizing(.form) }
-        .sheet(item: $editing) { PresetEditor(store: store, preset: $0).presentationSizing(.form) }
+        .sheet(isPresented: $creating) { PresetEditor(store: store, preset: nil).presentationSizing(.form).appControls() }
+        .sheet(item: $editing) { PresetEditor(store: store, preset: $0).presentationSizing(.form).appControls() }
     }
 }
 

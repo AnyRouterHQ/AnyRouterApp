@@ -33,7 +33,7 @@ struct IntegrationsSettingsView: View {
         // The model list carries the tools capability, so it is read again when the switch moves.
         .onChange(of: settings.onDeviceTools) { Task { await app.models.refresh() } }
         .navigationDestination(item: $detail) { ToolSourceScreen(source: $0) }
-        .sheet(isPresented: $showsAdd) { AddMCPServerSheet() }
+        .sheet(isPresented: $showsAdd) { AddMCPServerSheet().appControls() }
         .task { await store.refreshAll() }
     }
 

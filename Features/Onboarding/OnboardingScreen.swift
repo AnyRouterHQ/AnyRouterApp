@@ -64,6 +64,9 @@ struct OnboardingScreen: View {
                 Text(title).font(.headline)
                 Text(detail).font(.subheadline).foregroundStyle(.secondary)
             }
+            // Every separator starts under the text, as in a stock list; left to the default, the one under
+            // "Local models" ran to the edge (screenshots 46075429647).
+            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         } icon: {
             Image(systemName: icon).imageScale(.large)
         }
