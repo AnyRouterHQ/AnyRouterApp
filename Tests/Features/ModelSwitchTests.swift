@@ -56,6 +56,8 @@ struct ModelSwitchTests {
         #expect(r.vm.messages.map(\.content) == ["first", "from apple", "second", "from cloud"])
         #expect(r.vm.thread?.modelID == cloudA.id)
         #expect(r.reopen().model?.id == cloudA.id) // reopening the thread shows the new model
+        #expect(r.vm.modelChoiceCount == 2, "each pick gives one selection tap")
+        #expect(r.reopen().modelChoiceCount == 0, "opening a thread with its own model is not a pick")
     }
 
     @Test func eachReplyRemembersItsModelAndTheSwitchIsAnnounced() async throws {

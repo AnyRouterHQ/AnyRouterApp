@@ -24,6 +24,8 @@ struct Composer: View {
     @State private var listensAfterGate = false
     /// What "Answer offline" did, said under the field until the next edit.
     @State private var deviceNote: String?
+    /// Counts the person's Stop taps, for a firmer tap than the send one.
+    @State private var stopCount = 0
     /// Owned by the chat screen so a tap outside the card can dismiss the keyboard.
     var focused: FocusState<Bool>.Binding
     @Environment(AppSettings.self) private var settings
@@ -164,6 +166,10 @@ struct Composer: View {
         }
         // A light tap when a send starts a reply (not on every reply end).
         .sensoryFeedback(.impact(weight: .light), trigger: model.isStreaming) { _, streaming in streaming }
+        .sensoryFeedback(.impact(weight: .medium), trigger: stopCount)
+        .sensoryFeedback(.selection, trigger: model.modelChoiceCount)
+        // An error appearing, not each change of its text.
+        .sensoryFeedback(.error, trigger: model.errorMessage) { old, new in old == nil && new != nil }
         .photosPicker(isPresented: $showsPhotos, selection: $photoItems,
                       maxSelectionCount: AttachmentLogic.maxPerMessage, matching: .images)
         .onChange(of: photoItems) { _, items in loadPhotos(items) }
@@ -423,7 +429,9 @@ struct Composer: View {
 
     private func perform(_ action: ComposerAction) {
         switch action {
-        case .stop: model.stop()
+        case .stop:
+            stopCount += 1
+            model.stop()
         case .send: _ = model.send()
         case .voice, .stopDictation:
             app.speaker.stop()

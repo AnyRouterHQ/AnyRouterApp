@@ -9,6 +9,9 @@ enum ModelDownloadState: Equatable, Sendable {
     case installed
     case failed(String)
 
+    /// This change ends a download: the model is installed now and was not before.
+    func finishes(into next: ModelDownloadState) -> Bool { next == .installed && self != .installed }
+
     /// 0...1 while downloading or paused with a known total.
     var fraction: Double? {
         switch self {

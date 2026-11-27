@@ -136,6 +136,8 @@ protocol ModelHubService: AnyObject {
     /// Reloads the catalog and refreshes install state from disk.
     func reload() async
     func downloadState(for modelID: String) -> DownloadState
+    /// Downloads finished in this run. The app gives a success tap when it grows.
+    var finishedDownloads: Int { get }
     func download(_ entry: LocalModelEntry)
     func pause(modelID: String)
     func resume(modelID: String)
@@ -152,6 +154,9 @@ protocol ModelHubService: AnyObject {
 }
 
 extension ModelHubService {
+    /// Hubs that download nothing finish nothing.
+    var finishedDownloads: Int { 0 }
+
     /// Deletes every installed model, one at a time. A model that fails to delete leaves `lastError` set and the rest still go.
     func deleteAllModels() async {
         for entry in catalog where downloadState(for: entry.id) == .installed {

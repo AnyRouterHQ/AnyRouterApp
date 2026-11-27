@@ -25,6 +25,7 @@ extension View {
             Button { ThreadActions.togglePin(thread) } label: { pinLabel(thread) }
             Button(role: .destructive) { editing.wrappedValue.deleting = thread } label: { Label("Delete", systemImage: "trash") }
         }
+        .sensoryFeedback(.impact(weight: .light), trigger: thread.isPinned)
     }
 
     /// The rename alert and the delete confirmation that the row actions open. Attach once, to the list.

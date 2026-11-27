@@ -145,8 +145,13 @@ final class ChatViewModel {
         return "The model used earlier is unavailable. Using \(fallback.shortName)."
     }
 
+    /// How many times the person picked a model in this chat. The composer gives a selection tap on each pick, not when a
+    /// thread opens with its own model.
+    private(set) var modelChoiceCount = 0
+
     /// Applies to the next message in this thread, is saved on the thread, and becomes the default for new chats.
     func choose(_ model: ModelDescriptor) {
+        modelChoiceCount += 1
         preferredModelID = model.id
         models.select(model)
         refreshContextFraction()

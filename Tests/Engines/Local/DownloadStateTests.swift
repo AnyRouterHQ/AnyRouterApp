@@ -17,6 +17,14 @@ struct ModelDownloadStateTests {
         #expect(state == .installed)
     }
 
+    /// The success tap: only the step into installed counts, not a refresh of a model that was already there.
+    @Test func onlyTheStepIntoInstalledFinishesADownload() {
+        #expect(S.verifying.finishes(into: .installed))
+        #expect(!S.installed.finishes(into: .installed))
+        #expect(!S.verifying.finishes(into: .failed("bad")))
+        #expect(!S.notInstalled.finishes(into: .downloading(received: 0, total: 1)))
+    }
+
     @Test func pauseKeepsProgressAndResumeContinuesFromIt() {
         var state = S.downloading(received: 40, total: 100)
         state = state.reduce(.pause)

@@ -82,6 +82,8 @@ final class LocalModelHub: ModelHubService {
         await reload()
     }
 
+    var finishedDownloads: Int { downloads.finishedDownloads }
+
     func downloadState(for modelID: String) -> DownloadState {
         guard let entry = raw[modelID] ?? browsed[modelID] else { return .notInstalled }
         let state = downloads.state(for: entry)

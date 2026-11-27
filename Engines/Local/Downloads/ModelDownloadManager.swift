@@ -12,6 +12,8 @@ final class ModelDownloadManager {
     static let sessionIdentifier = "dev.anyrouter.app.models"
 
     private(set) var states: [String: ModelDownloadState] = [:]
+    /// Downloads that reached `installed` in this run, for a success tap. Reading installs from disk does not count.
+    private(set) var finishedDownloads = 0
 
     let storage: LocalModelStorage
     private let api: HuggingFaceAPI
@@ -196,7 +198,10 @@ final class ModelDownloadManager {
     // MARK: Internals
 
     private func apply(_ event: ModelDownloadEvent, to id: String) {
-        states[id] = (states[id] ?? .notInstalled).reduce(event)
+        let old = states[id] ?? .notInstalled
+        let new = old.reduce(event)
+        if old.finishes(into: new) { finishedDownloads += 1 }
+        states[id] = new
     }
 
     private func isDownloading(_ id: String) -> Bool {
