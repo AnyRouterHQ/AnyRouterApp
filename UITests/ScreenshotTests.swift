@@ -43,6 +43,12 @@ final class ScreenshotTests: XCTestCase {
         return UIGraphicsImageRenderer(size: image.size, format: format).pngData { _ in image.draw(at: .zero) }
     }
 
+    /// Menus and sheets animate in; their rows exist before they are drawn, so a capture waits until a row takes taps.
+    private func waitUntilHittable(_ element: XCUIElement) {
+        let hittable = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isHittable == true"), object: element)
+        XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: 5), .completed, "\(element) never became tappable")
+    }
+
     private func button(_ app: XCUIApplication, containing text: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
     }
@@ -250,11 +256,13 @@ final class ScreenshotTests: XCTestCase {
             guard tools.exists else { return XCTFail("the demo model takes tools, so Tools is in the menu") }
             tools.tap()
             XCTAssertTrue(app.descendants(matching: .any)["composer.tools-toggle"].waitForExistence(timeout: 5))
+            waitUntilHittable(app.descendants(matching: .any)["composer.tool-group.device"])
             capture("plus-menu-tools", appearance)
             let device = app.descendants(matching: .any)["composer.tool-group.device"]
             XCTAssertTrue(device.waitForExistence(timeout: 5))
             device.tap()
             XCTAssertTrue(app.descendants(matching: .any)["composer.tool-source.device"].waitForExistence(timeout: 5))
+            waitUntilHittable(app.descendants(matching: .any)["composer.tool-source.device"])
             capture("plus-menu-tools-device", appearance)
         }
     }

@@ -389,10 +389,12 @@ struct Composer: View {
             }
             Section {
                 if model.supportsThinking {
+                    // Automatic: the root's switch style would split this menu row into blank rows.
                     Toggle("Enable thinking", systemImage: "brain", isOn: Binding(
                         get: { model.thinkingEnabled },
                         set: { model.setThinkingEnabled($0) }
                     ))
+                    .toggleStyle(.automatic)
                 }
                 if model.supportsTools { ComposerToolsMenu(model: model) }
             }

@@ -13,10 +13,13 @@ struct ComposerToolsMenu: View {
             registry.isOn($0, modelSource: modelSource)
         }
         Menu {
+            // The root's GreenSwitchStyle forces a switch, which a menu cannot draw: each toggle came out as a titled row
+            // and two blank checkmark rows. The automatic style is the menu's own checkmark row.
             Toggle("Use tools in this chat", isOn: Binding(
                 get: { model.toolsEnabled },
                 set: { model.setToolsEnabled($0) }
             ))
+            .toggleStyle(.automatic)
             .accessibilityIdentifier("composer.tools-toggle")
             if model.toolsEnabled {
                 Section {
@@ -40,16 +43,18 @@ struct ComposerToolsMenu: View {
 
     private func sourceSection(_ entry: ToolMenuSource, titled: Bool) -> some View {
         let registry = app.tools
-        let title = OfflineLogic.sourceTitle(entry.source.title, needsNetwork: entry.source.id != ToolSourceCatalog.device.id,
+        let title = OfflineLogic.sourceTitle("Use \(entry.source.title) tools",
+                                             needsNetwork: entry.source.id != ToolSourceCatalog.device.id,
                                              isOffline: app.network.isOffline)
         return Section {
-            Toggle(isOn: Binding(get: { entry.isOn }, set: { registry.setSource(entry.source, on: $0) })) {
-                Label { Text(title) } icon: { ToolSourceIcon(icon: entry.source.icon) }
-            }
-            .accessibilityIdentifier("composer.tool-source.\(entry.id)")
+            Toggle(title, isOn: Binding(get: { entry.isOn }, set: { registry.setSource(entry.source, on: $0) }))
+                .toggleStyle(.automatic)
+                .accessibilityIdentifier("composer.tool-source.\(entry.id)")
             ForEach(entry.tools) { tool in
                 Toggle(tool.title, isOn: Binding(get: { tool.isOn }, set: { registry.setTool(tool.id, on: $0) }))
+                    .toggleStyle(.automatic)
                     .disabled(!entry.isOn)
+                    .accessibilityIdentifier("composer.tool.\(tool.id)")
             }
         } header: {
             if titled { Text(entry.source.title) }

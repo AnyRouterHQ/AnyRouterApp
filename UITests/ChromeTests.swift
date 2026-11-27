@@ -70,6 +70,46 @@ final class ChromeTests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["composer.tool-source.device"].waitForExistence(timeout: 5))
     }
 
+    /// Every row of the Tools submenu and of a source's submenu shows its title. A switch style that leaked into the menu
+    /// once split each toggle into a titled row and two blank checkmark rows (screenshots 46075429647).
+    func testEveryToolsMenuRowHasATitle() {
+        let app = launch()
+        XCTAssertTrue(app.buttons["Add"].waitForExistence(timeout: 15))
+        app.buttons["Add"].tap()
+        let tools = app.buttons["composer.tools"]
+        XCTAssertTrue(tools.waitForExistence(timeout: 5), "the demo model takes tools")
+        tools.tap()
+        let chatSwitch = app.descendants(matching: .any)["composer.tools-toggle"]
+        XCTAssertTrue(chatSwitch.waitForExistence(timeout: 5))
+        assertMenuRowsHaveTitles(app, from: chatSwitch)
+
+        app.descendants(matching: .any)["composer.tool-group.device"].tap()
+        let source = app.descendants(matching: .any)["composer.tool-source.device"]
+        XCTAssertTrue(source.waitForExistence(timeout: 5))
+        XCTAssertEqual(source.label, "Use On this device tools", "the source's own switch, not a copy of the submenu title")
+        let toolRows = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "composer.tool.builtin/")).allElementsBoundByIndex
+        XCTAssertFalse(toolRows.isEmpty, "the device's tools are listed")
+        for row in toolRows { XCTAssertFalse(row.label.isEmpty, "\(row.identifier) has no title") }
+        assertMenuRowsHaveTitles(app, from: source)
+    }
+
+    /// Every control in the open menu's column, from `first` down, has a label. Menu rows share the first row's x and width.
+    private func assertMenuRowsHaveTitles(_ app: XCUIApplication, from first: XCUIElement, line: UInt = #line) {
+        let column = first.frame
+        let types: [XCUIElement.ElementType] = [.button, .switch, .toggle, .menuItem]
+        let controls = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "elementType IN %@", types.map { NSNumber(value: $0.rawValue) }))
+            .allElementsBoundByIndex
+        let rows = controls.filter {
+            abs($0.frame.minX - column.minX) < 1 && abs($0.frame.width - column.width) < 1 && $0.frame.minY >= column.minY - 1
+        }
+        XCTAssertFalse(rows.isEmpty, "the menu's rows are found", line: line)
+        for row in rows {
+            XCTAssertFalse(row.label.isEmpty, "a menu row at \(NSCoder.string(for: row.frame)) has no title", line: line)
+        }
+    }
+
     /// The + is a circle as tall as the one-line field and centred on it.
     func testPlusIsAsTallAsTheFieldAndCentredOnIt() {
         let app = launch()
