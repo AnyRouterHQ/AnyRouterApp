@@ -11,9 +11,9 @@ struct ModelLogo: View {
             switch brand {
             case .asset(let name):
                 if let color = ModelBrand.colorAsset(for: name, dark: colorScheme == .dark) {
-                    Image(color).resizable().scaledToFit()
+                    asset(color, template: false)
                 } else {
-                    Image(name).resizable().renderingMode(.template).scaledToFit()
+                    asset(name, template: true)
                 }
             case .symbol(let name):
                 Image(systemName: name).resizable().scaledToFit()
@@ -35,6 +35,12 @@ struct ModelLogo: View {
         }
         .frame(width: size, height: size)
         .accessibilityIdentifier("model-logo")
+    }
+
+    /// Drawn at `size`, so a picker or menu that drops the frame still shows it in the icon slot.
+    private func asset(_ name: String, template: Bool) -> some View {
+        let image = LogoImage.make(name, side: size, template: template).map(Image.init(uiImage:)) ?? Image(name)
+        return image.resizable().renderingMode(template ? .template : .original).scaledToFit()
     }
 }
 
