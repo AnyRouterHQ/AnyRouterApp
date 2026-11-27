@@ -35,7 +35,7 @@ struct FamilyLogicTests {
             let fit: ModelFit
             switch model.memoryProfile.map({ FitPlanner.estimate($0, memory: memory) })?.verdict {
             case .runsWell?: fit = .fits
-            case .tight?: fit = .tight
+            case .tight?, .streamed?: fit = .tight
             case .wontFit?: fit = .wontFit
             case nil: fit = .unknown
             }
