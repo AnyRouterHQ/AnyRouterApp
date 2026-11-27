@@ -18,6 +18,7 @@ struct RootView: View {
             // The one tint, pinned here: left to the default, SwiftUI resolved it from UIKit's tint, and in a chat
             // with a photo or file card (quickLookPreview, fullScreenCover) the composer button turned system blue.
             .tint(ARPalette.tint)
+            .toggleStyle(GreenSwitchStyle())
             // A model download that ends, wherever the person is in the app.
             .sensoryFeedback(.success, trigger: appState.hub.finishedDownloads)
             .environment(shell)
