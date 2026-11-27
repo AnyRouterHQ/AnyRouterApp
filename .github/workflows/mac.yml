@@ -51,11 +51,12 @@ jobs:
       # The Mac destination builds with the iOS SDK, which refuses ad-hoc signing at build time (run 45895599005).
       # So: build unsigned, then ad-hoc sign the products here. A Mac needs at least that to launch an iOS app.
       # An unsigned build also carries no entitlements, which is right: the memory entitlement means nothing on a Mac.
-      - name: Build for testing
+      # The app scheme: the capture below needs only the app, and Xcode refuses UI test targets for this destination.
+      - name: Build the app
         run: |
           set -o pipefail
-          xcodebuild build-for-testing \
-            -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots \
+          xcodebuild build \
+            -project AnyRouter.xcodeproj -scheme AnyRouter \
             -destination "platform=macOS,variant=Designed for iPad" \
             -derivedDataPath DerivedData \
             -clonedSourcePackagesDirPath SourcePackages \
