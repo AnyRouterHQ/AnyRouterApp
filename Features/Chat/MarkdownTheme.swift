@@ -135,8 +135,9 @@ struct CodeBlockView: View {
             .mask {
                 HStack(spacing: 0) {
                     Color.black
+                    // Wide enough to fade a few characters, so a cut line reads as "scrolls" (audit #25: 28 pt faded one).
                     LinearGradient(colors: [.black, hasMore ? .clear : .black], startPoint: .leading, endPoint: .trailing)
-                        .frame(width: 28)
+                        .frame(width: 56)
                 }
             }
         }

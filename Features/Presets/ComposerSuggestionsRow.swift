@@ -56,7 +56,7 @@ struct ComposerSuggestionsRow: View {
             HStack(spacing: 0) {
                 Color.black
                 LinearGradient(colors: [.black, hasMore ? .clear : .black], startPoint: .leading, endPoint: .trailing)
-                    .frame(width: 32)
+                    .frame(width: 48)
             }
         }
         .accessibilityIdentifier("composer.suggestions")
