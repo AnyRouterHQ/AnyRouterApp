@@ -207,6 +207,14 @@ App      Shortcuts & Controls · Theme · Privacy · About (Version, Diagnostics
 - Row icons: colored tiles from `SettingsIcon` and `ARPalette` (see Color and icons).
 - Tests: `SettingsDestinationTests` (root rows and order), UI tests that tapped moved rows, `testSettingsPages` screenshots.
 
+### Finisher lane polish (2026-11-27)
+
+- [x] Sidebar: 44 pt rows, section titles as rows (a plain list adds about 22 pt above each `Section` header), New chat a 40 pt glass capsule like the gear (f003522). Before: gear 58 pt, New chat 74 pt tall (screenshots 45989899524 frames.txt).
+- [x] Settings tiles: 29 pt tile, body-size (17 pt) symbol, separators under the title; AnyRouter Models shows the AnyRouter mark (308f525).
+- [x] Logos: lobe-icons color marks for 33 brands (`colorMarks` in model-brands.json, "light" ones fall back to the mono mark in dark mode), written by `scripts/logo-add.py` (d04e389, sets named `LogoColor-<slug>` in b306dc1); moonshotai keeps its mono mark (its color icon is Kimi). SF Symbol tile fallback for a family with no mark (`symbols`, inkling -> drop.fill) (308f525).
+- [x] One `ListRow` (Design/ListRow.swift): Settings, About, outbound links, Integrations, Local Models, Browse models, Voice (a6d4eb5, 1a0f043, 452c0b8). Deleted SettingsRow, ExternalLinkRow, ToolToggleRow, FamilyRow; ModelRow and VoiceModelRow are wrappers whose body is a ListRow. Not migrated: the model picker's rows (outside Settings), ModelLabel headers on detail pages.
+- [x] Shortcuts & Controls: SiriTipView, ShortcutsLink, the four Siri phrases (3bfbf34).
+
 ### Color and icons
 
 Operator: "nice color, nice icon, nice design". `Design/ARPalette.swift` holds the one tint (the AccentColor asset: black in light, white in dark), the semantic colors and the tile color per Settings page. `SettingsIcon` draws the iOS Settings style tile (white medium-weight symbol on a 29 pt rounded square, scaled with Dynamic Type). `scripts/source-check.sh` fails on `Color(red:`, `Color(hex`, `UIColor(red:` and `.foregroundColor(` in Features/; exceptions go in `scripts/color-allowlist.txt` with a reason. Rubric version 2 adds `color` and `iconography`.
@@ -706,6 +714,8 @@ Written 2026-11-27 by the finisher lane, from the code on main (no device run). 
 - Scroll anchor: a send scrolls the new question to the top (`scrollTo(id, anchor: .top)`), the last turn is at least one view tall so it can sit there, the list stops following, and `defaultScrollAnchor(.bottom)` applies to the first layout only. The jump button (D27 bug fix 483d2b9) brings the reader to the end.
 - Context meter: `CompactionLogic.usedTokens` over `CompactionLogic.window`, shown as a percentage with a gauge symbol beside "Compact conversation" in the chat's More menu. No meter when the window is unknown.
 - Order: TraceRow and statuses; reasoning fold; failed calls stay; approval card; scroll anchor; meter. Each lands with tests and is pushed when green; screenshots in one batch.
+- [x] Landed 2026-11-27 (finisher lane): TraceRow and statuses, reasoning fold, failed and denied calls stay (3f47fa5); inline approval (1cbe7f4, 44 pt buttons 14f1573); question anchor (f1521dc, end of a reply no longer snaps to the end 5f2f605); context meter (f05683c); jump-to-latest hidden at the bottom (483d2b9). CI green at 5f2f605 (46017959395). Device check still needed: the approval card with a real MCP tool, the anchor with the keyboard up.
+- Finding: the old jump-button arithmetic (offset + container against content + bottom inset) is the only input that could hold the button up at rest at the bottom; which term was off was not measured. `ScrollFollow` now reads the end marker's `onScrollVisibilityChange`. UI tests: `ScrollJumpTests` (scroll back by hand, question anchor).
 
 ### Boundary (decision D15)
 
