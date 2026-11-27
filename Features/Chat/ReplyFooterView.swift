@@ -81,7 +81,11 @@ struct ReplyFooterRow: View {
             Button { expanded.toggle() } label: {
                 HStack(spacing: 4) {
                     Text(footer.modelLine ?? "Details")
-                    Image(systemName: expanded ? "chevron.up" : "chevron.down").imageScale(.small)
+                    // The same chevron as every other row in a reply.
+                    Image(systemName: "chevron.right")
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)

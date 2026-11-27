@@ -40,44 +40,58 @@ struct ToolChainView: View {
     }
 }
 
-/// One call: its symbol, name, a short argument summary and a status. Tap for the arguments and the result.
+/// One call: its symbol, name, a short argument summary, a status and the same chevron as the rows above it.
+/// Tap for the arguments and the result. A Button, not a DisclosureGroup, which would tint the chevron with the accent.
 struct ToolStepRow: View {
     let row: ToolChain.Row
     let step: ToolStep
+    @State private var isOpen = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        DisclosureGroup {
-            VStack(alignment: .leading, spacing: 8) {
-                ToolDetailText(title: "Arguments", text: ToolRowLogic.prettyJSON(step.call.argumentsJSON))
-                if let result = step.result {
-                    ToolDetailText(title: "Result", text: ToolRowLogic.clipped(result.text))
-                }
-            }
-            .padding(.top, 4)
-        } label: {
-            HStack(spacing: 8) {
-                Label {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(row.name).font(.footnote.weight(.medium))
-                        if let summary = row.summary {
-                            Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                        }
+        VStack(alignment: .leading, spacing: 0) {
+            Button { isOpen.toggle() } label: { label }
+                .buttonStyle(.plain)
+                .accessibilityHint(isOpen ? "Hides the arguments and result" : "Shows the arguments and result")
+                .accessibilityIdentifier("tool.row")
+            if isOpen {
+                VStack(alignment: .leading, spacing: 8) {
+                    ToolDetailText(title: "Arguments", text: ToolRowLogic.prettyJSON(step.call.argumentsJSON))
+                    if let result = step.result {
+                        ToolDetailText(title: "Result", text: ToolRowLogic.clipped(result.text))
                     }
-                } icon: {
-                    ToolSourceIcon(icon: row.icon)
                 }
-                Spacer(minLength: 8)
-                status
+                .padding(.top, 4)
             }
-            .foregroundStyle(Color.secondary)
-            .frame(minHeight: 44)
-            // One element that reads the full sentence, so VoiceOver and the UI tests get the same words as before.
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(row.title)
         }
-        // A disclosure group tints its label and chevron with the accent; the row is quiet like the others.
-        .tint(Color.secondary)
-        .accessibilityIdentifier("tool.row")
+        .animation(reduceMotion ? nil : .snappy, value: isOpen)
+    }
+
+    private var label: some View {
+        HStack(spacing: 8) {
+            Label {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(row.name).font(.footnote.weight(.medium))
+                    if let summary = row.summary {
+                        Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+            } icon: {
+                ToolSourceIcon(icon: row.icon)
+            }
+            Spacer(minLength: 8)
+            status
+            Image(systemName: "chevron.right")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+                .rotationEffect(.degrees(isOpen ? 90 : 0))
+        }
+        .foregroundStyle(Color.secondary)
+        .frame(minHeight: 44)
+        .contentShape(.rect)
+        // One element that reads the full sentence, so VoiceOver and the UI tests get the same words as before.
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(row.title)
     }
 
     @ViewBuilder
