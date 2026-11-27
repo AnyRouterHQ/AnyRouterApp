@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       model_id:
-        description: "Catalog GGUF id (models.json or dev-models.json), like gguf/<repo>/<file>. Empty runs the smallest GGUF in models.json."
+        description: "Catalog GGUF id (models.json or dev-models.json), like gguf/<repo>/<file>, or a family id (its smallest GGUF size), like inkling-2. Empty runs the smallest GGUF in models.json."
         required: false
         default: ""
       hf_repo:
@@ -70,8 +70,11 @@ jobs:
         env:
           INPUT_MODEL_ID: ${{ inputs.model_id }}
         run: |
-          python3 - <<'PY' >> "$GITHUB_ENV"
-          import json, os, sys, urllib.request
+          python3 - <<'PY'
+          import json, os, re, sys, urllib.request
+          env_file = open(os.environ["GITHUB_ENV"], "a")
+          def put(line):
+              env_file.write(line + "\n")
           def ggufs(path):
               # The catalog lists families with sizes; the app's entry for a size is flat.
               out = []
@@ -83,10 +86,18 @@ jobs:
                                       "sizeBytes": v["sizeBytes"], "contextLength": v.get("contextLength"),
                                       "revision": v["revision"], "sha256": v.get("sha256"), "vision": v.get("vision"),
                                       "sampling": v.get("sampling"),
-                                      "status": family["status"]})
+                                      "status": family["status"], "family": family["id"]})
               return out
           production = [m for m in ggufs("catalog/models.json") if m["status"] == "current"]
           catalog = production + ggufs("catalog/dev-models.json")
+          # A catalog repo whose owner carries the reference app's name (operator-approved data only) is run like a model
+          # given at run time: masked in every log line, never named in the report, no artifacts. Pick it by family id.
+          a = "atom"
+          private_re = re.compile(a + r"ic ?chat|" + a + r"icbot", re.I)
+          for m in catalog:
+              if private_re.search(m["repo"]):
+                  print(f"::add-mask::{m['repo']}", flush=True)
+                  print(f"::add-mask::{m['file']}", flush=True)
           wanted = os.environ.get("INPUT_MODEL_ID", "").strip()
           ext_repo, ext_file = os.environ.get("EXT_HF_REPO", "").strip(), os.environ.get("EXT_HF_FILE", "").strip()
           external = False
@@ -104,29 +115,32 @@ jobs:
               external = True
           elif wanted:
               matches = [m for m in catalog if f"gguf/{m['repo']}/{m['file']}" == wanted]
+              matches = matches or sorted((m for m in catalog if m["family"] == wanted), key=lambda m: m["sizeBytes"])
               if not matches:
                   sys.exit("no GGUF catalog entry with id " + wanted + ". Known: " + ", ".join(f"gguf/{m['repo']}/{m['file']}" for m in catalog))
               entry = matches[0]
           else:
               entry = min(production, key=lambda m: m.get("sizeBytes", 1 << 62))
+          entry.pop("family", None)
+          external = external or bool(private_re.search(entry["repo"]))
           repo, file, rev = entry["repo"], entry["file"], entry["revision"]
           listing = json.load(urllib.request.urlopen(f"https://huggingface.co/api/models/{repo}/tree/{rev}?recursive=true"))
           sha = next(f["lfs"]["oid"] for f in listing if f["path"] == file)
-          print(f"MODEL_REPO={repo}")
-          print(f"MODEL_FILE={file}")
-          print(f"MODEL_REV={rev}")
-          print(f"MODEL_SHA256={sha}")
+          put(f"MODEL_REPO={repo}")
+          put(f"MODEL_FILE={file}")
+          put(f"MODEL_REV={rev}")
+          put(f"MODEL_SHA256={sha}")
           # A size that takes photos: the projector is downloaded too, for the image test.
           vision = entry.get("vision") or {}
           projector = vision.get("mmprojFile", "")
-          print(f"MODEL_MMPROJ_FILE={projector}")
-          print("MODEL_MMPROJ_SHA256=" + (next(f["lfs"]["oid"] for f in listing if f["path"] == projector) if projector else ""))
-          print(f"MODEL_TITLE={entry['title']}")
-          print(f"MODEL_ID={'external' if external else 'gguf/' + repo + '/' + file}")
-          print(f"MODEL_EXTERNAL={'1' if external else ''}")
+          put(f"MODEL_MMPROJ_FILE={projector}")
+          put("MODEL_MMPROJ_SHA256=" + (next(f["lfs"]["oid"] for f in listing if f["path"] == projector) if projector else ""))
+          put(f"MODEL_TITLE={entry['title']}")
+          put(f"MODEL_ID={'external' if external else 'gguf/' + repo + '/' + file}")
+          put(f"MODEL_EXTERNAL={'1' if external else ''}")
           # A file over 4 GB is downloaded each run: the repo's 10 GB cache would evict every other entry to hold it.
-          print(f"MODEL_BIG={'1' if entry['sizeBytes'] > 4_000_000_000 else ''}")
-          print("MODEL_ENTRY_JSON=" + json.dumps(entry, separators=(",", ":")))
+          put(f"MODEL_BIG={'1' if entry['sizeBytes'] > 4_000_000_000 else ''}")
+          put("MODEL_ENTRY_JSON=" + json.dumps(entry, separators=(",", ":")))
           PY
 
       - name: Cache the model file
@@ -141,7 +155,7 @@ jobs:
         if: env.MODEL_EXTERNAL == '1' || steps.model-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p "$RUNNER_TEMP/model"
-          # A file inside a folder of the repo (Mainline_Support/...) keeps that folder.
+          # A file inside a folder of the repo keeps that folder.
           curl -L --fail --retry 5 --retry-delay 5 --create-dirs -o "$RUNNER_TEMP/model/$MODEL_FILE" \
             "https://huggingface.co/$MODEL_REPO/resolve/$MODEL_REV/$MODEL_FILE"
 

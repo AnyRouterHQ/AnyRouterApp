@@ -30,7 +30,9 @@ jobs:
       - name: Banned reference names
         run: |
           a=atom; m=men; l=lo
-          if git grep -n -i -E "${a}ic ?chat|${a}icbot|${a}ic\.chat|${m}${l}"; then
+          # One operator-approved exception: a catalog entry's "repo" field may name a model repo of that owner.
+          if git grep -n -i -E "${a}ic ?chat|${a}icbot|${a}ic\.chat|${m}${l}" \
+            | grep -v -i -E "^catalog/(dev-)?models\.json:[0-9]+: *\"repo\": \"${a}icchat/[A-Za-z0-9._-]+\",?$"; then
             echo "::error::banned reference name found"; exit 1
           fi
       - name: Source sanity (duplicate file names, Swift Testing name clashes)
