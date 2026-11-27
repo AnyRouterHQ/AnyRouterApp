@@ -69,7 +69,7 @@ final class PadLayoutTests: XCTestCase {
         XCTAssertTrue(wait { sidebarIsVisible(app) })
 
         app.staticTexts["Explain Swift actors"].tap()
-        XCTAssertTrue(app.staticTexts["Key points:"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.replyText("Key points:").waitForExistence(timeout: 10))
         XCTAssertTrue(wait { !sidebarIsVisible(app) }, "picking a chat closes the overlay")
     }
 

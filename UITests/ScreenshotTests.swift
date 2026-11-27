@@ -288,7 +288,7 @@ final class ScreenshotTests: XCTestCase {
         forEachAppearance { app, appearance in
             showSidebar(app)
             tapRow(app.staticTexts["Explain Swift actors"])
-            XCTAssertTrue(app.staticTexts["Key points:"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.replyText("Key points:").waitForExistence(timeout: 10))
             capture("chat-markdown", appearance)
         }
     }
@@ -346,7 +346,7 @@ final class ScreenshotTests: XCTestCase {
         forEachAppearance(extra: ["-ARDemoSources", "YES"]) { app, appearance in
             showSidebar(app)
             tapRow(app.staticTexts["Swift actors with sources"])
-            XCTAssertTrue(app.staticTexts["Key points:"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.replyText("Key points:").waitForExistence(timeout: 10))
             let sources = app.buttons["reply.sources"].firstMatch
             XCTAssertTrue(sources.waitForExistence(timeout: 5))
             XCTAssertEqual(sources.label, "5 sources", "six results, one of them the same page twice")
@@ -381,7 +381,7 @@ final class ScreenshotTests: XCTestCase {
         forEachAppearance(extra: ["-ARReplyTextStep", "3", "-ARReplyFont", "serif"]) { app, appearance in
             showSidebar(app)
             tapRow(app.staticTexts["Explain Swift actors"])
-            XCTAssertTrue(app.staticTexts["Key points:"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.replyText("Key points:").waitForExistence(timeout: 10))
             capture("chat-markdown-large-serif", appearance)
         }
     }

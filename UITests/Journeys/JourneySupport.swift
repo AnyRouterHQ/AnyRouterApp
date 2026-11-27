@@ -268,3 +268,13 @@ class JourneyCase: XCTestCase {
 
     var keyboardIsUp: Bool { XCUIApplication().keyboards.count > 0 }
 }
+
+extension XCUIApplication {
+    /// A reply's text block. Headings, lists and paragraphs are selectable text views, so their words are the value.
+    /// (The UI test target has the same helper in ReplyTextSupport.swift; the two targets share no files.)
+    func replyText(_ text: String) -> XCUIElement { replyTexts(text).firstMatch }
+
+    func replyTexts(_ text: String) -> XCUIElementQuery {
+        textViews.matching(NSPredicate(format: "value == %@", text))
+    }
+}

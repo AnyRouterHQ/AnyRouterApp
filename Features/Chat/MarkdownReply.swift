@@ -2,8 +2,9 @@ import MarkdownUI
 import SwiftUI
 
 /// An assistant reply as markdown blocks. Each block is an equatable view, so while a reply streams only the
-/// last block is parsed and laid out again; the blocks above it are skipped. (Selection works inside a block,
-/// not across blocks; the Copy button copies the whole reply.)
+/// last block is parsed and laid out again; the blocks above it are skipped. Headings, lists and paragraphs are
+/// selectable in place by range (`SelectableReplyBlock`); a selection stays inside one block. Code, quotes and tables
+/// keep MarkdownUI's views. The footer's Copy copies the whole reply.
 struct MarkdownReply: View {
     let text: String
     /// Scales with Dynamic Type. Passed to the blocks as a value, so a size change redraws them.
@@ -16,11 +17,18 @@ struct MarkdownReply: View {
         let blocks = MarkdownBlocks.split(text)
         Perf.signposter.endInterval("markdown.split", signpost)
         let points = ReplyText.points(size, step: settings.replyTextStep)
+        let base = ReplyText.points(17, step: settings.replyTextStep)
         let font = settings.replyFont
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
-                MarkdownBlock(text: block, size: points, font: font).equatable()
-                    .padding(.top, index == 0 ? 0 : points * MarkdownBlocks.gap(before: block, after: blocks[index - 1]))
+                Group {
+                    if MarkdownBlocks.isSelectableText(block) {
+                        SelectableReplyBlock(text: block, size: base, scaledSize: points, font: font).equatable()
+                    } else {
+                        MarkdownBlock(text: block, size: points, font: font).equatable()
+                    }
+                }
+                .padding(.top, index == 0 ? 0 : points * MarkdownBlocks.gap(before: block, after: blocks[index - 1]))
             }
         }
     }

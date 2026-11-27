@@ -10,7 +10,6 @@ struct ReplyFooterRow: View {
 
     @State private var expanded = false
     @State private var showsSources = false
-    @State private var selectsText = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -34,7 +33,6 @@ struct ReplyFooterRow: View {
         }
         .animation(reduceMotion ? nil : .snappy, value: expanded)
         .sheet(isPresented: $showsSources) { SourcesSheet(sources: footer.sources) }
-        .sheet(isPresented: $selectsText) { SelectTextSheet(markdown: message.content) }
     }
 
     @ViewBuilder
@@ -42,17 +40,8 @@ struct ReplyFooterRow: View {
         ForEach(footer.actions, id: \.self) { action in
             switch action {
             case .copy:
+                // The whole reply; a long press on the reply selects any part of it in place.
                 CopyButton(text: message.content, iconFont: .body)
-                // Copy takes the whole reply; this opens it as one text to select any part.
-                Button { selectsText = true } label: {
-                    Label("Select Text", systemImage: "text.cursor").labelStyle(.iconOnly)
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.borderless)
-                .foregroundStyle(.secondary)
-                .hoverEffect(.highlight)
-                .accessibilityIdentifier("reply.select-text")
             case .share:
                 ShareLink(item: message.content) {
                     Label("Share", systemImage: "square.and.arrow.up").labelStyle(.iconOnly)

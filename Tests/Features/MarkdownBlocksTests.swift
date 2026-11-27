@@ -82,6 +82,16 @@ struct MarkdownBlocksTests {
         #expect(MarkdownBlocks.kind(of: "- one\n- two") == .list)
         #expect(MarkdownBlocks.kind(of: "1. one") == .list)
         #expect(MarkdownBlocks.kind(of: "Plain words") == .other)
+        #expect(MarkdownBlocks.kind(of: "> quoted\n> more") == .quote)
+        #expect(MarkdownBlocks.kind(of: "| a | b |\n|---|---|") == .table)
+    }
+
+    /// Text a long press can select in place; code, quotes and tables keep MarkdownUI's views.
+    @Test func headingsListsAndParagraphsAreSelectableTextAndTheRestIsNot() {
+        #expect(["# Title", "- one", "Plain words"].allSatisfy(MarkdownBlocks.isSelectableText))
+        #expect(!["```\ncode\n```", "> quote", "| a |"].contains(where: MarkdownBlocks.isSelectableText))
+        #expect(MarkdownBlocks.gap(before: "> quote", after: "Intro") == 0.7, "a quote keeps the paragraph gap it had as other")
+        #expect(MarkdownBlocks.gap(before: "Outro", after: "| a |") == 0.7)
     }
 
     @Test func blocksAreSpacedByWhatTheyAre() {

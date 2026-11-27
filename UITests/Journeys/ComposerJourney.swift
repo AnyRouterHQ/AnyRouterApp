@@ -29,7 +29,7 @@ final class ComposerJourney: JourneyCase {
 
             send.tap()
             XCTAssertTrue(app.staticTexts["Hello there"].waitForExistence(timeout: 10), "user message appears")
-            XCTAssertTrue(app.staticTexts["This is a demo reply."].waitForExistence(timeout: 10), "demo reply appears")
+            XCTAssertTrue(app.replyText("This is a demo reply.").waitForExistence(timeout: 10), "demo reply appears")
             step("sent-and-replied")
             audit(app, "conversation")
 

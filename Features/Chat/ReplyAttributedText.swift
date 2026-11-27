@@ -1,9 +1,10 @@
 import Foundation
 import UIKit
 
-/// A reply's markdown as rendered text for the Select Text sheet: no markdown syntax left, headings bold, list items
-/// with a bullet or number, code in monospace on a secondary background, links as links. Fonts scale with Dynamic Type
-/// and colors are semantic, so it is right in dark mode.
+/// A text block of a reply as the attributed text its selectable view shows: no markdown syntax left, headings bold,
+/// list items with a hanging bullet or number, code in monospace on a fill, links as links. `size` is the body size at the
+/// default text size (with the reply text size step); fonts scale from it with Dynamic Type, so the text view can follow
+/// the setting itself. Colors are semantic, so dark mode works.
 enum ReplyAttributedText {
     static func make(_ markdown: String, size: CGFloat = 17, font: ReplyFont = .system) -> NSAttributedString {
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible)
@@ -12,40 +13,59 @@ enum ReplyAttributedText {
         }
         let out = NSMutableAttributedString()
         var block: PresentationIntent?
+        var last: [NSAttributedString.Key: Any] = [:]
         for run in parsed.runs {
             var text = String(parsed[run.range].characters)
             let intent = run.presentationIntent
             let kinds = intent?.components.map(\.kind) ?? []
             let isCode = kinds.contains { if case .codeBlock = $0 { true } else { false } }
             if isCode { text = text.trimmingCharacters(in: .newlines) }
+            let paragraph = paragraphStyle(kinds, size: size)
             if intent != block {
-                if out.length > 0 { out.append(NSAttributedString(string: "\n")) }
-                out.append(NSAttributedString(string: listMarker(kinds), attributes: [.font: face(size, font), .foregroundColor: UIColor.secondaryLabel]))
+                if out.length > 0 { out.append(NSAttributedString(string: "\n", attributes: last)) }
+                out.append(NSAttributedString(string: listMarker(kinds), attributes: [
+                    .font: face(size, font), .foregroundColor: UIColor.secondaryLabel, .paragraphStyle: paragraph,
+                ]))
                 block = intent
             }
-            out.append(NSAttributedString(string: text, attributes: attributes(run, kinds: kinds, isCode: isCode, size: size, font: font)))
+            var attributes = attributes(run, kinds: kinds, isCode: isCode, size: size, font: font)
+            attributes[.paragraphStyle] = paragraph
+            out.append(NSAttributedString(string: text, attributes: attributes))
+            last = attributes
         }
         return out
     }
 
-    /// "• " or "2. " for the first run of a list item, indented one tab per level of nesting.
+    private static func listDepth(_ kinds: [PresentationIntent.Kind]) -> Int {
+        kinds.filter { if case .listItem = $0 { true } else { false } }.count
+    }
+
+    /// "•" or "2." and a tab for the first run of a list item. The tab stop sits where wrapped lines start.
     private static func listMarker(_ kinds: [PresentationIntent.Kind]) -> String {
-        var depth = 0
-        var ordinal: Int?
-        var ordered = false
         for (index, kind) in kinds.enumerated() {
-            switch kind {
-            case .listItem(let number):
-                depth += 1
-                if ordinal == nil {
-                    ordinal = number
-                    if index + 1 < kinds.count, case .orderedList = kinds[index + 1] { ordered = true }
-                }
-            default: break
-            }
+            guard case .listItem(let number) = kind else { continue }
+            let ordered: Bool
+            if index + 1 < kinds.count, case .orderedList = kinds[index + 1] { ordered = true } else { ordered = false }
+            return (ordered ? "\(number)." : "•") + "\t"
         }
-        guard let ordinal else { return "" }
-        return String(repeating: "\t", count: depth - 1) + (ordered ? "\(ordinal). " : "• ")
+        return ""
+    }
+
+    /// The line spacing of the markdown theme; a list item hangs its wrapped lines under its text, one indent per level.
+    private static func paragraphStyle(_ kinds: [PresentationIntent.Kind], size base: CGFloat) -> NSParagraphStyle {
+        let size = UIFontMetrics(forTextStyle: .body).scaledValue(for: base)
+        let depth = listDepth(kinds)
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineSpacing = size * 0.25
+        paragraph.paragraphSpacing = size * (depth > 0 ? 0.25 : 0.6)
+        if depth > 0 {
+            let indent = size * 1.5
+            paragraph.headIndent = indent * CGFloat(depth)
+            paragraph.firstLineHeadIndent = indent * CGFloat(depth - 1)
+            paragraph.tabStops = [NSTextTab(textAlignment: .natural, location: paragraph.headIndent, options: [:])]
+            paragraph.defaultTabInterval = indent
+        }
+        return paragraph
     }
 
     private static func attributes(
@@ -57,7 +77,7 @@ enum ReplyAttributedText {
         for kind in kinds { if case .header(let value) = kind { level = value } }
         if isCode || inline.contains(.code) {
             attributes[.font] = UIFontMetrics(forTextStyle: .body).scaledFont(for: .monospacedSystemFont(ofSize: size * 0.88, weight: .regular))
-            attributes[.backgroundColor] = UIColor.secondarySystemBackground
+            attributes[.backgroundColor] = UIColor.secondarySystemFill
         } else {
             let scale: CGFloat
             switch level ?? 0 {
@@ -71,10 +91,6 @@ enum ReplyAttributedText {
         }
         if let link = run.link { attributes[.link] = link }
         if inline.contains(.strikethrough) { attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.paragraphSpacing = size * 0.6
-        paragraph.lineSpacing = size * 0.2
-        attributes[.paragraphStyle] = paragraph
         return attributes
     }
 

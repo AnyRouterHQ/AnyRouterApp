@@ -35,16 +35,27 @@ enum MarkdownBlocks {
         return blocks
     }
 
-    enum Kind: Equatable { case heading, code, list, other }
+    enum Kind: Equatable { case heading, code, list, quote, table, other }
 
-    /// What a block is, from its first line: a heading, a fenced code block, a list, or anything else.
+    /// What a block is, from its first line: a heading, a fenced code block, a list, a quote, a table, or anything else.
     static func kind(of block: String) -> Kind {
         let first = block.prefix(while: { $0 != "\n" })
         let text = first.drop(while: { $0 == " " })
         if text.hasPrefix("#") { return .heading }
         if text.hasPrefix("```") || text.hasPrefix("~~~") { return .code }
         if isListItem(first) { return .list }
+        if text.hasPrefix(">") { return .quote }
+        if text.hasPrefix("|") { return .table }
         return .other
+    }
+
+    /// Headings, lists and paragraphs are text a long press can select a range of. Code, quotes and tables keep their
+    /// own views (a code block has its Copy button).
+    static func isSelectableText(_ block: String) -> Bool {
+        switch kind(of: block) {
+        case .heading, .list, .other: true
+        case .code, .quote, .table: false
+        }
     }
 
     /// The space above a block, in ems of the body text size: about 0.7 between paragraphs, a little more around

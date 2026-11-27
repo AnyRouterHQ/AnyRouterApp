@@ -23,7 +23,7 @@ final class DrawerJourney: JourneyCase {
             step("search-filtered")
 
             button(app, containing: "Explain Swift actors").tap()
-            XCTAssertTrue(app.staticTexts["Key points:"].waitForExistence(timeout: 10), "thread opens with its answer")
+            XCTAssertTrue(app.replyText("Key points:").waitForExistence(timeout: 10), "thread opens with its answer")
             step("thread-opened")
 
             let newChat = visibleButton(app, "New chat")

@@ -9,7 +9,7 @@ final class ResponseDetailsJourney: JourneyCase {
         input.tap()
         input.typeText(text)
         app.buttons["Send"].tap()
-        XCTAssertTrue(app.staticTexts["This is a demo reply."].waitForExistence(timeout: 10), "demo reply")
+        XCTAssertTrue(app.replyText("This is a demo reply.").waitForExistence(timeout: 10), "demo reply")
     }
 
     private func setToggle(_ on: Bool, _ app: XCUIApplication) {

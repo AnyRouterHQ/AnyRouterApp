@@ -102,7 +102,7 @@ final class AccessibilityAuditTests: XCTestCase {
         eachAppearance { app, appearance in
             app.revealSidebar(whenVisible: app.staticTexts["Explain Swift actors"])
             app.staticTexts["Explain Swift actors"].tap()
-            XCTAssertTrue(app.staticTexts["Key points:"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.replyText("Key points:").waitForExistence(timeout: 10))
             audit(app, "chat", appearance)
         }
     }

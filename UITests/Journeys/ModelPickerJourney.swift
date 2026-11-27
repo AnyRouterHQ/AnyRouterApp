@@ -46,7 +46,7 @@ final class ModelPickerJourney: JourneyCase {
             input.tap()
             input.typeText("First question")
             app.buttons["Send"].tap()
-            XCTAssertTrue(app.staticTexts["This is a demo reply."].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.replyText("This is a demo reply.").waitForExistence(timeout: 10))
             step("first-reply")
 
             choose(id: "anyrouter/google/gemini-2.5-pro", shownAs: "Gemini 2.5 Pro", search: "gemini", app)
@@ -54,7 +54,7 @@ final class ModelPickerJourney: JourneyCase {
             again.tap()
             again.typeText("Second question")
             app.buttons["Send"].tap()
-            let replies = app.staticTexts.matching(identifier: "This is a demo reply.")
+            let replies = app.replyTexts("This is a demo reply.")
             expectation(for: NSPredicate(format: "count == 2"), evaluatedWith: replies)
             waitForExpectations(timeout: 10)
             XCTAssertTrue(app.descendants(matching: .any)["switch-note"].waitForExistence(timeout: 5), "the reply notes the model switch")

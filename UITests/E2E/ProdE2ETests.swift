@@ -39,7 +39,7 @@ final class ProdE2ETests: XCTestCase {
         input.tap()
         input.typeText("What is 2+2? Answer with one number.")
         app.buttons[UITestIDs.composerAction].tap()
-        let answer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS '4' AND NOT label CONTAINS 'What is'")).firstMatch
+        let answer = app.textViews.matching(NSPredicate(format: "value CONTAINS '4' AND NOT value CONTAINS 'What is'")).firstMatch
         XCTAssertTrue(answer.waitForExistence(timeout: 90), "a streamed answer containing 4 appeared")
     }
 
