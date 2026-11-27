@@ -5,7 +5,8 @@ enum ModelStatusColor {
     static func fit(_ entry: LocalModelEntry) -> Color {
         if entry.unavailableReason != nil { return .secondary }
         switch entry.fit {
-        case .fits: return .green
+        // Colour only where it means something: a warning. "Runs well" is plain secondary text (it failed contrast in green).
+        case .fits: return .secondary
         case .tight: return .orange
         case .wontFit: return .red
         case .unknown: return .secondary
