@@ -167,6 +167,7 @@ jobs:
           cp results.txt "screenshots/$SIM_NAME-results.txt" 2>/dev/null || true
           cp failures.txt "screenshots/$SIM_NAME-failures.txt" 2>/dev/null || true
           cp raw/frames.txt "screenshots/$SIM_NAME-frames.txt" 2>/dev/null || true
+          cp raw/drawer-tree.txt "screenshots/$SIM_NAME-drawer-tree.txt" 2>/dev/null || true
           {
             echo "## $SIM_NAME"
             echo "$(ls screenshots/*.png 2>/dev/null | wc -l) screenshots"

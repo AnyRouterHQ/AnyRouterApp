@@ -61,6 +61,16 @@ final class ScreenshotTests: XCTestCase {
             "chatPlus=" + frame(app.buttons["Add"]),
             "chat=" + frame(app.descendants(matching: .any)["chat.detail"]),
         ].joined(separator: "\n")
+        // With the drawer open the gear must be hittable; when it is not, keep the element tree to see what sits on top.
+        if app.buttons["Settings"].firstMatch.exists, !app.buttons["Settings"].firstMatch.isHittable {
+            let tree = XCTAttachment(string: app.debugDescription)
+            tree.name = "tree-\(name)"
+            tree.lifetime = .keepAlways
+            add(tree)
+            if let dir = ProcessInfo.processInfo.environment["SCREENSHOT_DIR"], !dir.isEmpty {
+                try? app.debugDescription.write(to: URL(fileURLWithPath: dir).appendingPathComponent("drawer-tree.txt"), atomically: true, encoding: .utf8)
+            }
+        }
         let attachment = XCTAttachment(string: text)
         attachment.name = "frames-\(name)"
         attachment.lifetime = .keepAlways
