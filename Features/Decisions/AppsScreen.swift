@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 /// Where the Apps stack can go. Every app and the custom decision share the one runner screen.
-enum AppsDestination: Hashable { case runner }
+enum AppsDestination: Hashable { case runner, extract }
 
 /// Sheet wrapper: the Apps list in its own navigation stack with a Close button and the Recent list one tap away.
 struct AppsSheet: View {
@@ -15,11 +15,16 @@ struct AppsSheet: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            AppsScreen(open: open, showsRecent: $showsRecent)
+            AppsScreen(open: open, openExtract: { path = [.extract] }, showsRecent: $showsRecent)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
                 }
-                .navigationDestination(for: AppsDestination.self) { _ in DecisionRunnerScreen(showsRecent: $showsRecent) }
+                .navigationDestination(for: AppsDestination.self) { destination in
+                    switch destination {
+                    case .runner: DecisionRunnerScreen(showsRecent: $showsRecent)
+                    case .extract: ExtractScreen()
+                    }
+                }
         }
         .sheet(isPresented: $showsRecent) {
             DecisionRecentList { path = [.runner] }
@@ -50,6 +55,7 @@ struct AppsSheet: View {
 struct AppsScreen: View {
     @Environment(AppState.self) private var app
     var open: (AppTile) -> Void
+    var openExtract: () -> Void
     @Binding var showsRecent: Bool
 
     var body: some View {
@@ -77,6 +83,27 @@ struct AppsScreen: View {
                 }
                 .foregroundStyle(.primary)
                 .accessibilityIdentifier("apps-tile-\(tile.id)")
+            }
+            // Not a decision: a photo, PDF or scan in, typed fields out. Its own section keeps the decision tiles as they were.
+            Section {
+                Button(action: openExtract) {
+                    HStack {
+                        Label {
+                            VStack(alignment: .leading) {
+                                Text("Extract").font(.headline)
+                                Text("Fields from a receipt, bill, invoice or email").font(.subheadline).foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "doc.text.magnifyingglass")
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").imageScale(.small).foregroundStyle(.tertiary)
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(.rect)
+                }
+                .foregroundStyle(.primary)
+                .accessibilityIdentifier("apps-extract")
             }
         }
         .navigationTitle("Apps")

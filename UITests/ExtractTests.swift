@@ -29,6 +29,19 @@ final class ExtractTests: XCTestCase {
         XCTAssertFalse(run.isEnabled, "Extract needs a document")
     }
 
+    func testTheAppsListOpensExtract() {
+        let app = launch()
+        let row = app.buttons["sidebar-apps"]
+        app.revealSidebar(whenVisible: row)
+        row.tap()
+        XCTAssertTrue(app.navigationBars["Apps"].waitForExistence(timeout: 10))
+        let tile = app.buttons["apps-extract"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 5), "Extract is a tile on the Apps list")
+        tile.tap()
+        XCTAssertTrue(app.navigationBars["Extract"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["extract-source"].waitForExistence(timeout: 5))
+    }
+
     func testExtractFillsFieldsAndTappingOneSelectsItsSource() {
         let app = launch(stage: "document")
         openFromPlusMenu(app)

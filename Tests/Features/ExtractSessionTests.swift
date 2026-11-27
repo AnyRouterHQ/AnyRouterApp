@@ -113,7 +113,7 @@ struct ExtractSessionTests {
 
     @Test func aPdfWithATextLayerNeedsNoReader() async throws {
         let (session, _) = try await make(reader: FakeReader(failure: "must not be used"))
-        await session.load(pdf: pdf("Invoice 42 Total 10.00"), name: "a.pdf")
+        await session.load(pdf: pdf("Invoice 42 Total 9.50"), name: "a.pdf")
         #expect(session.text.contains("Invoice 42"))
         #expect(session.errorMessage == nil)
     }
