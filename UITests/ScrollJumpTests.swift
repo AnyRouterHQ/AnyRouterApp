@@ -37,8 +37,9 @@ final class ScrollJumpTests: XCTestCase {
         XCTAssertTrue(app.buttons["Voice input"].waitForExistence(timeout: 30), "the reply finished")
         sleep(1)
 
-        let question = app.staticTexts["anchor check"].firstMatch
-        XCTAssertTrue(question.exists)
+        // The bubble is not a plain static text (verify-ui 46031167020): match any element that carries the words.
+        let question = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "anchor check")).firstMatch
+        XCTAssertTrue(question.exists, "the sent question is on screen")
         let window = app.windows.firstMatch.frame
         XCTAssertLessThan(question.frame.minY, window.height * 0.35, "the question sits near the top after the reply ended")
         XCTAssertGreaterThan(question.frame.minY, 0, "and is on screen, not scrolled past")

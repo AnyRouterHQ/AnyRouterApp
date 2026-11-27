@@ -70,7 +70,8 @@ struct ThreadSidebar: View {
                 header("Recents") {
                     Button { shell.presentSearch() } label: {
                         HStack(spacing: 4) { Text("View all"); Image(systemName: "chevron.right").imageScale(.small) }
-                            .frame(minHeight: rowHeight)
+                            .frame(minWidth: 44, minHeight: rowHeight)
+                            .contentShape(.rect)
                     }
                     .accessibilityIdentifier("sidebar.viewall")
                 }
@@ -106,9 +107,10 @@ struct ThreadSidebar: View {
         _ title: LocalizedStringKey, @ViewBuilder trailing: () -> Trailing = { EmptyView() }
     ) -> some View {
         HStack {
+            // Primary, not secondary: the accessibility audit reads secondary at this size as "contrast nearly passed".
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             trailing().font(.subheadline)
