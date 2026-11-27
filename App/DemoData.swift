@@ -52,17 +52,42 @@ enum DemoData {
         return SystemPasteboard()
     }
 
+    /// `-ARDemoStore fresh` keeps the demo chats in a file, emptied at this launch; `keep` opens that file again, so a
+    /// UI test can relaunch the app and find its chat. Without it the store is in memory.
+    private static func demoStoreURL() throws -> URL? {
+        guard let mode = UserDefaults.standard.string(forKey: "ARDemoStore") else { return nil }
+        let folder = URL.applicationSupportDirectory
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let url = folder.appending(path: "demo-chats.store")
+        if mode == "fresh" {
+            for suffix in ["", "-shm", "-wal"] { try? FileManager.default.removeItem(atPath: url.path + suffix) }
+        }
+        return url
+    }
+
+    /// `-ARDemoFail rateLimited`, `offline` or `credits`: every reply fails with that engine error.
+    static var replyError: (any Error)? {
+        switch UserDefaults.standard.string(forKey: "ARDemoFail") {
+        case "rateLimited": return AnyRouterError.http(status: 429, message: "Rate limit exceeded for this model. Retry in 20 s.")
+        case "offline": return URLError(.notConnectedToInternet)
+        case "credits": return AnyRouterError.http(status: 402, message: "Insufficient credits: 0.00 left.")
+        default: return nil
+        }
+    }
+
     static func sampleAttachmentURL() -> URL {
         let url = FileManager.default.temporaryDirectory.appending(path: "notes.txt")
         try? Data("Pick up the keys.\nCall the bank on Monday.\n".utf8).write(to: url)
         return url
     }
 
-    /// In-memory store with five sample threads.
+    /// In-memory store with five sample threads, or the file of `-ARDemoStore` (seeded once).
     @MainActor
     static func makeContainer() throws -> ModelContainer {
-        let container = try ModelContainer.anyRouter(inMemory: true)
+        let container = try ModelContainer.anyRouter(inMemory: true, storeURL: try demoStoreURL())
         let context = container.mainContext
+        // A kept store already holds the chats of the last launch.
+        if try context.fetchCount(FetchDescriptor<ThreadRecord>()) > 0 { return container }
         let now = Date()
         let threads: [(String, Bool, String, [(ChatMessage.Role, String)])] = [
             ("Explain Swift actors", false, "anyrouter/anthropic/claude-sonnet-4-6", [
@@ -549,6 +574,10 @@ struct DemoEngine: ChatEngine {
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
         -> AsyncThrowingStream<ChatDelta, Error> {
         AsyncThrowingStream { continuation in
+            if let error = DemoData.replyError {
+                continuation.finish(throwing: error)
+                return
+            }
             guard let plan = DemoData.stream else {
                 continuation.yield(.text("This is a demo reply."))
                 continuation.yield(.done(finishReason: "stop"))

@@ -402,6 +402,24 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// A reply that failed: the sentence, Retry, then the raw text behind Details.
+    func testFailedReply() {
+        forEachAppearance(extra: ["-ARDemoFail", "rateLimited"]) { app, appearance in
+            XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
+            let field = app.textViews.firstMatch.exists ? app.textViews.firstMatch : app.textFields.firstMatch
+            field.tap()
+            field.typeText("Plan a weekend in Porto")
+            app.buttons["Send"].tap()
+            let failure = app.buttons["reply-failure"]
+            XCTAssertTrue(failure.waitForExistence(timeout: 10))
+            app.swipeDown()
+            capture("failed-reply", appearance)
+            failure.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["reply-failure.detail"].waitForExistence(timeout: 5))
+            capture("failed-reply-details", appearance)
+        }
+    }
+
     func testComposerWithText() {
         forEachAppearance { app, appearance in
             XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
