@@ -260,6 +260,12 @@ final class ScreenshotTests: XCTestCase {
             input.tap()
             input.typeText("@")
             XCTAssertTrue(app.descendants(matching: .any)["mention.panel"].waitForExistence(timeout: 5), "the @ list opens")
+            // Audit #3: the field and its button once sat half under the keyboard with the list open.
+            let keyboard = app.keyboards.firstMatch
+            if keyboard.exists {
+                XCTAssertLessThanOrEqual(input.frame.maxY, keyboard.frame.minY + 1, "the field stays above the keyboard")
+                XCTAssertLessThanOrEqual(app.buttons["composer.action"].frame.maxY, keyboard.frame.minY + 1)
+            }
             capture("composer-mention-panel", appearance)
         }
     }

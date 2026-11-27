@@ -207,10 +207,22 @@ private struct ChatContent: View {
         app.speaker.follow(messageID: last.id, text: last.content, isFinal: !chat.isStreaming, hub: app.voice)
     }
 
+    /// With the keyboard up and the @ list open there is little room above the composer. The greeting then gives way
+    /// (first the logo, then all of it) instead of pushing the composer under the keyboard.
     private var emptyState: some View {
+        ViewThatFits(in: .vertical) {
+            homeGreeting(showsLogo: true)
+            homeGreeting(showsLogo: false)
+            Color.clear
+        }
+        .readableWidth()
+        .sensoryFeedback(.selection, trigger: tip)
+    }
+
+    private func homeGreeting(showsLogo: Bool) -> some View {
         VStack(spacing: 12) {
             Spacer()
-            ARLogoMark(size: 56)
+            if showsLogo { ARLogoMark(size: 56) }
             // A hidden gem: tapping the greeting swaps the line below for a tip. Not announced as a button.
             Button { tip = HomeTips.next(after: tip ?? subtitle) } label: {
                 Text(HomeLogic.greeting)
@@ -234,8 +246,6 @@ private struct ChatContent: View {
             .accessibilityIdentifier("home.subtitle")
             Spacer()
         }
-        .readableWidth()
-        .sensoryFeedback(.selection, trigger: tip)
     }
 
     private func handle(_ action: ReplyFailure.Action) {
