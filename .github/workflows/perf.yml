@@ -105,12 +105,19 @@ jobs:
           set -o pipefail
           xcrun simctl boot "$IPHONE_UDID" || true
           mkdir -p perf
+          # `only` takes one method or a comma list (a test and its control).
+          only_args=(-only-testing:AnyRouterUITests/PerformanceTests)
+          if [ -n "$ONLY" ]; then
+            only_args=()
+            IFS=',' read -ra names <<< "$ONLY"
+            for name in "${names[@]}"; do only_args+=(-only-testing:"AnyRouterUITests/PerformanceTests/$name"); done
+          fi
           for run in 1 2 3; do
             xcodebuild test-without-building \
               -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots -configuration Release \
               -destination "platform=iOS Simulator,id=$IPHONE_UDID" \
               -derivedDataPath DerivedData \
-              -only-testing:"AnyRouterUITests/PerformanceTests${ONLY:+/$ONLY}" \
+              "${only_args[@]}" \
               -resultBundlePath "perf/run-$run.xcresult" \
               CODE_SIGNING_ALLOWED=NO 2>&1 | tee "perf/run-$run.log" | grep -E "measured \[|Test Case .*(passed|failed)|error:" || true
           done
@@ -125,6 +132,13 @@ jobs:
           # pid that was gone a moment later), so stop it, wait for the test's own launch, then take the newest.
           # Run 46067127411 attached to a pid that was gone: the test runner took longer than the old 60 s wait to launch
           # the app, so the loop ended on a process from before. Wait up to 5 min for a pid that was not there at the start.
+          # `only` takes one method or a comma list (a test and its control).
+          only_args=(-only-testing:AnyRouterUITests/PerformanceTests)
+          if [ -n "$ONLY" ]; then
+            only_args=()
+            IFS=',' read -ra names <<< "$ONLY"
+            for name in "${names[@]}"; do only_args+=(-only-testing:"AnyRouterUITests/PerformanceTests/$name"); done
+          fi
           pkill -x AnyRouter || true
           sleep 2
           before=" $(pgrep -x AnyRouter | tr '\n' ' ') "
@@ -141,22 +155,29 @@ jobs:
             # The app runs in the Simulator: xctrace finds its pid only on that device (runs 46067127411 and 46072012563
             # said "Cannot find process" without --device). `sample` reads the same pid from the host as a fallback.
             sample "$pid" 60 -file perf/sample.txt > /dev/null 2>&1 &
-            sudo xcrun xctrace record --template 'Time Profiler' --device "$IPHONE_UDID" --attach "$pid" --time-limit 90s --output perf/profile.trace
+            # Not under sudo: root has its own CoreSimulator device set ("No devices found matching", run 46077346667).
+            xcrun xctrace record --template 'Time Profiler' --device "$IPHONE_UDID" --attach "$pid" --time-limit 90s --output perf/profile.trace
           ) > perf/xctrace.log 2>&1 &
           recorder=$!
           xcodebuild test-without-building \
             -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots -configuration Release \
             -destination "platform=iOS Simulator,id=$IPHONE_UDID" \
             -derivedDataPath DerivedData \
-            -only-testing:"AnyRouterUITests/PerformanceTests${ONLY:+/$ONLY}" \
+            "${only_args[@]}" \
             CODE_SIGNING_ALLOWED=NO > perf/profile-run.log 2>&1 || true
           wait "$recorder" || true
           tail -n 5 perf/xctrace.log
-          sudo chown -R "$(whoami)" perf/profile.trace
-          xcrun xctrace export --input perf/profile.trace \
-            --xpath '/trace-toc/run[@number="1"]/data/table[@schema="time-profile"]' > perf/time-profile.xml
-          python3 -I scripts/trace-summary.py perf/time-profile.xml 40 | tee perf/profile.txt
-          { echo "## Time profile"; echo '```'; cat perf/profile.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ -d perf/profile.trace ]; then
+            xcrun xctrace export --input perf/profile.trace \
+              --xpath '/trace-toc/run[@number="1"]/data/table[@schema="time-profile"]' > perf/time-profile.xml
+            python3 -I scripts/trace-summary.py perf/time-profile.xml 40 | tee perf/profile.txt
+            { echo "## Time profile"; echo '```'; cat perf/profile.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          # The host sample's heaviest frames, so the job summary shows them without a download.
+          if [ -s perf/sample.txt ]; then
+            { echo "## sample(1), heaviest frames (all threads)"; echo '```'
+              awk '/Sort by top of stack/{f=1} f' perf/sample.txt | sed -n '2,31p'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Summary
         if: always()
