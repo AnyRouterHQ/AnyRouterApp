@@ -146,18 +146,30 @@ jobs:
             if [ ${#only[@]} -eq 0 ] && [ ${#extra[@]} -eq 0 ]; then continue; fi
             udid_var="${device}_UDID"; name_var="${device}_NAME"
             udid="${!udid_var}"; name="${!name_var}"
-            xcrun simctl bootstatus "$udid" -b
-            TEST_RUNNER_SCREENSHOT_DIR="$PWD/evidence/$name" \
-            xcodebuild test-without-building \
-              -project AnyRouter.xcodeproj -scheme AnyRouterVerify \
-              -destination "platform=iOS Simulator,id=$udid" \
-              -derivedDataPath DerivedData \
-              -resultBundlePath "TestResults-$name.xcresult" \
-              -test-timeouts-enabled YES \
-              -default-test-execution-time-allowance 600 \
-              -maximum-test-execution-time-allowance 900 \
-              "${only[@]}" "${extra[@]}" "${skip[@]}" \
-              CODE_SIGNING_ALLOWED=NO > "test-$name.log" 2>&1 || echo "FAILED=$name" >> failed.txt
+            # The simulator sometimes disappears between boot and test ("Unable to find a device"): retry from a clean boot.
+            for attempt in 1 2 3; do
+              xcrun simctl bootstatus "$udid" -b
+              rm -rf "TestResults-$name.xcresult"
+              TEST_RUNNER_SCREENSHOT_DIR="$PWD/evidence/$name" \
+              xcodebuild test-without-building \
+                -project AnyRouter.xcodeproj -scheme AnyRouterVerify \
+                -destination "platform=iOS Simulator,id=$udid" \
+                -derivedDataPath DerivedData \
+                -resultBundlePath "TestResults-$name.xcresult" \
+                -test-timeouts-enabled YES \
+                -default-test-execution-time-allowance 600 \
+                -maximum-test-execution-time-allowance 900 \
+                "${only[@]}" "${extra[@]}" "${skip[@]}" \
+                CODE_SIGNING_ALLOWED=NO > "test-$name.log" 2>&1 && failed_leg=0 || failed_leg=1
+              if grep -q "Unable to find a device" "test-$name.log"; then
+                echo "attempt $attempt: simulator not found, retrying"
+                xcrun simctl shutdown all || true
+                sleep 20
+                continue
+              fi
+              break
+            done
+            [ "$failed_leg" = "1" ] && echo "FAILED=$name" >> failed.txt
             tail -n 40 "test-$name.log"
             grep -E "Test Case .* (passed|failed)" "test-$name.log" | sed 's/^.*Test Case //' > "evidence/results-$name.txt" || true
             xcrun xcresulttool get test-results summary --path "TestResults-$name.xcresult" --compact > "evidence/summary-$name.json" || true

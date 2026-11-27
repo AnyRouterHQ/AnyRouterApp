@@ -125,21 +125,32 @@ jobs:
 
       - name: Capture
         run: |
-          xcrun simctl bootstatus "$SIM_UDID" -b
           # A restored DerivedData cache can hold xctestrun files of other schemes; take this scheme's.
           XCTESTRUN=$(ls DerivedData/Build/Products/AnyRouterScreenshots_*.xctestrun | head -1)
           echo "using $XCTESTRUN"
           mkdir -p raw
-          TEST_RUNNER_SCREENSHOT_DIR="$PWD/raw" \
-          xcodebuild test-without-building \
-            -xctestrun "$XCTESTRUN" \
-            -destination "platform=iOS Simulator,id=$SIM_UDID" \
-            -only-testing:AnyRouterUITests/ScreenshotTests \
-            -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 180 \
-            -maximum-test-execution-time-allowance 300 \
-            -resultBundlePath "TestResults.xcresult" \
-            CODE_SIGNING_ALLOWED=NO > test.log 2>&1 || echo "some capture tests failed"
+          # The simulator sometimes disappears between boot and test ("Unable to find a device"): retry from a clean boot.
+          for attempt in 1 2 3; do
+            xcrun simctl bootstatus "$SIM_UDID" -b
+            rm -rf TestResults.xcresult
+            TEST_RUNNER_SCREENSHOT_DIR="$PWD/raw" \
+            xcodebuild test-without-building \
+              -xctestrun "$XCTESTRUN" \
+              -destination "platform=iOS Simulator,id=$SIM_UDID" \
+              -only-testing:AnyRouterUITests/ScreenshotTests \
+              -test-timeouts-enabled YES \
+              -default-test-execution-time-allowance 180 \
+              -maximum-test-execution-time-allowance 300 \
+              -resultBundlePath "TestResults.xcresult" \
+              CODE_SIGNING_ALLOWED=NO > test.log 2>&1 || echo "some capture tests failed"
+            if grep -q "Unable to find a device" test.log; then
+              echo "attempt $attempt: simulator not found, retrying"
+              xcrun simctl shutdown all || true
+              sleep 20
+              continue
+            fi
+            break
+          done
           tail -n 60 test.log
           grep -E "Test Case .* (passed|failed)" test.log | sed 's/^.*Test Case //' > results.txt || true
           grep -E "error: " test.log | sed 's/^.*error: //' | cut -c1-400 | sort -u > failures.txt || true
