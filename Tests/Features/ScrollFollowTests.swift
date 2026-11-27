@@ -3,37 +3,31 @@ import Testing
 @testable import AnyRouter
 
 struct ScrollFollowTests {
-    @Test func nearBottomUsesTheInsetAndATolerance() {
-        // Content 1000 tall, container 600, inset 80: the bottom offset is 480.
-        #expect(ScrollFollow.isNearBottom(offset: 480, container: 600, content: 1000, bottomInset: 80))
-        #expect(ScrollFollow.isNearBottom(offset: 400, container: 600, content: 1000, bottomInset: 80))
-        #expect(!ScrollFollow.isNearBottom(offset: 200, container: 600, content: 1000, bottomInset: 80))
-    }
-
     @Test func touchingTheListStopsFollowing() {
-        #expect(!ScrollFollow.following(from: .idle, to: .tracking, nearBottom: true, was: true))
-        #expect(!ScrollFollow.following(from: .tracking, to: .interacting, nearBottom: true, was: true))
+        #expect(!ScrollFollow.following(from: .idle, to: .tracking, atBottom: true, was: true))
+        #expect(!ScrollFollow.following(from: .tracking, to: .interacting, atBottom: true, was: true))
     }
 
-    @Test func settlingAtTheBottomAfterAGestureFollowsAgain() {
-        #expect(ScrollFollow.following(from: .decelerating, to: .idle, nearBottom: true, was: false))
-        #expect(!ScrollFollow.following(from: .decelerating, to: .idle, nearBottom: false, was: false))
+    /// The operator's bug: scrolled back to the bottom by hand, the list follows again, so the button goes away.
+    @Test func settlingAtTheBottomAfterAGestureFollowsAgainAndHidesTheButton() {
+        for old in [ScrollPhase.decelerating, .interacting, .tracking] {
+            let following = ScrollFollow.following(from: old, to: .idle, atBottom: true, was: false)
+            #expect(following)
+            #expect(!ScrollFollow.showsJumpButton(following: following, atBottom: true))
+        }
+        #expect(!ScrollFollow.following(from: .decelerating, to: .idle, atBottom: false, was: false))
     }
 
     /// Our own scrollTo ends idle too, and growth may have moved the bottom away already: no change.
     @Test func idleAfterOurOwnScrollKeepsTheState() {
-        #expect(ScrollFollow.following(from: .animating, to: .idle, nearBottom: false, was: true))
-        #expect(!ScrollFollow.following(from: .idle, to: .animating, nearBottom: true, was: false))
+        #expect(ScrollFollow.following(from: .animating, to: .idle, atBottom: false, was: true))
+        #expect(!ScrollFollow.following(from: .idle, to: .animating, atBottom: true, was: false))
     }
 
-    @Test func theJumpButtonShowsOnlyWhenMoreThanAboutOneRowIsOffScreen() {
-        // Content 1000 tall, container 600, inset 80: at the bottom the offset is 480.
-        let atBottom = ScrollFollow.distanceFromBottom(offset: 480, container: 600, content: 1000, bottomInset: 80)
-        #expect(atBottom == 0)
-        #expect(!ScrollFollow.showsJumpButton(distance: atBottom))
-        let slightlyUp = ScrollFollow.distanceFromBottom(offset: 400, container: 600, content: 1000, bottomInset: 80)
-        #expect(!ScrollFollow.showsJumpButton(distance: slightlyUp))
-        let wellUp = ScrollFollow.distanceFromBottom(offset: 200, container: 600, content: 1000, bottomInset: 80)
-        #expect(ScrollFollow.showsJumpButton(distance: wellUp))
+    @Test func theJumpButtonShowsOnlyWhenTheEndIsOffScreenAndNothingFollows() {
+        #expect(ScrollFollow.showsJumpButton(following: false, atBottom: false))
+        #expect(!ScrollFollow.showsJumpButton(following: false, atBottom: true), "at the bottom it never shows")
+        #expect(!ScrollFollow.showsJumpButton(following: true, atBottom: false), "following: the list scrolls itself")
+        #expect(!ScrollFollow.showsJumpButton(following: true, atBottom: true))
     }
 }

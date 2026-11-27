@@ -1,36 +1,26 @@
-import CoreGraphics
 import SwiftUI
 
 /// When the chat list follows a streaming reply. It follows while the reader is at the bottom and lets go
 /// the moment they touch the list; it picks up again when they scroll back to the bottom.
+///
+/// "At the bottom" is whether the list's end marker is on screen (`onScrollVisibilityChange`), not offset arithmetic.
+/// The arithmetic (offset plus container against content plus the bottom inset) is the only input that could keep the
+/// jump button up at rest at the bottom, and it did: with the composer, its chips and the keyboard under the list, its
+/// idea of the bottom and the real one differ, so the button stayed and following never came back.
 enum ScrollFollow {
-    /// Distance from the bottom that still counts as "at the bottom": one flush can add a few lines before we scroll.
-    static let tolerance: CGFloat = 120
-
-    /// The jump-to-latest button shows when the bottom of the last message is more than about one row off screen.
-    static let jumpThreshold: CGFloat = 160
-
-    /// How far the bottom of the content is below the bottom of the visible area. Zero or less at the bottom.
-    static func distanceFromBottom(offset: CGFloat, container: CGFloat, content: CGFloat, bottomInset: CGFloat) -> CGFloat {
-        content + bottomInset - (offset + container)
-    }
-
-    static func showsJumpButton(distance: CGFloat) -> Bool { distance > jumpThreshold }
-
-    static func isNearBottom(offset: CGFloat, container: CGFloat, content: CGFloat, bottomInset: CGFloat) -> Bool {
-        offset + container >= content + bottomInset - tolerance
-    }
-
     /// The follow state after a scroll phase change. Only the reader's own gestures change it: content growth
     /// and our own scrolling (phase animating or idle after it) keep the state.
-    static func following(from old: ScrollPhase, to new: ScrollPhase, nearBottom: Bool, was following: Bool) -> Bool {
+    static func following(from old: ScrollPhase, to new: ScrollPhase, atBottom: Bool, was following: Bool) -> Bool {
         switch new {
         case .tracking, .interacting:
             return false
         case .idle:
-            return old == .decelerating || old == .interacting || old == .tracking ? nearBottom : following
+            return old == .decelerating || old == .interacting || old == .tracking ? atBottom : following
         default:
             return following
         }
     }
+
+    /// The jump-to-latest button: only when the end of the list is off screen and the list is not following on its own.
+    static func showsJumpButton(following: Bool, atBottom: Bool) -> Bool { !following && !atBottom }
 }

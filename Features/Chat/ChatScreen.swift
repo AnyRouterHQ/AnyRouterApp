@@ -128,9 +128,8 @@ private struct ChatContent: View {
     @State private var tip: String?
     /// The list follows the reply while true (see `ScrollFollow`).
     @State private var following = true
-    @State private var nearBottom = true
-    /// The bottom of the last message is more than about one row off screen.
-    @State private var farFromBottom = false
+    /// The end marker of the list is on screen.
+    @State private var atBottom = true
     @ScaledMetric(relativeTo: .subheadline) private var greetingLogoSize: CGFloat = 15
 
     var body: some View {
@@ -244,6 +243,7 @@ private struct ChatContent: View {
                         .accessibilityIdentifier("offline-tool-note")
                 }
                 Color.clear.frame(height: 1).id("bottom")
+                    .onScrollVisibilityChange { atBottom = $0 }
             }
             // A container of its own, so the UI tests can measure the column.
             .accessibilityElement(children: .contain)
@@ -253,22 +253,8 @@ private struct ChatContent: View {
         .scrollDismissesKeyboard(.interactively)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .defaultScrollAnchor(.bottom)
-        .onScrollGeometryChange(for: Bool.self) { geometry in
-            ScrollFollow.isNearBottom(
-                offset: geometry.contentOffset.y, container: geometry.containerSize.height,
-                content: geometry.contentSize.height, bottomInset: geometry.contentInsets.bottom)
-        } action: { _, near in
-            nearBottom = near
-        }
-        .onScrollGeometryChange(for: Bool.self) { geometry in
-            ScrollFollow.showsJumpButton(distance: ScrollFollow.distanceFromBottom(
-                offset: geometry.contentOffset.y, container: geometry.containerSize.height,
-                content: geometry.contentSize.height, bottomInset: geometry.contentInsets.bottom))
-        } action: { _, far in
-            farFromBottom = far
-        }
         .onScrollPhaseChange { old, new in
-            following = ScrollFollow.following(from: old, to: new, nearBottom: nearBottom, was: following)
+            following = ScrollFollow.following(from: old, to: new, atBottom: atBottom, was: following)
         }
         // A new message is the reader's own send or a regenerate: always show it.
         .onChange(of: messages.count) {
@@ -278,7 +264,7 @@ private struct ChatContent: View {
         .onChange(of: messages.last?.toolTraceData) { if following { proxy.scrollTo("bottom", anchor: .bottom) } }
         .onChange(of: messages.last?.content.count) { if following { proxy.scrollTo("bottom", anchor: .bottom) } }
         .overlay(alignment: .bottom) {
-            if !following && farFromBottom {
+            if ScrollFollow.showsJumpButton(following: following, atBottom: atBottom) {
                 Button {
                     following = true
                     proxy.scrollTo("bottom", anchor: .bottom)
@@ -293,7 +279,7 @@ private struct ChatContent: View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: !following && farFromBottom)
+        .animation(.easeInOut(duration: 0.2), value: ScrollFollow.showsJumpButton(following: following, atBottom: atBottom))
         }
     }
 }
