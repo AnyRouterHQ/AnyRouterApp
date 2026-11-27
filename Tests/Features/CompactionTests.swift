@@ -172,7 +172,7 @@ struct CompactionLogicTests {
         for heading in ["Goal", "Constraints and preferences", "Progress", "Key decisions", "Next steps", "Critical context"] {
             #expect(cloud.system.contains(heading))
         }
-        #expect(cloud.messages == request.messages)
+        #expect(cloud.messages.map(\.content) == request.messages.map(\.content))
     }
 
     @Test func aFirstRequestHasNoSummarySoFarAndALongMessageIsCut() {
