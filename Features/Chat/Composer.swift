@@ -325,6 +325,15 @@ struct Composer: View {
         }
     }
 
+    /// Opens Extract on the newest photo or PDF waiting in the composer, or empty when there is none.
+    private func openExtract() {
+        let file = model.pending.last { $0.kind == .image || $0.kind == .pdf }
+        let seed = file.flatMap { file in
+            model.attachmentStore.data(for: file).map { ExtractSeed(data: $0, filename: file.filename, isPDF: file.kind == .pdf) }
+        }
+        shell.presentExtract(seed: seed)
+    }
+
     /// Round button outside the field: camera, photos and files, Read text, presets, plugins, the thinking switch, the Tools
     /// submenu and the memory readout, in that order from the top.
     private var plusMenu: some View {
@@ -346,6 +355,8 @@ struct Composer: View {
                         .accessibilityIdentifier("composer.read-camera")
                 }
                 .accessibilityIdentifier("composer.read-text")
+                Button("Extract fields", systemImage: "doc.text.magnifyingglass") { openExtract() }
+                    .accessibilityIdentifier("composer.extract")
             }
             Section {
                 if presets != nil {

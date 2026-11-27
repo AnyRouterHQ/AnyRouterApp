@@ -20,6 +20,7 @@ struct AppShell: View {
         .sheet(isPresented: Bindable(shell).isSettingsPresented) { SettingsScreen().presentationSizing(.form) }
         .sheet(isPresented: Bindable(shell).isHubPresented) { HubSheet().presentationSizing(.page) }
         .sheet(isPresented: Bindable(shell).isDecisionsPresented) { DecisionsSheet().presentationSizing(.page) }
+        .sheet(isPresented: Bindable(shell).isExtractPresented) { ExtractSheet().presentationSizing(.page) }
         // Chat search is its own screen: full screen on iPhone, a page sheet in a regular-width window.
         .fullScreenCover(isPresented: searchBinding(whenRegular: false)) { ThreadSearchScreen() }
         .sheet(isPresented: searchBinding(whenRegular: true)) { ThreadSearchScreen().presentationSizing(.page) }

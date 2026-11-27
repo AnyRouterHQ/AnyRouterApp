@@ -55,6 +55,8 @@ final class AppState {
     let network = NetworkStatus()
     /// Typed questions answered by decision models.
     let decisions: DecisionsStore
+    /// The cloud image reader for Extract, given a file name; nil while signed out. Never handed to a tool.
+    @ObservationIgnored var cloudOCR: (String?) -> (any ImageTextReading)? = { _ in nil }
     /// The one reporting door. Views and engines call this, never a vendor SDK.
     let telemetry: any Telemetry
     /// Saved crash, hang and metric payloads (Settings, Diagnostics).
@@ -166,6 +168,7 @@ final class AppState {
         let anyRouter = auth.makeEngine()
         registry.register(anyRouter)
         decisions = DecisionsStore(service: AnyRouterDecisionsAdapter(engine: anyRouter))
+        cloudOCR = { AnyRouterOCRReader(engine: anyRouter, filename: $0) }
         account = accountAdapter
         let hubSignpost = Perf.signposter.beginInterval("launch.hub")
         hub = LocalModelHub(

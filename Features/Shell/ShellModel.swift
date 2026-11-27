@@ -5,7 +5,7 @@ import Observation
 @MainActor @Observable
 final class ShellModel {
     /// Places the chat can send you. The hub and Decisions are sheets over the chat, not screens of their own.
-    enum Route: Hashable, Sendable { case chat, hub, decisions }
+    enum Route: Hashable, Sendable { case chat, hub, decisions, extract }
 
     /// `nil` means a new, empty chat. The thread record is created on the first send.
     var selectedThreadID: UUID?
@@ -14,6 +14,9 @@ final class ShellModel {
     var isSettingsPresented = false
     var isHubPresented = false
     var isDecisionsPresented = false
+    var isExtractPresented = false
+    /// The photo or PDF the composer opened Extract with, taken once by the Extract screen.
+    private(set) var extractSeed: ExtractSeed?
     var isModelPickerPresented = false
     /// The full-screen chat search, over the sidebar and the chat.
     var isSearchPresented = false
@@ -64,6 +67,7 @@ final class ShellModel {
         selectedThreadID = nil
         isHubPresented = false
         isDecisionsPresented = false
+        isExtractPresented = false
         if closeSidebar { isSidebarOpen = false }
     }
 
@@ -71,16 +75,29 @@ final class ShellModel {
         selectedThreadID = threadID
         isHubPresented = false
         isDecisionsPresented = false
+        isExtractPresented = false
         if closeSidebar { isSidebarOpen = false }
     }
 
     func open(_ route: Route, closeSidebar: Bool) {
         isHubPresented = route == .hub
         isDecisionsPresented = route == .decisions
+        isExtractPresented = route == .extract
         if closeSidebar { isSidebarOpen = false }
     }
 
     func presentSearch() { isSearchPresented = true }
+
+    /// Opens Extract over the chat, on `seed` (the chat's current photo or PDF) when there is one.
+    func presentExtract(seed: ExtractSeed?) {
+        extractSeed = seed
+        open(.extract, closeSidebar: true)
+    }
+
+    func takeExtractSeed() -> ExtractSeed? {
+        defer { extractSeed = nil }
+        return extractSeed
+    }
 
     /// Opens a fresh chat for an outside request, over whatever was open.
     func start(_ request: InboundChat) {
