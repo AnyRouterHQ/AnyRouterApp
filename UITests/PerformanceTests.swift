@@ -54,7 +54,18 @@ final class PerformanceTests: XCTestCase {
 
     /// M2. App CPU time for fast swipes up and down a 200-message thread that opens at launch.
     func testScrollLongThread() {
-        let app = demoApp(["-ARDemoLongThread", "200"])
+        measureSwipes(messages: 200)
+    }
+
+    /// M2 control: the same swipes on a four-message thread, which has nothing to scroll. A sample of M2 (perf 46077346667)
+    /// spent most of the app's CPU in the accessibility runtime answering XCUITest, not in the list, so M2 minus this
+    /// control is the list's own cost.
+    func testScrollShortThreadControl() {
+        measureSwipes(messages: 4)
+    }
+
+    private func measureSwipes(messages: Int) {
+        let app = demoApp(["-ARDemoLongThread", "\(messages)"])
         app.launch()
         XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 20))
         sleep(2)
