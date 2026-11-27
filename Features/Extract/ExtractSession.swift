@@ -180,14 +180,14 @@ final class ExtractSession {
             return
         }
         let requested = activeFields
-        let sent = ExtractLogic.clipped(text, limit: ExtractLogic.characterLimit(for: model.source)).text
+        let limit = ExtractLogic.characterLimit(for: model.source)
+        let service = ExtractService(ask: ask, characterLimit: { _ in limit })
         errorMessage = nil
         clearAnswers()
         phase = .extracting
         defer { phase = .idle }
         do {
-            let reply = try await ask(ExtractLogic.prompt(fields: requested, text: sent), modelID)
-            fields = try ExtractLogic.parse(reply, fields: requested, in: text)
+            fields = try await service.extract(text: text, fields: requested, modelID: modelID)
         } catch {
             errorMessage = error.localizedDescription
         }
