@@ -166,7 +166,7 @@ struct ThreadSidebar: View {
 
     private func rows(_ items: [ThreadRecord]) -> some View {
         ForEach(items) { thread in
-            Label(thread.title, systemImage: "bubble.left")
+            Text(thread.title)
                 .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(minHeight: rowHeight)

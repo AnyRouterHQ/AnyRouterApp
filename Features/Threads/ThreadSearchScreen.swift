@@ -52,15 +52,17 @@ struct ThreadSearchScreen: View {
     private func rows(_ results: [ThreadSearchLogic.Hit]) -> some View {
         ForEach(results) { hit in
             Button { shell.openFromSearch(threadID: hit.thread.id) } label: {
-                Label {
+                HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(hit.thread.title).lineLimit(1)
                         if let snippet = hit.snippet {
                             Text(snippet).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                         }
                     }
-                } icon: {
-                    Image(systemName: hit.thread.isPinned ? "pin.fill" : "bubble.left")
+                    Spacer(minLength: 8)
+                    if hit.thread.isPinned {
+                        Image(systemName: "pin.fill").foregroundStyle(.secondary).accessibilityLabel("Pinned")
+                    }
                 }
             }
             .foregroundStyle(.primary)

@@ -74,7 +74,7 @@ final class SidebarTests: XCTestCase {
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Dinner with chickpeas'")).firstMatch.waitForExistence(timeout: 5))
     }
 
-    /// The drawer reads as a compact list: 44 pt chat rows, no tall gap before a section title, and a New chat button
+    /// The drawer reads as a compact list: 44 pt title-only chat rows, no tall gap before a section title, and a New chat button
     /// no taller than the gear beside it (both were bigger, the operator called it out).
     func testRowsAreCompactAndBarButtonsMatch() {
         let app = launch()
@@ -92,6 +92,7 @@ final class SidebarTests: XCTestCase {
         let pinned = list.staticTexts["Trip ideas for Lisbon"], recents = list.staticTexts["Recents"]
         XCTAssertTrue(pinned.exists && recents.exists)
         XCTAssertLessThan(recents.frame.midY - pinned.frame.midY, 70, "a section title follows the last row closely")
+        XCTAssertEqual(first.frame.minX, recents.frame.minX, accuracy: 2, "chat titles start at the section titles' edge: rows carry no icon")
     }
 
     func testMoreHoldsDecisions() {
