@@ -120,6 +120,7 @@ struct ChatScreen: View {
     /// Keeps the current model when it already shows the selected thread (a first send creates the thread itself).
     private func prepare() {
         if let chat, chat.thread?.id == shell.selectedThreadID { return }
+        chat?.summarizeForMemory()
         chat?.stop()
         let thread = shell.selectedThreadID.flatMap(fetchThread)
         let model = ChatViewModel(thread: thread, context: context, registry: registry,

@@ -1007,6 +1007,30 @@ final class ChatViewModel {
         return hits
     }
 
+    /// The chat loses focus: keep its summary in memory for search_chats and recall in other chats (agent design 2.3).
+    /// Nothing runs for a short chat, one not changed since its last summary, or with memory off.
+    @discardableResult
+    func summarizeForMemory() -> Task<Void, Never>? {
+        guard settings.useMemory, let thread, !thread.memoryOff, phase == .idle, let chat = model else { return nil }
+        let store = MemoryStore(context: context)
+        let scope = ChatSummaryLogic.scope(replyModelIDs: thread.messages.filter { $0.role == .assistant }.map(\.modelID))
+        switch ChatSummaryLogic.action(
+            messages: thread.orderedMessages, compactionSummary: thread.compactions.last?.summary,
+            summarizedAt: store.summary(of: thread.id)?.updatedAt, changedAt: thread.updatedAt,
+            chat: chat, models: models.models, isOnline: isOnline()) {
+        case .skip:
+            return nil
+        case .store(let text):
+            try? store.storeSummary(text, for: thread, scope: scope)
+            return nil
+        case .ask(let plan):
+            return Task {
+                let text = await ChatSummaryGenerator.summary(for: plan, registry: self.registry)
+                if let text, !Self.isGone(thread) { try? MemoryStore(context: self.context).storeSummary(text, for: thread, scope: scope) }
+            }
+        }
+    }
+
     /// Asks for a title while the thread still has the one cut from its first message. A failure keeps that one.
     private func startTitle(for thread: ThreadRecord, chat: ModelDescriptor) -> Task<Void, Never>? {
         let plan = TitleLogic.plan(
