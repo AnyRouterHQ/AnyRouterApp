@@ -74,7 +74,8 @@ struct ComposerSuggestionsRow: View {
         Button { onPreset(preset) } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(preset.title).font(.subheadline.weight(.semibold))
-                Text(preset.cardDetail).font(.subheadline).foregroundStyle(.secondary)
+                // Primary, set apart by weight: secondary text on glass failed the contrast audit (verify-ui 46031167020).
+                Text(preset.cardDetail).font(.subheadline)
             }
             .lineLimit(1)
             .padding(.vertical, 4)
