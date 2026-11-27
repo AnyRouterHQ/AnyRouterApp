@@ -541,9 +541,17 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertTrue(app.buttons["apps-tile-scam-check"].waitForExistence(timeout: 5))
     }
 
+    /// The model row's logo once filled the whole Decisions sheet: a picker dropped the logo's frame (ab9181a).
+    private func assertNoGiantImages(_ app: XCUIApplication, _ screen: String) {
+        for image in app.images.allElementsBoundByIndex where image.exists {
+            XCTAssertLessThan(image.frame.height, 60, "an image in \(screen) is \(image.frame.height) pt tall")
+        }
+    }
+
     func testDecisions() {
         forEachAppearance { app, appearance in
             openApps(app)
+            assertNoGiantImages(app, "Apps")
             capture("apps", appearance)
         }
     }
@@ -558,6 +566,7 @@ final class ScreenshotTests: XCTestCase {
             sample.tap()
             app.buttons["decisions-run"].tap()
             XCTAssertTrue(app.descendants(matching: .any)["decisions-result-line"].waitForExistence(timeout: 10))
+            assertNoGiantImages(app, "a decision app")
             app.swipeUp()
             capture("decision-text-result", appearance)
         }
@@ -572,6 +581,7 @@ final class ScreenshotTests: XCTestCase {
             capture("decision-photo-ready", appearance)
             app.buttons["decisions-run"].tap()
             XCTAssertTrue(app.descendants(matching: .any)["decisions-result-line"].waitForExistence(timeout: 10))
+            assertNoGiantImages(app, "a decision app")
             app.swipeUp()
             capture("decision-photo-result", appearance)
         }
