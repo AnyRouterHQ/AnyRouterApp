@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "llama.cpp release tag, e.g. b12603"
+        description: "llama.cpp release tag, e.g. b12811"
         required: true
-        default: "b12603"
+        default: "b12811"
 
 permissions:
   contents: write
@@ -33,7 +33,7 @@ jobs:
         run: |
           case "$TAG" in
             b[0-9]*) ;;
-            *) echo "::error::tag must look like b12603"; exit 1 ;;
+            *) echo "::error::tag must look like b12811"; exit 1 ;;
           esac
 
       - name: Select Xcode 26
