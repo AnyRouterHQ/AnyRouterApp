@@ -6,7 +6,8 @@ enum NewChatDelay: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    static let standard = NewChatDelay.oneMinute
+    /// Switching apps and coming back keeps the conversation; a new chat after time away is opt-in.
+    static let standard = NewChatDelay.never
 
     var title: String {
         switch self {

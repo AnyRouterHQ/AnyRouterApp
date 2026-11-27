@@ -33,6 +33,7 @@ final class AppSettings {
         static let replyTextStep = "settings.replyTextStep"
         static let replyFont = "settings.replyFont"
         static let newChatDelay = "settings.newChatDelay"
+        static let newChatDelayMigrated = "settings.newChatDelayMigrated"
         static let backgroundedAt = "settings.backgroundedAt"
     }
 
@@ -43,6 +44,18 @@ final class AppSettings {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        Self.migrateNewChatDelay(defaults)
+    }
+
+    /// "Start a new chat after" used to default to one minute. A stored one minute is that old default, not a choice
+    /// (the picker writes whatever row is tapped), so once it is dropped and the new default, Never, applies.
+    /// A one minute chosen after this stays.
+    nonisolated static func migrateNewChatDelay(_ defaults: UserDefaults) {
+        guard !defaults.bool(forKey: Key.newChatDelayMigrated) else { return }
+        if defaults.string(forKey: Key.newChatDelay) == NewChatDelay.oneMinute.rawValue {
+            defaults.removeObject(forKey: Key.newChatDelay)
+        }
+        defaults.set(true, forKey: Key.newChatDelayMigrated)
     }
 
     /// Tools for models that run on this device (llama.cpp and MLX). On until the person turns it off; such a model is
@@ -151,7 +164,8 @@ final class AppSettings {
         set { withMutation(keyPath: \.replyFont) { defaults.set(newValue.rawValue, forKey: Key.replyFont) } }
     }
 
-    /// How long the app can stay in the background before it opens on a new chat. One minute by default.
+    /// How long the app can stay in the background before it opens on a new chat. Never by default: switching apps and
+    /// coming back keeps the open conversation.
     var newChatDelay: NewChatDelay {
         get {
             access(keyPath: \.newChatDelay)

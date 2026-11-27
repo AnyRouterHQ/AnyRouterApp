@@ -9,8 +9,9 @@ struct ResumeLogicTests {
         ResumeLogic.decide(backgroundedAt: t0, now: t0.addingTimeInterval(away), delay: delay, isStreaming: streaming)
     }
 
-    @Test func oneMinuteIsTheDefault() {
-        #expect(NewChatDelay.standard == .oneMinute)
+    /// The operator's rule: an app switch and return keeps the open chat. A new chat after time away is opt-in.
+    @Test func neverIsTheDefault() {
+        #expect(NewChatDelay.standard == .never)
         #expect(NewChatDelay.oneMinute.seconds == 60)
     }
 
@@ -65,6 +66,21 @@ struct ReturnToAppTests {
         #expect(!shell.isSidebarOpen)
     }
 
+    @Test func withTheDefaultAnyBreakKeepsTheConversation() {
+        let id = UUID()
+        let shell = ShellModel(selectedThreadID: id)
+        #expect(!shell.returned(backgroundedAt: t0, now: t0.addingTimeInterval(10), delay: .standard))
+        #expect(!shell.returned(backgroundedAt: t0, now: t0.addingTimeInterval(86_400), delay: .standard))
+        #expect(shell.selectedThreadID == id)
+    }
+
+    @Test func withTheDefaultAColdLaunchAfterALongBreakReopensTheLastThread() {
+        let id = UUID()
+        let shell = ShellModel()
+        shell.launched(restoring: id, backgroundedAt: t0, now: t0.addingTimeInterval(86_400), delay: .standard)
+        #expect(shell.selectedThreadID == id)
+    }
+
     @Test func aShortBreakKeepsTheConversation() {
         let id = UUID()
         let shell = ShellModel(selectedThreadID: id)
@@ -116,7 +132,7 @@ struct ReturnToAppTests {
     @Test func theChoiceAndTheTimeAwaySurviveARelaunch() {
         let defaults = testDefaults()
         let first = AppSettings(defaults: defaults)
-        #expect(first.newChatDelay == .oneMinute)
+        #expect(first.newChatDelay == .never)
         #expect(first.lastBackgroundedAt == nil)
         first.newChatDelay = .oneHour
         first.lastBackgroundedAt = t0
@@ -125,5 +141,20 @@ struct ReturnToAppTests {
         #expect(second.lastBackgroundedAt == t0)
         second.lastBackgroundedAt = nil
         #expect(AppSettings(defaults: defaults).lastBackgroundedAt == nil)
+    }
+
+    @Test func aStoredOneMinuteFromTheOldDefaultBecomesNeverOnce() {
+        let defaults = testDefaults()
+        defaults.set(NewChatDelay.oneMinute.rawValue, forKey: "settings.newChatDelay")
+        let settings = AppSettings(defaults: defaults)
+        #expect(settings.newChatDelay == .never)
+        settings.newChatDelay = .oneMinute
+        #expect(AppSettings(defaults: defaults).newChatDelay == .oneMinute, "a one minute chosen after the move stays")
+    }
+
+    @Test func anyOtherStoredChoiceIsKept() {
+        let defaults = testDefaults()
+        defaults.set(NewChatDelay.fiveMinutes.rawValue, forKey: "settings.newChatDelay")
+        #expect(AppSettings(defaults: defaults).newChatDelay == .fiveMinutes)
     }
 }
