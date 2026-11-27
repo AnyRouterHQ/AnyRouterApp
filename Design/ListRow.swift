@@ -44,7 +44,8 @@ struct ListRow<Icon: View, Accessory: View>: View {
             Spacer(minLength: 0)
             accessory
         }
-        .frame(minHeight: 44)
+        // No height of its own: the list's row height already meets 44 pt, and a frame here stacked on the row padding
+        // (Settings rows grew from 52 to 74 pt in screenshots 46014514092).
     }
 }
 

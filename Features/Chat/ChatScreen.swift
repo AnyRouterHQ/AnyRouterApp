@@ -294,6 +294,10 @@ private struct ChatContent: View {
         .scrollDismissesKeyboard(.interactively)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .defaultScrollAnchor(.bottom, for: .initialOffset)
+        .defaultScrollAnchor(.bottom, for: .alignment)
+        // While following, rows that finish their layout late (lazy rows, photos) keep the end on screen; after a send the
+        // question stays put instead (screenshots 46014514092 opened the reply-parts thread above its end without this).
+        .defaultScrollAnchor(following ? .bottom : nil, for: .sizeChanges)
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
             geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
         } action: { _, height in
