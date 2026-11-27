@@ -192,6 +192,18 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// The @ list: every plugin with its icon and On or Off, then presets and files.
+    func testMentionPanel() {
+        forEachAppearance { app, appearance in
+            let input = app.descendants(matching: .any)["composer.input"]
+            XCTAssertTrue(input.waitForExistence(timeout: 15))
+            input.tap()
+            input.typeText("@")
+            XCTAssertTrue(app.descendants(matching: .any)["mention.panel"].waitForExistence(timeout: 5), "the @ list opens")
+            capture("composer-mention-panel", appearance)
+        }
+    }
+
     func testThreadList() {
         forEachAppearance { app, appearance in
             showSidebar(app)
