@@ -11,6 +11,7 @@ struct LocalModelsScreen: View {
     @State private var freeBytes: Int64?
     @State private var detail: LocalModelEntry?
     @State private var confirmsDeleteAll = false
+    @ScaledMetric(relativeTo: .body) private var logoSize: CGFloat = 22
 
     private var hub: any ModelHubService { app.hub }
     private var device: String { DeviceName.current }
@@ -88,15 +89,10 @@ struct LocalModelsScreen: View {
                 NavigationLink {
                     AppleModelScreen(model: apple)
                 } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ModelLabel(model: apple)
-                            Text(LocalModelsLogic.appleStatus(apple)).font(.subheadline).foregroundStyle(.secondary)
-                        }
-                        if models.selected?.id == apple.id {
-                            Spacer()
-                            DefaultBadge()
-                        }
+                    ListRow(apple.shortName, subtitle: LocalModelsLogic.appleStatus(apple)) {
+                        ModelLogo(brand: ModelBrand.resolve(apple), size: logoSize)
+                    } accessory: {
+                        if models.selected?.id == apple.id { DefaultBadge() }
                     }
                 }
                 .accessibilityIdentifier("local.apple")

@@ -5,7 +5,7 @@ import SwiftUI
 /// Button the tap. Plain content only: no glass and no card chrome on list rows.
 struct ListRow<Icon: View, Accessory: View>: View {
     let title: String
-    let subtitle: String?
+    let secondary: Text?
     let icon: Icon
     let accessory: Accessory
 
@@ -13,8 +13,16 @@ struct ListRow<Icon: View, Accessory: View>: View {
         _ title: String, subtitle: String? = nil,
         @ViewBuilder icon: () -> Icon, @ViewBuilder accessory: () -> Accessory
     ) {
+        self.init(title, secondary: subtitle.flatMap { $0.isEmpty ? nil : Text($0) }, icon: icon, accessory: accessory)
+    }
+
+    /// Secondary text with its own styling, such as a fit status in green or red inside the gray line.
+    init(
+        _ title: String, secondary: Text?,
+        @ViewBuilder icon: () -> Icon, @ViewBuilder accessory: () -> Accessory
+    ) {
         self.title = title
-        self.subtitle = subtitle
+        self.secondary = secondary
         self.icon = icon()
         self.accessory = accessory()
     }
@@ -24,8 +32,8 @@ struct ListRow<Icon: View, Accessory: View>: View {
             Label {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                    if let subtitle, !subtitle.isEmpty {
-                        Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                    if let secondary {
+                        secondary.font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                     }
                 }
                 // Separators start under the title, not under the icon, as in iOS Settings.
@@ -43,6 +51,10 @@ struct ListRow<Icon: View, Accessory: View>: View {
 extension ListRow where Accessory == EmptyView {
     init(_ title: String, subtitle: String? = nil, @ViewBuilder icon: () -> Icon) {
         self.init(title, subtitle: subtitle, icon: icon) { EmptyView() }
+    }
+
+    init(_ title: String, secondary: Text?, @ViewBuilder icon: () -> Icon) {
+        self.init(title, secondary: secondary, icon: icon) { EmptyView() }
     }
 }
 

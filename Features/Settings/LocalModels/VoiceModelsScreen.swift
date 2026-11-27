@@ -97,7 +97,8 @@ struct VoiceModelsScreen: View {
     }
 }
 
-/// One engine or model: name, languages, size and licence, how it fits, and Get, progress or the check mark.
+/// One engine or model as a `ListRow`: name, languages, size and licence, how it fits, and Get, progress or the check
+/// mark. A wrapper because it owns the delete confirmation and the select and download actions.
 private struct VoiceModelRow: View {
     let model: VoiceModel
     let hub: VoiceHub
@@ -106,6 +107,7 @@ private struct VoiceModelRow: View {
     @State private var confirmsDelete = false
 
     private var state: ModelDownloadState { hub.downloader.state(for: model) }
+    @ScaledMetric(relativeTo: .body) private var logoSize: CGFloat = 22
 
     var body: some View {
         let current = state
@@ -114,20 +116,18 @@ private struct VoiceModelRow: View {
             isRecommended: isRecommended, wanted: wanted)
         HStack(spacing: 8) {
             Button { hub.select(model) } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        ModelLabel(name: model.title, brand: .symbol(model.isSystem ? "iphone" : "waveform"))
-                        Spacer()
-                        if row.isDefault { Text("Default").font(.caption).foregroundStyle(.secondary) }
-                        if row.isRecommended { Text("Recommended").font(.caption).foregroundStyle(.secondary) }
-                    }
-                    Text(row.detail).font(.subheadline).foregroundStyle(.secondary)
-                    if let note = row.note { Text(note).font(.footnote).foregroundStyle(current.isFailed ? .red : .secondary) }
+                ListRow(model.title, secondary: secondary(row, failed: current.isFailed)) {
+                    ModelLogo(brand: .symbol(model.isSystem ? "iphone" : "waveform"), size: logoSize)
+                } accessory: {
+                    if row.isDefault { DefaultBadge() }
+                    if row.isRecommended { Text("Recommended").font(.caption).foregroundStyle(.secondary) }
                     if let fraction = current.fraction {
-                        ProgressView(value: fraction).accessibilityLabel("Downloading \(model.title)")
+                        ProgressView(value: fraction)
+                            .progressViewStyle(.circular)
+                            .accessibilityLabel("Downloading \(model.title)")
                     }
                 }
-                .contentShape(Rectangle())
+                .contentShape(.rect)
             }
             .buttonStyle(.plain)
             .disabled(!row.canSelect)
@@ -145,6 +145,11 @@ private struct VoiceModelRow: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("voice.row.\(model.id)")
+    }
+
+    private func secondary(_ row: VoiceModelsRules.Row, failed: Bool) -> Text {
+        guard let note = row.note else { return Text(row.detail) }
+        return Text(row.detail) + Text("\n") + Text(note).foregroundStyle(failed ? Color.red : Color.secondary)
     }
 
     @ViewBuilder

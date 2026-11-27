@@ -27,6 +27,7 @@ struct HubScreen: View {
     @State private var showsAddByLink = false
     @State private var freeBytes: Int64?
     @State private var prompts = LocalModelPrompts()
+    @ScaledMetric(relativeTo: .body) private var logoSize: CGFloat = 22
 
     private var hub: any ModelHubService { app.hub }
     private var device: String { DeviceName.current }
@@ -122,7 +123,9 @@ struct HubScreen: View {
                         NavigationLink {
                             FamilyDetailView(family: family, filter: filter)
                         } label: {
-                            FamilyRow(family: family)
+                            ListRow(family.name, subtitle: familySubtitle(family)) {
+                                ModelLogo(brand: familyBrand(family), size: logoSize)
+                            }
                         }
                     }
                     ForEach(ungrouped) { entry in row(entry) }
@@ -228,16 +231,23 @@ struct HubScreen: View {
 
     // MARK: Rows
 
+    /// Who made it and how many sizes fit, then its badges and tags on the second line.
+    private func familySubtitle(_ family: LocalModelFamily) -> String {
+        let made = [family.publisher, FamilyLogic.fitSummary(family, device: DeviceName.current)].filter { !$0.isEmpty }
+        let extras = (family.badges + family.tags).map(\.capitalized)
+        return [made.joined(separator: " · "), extras.joined(separator: " · ")].filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+
+    private func familyBrand(_ family: LocalModelFamily) -> ModelBrand {
+        guard let first = family.variants.first else { return .unknown }
+        return ModelBrand.resolve(first.descriptor)
+    }
+
     private func appleRow(_ model: ModelDescriptor) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                ModelLabel(model: model)
-                Text("Built in · On device").font(.subheadline).foregroundStyle(.secondary)
-            }
-            if models.selected?.id == model.id {
-                Spacer()
-                DefaultBadge()
-            }
+        ListRow(model.shortName, subtitle: "Built in · On device") {
+            ModelLogo(brand: ModelBrand.resolve(model), size: logoSize)
+        } accessory: {
+            if models.selected?.id == model.id { DefaultBadge() }
         }
         .contextMenu { Button("Set as Default", systemImage: "star") { models.select(model) } }
     }
