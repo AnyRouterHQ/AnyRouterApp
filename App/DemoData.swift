@@ -6,6 +6,7 @@ import UIKit
 /// Offline sample data for screenshots and UI tests. Active only with the launch argument `-ARDemoData YES`.
 /// Optional flags: `-ARDemoParts YES` (a reply with reasoning, tools, files, a subagent and a compacted history), `-ARDemoSources YES` (a markdown reply that cites five pages), `-ARReplyTextStep -2...3`, `-ARReplyFont serif|rounded`, `-ARDemoSignedOut YES`, `-ARDemoOnboarding YES`, `-ARDemoTools YES` (a thread with a web search step), `-ARAppearance light|dark`.
 /// `-ARDemoKeepSettings YES` keeps settings from the previous launch, to test persistence.
+/// `-ARDemoAwaySeconds N` records a trip to the background N seconds before launch.
 enum DemoData {
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: "ARDemoData") }
     private static var signedOut: Bool { UserDefaults.standard.bool(forKey: "ARDemoSignedOut") }
@@ -346,6 +347,10 @@ enum DemoData {
         }
         if let raw = UserDefaults.standard.string(forKey: "ARReplyFont"), let font = ReplyFont(rawValue: raw) {
             settings.replyFont = font
+        }
+        // `-ARDemoAwaySeconds 120`: the app went to the background that long ago, so a launch is a return after time away.
+        if UserDefaults.standard.object(forKey: "ARDemoAwaySeconds") != nil {
+            settings.lastBackgroundedAt = .now.addingTimeInterval(-Double(UserDefaults.standard.integer(forKey: "ARDemoAwaySeconds")))
         }
         if let raw = UserDefaults.standard.string(forKey: "ARAppearance"),
            let appearance = AppSettings.Appearance(rawValue: raw) {

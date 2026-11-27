@@ -80,6 +80,39 @@ struct ReturnToAppTests {
         #expect(shell.selectedThreadID == id)
     }
 
+    @Test func aColdLaunchAfterALongBreakDoesNotReopenTheLastThread() {
+        let shell = ShellModel()
+        shell.launched(restoring: UUID(), backgroundedAt: t0, now: t0.addingTimeInterval(120), delay: .oneMinute)
+        #expect(shell.selectedThreadID == nil)
+    }
+
+    @Test func aColdLaunchAfterALongBreakDropsAThreadSelectedAtStartupToo() {
+        let shell = ShellModel(selectedThreadID: UUID())
+        shell.launched(restoring: nil, backgroundedAt: t0, now: t0.addingTimeInterval(120), delay: .oneMinute)
+        #expect(shell.selectedThreadID == nil)
+    }
+
+    @Test func aColdLaunchAfterAShortBreakReopensTheLastThread() {
+        let id = UUID()
+        let shell = ShellModel()
+        shell.launched(restoring: id, backgroundedAt: t0, now: t0.addingTimeInterval(10), delay: .oneMinute)
+        #expect(shell.selectedThreadID == id)
+    }
+
+    @Test func aColdLaunchWithNoRecordedTimeReopensTheLastThread() {
+        let id = UUID()
+        let shell = ShellModel()
+        shell.launched(restoring: id, backgroundedAt: nil, now: t0, delay: .immediately)
+        #expect(shell.selectedThreadID == id)
+    }
+
+    @Test func aThreadAlreadySelectedWinsOverTheRestoredOne() {
+        let current = UUID()
+        let shell = ShellModel(selectedThreadID: current)
+        shell.launched(restoring: UUID(), backgroundedAt: t0, now: t0.addingTimeInterval(10), delay: .oneMinute)
+        #expect(shell.selectedThreadID == current)
+    }
+
     @Test func theChoiceAndTheTimeAwaySurviveARelaunch() {
         let defaults = testDefaults()
         let first = AppSettings(defaults: defaults)

@@ -53,6 +53,13 @@ final class ShellModel {
         return true
     }
 
+    /// A cold launch. Keeps the thread already selected, or else reopens `restoring` (the thread this scene showed last),
+    /// unless the app was away for the whole delay: then it opens on a new chat, like a return from the background.
+    func launched(restoring threadID: UUID?, backgroundedAt: Date?, now: Date, delay: NewChatDelay) {
+        let decision = ResumeLogic.decide(backgroundedAt: backgroundedAt, now: now, delay: delay, isStreaming: isReplyStreaming)
+        selectedThreadID = decision == .resume ? selectedThreadID ?? threadID : nil
+    }
+
     func newChat(closeSidebar: Bool) {
         selectedThreadID = nil
         isHubPresented = false

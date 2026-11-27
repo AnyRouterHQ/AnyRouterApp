@@ -6,6 +6,7 @@ struct AppShell: View {
     @Environment(ShellModel.self) private var shell
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.modelContext) private var context
+    @Environment(AppSettings.self) private var settings
     @SceneStorage("shell.selectedThread") private var storedThread = ""
 
     private var isRegular: Bool { sizeClass == .regular }
@@ -36,12 +37,20 @@ struct AppShell: View {
         )
     }
 
-    /// Reopens the thread this scene showed before it was closed, if it still exists.
+    /// Reopens the thread this scene showed before it was closed, unless the app was away longer than
+    /// "Start a new chat after". The time away is read here, in the same step as the restore: a separate launch check
+    /// could run first, forget the time away, and then this restore reopened the old thread.
     private func restoreSelection() {
-        guard shell.selectedThreadID == nil, let id = UUID(uuidString: storedThread) else { return }
+        shell.launched(restoring: storedThreadIfItExists(), backgroundedAt: settings.lastBackgroundedAt,
+                       now: .now, delay: settings.newChatDelay)
+        settings.lastBackgroundedAt = nil
+    }
+
+    private func storedThreadIfItExists() -> UUID? {
+        guard let id = UUID(uuidString: storedThread) else { return nil }
         var descriptor = FetchDescriptor<ThreadRecord>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
-        if ((try? context.fetchCount(descriptor)) ?? 0) > 0 { shell.selectedThreadID = id }
+        return ((try? context.fetchCount(descriptor)) ?? 0) > 0 ? id : nil
     }
 }
 

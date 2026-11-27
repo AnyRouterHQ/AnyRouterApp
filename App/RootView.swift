@@ -79,8 +79,7 @@ struct RootView: View {
                 Text("Share anonymous crash reports and timings. No messages, keys or emails.")
             }
             .task {
-                // After the saved chat is restored: a quit and relaunch counts as time away too.
-                openNewChatAfterTimeAway()
+                // The launch itself is not a return: AppShell's restore applies the time away on a cold launch.
                 launchHandled = true
                 if !DemoData.isEnabled {
                     appState.network.start()
