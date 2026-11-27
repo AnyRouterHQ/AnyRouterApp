@@ -149,17 +149,26 @@ class JourneyCase: XCTestCase {
         return isOnScreen(app, element)
     }
 
-    /// iPhone: the sidebar is a drawer behind the Menu button; its views exist in the tree while it is closed,
-    /// so "open" means its Settings button is on screen. iPad: the column is open at launch or behind the system toggle.
+    /// Whether the thread list can be used. iPhone: the drawer sits under the chat and its views stay in the tree
+    /// while it is closed, so the only reliable sign is the "Close sidebar" scrim that exists while it is open.
+    /// iPad: the column's compose button is on screen.
+    func sidebarIsOpen(_ app: XCUIApplication) -> Bool {
+        if app.buttons["Close sidebar"].exists { return true }
+        if app.buttons["Menu"].exists { return false }
+        let compose = app.buttons["sidebar.compose"]
+        return compose.exists && isOnScreen(app, compose)
+    }
+
     func openSidebar(_ app: XCUIApplication) {
-        let gear = app.buttons["Settings"].firstMatch
-        if isOnScreen(app, gear) { return }
+        if sidebarIsOpen(app) { return }
         if app.buttons["Menu"].waitForExistence(timeout: 10) {
             app.buttons["Menu"].tap()
         } else {
             button(app, containing: "Sidebar").tap()
         }
-        if !waitOnScreen(app, gear, timeout: 5) { fail(app, "sidebar-did-not-open", "sidebar did not open") }
+        let end = Date().addingTimeInterval(5)
+        while Date() < end, !sidebarIsOpen(app) { usleep(200_000) }
+        if !sidebarIsOpen(app) { fail(app, "sidebar-did-not-open", "sidebar did not open") }
         // The drawer springs in; a tap while it moves lands on the old position.
         sleep(1)
     }
@@ -167,7 +176,7 @@ class JourneyCase: XCTestCase {
     /// A button that is on screen. Closed-drawer buttons stay in the tree, so plain label lookups can pick them.
     func visibleButton(_ app: XCUIApplication, _ label: String) -> XCUIElement {
         let matches = app.buttons.matching(NSPredicate(format: "label == %@", label)).allElementsBoundByIndex
-        return matches.first(where: { isOnScreen(app, $0) }) ?? app.buttons[label].firstMatch
+        return matches.first(where: { $0.identifier != "sidebar.compose" && isOnScreen(app, $0) }) ?? app.buttons[label].firstMatch
     }
 
     func openSettings(_ app: XCUIApplication) {

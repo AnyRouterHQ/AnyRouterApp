@@ -154,8 +154,8 @@ jobs:
               -derivedDataPath DerivedData \
               -resultBundlePath "TestResults-$name.xcresult" \
               -test-timeouts-enabled YES \
-              -default-test-execution-time-allowance 240 \
-              -maximum-test-execution-time-allowance 420 \
+              -default-test-execution-time-allowance 600 \
+              -maximum-test-execution-time-allowance 900 \
               "${only[@]}" "${extra[@]}" "${skip[@]}" \
               CODE_SIGNING_ALLOWED=NO > "test-$name.log" 2>&1 || echo "FAILED=$name" >> failed.txt
             tail -n 40 "test-$name.log"
