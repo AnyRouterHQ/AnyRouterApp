@@ -24,6 +24,22 @@ struct ScrollFollowTests {
         #expect(!ScrollFollow.following(from: .idle, to: .animating, atBottom: true, was: false))
     }
 
+    /// A send or a regenerate starts a stream: the question goes to the top. Opening a thread shows its end.
+    @Test func aStreamingReplySettlesItsQuestionAtTheTop() {
+        let question = UUID()
+        #expect(ScrollFollow.settle(isStreaming: true, lastQuestionID: question) == .question(question))
+        #expect(ScrollFollow.settle(isStreaming: false, lastQuestionID: question) == .bottom)
+        #expect(ScrollFollow.settle(isStreaming: true, lastQuestionID: nil) == .bottom)
+    }
+
+    /// The last turn fills the view, so the question can reach the top even when the reply is one line.
+    @Test func theLastRowLeavesRoomForTheQuestionAtTheTop() {
+        #expect(ScrollFollow.lastRowMinHeight(visible: 700, question: 60, spacing: 20) == 620)
+        #expect(ScrollFollow.lastRowMinHeight(visible: 700, question: nil, spacing: 20) == 700, "the question is the last row")
+        #expect(ScrollFollow.lastRowMinHeight(visible: 50, question: 60, spacing: 20) == 0)
+        #expect(ScrollFollow.lastRowMinHeight(visible: -10, question: nil, spacing: 20) == 0)
+    }
+
     @Test func theJumpButtonShowsOnlyWhenTheEndIsOffScreenAndNothingFollows() {
         #expect(ScrollFollow.showsJumpButton(following: false, atBottom: false))
         #expect(!ScrollFollow.showsJumpButton(following: false, atBottom: true), "at the bottom it never shows")

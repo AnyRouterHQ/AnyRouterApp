@@ -23,4 +23,25 @@ enum ScrollFollow {
 
     /// The jump-to-latest button: only when the end of the list is off screen and the list is not following on its own.
     static func showsJumpButton(following: Bool, atBottom: Bool) -> Bool { !following && !atBottom }
+
+    /// Where the list goes when messages are added or a reply starts (decision D27).
+    enum Settle: Equatable {
+        /// A reply is coming: the person's question goes to the top of the view and the reply grows under it.
+        case question(UUID)
+        /// Nothing streams (a thread opened, a reply was removed): the end of the list, following.
+        case bottom
+    }
+
+    static func settle(isStreaming: Bool, lastQuestionID: UUID?) -> Settle {
+        if isStreaming, let lastQuestionID { return .question(lastQuestionID) }
+        return .bottom
+    }
+
+    /// The least height of the last row, so that the question above it can sit at the top of the visible area.
+    /// `visible` is the list's height without the bars over it; `question` is the height of the question row, nil when
+    /// the last row is the question itself.
+    static func lastRowMinHeight(visible: CGFloat, question: CGFloat?, spacing: CGFloat) -> CGFloat {
+        guard let question else { return max(0, visible) }
+        return max(0, visible - question - spacing)
+    }
 }

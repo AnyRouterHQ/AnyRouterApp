@@ -132,6 +132,9 @@ private struct ChatContent: View {
     @State private var following = true
     /// The end marker of the list is on screen.
     @State private var atBottom = true
+    /// The list's height without the bars over it, and the height of the last question (see `ScrollFollow.settle`).
+    @State private var visibleHeight: CGFloat = 0
+    @State private var questionHeight: CGFloat = 0
     @ScaledMetric(relativeTo: .subheadline) private var greetingLogoSize: CGFloat = 15
 
     var body: some View {
@@ -207,18 +210,31 @@ private struct ChatContent: View {
         .sensoryFeedback(.selection, trigger: tip)
     }
 
+    private func settle(_ proxy: ScrollViewProxy, lastQuestionID: UUID?) {
+        switch ScrollFollow.settle(isStreaming: chat.isStreaming, lastQuestionID: lastQuestionID) {
+        case .question(let id):
+            following = false
+            withAnimation(.snappy) { proxy.scrollTo(id, anchor: .top) }
+        case .bottom:
+            following = true
+            proxy.scrollTo("bottom", anchor: .bottom)
+        }
+    }
+
     private var messageList: some View {
         let messages = chat.messages
         let lastID = messages.last?.id
         let switchNotes = SwitchNotes.make(messages)
         let compactions = Dictionary(chat.compactions.map { ($0.lastMessageID, $0) }, uniquingKeysWith: { first, _ in first })
+        let lastQuestionID = messages.last(where: { $0.role == .user })?.id
+        let rowSpacing: CGFloat = 20
         // ScrollViewReader, not a ScrollPosition binding: the binding is written on every scroll frame, which
         // re-evaluates the whole list (the perf baseline showed the scroll CPU more than doubling).
         return ScrollViewReader { proxy in
         ScrollView {
-            LazyVStack(spacing: 20) {
+            LazyVStack(spacing: rowSpacing) {
                 ForEach(messages) { message in
-                    MessageRow(
+                    let row = MessageRow(
                         message: message,
                         isStreamingThis: chat.isStreaming && message.id == lastID,
                         showsRegenerate: message.id == lastID && chat.canRegenerate,
@@ -228,6 +244,18 @@ private struct ChatContent: View {
                         loadingModelName: message.id == lastID ? chat.loadingModelName : nil,
                         statusNote: message.id == lastID ? chat.statusNote : nil
                     )
+                    // The last turn is at least one view tall, so a new question can settle at the top (decision D27).
+                    if message.id == lastID {
+                        row.frame(
+                            minHeight: ScrollFollow.lastRowMinHeight(
+                                visible: visibleHeight, question: message.id == lastQuestionID ? nil : questionHeight,
+                                spacing: rowSpacing),
+                            alignment: .top)
+                    } else if message.id == lastQuestionID {
+                        row.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { questionHeight = $0 }
+                    } else {
+                        row
+                    }
                     if let compaction = compactions[message.id] { CompactionDivider(compaction: compaction) }
                 }
                 if let note = chat.compactionNote {
@@ -254,15 +282,18 @@ private struct ChatContent: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .scrollEdgeEffectStyle(.soft, for: .all)
-        .defaultScrollAnchor(.bottom)
+        .defaultScrollAnchor(.bottom, for: .initialOffset)
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
+        } action: { _, height in
+            visibleHeight = height
+        }
         .onScrollPhaseChange { old, new in
             following = ScrollFollow.following(from: old, to: new, atBottom: atBottom, was: following)
         }
-        // A new message is the reader's own send or a regenerate: always show it.
-        .onChange(of: messages.count) {
-            following = true
-            proxy.scrollTo("bottom", anchor: .bottom)
-        }
+        // A send or a regenerate puts the question at the top while the reply streams; anything else shows the end.
+        .onChange(of: messages.count) { settle(proxy, lastQuestionID: lastQuestionID) }
+        .onChange(of: chat.isStreaming) { settle(proxy, lastQuestionID: lastQuestionID) }
         .onChange(of: messages.last?.toolTraceData) { if following { proxy.scrollTo("bottom", anchor: .bottom) } }
         .onChange(of: messages.last?.content.count) { if following { proxy.scrollTo("bottom", anchor: .bottom) } }
         .overlay(alignment: .bottom) {
