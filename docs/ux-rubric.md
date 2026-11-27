@@ -1,6 +1,6 @@
 # UX rubric
 
-Rubric version: 1
+Rubric version: 2
 
 The scorecard (`scripts/ux-score.py`, workflow `.github/workflows/ux-score.yml`) rates every screenshot of the app against this file. The vision judge reads this whole file as its instructions, and the script reads the criterion ids from the headings below. Change a criterion, an anchor or the scale, and you bump the version above: scores from different versions are not comparable, so the delta against the last main run is dropped when the version differs.
 
@@ -86,6 +86,22 @@ Consistency of icons, logos and patterns: a model is drawn the same way everywhe
 - 5: model logos and names look the same in every place on the screen and match the other screens you know of; icons share one weight and style.
 - 3: one place draws a model or an action differently, or mixes icon weights.
 - 0: several different treatments of the same thing.
+
+### `color`
+
+Color: one tint, semantic colors, color that means something.
+
+- 5: one app tint (black in light, white in dark), system semantic colors for text and surfaces, color only where it carries meaning (a status, a destructive action, a Settings icon tile), the same status in the same color on every screen, nothing relies on color alone.
+- 3: a second accent color without a reason, or one status drawn in two colors.
+- 0: many unrelated colors, hard-coded colors that break in the other appearance, or color as the only signal.
+
+### `iconography`
+
+Iconography: SF Symbols of one weight and style, the same symbol for the same thing.
+
+- 5: SF Symbols only, one weight and size per context, Settings rows use the same tile style (white symbol on a rounded square of one system color), symbols are recognizable and match their label.
+- 3: one icon of a different weight or style, or one symbol that does not match its label.
+- 0: mixed icon sets and sizes, symbols that mislead, or icons with no label where the meaning is not obvious.
 
 ### `states`
 

@@ -50,9 +50,9 @@ def screen(path, device="iphone", name="empty-chat", variant="light", audit=None
 class Rubric(unittest.TestCase):
     def test_criteria_come_from_the_headings(self):
         version, criteria, judged, text = ux.load_rubric()
-        self.assertEqual(version, 1)
+        self.assertEqual(version, 2)
         self.assertEqual(criteria, ["native", "hierarchy", "spacing", "tap_targets", "contrast", "clutter",
-                                    "consistency", "states", "space", "semantics"])
+                                    "consistency", "color", "iconography", "states", "space", "semantics"])
         self.assertNotIn("semantics", judged, "a PNG cannot show VoiceOver labels")
         self.assertIn("Liquid Glass", text)
 
@@ -243,7 +243,7 @@ class Judge(unittest.TestCase):
         meta = {"device": "iphone", "variant": "dark", "screen": "hub"}
         first = ux.build_messages(text, judged, meta, "data:image/jpeg;base64,AAA")
         second = ux.build_messages(text, judged, meta, "data:image/jpeg;base64,AAA", reverse=True)
-        self.assertIn("Rubric version: 1", first[0]["content"])
+        self.assertIn("Rubric version: 2", first[0]["content"])
         self.assertEqual(first[1]["content"][1]["image_url"]["url"], "data:image/jpeg;base64,AAA")
         self.assertIn("Screen: hub", first[1]["content"][0]["text"])
         a, b = first[0]["content"], second[0]["content"]

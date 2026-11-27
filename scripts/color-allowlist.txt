@@ -1,0 +1,2 @@
+# Files in Features/ allowed to use Color(red:, Color(hex, UIColor(red: or .foregroundColor(.
+# One path per line, then "# reason". Empty on purpose: every current use is a semantic color. Do not add files without a reason.

@@ -32,4 +32,13 @@ for f in $(git grep -l -E '\.(borderedProminent|glassProminent)([^A-Za-z]|$)' --
     fail=1
   fi
 done
+# Colors come from semantic system colors or Design/ARPalette.swift, not from literals. Exceptions are listed, with a
+# reason each, in scripts/color-allowlist.txt ("path  # reason").
+allowed=$(sed -e 's/#.*//' -e 's/[[:space:]]*$//' scripts/color-allowlist.txt | grep -v '^$' || true)
+for f in $(git grep -l -E 'Color\(red:|Color\(hex|UIColor\(red:|\.foregroundColor\(' -- 'Features/*.swift'); do
+  if ! grep -qxF "$f" <<< "$allowed"; then
+    echo "::error file=$f::color literal or .foregroundColor( in Features. Use a semantic color or Design/ARPalette.swift, or list the file in scripts/color-allowlist.txt with a reason."
+    fail=1
+  fi
+done
 exit $fail
