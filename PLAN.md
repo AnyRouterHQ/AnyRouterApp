@@ -707,9 +707,9 @@ The OCR endpoint takes an `sk-ar-` key; the app's sign-in token is one (`OAuthCl
 - [x] AP1 (10946a7, 1b61f52, 13c6429, 74d6609) Decisions as apps: six bundled apps (`catalog/decision-apps.json`), one runner screen, Yes/No, Choice and Score builders (Score starts with 10 levels), the answer as one sentence plus probability bars, four custom samples, photos and a live camera, Recent as its own sheet. Skipped: the side-by-side model compare (one model per run keeps the screen simple).
 - [ ] AP1b Each decision app as a Shortcuts action (later, not built)
 - [ ] AP2 Paste mode: `PasteLogic` detectors with tests, decision-model classification of plain text
-- [ ] AP3 Extract: source picker (photo, PDF, VisionKit document camera), on-device text, presets, fields with source highlight, any chat model
-- [ ] AP4 `AnyRouterOCRReader` behind a switch in Extract, stubbed `URLSession` fixture tests, 5 MiB check before upload
-- [ ] AP5 Entry: sidebar Apps row (13c6429) and composer "Decide about this" (5547939) are done; Extract's tile and "Extract fields" are the other worker's
+- [x] AP3 Extract: source picker (photo, PDF, VisionKit document camera), on-device text, presets, fields with source highlight, any chat model (a644405, 543e787, e436d12)
+- [x] AP4 `AnyRouterOCRReader` behind a switch in Extract, stubbed `URLSession` fixture tests, 5 MiB check before upload (61acd59)
+- [ ] AP5 Entry: sidebar Apps row (13c6429) and composer "Decide about this" (5547939) are done; Extract's tile (f9681b4) and "Extract fields" (543e787) are done
 - [ ] AP6 Screenshots of Decisions, Paste and Extract, light and dark (lane A queue)
 
 ### Tools by model source (decision D24)
