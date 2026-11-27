@@ -162,7 +162,10 @@ final class VoiceModelDownloader {
         guard let entry = callback.entryID, let id = DownloadTaskTag.voiceModelID(of: entry), jobs[id] != nil else { return }
         switch callback {
         case .progress(_, let path, let written):
-            jobs[id]?.received[path] = max(jobs[id]?.received[path] ?? 0, written)
+            if var job = jobs[id] {
+                job.received[path] = max(job.received[path] ?? 0, written)
+                jobs[id] = job
+            }
             reportProgress(id)
         case .fileFinished(_, let path):
             arrive(id, path)
