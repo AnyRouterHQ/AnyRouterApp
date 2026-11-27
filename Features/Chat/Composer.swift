@@ -172,12 +172,8 @@ struct Composer: View {
         }) {
             VoicePermissionSheet(onContinue: { app.dictation.confirmExplanation() }, onNotNow: { app.dictation.declineExplanation() })
         }
-        // A light tap when a send starts a reply (not on every reply end).
-        .sensoryFeedback(.impact(weight: .light), trigger: model.isStreaming) { _, streaming in streaming }
-        .sensoryFeedback(.impact(weight: .medium), trigger: stopCount)
-        .sensoryFeedback(.selection, trigger: model.modelChoiceCount)
-        // An error appearing, not each change of its text.
-        .sensoryFeedback(.error, trigger: model.errorMessage) { old, new in old == nil && new != nil }
+        .modifier(ComposerHaptics(isStreaming: model.isStreaming, stopCount: stopCount,
+                                  modelChoiceCount: model.modelChoiceCount, errorMessage: model.errorMessage))
         .photosPicker(isPresented: $showsPhotos, selection: $photoItems,
                       maxSelectionCount: AttachmentLogic.maxPerMessage, matching: .images)
         .onChange(of: photoItems) { _, items in loadPhotos(items) }
@@ -463,6 +459,24 @@ struct Composer: View {
             }
             app.dictation.toggle(text: $model.input, hub: app.voice)
         }
+    }
+}
+
+/// The composer's taps as one modifier, so the field stack's chain stays short enough to type-check (CI 46064358407).
+private struct ComposerHaptics: ViewModifier {
+    let isStreaming: Bool
+    let stopCount: Int
+    let modelChoiceCount: Int
+    let errorMessage: String?
+
+    func body(content: Content) -> some View {
+        content
+            // A light tap when a send starts a reply (not on every reply end).
+            .sensoryFeedback(.impact(weight: .light), trigger: isStreaming) { _, streaming in streaming }
+            .sensoryFeedback(.impact(weight: .medium), trigger: stopCount)
+            .sensoryFeedback(.selection, trigger: modelChoiceCount)
+            // An error appearing, not each change of its text.
+            .sensoryFeedback(.error, trigger: errorMessage) { old, new in old == nil && new != nil }
     }
 }
 
