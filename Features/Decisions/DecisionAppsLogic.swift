@@ -152,6 +152,17 @@ enum DecisionAppsLogic {
         }
     }
 
+    /// An answer card's bars: the most likely options first, at most five.
+    static func bars(of verdict: DecisionAnswer.Verdict) -> [DecisionAnswer.Option] {
+        Array(verdict.options.sorted { $0.probability > $1.probability }.prefix(5))
+    }
+
+    /// The answer line above the bars, or nil when the top bar already names it; the card once read "Yes", then "Yes" again.
+    static func answerLine(of verdict: DecisionAnswer.Verdict) -> String? {
+        let line = text(of: .answered(verdict))
+        return bars(of: verdict).first?.label.caseInsensitiveCompare(line) == .orderedSame ? nil : line
+    }
+
     /// The top answers as one sentence, from the app's template.
     static func resultLine(_ app: DecisionApp, result: DecisionResult) -> String {
         if let refusal = result.refusal { return "The model declined: \(refusal)" }

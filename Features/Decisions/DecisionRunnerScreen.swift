@@ -210,7 +210,7 @@ private struct QuestionRow: View {
     }
 }
 
-/// One question's answer: the answer in words, then a bar for each likely option.
+/// One question's answer: a bar for each likely option, the top one in bold, or the answer in words when it has no bars.
 private struct AnswerCard: View {
     let answer: DecisionAnswer
 
@@ -219,9 +219,12 @@ private struct AnswerCard: View {
             Text(answer.prompt).font(.subheadline).foregroundStyle(.secondary)
             switch answer.outcome {
             case .answered(let verdict):
-                Text(DecisionAppsLogic.text(of: answer.outcome)).font(.headline)
-                ForEach(verdict.options.sorted { $0.probability > $1.probability }.prefix(5), id: \.label) { option in
-                    ProgressView(value: option.probability) { Text(option.label) } currentValueLabel: {
+                let bars = DecisionAppsLogic.bars(of: verdict)
+                if let line = DecisionAppsLogic.answerLine(of: verdict) { Text(line).font(.headline) }
+                ForEach(bars, id: \.label) { option in
+                    ProgressView(value: option.probability) {
+                        Text(option.label).fontWeight(option.label == bars.first?.label ? .semibold : .regular)
+                    } currentValueLabel: {
                         Text(DecisionsLogic.percent(option.probability))
                     }
                 }

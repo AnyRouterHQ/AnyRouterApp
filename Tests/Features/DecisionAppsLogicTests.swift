@@ -166,6 +166,17 @@ struct DecisionAppsLogicTests {
         #expect(DecisionAppsLogic.text(of: .unreadable) == "unclear")
     }
 
+    @Test func theTopBarNamesTheAnswerSoTheCardDoesNotRepeatIt() {
+        let options: [DecisionAnswer.Option] = (1...6).map { .init(label: "o\($0)", probability: Double($0) / 10) }
+        let picked = DecisionAnswer.Verdict(headline: "O6", options: options)
+        #expect(DecisionAppsLogic.bars(of: picked).map(\.label) == ["o6", "o5", "o4", "o3", "o2"])
+        #expect(DecisionAppsLogic.answerLine(of: picked) == nil)
+        let scored = DecisionAnswer.Verdict(headline: "7", score: 7, maxScore: 9, options: [])
+        #expect(DecisionAppsLogic.answerLine(of: scored) == "7 of 9")
+        let other = DecisionAnswer.Verdict(headline: "maybe", options: [.init(label: "yes", probability: 0.6)])
+        #expect(DecisionAppsLogic.answerLine(of: other) == "maybe")
+    }
+
     @Test func aDeclinedRunSaysSoInsteadOfFillingTokens() {
         let declined = result([answer("a", .refused("policy"))], refusal: "Not allowed")
         #expect(DecisionAppsLogic.resultLine(app([yesNo()]), result: declined) == "The model declined: Not allowed")
