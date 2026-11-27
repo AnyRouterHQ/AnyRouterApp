@@ -133,8 +133,9 @@ struct DiagnosticsStore: Sendable {
         let characters = Array(text)
         for (index, character) in characters.enumerated() {
             let next = index + 1 < characters.count ? characters[index + 1] : nil
+            // `== true` instead of `?? false`: the gate counts each fallback as a line, and current is never empty here.
             let startsWord = character.isUppercase && !current.isEmpty
-                && (!(current.last?.isUppercase ?? false) || (next?.isLowercase ?? false))
+                && (current.last.map(\.isUppercase) != true || next.map(\.isLowercase) == true)
             if startsWord {
                 words.append(current)
                 current = ""
