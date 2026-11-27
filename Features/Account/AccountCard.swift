@@ -53,9 +53,10 @@ struct AccountCard: View {
         HStack(spacing: 12) {
             Avatar(url: summary?.avatarURL, initials: summary?.initials ?? "A")
             VStack(alignment: .leading, spacing: 2) {
-                Text(summary?.title ?? "AnyRouter account").font(.headline).lineLimit(1)
+                // Two lines, not one: at large text sizes a one-line name or email was cut (accessibility audit, Settings).
+                Text(summary?.title ?? "AnyRouter account").font(.headline).lineLimit(2)
                 if let subtitle = summary?.subtitle {
-                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
             .accessibilityElement(children: .combine)
