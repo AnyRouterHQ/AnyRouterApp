@@ -304,7 +304,7 @@ DeleteStep2(m) ==
 \* WHEN SharedResidency=TRUE ABSENT Engines/Local/GGUF/GGUFEngine.swift :: ResidentModels(
 \* WHEN SharedResidency=TRUE ABSENT Engines/Local/MLX/MLXEngine.swift :: ResidentModels(
 \* WHEN SharedResidency=TRUE COUNT App/AppState.swift :: - :: LocalResidency( :: 1
-\* WHEN SharedResidency=TRUE CODE App/AppState.swift :: - :: GGUFEngine(telemetry: telemetry, residency: residency)
+\* WHEN SharedResidency=TRUE CODE App/AppState.swift :: - :: GGUFEngine(telemetry: telemetry, residency: residency, loadLog: diagnostics)
 \* WHEN SharedResidency=TRUE CODE App/AppState.swift :: - :: MLXEngine(telemetry: telemetry, residency: residency)
 \* WHEN UnloadDropsLoad=TRUE CODE Engines/Local/LocalResidency.swift :: func unload() { :: loading = nil
 \* WHEN UnloadDropsLoad=TRUE CODE Engines/Local/LocalResidency.swift :: func unload(ifID id: String) { :: if loading?.id == id { loading = nil }
