@@ -33,10 +33,14 @@ enum OfflineLogic {
         let candidates = catalog.filter { !$0.isDeprecated && $0.unavailableReason == nil && ($0.fit == .fits || $0.fit == .tight) }
         let runsWell = candidates.filter { $0.fit == .fits }
         let pool = runsWell.isEmpty ? candidates : runsWell
-        guard let smallest = pool.min(by: { ($0.descriptor.sizeBytes ?? .max) < ($1.descriptor.sizeBytes ?? .max) }) else {
-            return .unavailable
-        }
+        guard let smallest = pool.min(by: { size($0) < size($1) }) else { return .unavailable }
         return .download(smallest)
+    }
+
+    /// A model whose size is not known sorts last, so a known smaller one wins.
+    private static func size(_ entry: LocalModelEntry) -> Int64 {
+        guard let bytes = entry.descriptor.sizeBytes else { return .max }
+        return bytes
     }
 
     static func downloadQuestion(_ entry: LocalModelEntry) -> String { "Download \(entry.descriptor.shortName)?" }

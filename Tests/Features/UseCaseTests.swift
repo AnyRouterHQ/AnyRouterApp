@@ -93,6 +93,15 @@ struct UseCaseTests {
         #expect(OfflineLogic.plan(models: [], catalog: catalog) == .download(catalog[1]), "a tight model is only the fallback")
     }
 
+    @Test func aModelOfUnknownSizeIsOfferedOnlyWhenNoSizedOneRunsWell() {
+        var unknown = entry("unknown-size", mb: 1, fit: .fits)
+        unknown.descriptor.sizeBytes = nil
+        let sized = entry("sized", mb: 3000, fit: .fits)
+        #expect(OfflineLogic.plan(models: [], catalog: [unknown, sized]) == .download(sized))
+        #expect(OfflineLogic.plan(models: [], catalog: [sized, unknown]) == .download(sized))
+        #expect(OfflineLogic.plan(models: [], catalog: [unknown]) == .download(unknown))
+    }
+
     @Test func aTightModelIsOfferedWhenNothingRunsWell() {
         let catalog = [entry("a", mb: 2500, fit: .tight), entry("b", mb: 1800, fit: .tight)]
         #expect(OfflineLogic.plan(models: [], catalog: catalog) == .download(catalog[1]))
