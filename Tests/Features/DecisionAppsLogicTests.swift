@@ -117,6 +117,29 @@ struct DecisionAppsLogicTests {
         #expect(DecisionAppsLogic.startingModelID(app: nil, models: models, current: "gone") == "anyrouter/decision")
     }
 
+    @Test func theTilesAreTheAppsThenTheCustomDecision() throws {
+        let tiles = DecisionAppsLogic.tiles(for: try apps())
+        #expect(tiles.count == 7 && tiles.last?.target == .custom && tiles.last?.title == "Custom decision")
+        #expect(tiles.first == AppTile(id: "scam-check", title: "Scam check", subtitle: "Paste a message or add a screenshot",
+                                       symbol: "exclamationmark.shield", target: .decision("scam-check")))
+        #expect(Set(tiles.map(\.id)).count == 7)
+        #expect(DecisionAppsLogic.tiles(for: []).map(\.target) == [.custom])
+    }
+
+    @Test func everyCustomSampleCanRunAndTheScoreDefaultHasTenLevels() {
+        #expect(DecisionsLogic.samples.map(\.id) == ["email", "policy", "incident", "invoice"])
+        for sample in DecisionsLogic.samples {
+            #expect(DecisionsLogic.request(model: "m", state: sample.state, questions: sample.questions) != nil, "\(sample.id)")
+        }
+        #expect(DecisionsLogic.items(DecisionsLogic.defaultLevels).count == 10)
+    }
+
+    @Test func photoProblemsReadAsPlainSentences() {
+        #expect(DecisionsLogic.imageProblemText(.unreadable) == "That photo could not be read.")
+        #expect(DecisionsLogic.imageProblemText(.tooLarge) == "That photo is too large.")
+        #expect(DecisionsLogic.imageProblemText(.tooMany) == "You can add up to 4 photos.")
+    }
+
     // MARK: Result text
 
     @Test func theResultLineFillsEachToken() throws {

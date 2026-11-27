@@ -25,19 +25,27 @@ struct ShellModelTests {
         #expect(shell.selectedThreadID == id)
     }
 
-    @Test func decisionsIsASheetThatReplacesTheHubAndIsDismissedByPickingAThread() {
+    @Test func appsIsASheetThatReplacesTheHubAndIsDismissedByPickingAThread() {
         let shell = ShellModel()
         shell.isSidebarOpen = true
-        shell.open(.decisions, closeSidebar: true)
-        #expect(shell.isDecisionsPresented && !shell.isHubPresented && !shell.isSidebarOpen)
+        shell.open(.apps, closeSidebar: true)
+        #expect(shell.isAppsPresented && !shell.isHubPresented && !shell.isSidebarOpen)
         shell.open(.hub, closeSidebar: false)
-        #expect(shell.isHubPresented && !shell.isDecisionsPresented)
-        shell.open(.decisions, closeSidebar: false)
+        #expect(shell.isHubPresented && !shell.isAppsPresented)
+        shell.open(.apps, closeSidebar: false)
         shell.select(threadID: UUID(), closeSidebar: false)
-        #expect(!shell.isDecisionsPresented)
-        shell.open(.decisions, closeSidebar: false)
+        #expect(!shell.isAppsPresented)
+        shell.open(.apps, closeSidebar: false)
         shell.newChat(closeSidebar: false)
-        #expect(!shell.isDecisionsPresented)
+        #expect(!shell.isAppsPresented)
+    }
+
+    @Test func decideAboutOpensTheAppsSheetWithTheTextUntilItIsTaken() {
+        let shell = ShellModel()
+        shell.decide(about: "Should I reply?")
+        #expect(shell.isAppsPresented && shell.decisionDraft == "Should I reply?")
+        #expect(shell.takeDecisionDraft() == "Should I reply?")
+        #expect(shell.takeDecisionDraft() == nil)
     }
 
     @Test func toggleSidebarCommandBumpsTheRequestWithoutTouchingTheDrawerState() {

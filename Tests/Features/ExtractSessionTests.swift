@@ -285,14 +285,14 @@ struct ExtractShellTests {
         let shell = ShellModel()
         shell.isSidebarOpen = true
         shell.presentExtract(seed: seed)
-        #expect(shell.isExtractPresented && !shell.isSidebarOpen && !shell.isDecisionsPresented)
+        #expect(shell.isExtractPresented && !shell.isSidebarOpen && !shell.isAppsPresented)
         #expect(shell.takeExtractSeed() == seed)
         #expect(shell.takeExtractSeed() == nil)
 
-        shell.open(.decisions, closeSidebar: false)
-        #expect(!shell.isExtractPresented && shell.isDecisionsPresented)
+        shell.open(.apps, closeSidebar: false)
+        #expect(!shell.isExtractPresented && shell.isAppsPresented)
         shell.open(.extract, closeSidebar: false)
-        #expect(shell.isExtractPresented && !shell.isDecisionsPresented)
+        #expect(shell.isExtractPresented && !shell.isAppsPresented)
         shell.newChat(closeSidebar: false)
         #expect(!shell.isExtractPresented)
         shell.presentExtract(seed: nil)

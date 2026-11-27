@@ -43,7 +43,27 @@ struct DecisionApp: Identifiable, Equatable, Codable, Sendable {
     var resultLine: String
 }
 
+/// One tile of the Apps list. Adding an app to the list is one more tile in `DecisionAppsLogic.tiles`.
+struct AppTile: Identifiable, Equatable, Sendable {
+    enum Target: Equatable, Sendable {
+        case decision(DecisionApp.ID)
+        case custom
+    }
+
+    var id: String
+    var title: String
+    var subtitle: String
+    var symbol: String
+    var target: Target
+}
+
 enum DecisionAppsLogic {
+    /// The Apps list: each decision app, then the custom decision last.
+    static func tiles(for apps: [DecisionApp]) -> [AppTile] {
+        apps.map { AppTile(id: $0.id, title: $0.title, subtitle: $0.inputHint, symbol: $0.symbol, target: .decision($0.id)) }
+            + [AppTile(id: "custom", title: "Custom decision", subtitle: "Write your own questions", symbol: "slider.horizontal.3", target: .custom)]
+    }
+
     private struct Document: Decodable { var apps: [DecisionApp] }
     private final class Anchor {}
 

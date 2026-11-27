@@ -4,8 +4,8 @@ import Observation
 /// Navigation state shared by the shell, sidebar and screens.
 @MainActor @Observable
 final class ShellModel {
-    /// Places the chat can send you. The hub and Decisions are sheets over the chat, not screens of their own.
-    enum Route: Hashable, Sendable { case chat, hub, decisions, extract }
+    /// Places the chat can send you. The hub and the Apps list are sheets over the chat, not screens of their own.
+    enum Route: Hashable, Sendable { case chat, hub, apps, extract }
 
     /// `nil` means a new, empty chat. The thread record is created on the first send.
     var selectedThreadID: UUID?
@@ -13,10 +13,12 @@ final class ShellModel {
     /// Settings is a sheet over the shell, not a route.
     var isSettingsPresented = false
     var isHubPresented = false
-    var isDecisionsPresented = false
+    var isAppsPresented = false
     var isExtractPresented = false
     /// The photo or PDF the composer opened Extract with, taken once by the Extract screen.
     private(set) var extractSeed: ExtractSeed?
+    /// Text from the composer waiting for the Apps sheet to open the custom decision on it.
+    private(set) var decisionDraft: String?
     var isModelPickerPresented = false
     /// The full-screen chat search, over the sidebar and the chat.
     var isSearchPresented = false
@@ -66,7 +68,7 @@ final class ShellModel {
     func newChat(closeSidebar: Bool) {
         selectedThreadID = nil
         isHubPresented = false
-        isDecisionsPresented = false
+        isAppsPresented = false
         isExtractPresented = false
         if closeSidebar { isSidebarOpen = false }
     }
@@ -74,16 +76,27 @@ final class ShellModel {
     func select(threadID: UUID, closeSidebar: Bool) {
         selectedThreadID = threadID
         isHubPresented = false
-        isDecisionsPresented = false
+        isAppsPresented = false
         isExtractPresented = false
         if closeSidebar { isSidebarOpen = false }
     }
 
     func open(_ route: Route, closeSidebar: Bool) {
         isHubPresented = route == .hub
-        isDecisionsPresented = route == .decisions
+        isAppsPresented = route == .apps
         isExtractPresented = route == .extract
         if closeSidebar { isSidebarOpen = false }
+    }
+
+    /// "Decide about this" in the composer: the Apps sheet opens the custom decision with `text`.
+    func decide(about text: String) {
+        decisionDraft = text
+        open(.apps, closeSidebar: false)
+    }
+
+    func takeDecisionDraft() -> String? {
+        defer { decisionDraft = nil }
+        return decisionDraft
     }
 
     func presentSearch() { isSearchPresented = true }

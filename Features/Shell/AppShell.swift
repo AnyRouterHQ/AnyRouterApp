@@ -19,7 +19,7 @@ struct AppShell: View {
         // Form and page sizes only apply in a regular-width window. On iPhone and in a compact iPad window these are the usual sheets.
         .sheet(isPresented: Bindable(shell).isSettingsPresented) { SettingsScreen().presentationSizing(.form) }
         .sheet(isPresented: Bindable(shell).isHubPresented) { HubSheet().presentationSizing(.page) }
-        .sheet(isPresented: Bindable(shell).isDecisionsPresented) { DecisionsSheet().presentationSizing(.page) }
+        .sheet(isPresented: Bindable(shell).isAppsPresented) { AppsSheet().presentationSizing(.page) }
         .sheet(isPresented: Bindable(shell).isExtractPresented) { ExtractSheet().presentationSizing(.page) }
         // Chat search is its own screen: full screen on iPhone, a page sheet in a regular-width window.
         .fullScreenCover(isPresented: searchBinding(whenRegular: false)) { ThreadSearchScreen() }

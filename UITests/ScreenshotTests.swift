@@ -474,13 +474,10 @@ final class ScreenshotTests: XCTestCase {
     func testDecisions() {
         forEachAppearance { app, appearance in
             showSidebar(app)
-            tapRow(app.buttons["sidebar-decisions"])
-            XCTAssertTrue(app.navigationBars["Decisions"].waitForExistence(timeout: 10))
-            // The model row's logo once filled the screen: a picker drops the logo's frame.
-            for image in app.images.allElementsBoundByIndex where image.exists {
-                XCTAssertLessThan(image.frame.height, 60, "an image in Decisions is \(image.frame.height) pt tall")
-            }
-            capture("decisions", appearance)
+            tapRow(app.buttons["sidebar-apps"])
+            XCTAssertTrue(app.navigationBars["Apps"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.buttons["apps-tile-scam-check"].waitForExistence(timeout: 5))
+            capture("apps", appearance)
         }
     }
 

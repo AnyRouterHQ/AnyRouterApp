@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Testing
+import UIKit
 @testable import AnyRouter
 
 struct DecisionGate: Sendable {
@@ -80,17 +81,24 @@ struct DecisionsStoreTests {
         #expect(store.modelID == "anyrouter/decision")
     }
 
-    @Test func questionsCanBeAddedDeletedAndReordered() {
+    @Test func questionsCanBeAddedAndDeleted() {
         let store = DecisionsStore(service: FakeDecisionsService())
         for name in ["a", "b", "c"] {
             store.addQuestion()
             store.questions[store.questions.count - 1].prompt = name
         }
-        store.moveQuestions(from: IndexSet(integer: 0), to: 3)
-        #expect(store.questions.map(\.prompt) == ["b", "c", "a"])
         store.deleteQuestions(at: IndexSet(integer: 1))
-        #expect(store.questions.map(\.prompt) == ["b", "a"])
+        #expect(store.questions.map(\.prompt) == ["a", "c"])
         #expect(store.questions.allSatisfy { $0.kind == .yesNo })
+    }
+
+    @Test func aScoreQuestionStartsWithTenLevels() {
+        let store = DecisionsStore(service: FakeDecisionsService())
+        store.addQuestion(.rubric)
+        store.addQuestion(.choice)
+        #expect(DecisionsLogic.items(store.questions[0].list).count == 10)
+        #expect(store.questions[1].list.isEmpty)
+        #expect(store.questions.map(\.kind) == [.rubric, .choice])
     }
 
     @Test func runNeedsAnAnswerableForm() async {
@@ -129,7 +137,7 @@ struct DecisionsStoreTests {
         service.outcome = .failure(AnyRouterError.signedOut)
         let store = makeStore(service, context: context)
         await store.run()
-        #expect(store.phase == .failed(AnyRouterError.signedOut.localizedDescription))
+        #expect(store.phase == .failed(message: AnyRouterError.signedOut.localizedDescription, canChangeModel: false))
         #expect(try context.fetchCount(FetchDescriptor<DecisionRunRecord>()) == 0)
         withExtendedLifetime(container) {}
     }
@@ -191,6 +199,143 @@ struct DecisionsStoreTests {
         store.attach(context)
         await store.run()
         #expect(try context.fetchCount(FetchDescriptor<DecisionRunRecord>()) == 1)
+        withExtendedLifetime(container) {}
+    }
+
+    // MARK: Apps
+
+    private func jpeg() -> Data {
+        UIGraphicsImageRenderer(size: CGSize(width: 40, height: 40)).jpegData(withCompressionQuality: 0.9) { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 20, height: 40))
+        }
+    }
+
+    private func appStore(_ service: FakeDecisionsService = FakeDecisionsService(), context: ModelContext? = nil) throws -> (DecisionsStore, DecisionApp) {
+        let store = DecisionsStore(service: service, context: context)
+        store.loadApps()
+        let app = try #require(store.apps.first { $0.id == "receipt-sort" })
+        return (store, app)
+    }
+
+    @Test func theBundledAppsLoadAndAMissingFileIsReported() throws {
+        let (store, _) = try appStore()
+        #expect(store.apps.count == 6 && store.appsError == nil)
+        let broken = DecisionsStore(service: FakeDecisionsService())
+        broken.loadApps(bundle: Bundle(path: NSTemporaryDirectory()))
+        #expect(broken.apps.isEmpty && broken.appsError != nil)
+    }
+
+    @Test func openingAnAppClearsTheFormAndPicksItsModel() async throws {
+        let service = FakeDecisionsService()
+        service.models = .success([DecisionModel(id: "anyrouter/decision", name: "D"), DecisionModel(id: "google/gemini-decision-1", name: "G", acceptsImages: true)])
+        let (store, app) = try appStore(service)
+        store.state = "old"
+        store.addQuestion()
+        await store.loadModels()
+        store.start(app)
+        #expect(store.state.isEmpty && store.questions.isEmpty && store.images.isEmpty && store.phase == .idle)
+        #expect(store.app == app && store.modelID == "google/gemini-decision-1")
+        store.start(nil)
+        #expect(store.app == nil && store.modelID == "google/gemini-decision-1")
+    }
+
+    @Test func anAppOpenedBeforeTheModelsArriveStillGetsItsModel() async throws {
+        let service = FakeDecisionsService()
+        service.models = .success([DecisionModel(id: "anyrouter/decision", name: "D"), DecisionModel(id: "google/gemini-decision-1", name: "G")])
+        let (store, app) = try appStore(service)
+        store.start(app)
+        await store.loadModels()
+        #expect(store.modelID == "google/gemini-decision-1")
+        service.models = .failure(TestFailure(message: "offline"))
+        await store.loadModels()
+        #expect(store.modelsError == nil, "a loaded list is not fetched again")
+    }
+
+    @Test func theComposerOpensTheCustomDecisionWithItsText() {
+        let store = DecisionsStore(service: FakeDecisionsService())
+        store.startCustom(state: "Should I reply?")
+        #expect(store.app == nil && store.state == "Should I reply?" && store.questions.isEmpty)
+    }
+
+    @Test func samplesFillTheTextAndForTheCustomDecisionTheQuestions() throws {
+        let (store, app) = try appStore()
+        store.start(app)
+        store.fill(with: app.samples[0])
+        #expect(store.state == app.samples[0].text)
+        let sample = DecisionsLogic.samples[0]
+        store.start(nil)
+        store.fill(with: sample)
+        #expect(store.state == sample.state && store.questions == sample.questions && store.canRun)
+    }
+
+    @Test func runFollowsTheAppsFixedQuestionsAndNeedsOnlyContent() async throws {
+        let service = FakeDecisionsService()
+        let (store, app) = try appStore(service)
+        store.start(app)
+        #expect(store.blocker == "Add something to judge." && !store.canRun)
+        store.state = "Corner Cafe total 9.40"
+        #expect(store.blocker == nil && store.canRun)
+        await store.run()
+        #expect(service.requests.first?.questions.map(\.id) == ["business", "category", "deductible"])
+    }
+
+    @Test func theCustomDecisionNeedsAQuestionBeforeRun() {
+        let store = DecisionsStore(service: FakeDecisionsService())
+        store.state = "text"
+        #expect(store.blocker == "Add a question.")
+        store.addQuestion()
+        #expect(store.blocker == "Write the question.")
+    }
+
+    @Test func photoInputFollowsTheAppAndTheModel() throws {
+        let (store, app) = try appStore()
+        store.models = [DecisionModel(id: "t", name: "T", acceptsImages: false), DecisionModel(id: "v", name: "V", acceptsImages: true)]
+        store.start(app)
+        store.modelID = "t"
+        #expect(!store.showsImageInput)
+        store.modelID = "v"
+        #expect(store.showsImageInput && store.selectedModel?.name == "V")
+    }
+
+    @Test func photosAreAddedShrunkCappedAndRemoved() async throws {
+        let service = FakeDecisionsService()
+        let store = makeStore(service)
+        await store.addImages([jpeg(), Data("nope".utf8)])
+        #expect(store.images.count == 1 && store.images[0].mediaType == "image/jpeg")
+        #expect(store.imageError == "That photo could not be read.")
+        await store.addImages([jpeg(), jpeg(), jpeg(), jpeg()])
+        #expect(store.images.count == 4 && store.imageError == "You can add up to 4 photos.")
+        await store.run()
+        #expect(service.requests.first?.images.count == 4)
+        store.removeImage(at: 9)
+        #expect(store.images.count == 4)
+        store.removeImage(at: 0)
+        #expect(store.images.count == 3 && store.imageError == nil)
+    }
+
+    @Test func aRefusedPhotoOffersAnotherModel() async {
+        let service = FakeDecisionsService()
+        service.outcome = .failure(DecisionRunError.imagesRefused(serverMessage: "bad"))
+        let store = makeStore(service)
+        await store.run()
+        #expect(store.phase == .failed(message: "This model can't read photos. Choose another model.", canChangeModel: true))
+    }
+
+    @Test func aSavedAppRunReopensItsApp() async throws {
+        let (container, context) = try makeContext()
+        let (store, app) = try appStore(context: context)
+        store.start(app)
+        store.state = "Receipt text"
+        await store.run()
+        let record = try #require(try context.fetch(FetchDescriptor<DecisionRunRecord>()).first)
+        #expect(record.appID == "receipt-sort")
+        store.start(nil)
+        store.restore(record)
+        #expect(store.app == app && store.state == "Receipt text")
+        record.appID = "gone"
+        store.restore(record)
+        #expect(store.app == nil)
         withExtendedLifetime(container) {}
     }
 }

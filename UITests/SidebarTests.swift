@@ -1,7 +1,7 @@
 import UIKit
 import XCTest
 
-/// The sidebar: an open drawer leaves the chat untouched, the bottom bar, View all and Decisions (demo data).
+/// The sidebar: an open drawer leaves the chat untouched, the bottom bar, View all and Apps (demo data).
 @MainActor
 final class SidebarTests: XCTestCase {
     private func launch() -> XCUIApplication { .launchedOnDemoData(appearance: "light") }
@@ -95,11 +95,11 @@ final class SidebarTests: XCTestCase {
         XCTAssertEqual(first.frame.minX, recents.frame.minX, accuracy: 2, "chat titles start at the section titles' edge: rows carry no icon")
     }
 
-    func testMoreHoldsDecisions() {
+    func testMoreHoldsApps() {
         let app = launch()
-        let row = app.buttons["sidebar-decisions"]
+        let row = app.buttons["sidebar-apps"]
         app.revealSidebar(whenVisible: row)
         row.tap()
-        XCTAssertTrue(app.navigationBars["Decisions"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Apps"].waitForExistence(timeout: 10))
     }
 }

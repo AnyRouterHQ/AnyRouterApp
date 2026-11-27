@@ -542,20 +542,38 @@ enum DemoData {
     """
 }
 
-/// Canned decision models and answers so the Decisions screen works offline.
+/// Canned decision models and answers so the Decisions apps work offline. Each answer fits its question's kind.
 struct DemoDecisionsService: DecisionsService {
     func decisionModels() async throws -> [DecisionModel] {
-        [DecisionModel(id: "anyrouter/decision", name: "AnyRouter Decision"),
-         DecisionModel(id: "google/gemini-decision-1", name: "Gemini Decision 1")]
+        [DecisionModel(id: "anyrouter/decision", name: "AnyRouter Decision", acceptsImages: false),
+         DecisionModel(id: "google/gemini-decision-1", name: "Gemini Decision 1", acceptsImages: true)]
     }
 
     func run(_ request: DecisionRequest) async throws -> DecisionResult {
-        let verdict = DecisionAnswer.Verdict(
-            headline: "Yes", probability: 0.91, options: [.init(label: "Yes", probability: 0.91), .init(label: "No", probability: 0.09)])
-        return DecisionResult(
+        DecisionResult(
             model: request.model,
-            answers: request.questions.map { DecisionAnswer(id: $0.id, prompt: $0.prompt, outcome: .answered(verdict), citations: []) },
+            answers: request.questions.map {
+                DecisionAnswer(id: $0.id, prompt: $0.prompt, outcome: .answered(Self.verdict(for: $0.kind)), citations: [])
+            },
             inputTokens: 120, outputTokens: 12, cost: 0, refusal: nil, latency: 0.8)
+    }
+
+    private static func verdict(for kind: DecisionQuestion.Kind) -> DecisionAnswer.Verdict {
+        switch kind {
+        case .yesNo:
+            return .init(headline: "Yes", probability: 0.91, options: [.init(label: "Yes", probability: 0.91), .init(label: "No", probability: 0.09)])
+        case .choice(let options):
+            let shares = [0.68, 0.2, 0.08, 0.04]
+            let ranked = options.enumerated().map { DecisionAnswer.Option(label: $1, probability: $0 < shares.count ? shares[$0] : 0.01) }
+            return .init(headline: options[0], probability: ranked[0].probability, confidence: 0.8, options: ranked)
+        case .rubric(let levels):
+            let top = levels.count - 1
+            let level = min(top, levels.count * 3 / 4)
+            let near = [(level, 0.6), (level - 1, 0.25), (level + 1, 0.15)].filter { (0...top).contains($0.0) }
+            return .init(
+                headline: String(level), probability: nil, score: Double(level), maxScore: Double(top), note: levels[level],
+                confidence: 0.7, options: near.map { .init(label: levels[$0.0], probability: $0.1) })
+        }
     }
 }
 

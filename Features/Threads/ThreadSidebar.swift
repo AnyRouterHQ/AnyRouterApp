@@ -154,14 +154,14 @@ struct ThreadSidebar: View {
     }
 
     private var moreRows: some View {
-        Button { shell.open(.decisions, closeSidebar: isDrawer) } label: {
-            Label("Decisions", systemImage: "checklist")
+        Button { shell.open(.apps, closeSidebar: isDrawer) } label: {
+            Label("Apps", systemImage: "square.grid.2x2")
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(minHeight: rowHeight)
         }
         .foregroundStyle(.primary)
         .rowInsets()
-        .accessibilityIdentifier("sidebar-decisions")
+        .accessibilityIdentifier("sidebar-apps")
     }
 
     private func rows(_ items: [ThreadRecord]) -> some View {

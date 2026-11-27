@@ -32,6 +32,14 @@ struct QuestionDraft: Identifiable, Equatable, Codable {
     var list = ""
 }
 
+/// A one-tap sample for the custom decision.
+struct DecisionSample: Identifiable, Equatable {
+    var id: String
+    var title: String
+    var state: String
+    var questions: [QuestionDraft]
+}
+
 enum DecisionsLogic {
     /// The server rejects a longer `state`.
     static let maxStateCharacters = 12_000
@@ -39,6 +47,43 @@ enum DecisionsLogic {
     /// Free, and the first model to pick.
     static let defaultModelID = "anyrouter/decision"
     static let recentLimit = 20
+    /// A new score question starts with ten levels, 0 to 9.
+    static let defaultLevels = (0..<10).map(String.init).joined(separator: ", ")
+
+    /// One-tap samples for the custom decision: they fill the text and the questions.
+    static let samples: [DecisionSample] = [
+        DecisionSample(
+            id: "email", title: "Email",
+            state: "Hi team, last month's invoice was charged twice. Please refund the duplicate payment today, I need it before Friday. Thanks, Priya",
+            questions: [
+                QuestionDraft(kind: .yesNo, prompt: "Is this urgent?"),
+                QuestionDraft(kind: .choice, prompt: "Which team should handle it?", list: "billing, support, sales, other"),
+                QuestionDraft(kind: .rubric, prompt: "How polite is the tone?", list: "rude, curt, neutral, kind, warm"),
+            ]),
+        DecisionSample(
+            id: "policy", title: "Policy",
+            state: "Policy: purchases over 50 USD need a manager's approval before buying.\n\nCase: an engineer bought a 120 USD monitor stand and filed it afterwards.",
+            questions: [
+                QuestionDraft(kind: .yesNo, prompt: "Does the case break the policy?"),
+                QuestionDraft(kind: .rubric, prompt: "How serious is it?", list: "none, minor, moderate, serious"),
+            ]),
+        DecisionSample(
+            id: "incident", title: "Incident",
+            state: "14:05 checkout error rate above 40 percent. Customers see a payment failed page. The payments database is at full CPU.",
+            questions: [
+                QuestionDraft(kind: .choice, prompt: "How severe is it?", list: "SEV1, SEV2, SEV3, SEV4"),
+                QuestionDraft(kind: .yesNo, prompt: "Is it customer-facing?"),
+                QuestionDraft(kind: .yesNo, prompt: "Should someone be paged now?"),
+            ]),
+        DecisionSample(
+            id: "invoice", title: "Invoice",
+            state: "Invoice 2291 from Northwind Supplies. Total 1,240.00 USD due in 30 days. Includes 40 hours of design work and a 90 USD hosting fee.",
+            questions: [
+                QuestionDraft(kind: .yesNo, prompt: "Is the total over 1,000 USD?"),
+                QuestionDraft(kind: .choice, prompt: "What is it mostly for?", list: "design, hosting, hardware, other"),
+                QuestionDraft(kind: .yesNo, prompt: "Does it need approval?"),
+            ]),
+    ]
 
     /// Splits "a, b\nc" into trimmed, non-empty, distinct items in order.
     static func items(_ text: String) -> [String] {
@@ -91,7 +136,15 @@ enum DecisionsLogic {
     /// Sent as the text when only photos were added. Inferred: the server only rejects a missing `state`.
     static let photoOnlyState = "The input is in the attached photos."
 
-    enum ImageProblem: Error, Equatable { case unreadable, tooLarge }
+    enum ImageProblem: Error, Equatable { case unreadable, tooLarge, tooMany }
+
+    static func imageProblemText(_ problem: ImageProblem) -> String {
+        switch problem {
+        case .unreadable: "That photo could not be read."
+        case .tooLarge: "That photo is too large."
+        case .tooMany: "You can add up to \(maxImages) photos."
+        }
+    }
 
     /// Re-encodes one source photo as JPEG (`encode` takes the bytes and a longest side), shrinking until it fits `budget`.
     static func fit(

@@ -10,12 +10,15 @@ final class DecisionRunRecord {
     var state: String
     var questionsJSON: Data
     var resultJSON: Data
+    /// The app that made the run. Empty for a custom decision (and for runs saved before apps).
+    var appID: String = ""
 
-    init(modelID: String, state: String, questions: [QuestionDraft], result: DecisionResult, createdAt: Date = Date()) throws {
+    init(modelID: String, state: String, questions: [QuestionDraft], result: DecisionResult, appID: String = "", createdAt: Date = Date()) throws {
         id = UUID()
         self.createdAt = createdAt
         self.modelID = modelID
         self.state = state
+        self.appID = appID
         questionsJSON = try JSONEncoder().encode(questions)
         resultJSON = try JSONEncoder().encode(result)
     }
