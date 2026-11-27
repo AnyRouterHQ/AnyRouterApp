@@ -15,16 +15,15 @@ enum ShortcutsLogic {
         var id: String { phrase }
         let phrase: String
         let action: String
-        let symbol: String
     }
 
     /// The phrases of `AnyRouterShortcuts` (Features/Inbound/AskAnyRouterIntent.swift), with the app name filled in.
     /// Keep the two lists in the same order when one changes.
     static let siriPhrases: [Phrase] = [
-        Phrase(phrase: "Ask AnyRouter", action: "Start a new chat with your text", symbol: "bubble.left.and.text.bubble.right"),
-        Phrase(phrase: "Fix my English with AnyRouter", action: "Correct the grammar, spelling and wording of a text", symbol: "text.badge.checkmark"),
-        Phrase(phrase: "New chat in AnyRouter", action: "Open a new chat", symbol: "square.and.pencil"),
-        Phrase(phrase: "Start voice with AnyRouter", action: "Talk to AnyRouter", symbol: "waveform"),
+        Phrase(phrase: "Ask AnyRouter", action: "Start a new chat with your text"),
+        Phrase(phrase: "Fix my English with AnyRouter", action: "Correct the grammar, spelling and wording of a text"),
+        Phrase(phrase: "New chat in AnyRouter", action: "Open a new chat"),
+        Phrase(phrase: "Start voice with AnyRouter", action: "Talk to AnyRouter"),
     ]
 
     static let features: [Feature] = [

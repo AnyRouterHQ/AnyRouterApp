@@ -10,14 +10,12 @@ struct ChatBehaviorSettings: View {
         @Bindable var settings = settings
         Form {
             Section {
-                Toggle(isOn: $settings.showKeyboardOnLaunch) {
-                    Label("Show keyboard on launch", systemImage: "keyboard")
-                }
+                Toggle("Show keyboard on launch", isOn: $settings.showKeyboardOnLaunch)
                 .accessibilityIdentifier("settings-show-keyboard")
                 Picker(selection: $settings.newChatDelay) {
                     ForEach(NewChatDelay.allCases) { Text($0.title).tag($0) }
                 } label: {
-                    Label("Start a new chat after", systemImage: "clock.arrow.circlepath")
+                    Text("Start a new chat after")
                 }
                 .accessibilityIdentifier("settings-new-chat-after")
             } footer: {
@@ -27,7 +25,12 @@ struct ChatBehaviorSettings: View {
                 Button {
                     if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                 } label: {
-                    Label("Paste from Other Apps", systemImage: "doc.on.clipboard")
+                    // It leaves the app for iOS Settings, so it says so like a link.
+                    HStack {
+                        Text("Paste from Other Apps")
+                        Spacer()
+                        Image(systemName: "arrow.up.forward").foregroundStyle(.secondary).accessibilityHidden(true)
+                    }
                 }
                 .accessibilityIdentifier("settings-paste-permission")
             } footer: {

@@ -14,7 +14,11 @@ struct ShortcutsSettings: View {
             }
             Section {
                 ForEach(ShortcutsLogic.siriPhrases) { phrase in
-                    ListRow("“\(phrase.phrase)”", subtitle: phrase.action) { Image(systemName: phrase.symbol) }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("“\(phrase.phrase)”")
+                        Text(phrase.action).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
                 }
             } header: {
                 Text("Say to Siri")

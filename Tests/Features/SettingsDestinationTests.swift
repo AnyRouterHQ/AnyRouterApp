@@ -49,7 +49,7 @@ struct SettingsDestinationTests {
             "Ask AnyRouter", "Fix my English with AnyRouter", "New chat in AnyRouter", "Start voice with AnyRouter",
         ])
         for phrase in ShortcutsLogic.siriPhrases {
-            #expect(!phrase.action.isEmpty && UIImage(systemName: phrase.symbol) != nil)
+            #expect(!phrase.action.isEmpty)
             #expect(phrase.id == phrase.phrase)
         }
     }
