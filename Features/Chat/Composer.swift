@@ -326,15 +326,18 @@ struct Composer: View {
             }
             MemoryMenu()
         } label: {
-            Label("Add", systemImage: "plus").labelStyle(.iconOnly)
+            Label("Add", systemImage: "plus").labelStyle(.iconOnly).font(.callout.weight(.semibold))
         }
         .buttonStyle(.glass)
         .buttonBorderShape(.circle)
-        .controlSize(.large)
+        .controlSize(.regular)
+        // A circle of about 36 pt, the same as the send button; the hit area stays 44 pt.
+        .frame(minWidth: buttonSize, minHeight: buttonSize)
+        .contentShape(.circle)
         .accessibilityLabel("Add")
     }
 
-    /// The round button at the end of the field. 44 pt, the system's prominent glass: voice while empty, send with
+    /// The round button at the end of the field. A circle of about 36 pt in a 44 pt hit area, the system's prominent glass: voice while empty, send with
     /// text or an attachment, stop while a reply streams.
     private var trailingButton: some View {
         let action = ComposerAction.current(isStreaming: model.isStreaming, hasInput: !model.input.isEmpty,
@@ -346,12 +349,14 @@ struct Composer: View {
                     .symbolEffect(.pulse, isActive: action == .stopDictation)
             }
             .labelStyle(.iconOnly)
+            .font(.callout.weight(.semibold))
             .prominentLabel()
         }
         .buttonStyle(.glassProminent)
         .buttonBorderShape(.circle)
-        .controlSize(.large)
+        .controlSize(.regular)
         .frame(minWidth: buttonSize, minHeight: buttonSize)
+        .contentShape(.circle)
         .disabled(action == .send && !model.canSend)
         .accessibilityLabel(action.title)
         .accessibilityIdentifier("composer.action")
