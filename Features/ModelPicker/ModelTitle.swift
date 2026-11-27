@@ -22,6 +22,8 @@ struct ModelTitle: View {
                     .accessibilityHidden(true)
             }
             .foregroundStyle(.primary)
+            // Room inside the system's glass capsule, which is as tall as the two side buttons.
+            .padding(.horizontal, 12)
             .frame(minHeight: 44)
             .contentShape(.rect)
         }

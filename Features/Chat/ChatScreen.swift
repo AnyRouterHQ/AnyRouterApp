@@ -48,8 +48,6 @@ struct ChatScreen: View {
                     }
                 }
             }
-            // The title floats on the content; the system must not wrap it in a glass capsule like the two buttons.
-            .sharedBackgroundVisibility(.hidden)
             // One group, so iOS 26 draws New chat and More in a single shared glass capsule.
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "square.and.pencil") }
