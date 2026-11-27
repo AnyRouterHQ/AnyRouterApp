@@ -46,12 +46,15 @@ struct ToolChainTests {
         #expect(!ToolChain(steps: [], answerStarted: true).isCollapsed)
     }
 
-    @Test func theHeadingCountsToolsAndFailures() {
-        #expect(ToolChain(steps: [makeStep("1", result: ok("1"))], answerStarted: true).heading == "Used 1 tool")
-        let three = [makeStep("1", result: ok("1")), makeStep("2", result: ok("2")), makeStep("3", result: ok("3"))]
-        #expect(ToolChain(steps: three, answerStarted: true).heading == "Used 3 tools")
+    @Test func aFinishedChainIsNamedByWhatItDidAndFailuresAreCountedAtTheEnd() {
+        let one = [makeStep("1", result: ok("1"))]
+        #expect(ToolChain.heading(steps: one, failed: 0, running: false) == "Searched the web")
         let oneFailed = [makeStep("1", result: ok("1")), makeStep("2", result: failed("2"))]
-        #expect(ToolChain(steps: oneFailed, answerStarted: true).heading == "Used 2 tools, 1 failed")
+        #expect(ToolChain.heading(steps: oneFailed, failed: 1, running: false) == "Searched the web (1 failed)")
+    }
+
+    @Test func aRunningChainSaysHowManyToolsAreInUse() {
+        #expect(ToolChain(steps: [makeStep("1")], answerStarted: false).heading == "Using 1 tool")
         #expect(ToolChain(steps: [makeStep("1"), makeStep("2")], answerStarted: false).heading == "Using 2 tools")
     }
 

@@ -1,7 +1,7 @@
 import Foundation
 
-/// How the tool calls of one reply are shown: a compact row per call in call order, folded into one
-/// "Used 3 tools" line once the answer has started and no call is still running.
+/// How the tool calls of one reply are shown: a compact row per call in call order, folded into
+/// one line ("Searched the web and read 3 pages") once the answer has started and no call is still running.
 struct ToolChain: Equatable {
     struct Row: Equatable, Identifiable {
         let id: String
@@ -25,12 +25,13 @@ struct ToolChain: Equatable {
         }
         let running = rows.contains { $0.status == .running }
         isCollapsed = answerStarted && !running && !rows.isEmpty
-        heading = ToolChain.heading(count: rows.count, failed: rows.filter { $0.status == .failed }.count, running: running)
+        heading = ToolChain.heading(steps: steps, failed: rows.filter { $0.status == .failed }.count, running: running)
     }
 
-    static func heading(count: Int, failed: Int, running: Bool) -> String {
-        let noun = count == 1 ? "tool" : "tools"
-        if running { return "Using \(count) \(noun)" }
-        return failed > 0 ? "Used \(count) \(noun), \(failed) failed" : "Used \(count) \(noun)"
+    /// "Using 2 tools" while a call runs; after that what the calls did, with the failures counted at the end.
+    static func heading(steps: [ToolStep], failed: Int, running: Bool) -> String {
+        if running { return steps.count == 1 ? String(localized: "Using 1 tool") : String(localized: "Using \(steps.count) tools") }
+        let summary = ToolSummary.text(for: steps)
+        return failed > 0 ? String(localized: "\(summary) (\(failed) failed)") : summary
     }
 }

@@ -179,9 +179,16 @@ enum DemoData {
         context.insert(answer)
         question.thread = thread
         answer.thread = thread
-        let call = ToolCall(id: "demo-parts", name: "web_search_exa", argumentsJSON: #"{"query":"swift actor await"}"#)
-        answer.toolSteps = [ToolStep(
-            call: call, result: ToolResult(callID: call.id, name: call.name, text: demoSourcesResult, isError: false))]
+        func step(_ id: String, _ name: String, _ arguments: String, _ result: String) -> ToolStep {
+            let call = ToolCall(id: id, name: name, argumentsJSON: arguments)
+            return ToolStep(call: call, result: ToolResult(callID: id, name: name, text: result, isError: false))
+        }
+        answer.toolSteps = [
+            step("demo-parts-1", "web_search_exa", #"{"query":"swift actor await"}"#, demoSourcesResult),
+            step("demo-parts-2", "fetch_url", #"{"url":"https://docs.example.com/swift/concurrency"}"#, "An actor protects its mutable state."),
+            step("demo-parts-3", "fetch_url", #"{"url":"https://notes.example.com/sendable"}"#, "Isolation keeps data races out."),
+            step("demo-parts-4", "calculator", #"{"expression":"1+1"}"#, "2"),
+        ]
     }
 
     static let sourcesThreadTitle = "Swift actors with sources"
