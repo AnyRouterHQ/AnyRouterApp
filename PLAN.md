@@ -620,6 +620,43 @@ Source by tool, 2026-11-27. "Verified" names the test that fails if the cell cha
 
 Verified: `ToolSourceRegistryTests` (which tools each source is offered, the 4 cap), `AgentLoopScenarioTests` and `AnyRouterToolLoopTests` (cloud), `AppleToolTests` and `AppleToolEvalTests` (Apple), `LocalToolTests` (format, parser per family, loop, switch), `MentionToolStateTests` (the @ list). Not verified on a device: any real Qwen, Llama or Gemma model calling a tool. Gemma 4's own call tokens are unconfirmed; the parser reads the Gemma 3 `tool_code` block it was asked for.
 
+### Reply parts (decision D25)
+
+Goal: an assistant turn renders its tools, reasoning, subagents, files, images and a compacted history in one calm column, with one renderer per kind of part. Written 2026-11-27 from reading the code; nothing here was run on a device.
+
+**What exists today (read before this plan)**
+
+- Text: `MarkdownReply` (one equatable view per block). Keep.
+- Tools: `ToolChain` (pure model, folds to "Used N tools") and `ToolChainView` / `ToolStepRow`. Keep both; the fold line becomes a sentence built by `ToolChain.summary`.
+- Files and photos: `MessageAttachments` in the user bubble (thumbnail or filename card, `quickLookPreview`) and `AttachmentThumbnail`. Merge into one `AttachmentCard` that user and assistant messages share.
+- Reasoning: nothing renders it. `ThreadRecord.thinkingEnabled` and the composer switch exist, but no engine reads them (Core/Records.swift: "once reasoning is wired"). `SSEParser.decode` drops `reasoning_content`/`reasoning`; `PromptBuilder` drops Gemma's thought channel; MLX and the local template switch thinking off. `TypingDots` says "Thinking" but is only the pre-first-token indicator. Nothing to delete; reasoning is new.
+- Subagents and compaction: nothing.
+
+**One data model**
+
+`ReplyPart` (Features/Chat/ReplyPartsLogic.swift, pure) is what a message renders as, in this order:
+
+| Part | Shape | Comes from |
+|---|---|---|
+| `reasoning` | summary, full text, duration, isStreaming | new `ChatDelta.reasoning(String)`: SSE `delta.reasoning_content` / `delta.reasoning` in `SSEParser`; for local models a `ReasoningSplitter` that cuts `<think>…</think>` out of the text stream in `ChatViewModel`. Stored in `MessageRecord.reasoningData` (JSON, optional so stores migrate) with the measured duration |
+| `toolStep` | the existing `ToolChain` (rows, folded, summary sentence) | `MessageRecord.toolSteps`, unchanged |
+| `subagent` | title, model, steps, result | a `ToolStep` whose call is the delegate tool; its nested steps live in an optional `ToolStep.children` (`decodeIfPresent`) |
+| `text` | markdown | `MessageRecord.content`, unchanged |
+| `file`, `image` | `ChatAttachment` | `MessageRecord.attachments`, which assistant messages may now carry too (Features/Attachments) |
+| `compactionMarker` | summary, droppedCount | thread level, not per message: `ThreadRecord.compactionData` (JSON list, optional). Drawn between messages by the list, anchored to the last message it summarizes |
+
+`ReplyParts.make(...)` builds the list from a message and `isStreaming`; no part is stored twice and no stored shape changes except two optional JSON fields. Each part has one view: `ReasoningRow`, `ToolChainView`, `MarkdownReply`, `AttachmentCard` / `ImageThumbnail`, `SubagentCard`, `CompactionDivider`.
+
+**Order of work** (each unit: tests, push, green CI, report; screenshots once per milestone)
+
+1. Reasoning: delta, SSE, splitter, record field, `ReasoningRow` ("Thinking…" with a shimmer while streaming, "Thought for 12s" after; expands to the text in secondary style), `ReplyPart` for reasoning, tool and text.
+2. Tool chain summary: pure `ToolChain.summary` ("Searched the web, read 3 pages, and 2 more steps"), `String(localized:)` with plural variations, expand reuses the rows.
+3. Cards and images: `AttachmentCard` with a QLThumbnailGenerator thumbnail and "Document · PDF · 16 kB"; file tap opens Quick Look; image tap opens a full-screen viewer (zoomable `UIScrollView` wrapper, double-tap zoom, drag to dismiss, share).
+4. Compaction: pure trigger (tokens estimated against the model's known context, 80%) and assembly (summary plus the recent turns); summary written by the current model; stored in `ThreadRecord.compactionData`; old messages stay visible above the divider; the divider expands to the summary; a thread menu item "Compact conversation".
+5. Subagents: `SubagentCard` renders a delegate step ("Subagent · Research · 4 steps") that expands to its own steps. The engine-side delegate tool is added only if it fits the existing tool loop; otherwise this section records the design and stops.
+
+Not doing: a second renderer for any part, storing parts as their own table, markdown images from the web (still blocked for privacy).
+
 ### Boundary (decision D15)
 
 The reference design is a web app. "Match it 100%" cannot mean pixel-copying web widgets onto iOS. The boundary is:
