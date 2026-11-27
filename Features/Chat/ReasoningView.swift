@@ -44,28 +44,30 @@ struct ReasoningRow: View {
 }
 
 /// A band of light that sweeps over the text while `active`. Still under Reduce Motion.
+/// Driven by a timeline, not a repeating animation: the frames stop as soon as the reasoning ends or the row
+/// leaves the screen, where a `repeatForever` animation can keep running on a state nothing shows.
 private struct Shimmer: ViewModifier {
     let active: Bool
-    @State private var phase: CGFloat = -0.5
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         if active && !reduceMotion {
-            content
-                .overlay {
-                    content
-                        .foregroundStyle(.primary)
-                        .mask {
-                            GeometryReader { proxy in
-                                LinearGradient(colors: [.clear, .black, .clear], startPoint: .leading, endPoint: .trailing)
-                                    .frame(width: proxy.size.width * 0.6)
-                                    .offset(x: proxy.size.width * phase)
+            TimelineView(.animation) { timeline in
+                // One sweep every 1.6 s, from half a width before the text to its trailing edge.
+                let phase = -0.5 + 1.5 * timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.6) / 1.6
+                content
+                    .overlay {
+                        content
+                            .foregroundStyle(.primary)
+                            .mask {
+                                GeometryReader { proxy in
+                                    LinearGradient(colors: [.clear, .black, .clear], startPoint: .leading, endPoint: .trailing)
+                                        .frame(width: proxy.size.width * 0.6)
+                                        .offset(x: proxy.size.width * phase)
+                                }
                             }
-                        }
-                }
-                .onAppear {
-                    withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) { phase = 1 }
-                }
+                    }
+            }
         } else {
             content
         }
