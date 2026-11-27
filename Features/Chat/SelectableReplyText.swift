@@ -3,8 +3,8 @@ import UIKit
 
 /// One text block of a reply (a heading, a list, a paragraph) in a read-only UITextView, so a long press selects any range
 /// in place with the system's handles and Copy, Look Up, Translate and Share. SwiftUI's `Text` on iOS copies a whole text
-/// only, and a context menu preview cannot take a drag. The selection menu gets "Read Aloud" and "Copy Reply" (the whole
-/// reply) after the system's own items.
+/// only, and a context menu preview cannot take a drag. The selection menu gets "Remember" (the selection), "Read Aloud"
+/// and "Copy Reply" (the whole reply) after the system's own items.
 struct SelectableReplyBlock: View, Equatable {
     let text: String
     /// The body size at the default text size; the fonts scale from it with Dynamic Type.
@@ -29,6 +29,8 @@ struct ReplyMenuActions: Sendable {
     var isReading: @MainActor @Sendable () -> Bool
     var readAloud: @MainActor @Sendable () -> Void
     var copyReply: @MainActor @Sendable () -> Void
+    /// Saves the selected text to memory. Nil while memory is off.
+    var remember: (@MainActor @Sendable (String) -> Void)?
 }
 
 private struct SelectableReplyText: UIViewRepresentable {
@@ -49,7 +51,14 @@ private struct SelectableReplyText: UIViewRepresentable {
             let copy = UIAction(title: "Copy Reply", image: UIImage(systemName: "doc.on.doc")) { _ in
                 MainActor.assumeIsolated { menu.copyReply() }
             }
-            return UIMenu(children: suggestedActions + [UIMenu(options: .displayInline, children: [read, copy])])
+            var items: [UIMenuElement] = [read, copy]
+            if let remember = menu.remember, range.length > 0 {
+                let selected = (textView.text as NSString).substring(with: range)
+                items.insert(UIAction(title: "Remember", image: UIImage(systemName: "brain")) { _ in
+                    MainActor.assumeIsolated { remember(selected) }
+                }, at: 0)
+            }
+            return UIMenu(children: suggestedActions + [UIMenu(options: .displayInline, children: items)])
         }
     }
 

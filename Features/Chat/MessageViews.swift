@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 import UIKit
 
@@ -18,6 +19,8 @@ struct MessageRow: View {
     /// Retry, Sign in, Choose another model, … from a failed reply.
     var onFailureAction: (ReplyFailure.Action) -> Void
     @Environment(AppState.self) private var app
+    @Environment(AppSettings.self) private var settings
+    @Environment(\.modelContext) private var context
 
     init(message: MessageRecord, isStreamingThis: Bool, showsRegenerate: Bool,
          onRegenerate: @escaping () -> Void, switchNote: String? = nil, showsDetails: Bool = true,
@@ -65,15 +68,26 @@ struct MessageRow: View {
         }
     }
 
-    /// Read Aloud and Copy Reply for the long-press menu of the reply text. Values only, so the closures hold no record.
+    /// Remember, Read Aloud and Copy Reply for the long-press menu of the reply text. Values only, so the closures hold no
+    /// record: Remember finds the reply again in the container's main context, the one the chat reads.
     private var replyMenu: ReplyMenuActions {
         let id = message.id
         let content = message.content
         let state = app
+        let container = context.container
+        var remember: (@MainActor @Sendable (String) -> Void)?
+        if settings.useMemory && message.thread?.memoryOff != true {
+            remember = { selected in
+                let context = container.mainContext
+                guard let reply = try? context.fetch(FetchDescriptor<MessageRecord>(predicate: #Predicate { $0.id == id })).first else { return }
+                try? MemoryStore(context: context).pin(selected, from: reply)
+            }
+        }
         return ReplyMenuActions(
             isReading: { state.speaker.speakingID == id },
             readAloud: { state.speaker.toggle(messageID: id, text: content, hub: state.voice) },
-            copyReply: { UIPasteboard.general.string = content })
+            copyReply: { UIPasteboard.general.string = content },
+            remember: remember)
     }
 
     private var assistantRow: some View {

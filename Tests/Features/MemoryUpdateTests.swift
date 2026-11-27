@@ -109,6 +109,30 @@ struct MemoryUpdateTests {
         #expect(reason.contains("is full"))
     }
 
+    @Test func rememberOnSelectedReplyTextPinsANoteShownOnThatReply() async throws {
+        let r = try await rig(source: .anyrouter)
+        await r.send("hi")
+        let reply = try #require(r.reply)
+        try r.store.pin("Lan likes tram 28.", from: reply)
+        let record = try #require(try r.store.all().first)
+        #expect(record.kind == .note && record.origin == .askedInChat)
+        #expect(record.scope == .everywhere && record.sourceMessageID == reply.id && record.sourceThreadID == r.vm.thread?.id)
+        #expect(reply.memoryUpdates.map(\.outcome) == [.saved])
+        try r.store.pin(String(repeating: "a", count: 300), from: reply)
+        #expect(reply.memoryUpdates.count == 2)
+        guard case .refused = reply.memoryUpdates.last?.outcome else {
+            Issue.record("a selection that is too long says so on the row")
+            return
+        }
+    }
+
+    @Test func aPinFromAnOnDeviceReplyStaysOffCloudModels() async throws {
+        let r = try await rig()
+        await r.send("hi")
+        try r.store.pin("Lan likes tram 28.", from: try #require(r.reply))
+        #expect(try r.store.all().map(\.scope) == [.deviceOnly])
+    }
+
     @Test func regenerateKeepsTheRowSoUndoStaysAtHand() async throws {
         let r = try await rig()
         await r.send("Remember that I'm vegetarian")

@@ -1,26 +1,38 @@
 import Foundation
 import SwiftData
 
-/// Writes from the chat: "Remember that …" in a message, and Undo and Edit on the reply's "Memory updated" row.
+/// Writes from the chat: "Remember that …" in a message, "Remember" on selected reply text, and Undo and Edit on the
+/// reply's "Memory updated" row.
 extension MemoryStore {
     /// Saves what the user's message asks to remember, by the Memory settings. Nil when it asks nothing, memory is off
     /// (in Settings or for this chat), or it is an automatic save and those are off. An item from a chat with a model on
-    /// this device stays off cloud models (`deviceOnly`).
+    /// this device stays off cloud models.
     func remember(
         _ text: String, messageID: UUID, thread: ThreadRecord, source: ModelSource, settings: AppSettings
     ) -> MemoryUpdate? {
         guard settings.useMemory, !thread.memoryOff, let candidate = RememberLogic.candidate(in: text),
               candidate.explicit || settings.saveMemoriesAutomatically else { return nil }
+        return save(candidate.text, kind: candidate.kind, source: source, threadID: thread.id, messageID: messageID)
+    }
+
+    /// "Remember" on text selected in a reply: a pinned note, shown as a row on that reply.
+    func pin(_ text: String, from reply: MessageRecord) throws {
+        let source = reply.modelID.flatMap { ModelSource(rawValue: String($0.prefix { $0 != "/" })) } ?? .apple
+        let update = save(text, kind: .note, source: source, threadID: reply.thread?.id, messageID: reply.id)
+        reply.memoryUpdates.append(update)
+        try context.save()
+    }
+
+    /// An item from a chat with a model on this device stays off cloud models (`deviceOnly`). A refusal is a row too.
+    private func save(_ text: String, kind: MemoryKind, source: ModelSource, threadID: UUID?, messageID: UUID) -> MemoryUpdate {
         let scope: MemoryScope = source == .anyrouter ? .everywhere : .deviceOnly
         do {
-            let record = try add(
-                candidate.text, kind: candidate.kind, origin: .askedInChat, scope: scope,
-                sourceThreadID: thread.id, sourceMessageID: messageID)
+            let record = try add(text, kind: kind, origin: .askedInChat, scope: scope, sourceThreadID: threadID, sourceMessageID: messageID)
             return MemoryUpdate(memoryID: record.id, text: record.text, outcome: .saved)
         } catch MemoryError.duplicate {
-            return MemoryUpdate(text: candidate.text, outcome: .alreadySaved)
+            return MemoryUpdate(text: text, outcome: .alreadySaved)
         } catch {
-            return MemoryUpdate(text: candidate.text, outcome: .refused(error.localizedDescription))
+            return MemoryUpdate(text: text, outcome: .refused(error.localizedDescription))
         }
     }
 
