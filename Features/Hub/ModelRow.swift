@@ -77,7 +77,10 @@ struct ModelRow: View {
     private var progress: some View {
         switch state {
         case .downloading(let value?), .paused(let value?):
-            ProgressView(value: min(max(value, 0), 1)).progressViewStyle(.circular)
+            // A bar, not the circular style: on iOS that draws a spinner whatever the value, next to "Downloading 42%".
+            ProgressView(value: min(max(value, 0), 1))
+                .frame(width: 56)
+                .accessibilityLabel("Download progress")
         case .downloading(.none), .paused(.none), .verifying:
             ProgressView()
         case .notInstalled, .installed, .failed:
