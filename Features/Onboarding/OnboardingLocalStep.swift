@@ -64,6 +64,9 @@ struct OnboardingLocalStep: View {
                 if let progress { ProgressView(value: min(max(progress, 0), 1)) }
                 else { ProgressView().progressViewStyle(.linear) }
                 Text("Closing the app may pause the download.").font(.footnote).foregroundStyle(.secondary)
+                Button("Cancel Download", role: .cancel) { hub.cancel(modelID: entry.id) }
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("onboarding.local.cancel")
             }
         case .verifying:
             HStack { ProgressView(); Text("Verifying").foregroundStyle(.secondary) }
