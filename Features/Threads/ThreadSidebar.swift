@@ -12,6 +12,8 @@ struct ThreadSidebar: View {
     /// Row and hit-area heights grow with Dynamic Type instead of clipping the text.
     @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 44
     @ScaledMetric(relativeTo: .subheadline) private var searchHeight: CGFloat = 36
+    /// Gear and New chat: one 40 pt glass shape inside a 44 pt hit area.
+    @ScaledMetric(relativeTo: .body) private var barButtonHeight: CGFloat = 40
     @Query(sort: \ThreadRecord.updatedAt, order: .reverse) private var threads: [ThreadRecord]
 
     @State private var editing = ThreadEditing()
@@ -60,27 +62,25 @@ struct ThreadSidebar: View {
                     .frame(maxWidth: .infinity)
                     .listRowSeparator(.hidden)
             }
-            if !sections.pinned.isEmpty { Section("Pinned") { rows(sections.pinned) } }
-            if !sections.recent.isEmpty {
-                Section {
-                    rows(sections.recent)
-                } header: {
-                    // The system header style; only the trailing button is added.
-                    HStack {
-                        Text("Recents")
-                        Spacer()
-                        Button { shell.presentSearch() } label: {
-                            HStack(spacing: 4) { Text("View all"); Image(systemName: "chevron.right").imageScale(.small) }
-                                .frame(minHeight: rowHeight)
-                        }
-                        .accessibilityIdentifier("sidebar.viewall")
-                    }
-                }
+            if !sections.pinned.isEmpty {
+                header("Pinned")
+                rows(sections.pinned)
             }
-            Section("More") { moreRows }
+            if !sections.recent.isEmpty {
+                header("Recents") {
+                    Button { shell.presentSearch() } label: {
+                        HStack(spacing: 4) { Text("View all"); Image(systemName: "chevron.right").imageScale(.small) }
+                            .frame(minHeight: rowHeight)
+                    }
+                    .accessibilityIdentifier("sidebar.viewall")
+                }
+                rows(sections.recent)
+            }
+            header("More")
+            moreRows
         }
         .listStyle(.plain)
-        .listSectionSeparator(.hidden)
+        .environment(\.defaultMinListRowHeight, rowHeight)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .top, spacing: 0) { titleRow }
         .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
@@ -100,23 +100,50 @@ struct ThreadSidebar: View {
         .padding(.vertical, 8)
     }
 
-    private var bottomBar: some View {
+    /// Section titles are rows, not `Section` headers: a plain list puts about 22 pt above each header that SwiftUI
+    /// cannot remove, which spread the drawer out.
+    private func header<Trailing: View>(
+        _ title: LocalizedStringKey, @ViewBuilder trailing: () -> Trailing = { EmptyView() }
+    ) -> some View {
         HStack {
-            Button { shell.presentSettings(closeSidebar: isDrawer) } label: {
-                Image(systemName: "gearshape").imageScale(.large).frame(minWidth: 44, minHeight: 44)
-            }
-            .buttonStyle(.glass)
-            .buttonBorderShape(.circle)
-            .accessibilityLabel("Settings")
-            .accessibilityIdentifier("sidebar.settings")
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityAddTraits(.isHeader)
             Spacer()
-            Button { shell.newChat(closeSidebar: isDrawer) } label: {
-                Label("New chat", systemImage: "plus").prominentLabel().frame(minHeight: 44)
+            trailing().font(.subheadline)
+        }
+        .padding(.horizontal, 8)
+        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 0, trailing: 12))
+        .listRowSeparator(.hidden)
+        .selectionDisabled()
+    }
+
+    private var bottomBar: some View {
+        GlassEffectContainer {
+            HStack {
+                Button { shell.presentSettings(closeSidebar: isDrawer) } label: {
+                    Image(systemName: "gearshape")
+                        .font(.body.weight(.medium))
+                        .frame(width: barButtonHeight, height: barButtonHeight)
+                        .glassEffect(.regular.interactive(), in: .circle)
+                        .barHitArea()
+                }
+                .accessibilityLabel("Settings")
+                .accessibilityIdentifier("sidebar.settings")
+                Spacer()
+                Button { shell.newChat(closeSidebar: isDrawer) } label: {
+                    Label("New chat", systemImage: "plus")
+                        .font(.body.weight(.medium))
+                        .padding(.horizontal, 16)
+                        .frame(height: barButtonHeight)
+                        .glassEffect(.regular.interactive(), in: .capsule)
+                        .barHitArea()
+                }
+                .accessibilityIdentifier("sidebar.compose")
             }
-            .buttonStyle(.glassProminent)
-            .buttonBorderShape(.capsule)
-            .controlSize(.large)
-            .accessibilityIdentifier("sidebar.compose")
+            .buttonStyle(.plain)
+            .foregroundStyle(.primary)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 8)
@@ -152,6 +179,11 @@ struct ThreadSidebar: View {
 }
 
 private extension View {
+    /// The 40 pt glass shape keeps a 44 pt tap target (HIG minimum, checked by the accessibility audit).
+    func barHitArea() -> some View {
+        frame(minWidth: 44, minHeight: 44).contentShape(.rect)
+    }
+
     /// Rows sit 12 pt from the edges so the highlight of the open chat has room; the content keeps the 20 pt of the title.
     func rowInsets() -> some View {
         padding(.horizontal, 8)

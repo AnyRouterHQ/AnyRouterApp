@@ -74,6 +74,26 @@ final class SidebarTests: XCTestCase {
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Dinner with chickpeas'")).firstMatch.waitForExistence(timeout: 5))
     }
 
+    /// The drawer reads as a compact list: 44 pt chat rows, no tall gap before a section title, and a New chat button
+    /// no taller than the gear beside it (both were bigger, the operator called it out).
+    func testRowsAreCompactAndBarButtonsMatch() {
+        let app = launch()
+        let gear = app.buttons["sidebar.settings"]
+        app.revealSidebar(whenVisible: gear)
+        let compose = app.buttons["sidebar.compose"]
+        XCTAssertEqual(compose.frame.height, gear.frame.height, accuracy: 1, "New chat is as tall as the gear")
+        XCTAssertLessThanOrEqual(compose.frame.height, 48, "a 40 pt glass capsule in a 44 pt hit area")
+
+        let list = app.collectionViews.firstMatch
+        let first = list.staticTexts["Explain Swift actors"], second = list.staticTexts["Switch models in a chat"]
+        XCTAssertTrue(first.waitForExistence(timeout: 5) && second.exists, "the demo chats are listed")
+        XCTAssertEqual(second.frame.midY - first.frame.midY, 44, accuracy: 2, "chat rows are 44 pt")
+
+        let pinned = list.staticTexts["Trip ideas for Lisbon"], recents = list.staticTexts["Recents"]
+        XCTAssertTrue(pinned.exists && recents.exists)
+        XCTAssertLessThan(recents.frame.midY - pinned.frame.midY, 70, "a section title follows the last row closely")
+    }
+
     func testMoreHoldsDecisions() {
         let app = launch()
         let row = app.buttons["sidebar-decisions"]
