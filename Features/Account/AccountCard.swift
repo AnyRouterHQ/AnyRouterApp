@@ -110,7 +110,8 @@ private struct Avatar: View {
             if let image = phase.image {
                 image.resizable().scaledToFill()
             } else {
-                Text(initials).font(.headline).foregroundStyle(.white)
+                // The accent is white in dark mode, so the initials take the background color to stay readable on it.
+                Text(initials).font(.headline).foregroundStyle(Color(.systemBackground))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.accentColor)
             }
