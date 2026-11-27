@@ -106,6 +106,11 @@ struct CompactionLogicTests {
         #expect(CompactionLogic.plan(messages: chat(5), compaction: nil, window: 8_192, keepRecent: 4) == nil)
     }
 
+    @Test func aModelWithoutAWindowIsPlannedAgainstTheDefaultOne() throws {
+        let plan = try #require(CompactionLogic.plan(messages: chat(8), compaction: nil, window: nil, keepRecent: 4))
+        #expect(plan.messages.count == 4)
+    }
+
     @Test func theRecentMessagesAreKeptAsTheyAre() throws {
         let messages = chat(8)
         let plan = try #require(CompactionLogic.plan(messages: messages, compaction: nil, window: 8_192, keepRecent: 4))

@@ -14,15 +14,17 @@ enum ToolSummary {
 
     /// The summary of `steps`, in the order each kind of call first appears. Empty for no steps.
     static func text(for steps: [ToolStep]) -> String {
-        var order: [Kind] = []
-        var counts: [Kind: Int] = [:]
+        var groups: [(kind: Kind, count: Int)] = []
         for step in steps {
             let kind = kind(of: step.call.name)
-            if counts[kind] == nil { order.append(kind) }
-            counts[kind, default: 0] += 1
+            if let index = groups.firstIndex(where: { $0.kind == kind }) {
+                groups[index].count += 1
+            } else {
+                groups.append((kind, 1))
+            }
         }
-        var parts = order.prefix(maxPhrases).map { phrase($0, count: counts[$0, default: 0]) }
-        let hidden = order.dropFirst(maxPhrases).reduce(0) { $0 + counts[$1, default: 0] }
+        var parts = groups.prefix(maxPhrases).map { phrase($0.kind, count: $0.count) }
+        let hidden = groups.dropFirst(maxPhrases).reduce(0) { $0 + $1.count }
         if hidden > 0 { parts.append(hidden == 1 ? String(localized: "1 more step") : String(localized: "\(hidden) more steps")) }
         let joined: String
         switch parts.count {

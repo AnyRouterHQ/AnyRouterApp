@@ -29,7 +29,8 @@ struct ReasoningSplitter: Equatable {
         var output = Output()
         var buffer = held + piece
         held = ""
-        while true {
+        var finished = false
+        while !finished {
             switch state {
             case .start:
                 let lead = buffer.drop(while: \.isWhitespace)
@@ -38,7 +39,7 @@ struct ReasoningSplitter: Equatable {
                     state = .thinking
                 } else if lead.isEmpty || Self.open.hasPrefix(lead) {
                     held = buffer
-                    return output
+                    finished = true
                 } else {
                     state = .answer
                 }
@@ -52,19 +53,19 @@ struct ReasoningSplitter: Equatable {
                     let keep = Self.partialTag(Self.close, endingIn: buffer)
                     output.reasoning += buffer.dropLast(keep)
                     held = String(buffer.suffix(keep))
-                    return output
+                    finished = true
                 }
             case .answer:
+                var text = buffer
                 if trimsLead {
-                    let rest = buffer.drop(while: \.isWhitespace)
-                    if rest.isEmpty { return output }
-                    buffer = String(rest)
-                    trimsLead = false
+                    text = String(buffer.drop(while: \.isWhitespace))
+                    if !text.isEmpty { trimsLead = false }
                 }
-                output.text += buffer
-                return output
+                output.text += text
+                finished = true
             }
         }
+        return output
     }
 
     /// The stream ended: whatever was held back is what it was, text before a tag started, reasoning after one did.
@@ -106,7 +107,7 @@ struct ReasoningRecorder: Equatable {
     /// Nil until some reasoning arrived.
     var trace: ReasoningTrace? {
         guard let startedAt else { return nil }
-        return ReasoningTrace(text: text, durationMs: endedAt.map { max(0, Int(($0 - startedAt) * 1000)) })
+        return ReasoningTrace(text: text, durationMs: endedAt.map { max(0, Int((($0 - startedAt) * 1000).rounded())) })
     }
 }
 

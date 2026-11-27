@@ -104,6 +104,7 @@ struct CompactionChatTests {
 
     @Test func aChatTooShortToFoldHasNothingToCompact() async throws {
         let r = try await rig(window: 8_192)
+        #expect(r.vm.compactions.isEmpty, "a chat that has no thread yet has no compactions")
         #expect(r.vm.compactConversation() == nil)
         #expect(!r.vm.canCompact)
         await say(r.vm, "Hi")

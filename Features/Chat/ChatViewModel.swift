@@ -163,7 +163,10 @@ final class ChatViewModel {
     /// What the last reply row says while the chat is being shortened, in place of the typing dots.
     var statusNote: String? { isCompacting ? String(localized: "Shortening the conversation…") : nil }
 
-    var compactions: [Compaction] { thread?.compactions ?? [] }
+    var compactions: [Compaction] {
+        guard let thread else { return [] }
+        return thread.compactions
+    }
 
     private var windowTokens: Int? { model.flatMap { CompactionLogic.window(for: $0) } }
 
@@ -201,11 +204,8 @@ final class ChatViewModel {
         defer { isCompacting = false }
         guard let summary = await summarize(plan, model: model), !Self.isGone(thread) else { return false }
         thread.compactions = thread.compactions + [CompactionLogic.record(summary: summary, plan: plan, now: Date())]
-        do {
-            try save(context)
-        } catch {
-            errorMessage = "Could not save the chat: \(error.localizedDescription)"
-        }
+        // A failed save is reported by the save that ends the next reply; the summary stays in memory until then.
+        try? save(context)
         return true
     }
 
@@ -231,13 +231,16 @@ final class ChatViewModel {
     }
 
     /// The chat is about to fill the model's window: what to fold first, so the reply has room.
-    private func automaticPlan(thread: ThreadRecord, model: ModelDescriptor, systemPrompt: String?, sent: [ChatMessage]) -> CompactionPlan? {
+    /// `placeholder` is the reply being written: it is in the thread already, empty, and is not part of the chat yet.
+    private func automaticPlan(
+        thread: ThreadRecord, model: ModelDescriptor, systemPrompt: String?, sent: [ChatMessage], placeholder: UUID
+    ) -> CompactionPlan? {
         let window = CompactionLogic.window(for: model)
         let used = CompactionLogic.usedTokens(systemPrompt: systemPrompt, summary: nil, messages: sent)
         guard CompactionLogic.needsCompaction(used: used, window: window) else { return nil }
         return CompactionLogic.plan(
-            messages: thread.orderedMessages, compaction: thread.compactions.last, window: window,
-            keepRecent: CompactionLogic.keepRecentAutomatic)
+            messages: thread.orderedMessages.filter { $0.id != placeholder }, compaction: thread.compactions.last,
+            window: window, keepRecent: CompactionLogic.keepRecentAutomatic)
     }
 
     var canSend: Bool {
@@ -600,7 +603,8 @@ final class ChatViewModel {
         var params = settings.generationParams
         let basePrompt = InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt)
         params.systemPrompt = CompactionLogic.systemPrompt(base: basePrompt, summary: live.summary)
-        let autoPlan = automaticPlan(thread: thread, model: model, systemPrompt: params.systemPrompt, sent: history)
+        let autoPlan = automaticPlan(
+            thread: thread, model: model, systemPrompt: params.systemPrompt, sent: history, placeholder: assistant.id)
         compactionNote = nil
         var host: (any ToolHost)?
         offlineToolNote = nil
@@ -647,7 +651,8 @@ final class ChatViewModel {
                 var sentParams = params
                 if let plan = autoPlan, let self {
                     if await self.fold(plan, model: model, thread: thread) {
-                        let rebuilt = CompactionLogic.context(messages: thread.orderedMessages, compaction: thread.compactions.last)
+                        let rebuilt = CompactionLogic.context(
+                            messages: thread.orderedMessages.filter { $0.id != assistant.id }, compaction: thread.compactions.last)
                         sent = ComposerMention.applying(mentions, to: rebuilt.messages)
                         sentParams.systemPrompt = CompactionLogic.systemPrompt(base: basePrompt, summary: rebuilt.summary)
                     } else {
