@@ -151,6 +151,22 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// The rename alert opened from the chat's "..." menu, then the sidebar. Demo chats keep the titles they were made with;
+    /// a generated title needs a model, which the simulator run does not have.
+    func testRenameChatAlertAndSidebar() {
+        forEachAppearance(extra: ["-ARDemoLongThread", "8"]) { app, appearance in
+            XCTAssertTrue(app.descendants(matching: .any)["chat.content"].waitForExistence(timeout: 20))
+            app.buttons["chat.more"].tap()
+            XCTAssertTrue(app.buttons["chat.rename"].waitForExistence(timeout: 5))
+            app.buttons["chat.rename"].tap()
+            XCTAssertTrue(app.alerts["Rename chat"].waitForExistence(timeout: 5))
+            capture("rename-alert", appearance)
+            app.alerts["Rename chat"].buttons["Cancel"].tap()
+            showSidebar(app)
+            capture("sidebar-titles", appearance)
+        }
+    }
+
     func testEmptyChat() {
         forEachAppearance { app, appearance in
             XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))

@@ -15,6 +15,8 @@ struct ChatScreen: View {
 
     @State private var chat: ChatViewModel?
     @State private var showsInstructions = false
+    @State private var showsRename = false
+    @State private var renameText = ""
 
     var body: some View {
         Group {
@@ -53,6 +55,12 @@ struct ChatScreen: View {
                 Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "square.and.pencil") }
                     .accessibilityLabel("New chat")
                 Menu {
+                    Button("Rename", systemImage: "pencil") {
+                        renameText = chat?.thread?.title ?? ""
+                        showsRename = true
+                    }
+                    .disabled(chat?.thread == nil)
+                    .accessibilityIdentifier("chat.rename")
                     Button("Instructions for this chat", systemImage: "text.badge.star") { showsInstructions = true }
                         .accessibilityIdentifier("chat.instructions")
                     if let fraction = chat?.contextFraction {
@@ -84,6 +92,15 @@ struct ChatScreen: View {
         .toolApprovalDialog(app.toolApprovals) { callID in
             chat?.messages.last?.toolSteps.contains { $0.call.id == callID } ?? false
         }
+        .alert("Rename chat", isPresented: $showsRename) {
+            TextField("Title", text: $renameText)
+                .accessibilityIdentifier("chat.rename.field")
+            Button("Cancel", role: .cancel) {}
+            Button("Save") {
+                if let thread = chat?.thread { ThreadActions.rename(thread, to: renameText) }
+            }
+            .accessibilityIdentifier("chat.rename.save")
+        }
         .sheet(isPresented: $showsInstructions) {
             ChatInstructionsSheet(current: chat?.chatInstructions, global: settings.systemPrompt) { chat?.setChatInstructions($0) }
         }
@@ -107,6 +124,7 @@ struct ChatScreen: View {
                                           await app.tools.preSearch(query: query, approver: app.toolApprovals, context: context)
                                       }))
         model.onThreadCreated = { [shell] id in shell.selectedThreadID = id }
+        model.generatesTitles = true
         if DemoData.attachesSampleFile, thread == nil { model.attachFiles([DemoData.sampleAttachmentURL()]) }
         chat = model
     }
