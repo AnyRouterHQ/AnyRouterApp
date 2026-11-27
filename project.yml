@@ -60,6 +60,7 @@ targets:
       - path: Shared
       - path: catalog/models.json
       - path: catalog/voice-models.json
+      - path: catalog/decision-apps.json
     excludes:
       - "**/.gitkeep"
     info:

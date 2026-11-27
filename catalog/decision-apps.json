@@ -1,0 +1,275 @@
+{
+  "apps": [
+    {
+      "id": "scam-check",
+      "title": "Scam check",
+      "symbol": "exclamationmark.shield",
+      "inputHint": "Paste a message or add a screenshot",
+      "acceptsImages": true,
+      "samples": [
+        {
+          "title": "Delivery text",
+          "text": "Your parcel is held at the depot. Pay a small fee within 24 hours at http://track-parcel-fee.example/pay or it will be returned."
+        },
+        {
+          "title": "Real receipt",
+          "text": "Thanks for your order. It ships Tuesday and the invoice is attached. Reply here if you have questions about the delivery."
+        }
+      ],
+      "questions": [
+        {
+          "id": "scam",
+          "type": "yesNo",
+          "prompt": "Is this message a scam?",
+          "yes": "This looks like a scam",
+          "no": "This does not look like a scam"
+        },
+        {
+          "id": "kind",
+          "type": "choice",
+          "prompt": "Which kind of scam is it closest to?",
+          "items": [
+            "phishing",
+            "fake delivery",
+            "investment",
+            "impersonation",
+            "none"
+          ]
+        },
+        {
+          "id": "risk",
+          "type": "score",
+          "prompt": "How risky is it to act on this message?",
+          "items": [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "severe"
+          ]
+        }
+      ],
+      "resultLine": "{scam}. Closest type: {kind}. Risk: {risk}."
+    },
+    {
+      "id": "email-triage",
+      "title": "Email triage",
+      "symbol": "envelope.badge",
+      "inputHint": "Paste an email",
+      "acceptsImages": true,
+      "samples": [
+        {
+          "title": "Needs a reply",
+          "text": "Hi, can you confirm the venue for Thursday's team dinner by end of day? The restaurant needs a final headcount. Thanks, Sam"
+        },
+        {
+          "title": "Newsletter",
+          "text": "This week in tech: five stories you may have missed. Read the full digest on our site. Unsubscribe at any time."
+        }
+      ],
+      "questions": [
+        {
+          "id": "reply",
+          "type": "yesNo",
+          "prompt": "Does this email need a reply?",
+          "yes": "It needs a reply",
+          "no": "It does not need a reply"
+        },
+        {
+          "id": "urgency",
+          "type": "score",
+          "prompt": "How urgent is it?",
+          "items": [
+            "not urgent",
+            "can wait a few days",
+            "this week",
+            "today",
+            "right now"
+          ]
+        },
+        {
+          "id": "category",
+          "type": "choice",
+          "prompt": "Which category fits best?",
+          "items": [
+            "action",
+            "FYI",
+            "newsletter",
+            "personal"
+          ]
+        }
+      ],
+      "resultLine": "{reply}. Urgency: {urgency}. Category: {category}."
+    },
+    {
+      "id": "receipt-sort",
+      "title": "Receipt sort",
+      "symbol": "receipt",
+      "inputHint": "Snap a receipt or paste its text",
+      "acceptsImages": true,
+      "defaultModel": "google/gemini-decision-1",
+      "samples": [
+        {
+          "title": "Coffee receipt",
+          "text": "Corner Cafe. 2 flat whites, 1 croissant. Total 9.40. Paid by card. Client meeting."
+        },
+        {
+          "title": "Software invoice",
+          "text": "Invoice 2291. Cloud hosting, monthly plan. Total 42.00 USD. Billed to Acme Studio Ltd."
+        }
+      ],
+      "questions": [
+        {
+          "id": "business",
+          "type": "yesNo",
+          "prompt": "Is this a business expense?",
+          "yes": "This looks like a business expense",
+          "no": "This looks like a personal expense"
+        },
+        {
+          "id": "category",
+          "type": "choice",
+          "prompt": "Which expense category is it?",
+          "items": [
+            "meals",
+            "travel",
+            "software",
+            "office supplies",
+            "groceries",
+            "entertainment",
+            "other"
+          ]
+        },
+        {
+          "id": "deductible",
+          "type": "yesNo",
+          "prompt": "Does it look tax-deductible?",
+          "yes": "It looks tax-deductible",
+          "no": "It does not look tax-deductible"
+        }
+      ],
+      "resultLine": "{business}. Category: {category}. {deductible}."
+    },
+    {
+      "id": "incident-triage",
+      "title": "Incident triage",
+      "symbol": "bolt.trianglebadge.exclamationmark",
+      "inputHint": "Paste an alert or incident report",
+      "acceptsImages": true,
+      "samples": [
+        {
+          "title": "Checkout down",
+          "text": "Alert: checkout error rate is above 40 percent since 14:05. Customers see a payment failed page. The payments database is at full CPU."
+        },
+        {
+          "title": "Slow report",
+          "text": "The weekly internal report job ran two hours late. No customer impact. Data is complete."
+        }
+      ],
+      "questions": [
+        {
+          "id": "severity",
+          "type": "choice",
+          "prompt": "How severe is this incident?",
+          "items": [
+            "SEV1",
+            "SEV2",
+            "SEV3",
+            "SEV4"
+          ]
+        },
+        {
+          "id": "customer",
+          "type": "yesNo",
+          "prompt": "Is it customer-facing?",
+          "yes": "Customers are affected",
+          "no": "Customers are not affected"
+        },
+        {
+          "id": "page",
+          "type": "yesNo",
+          "prompt": "Should someone be paged now?",
+          "yes": "Page someone now",
+          "no": "No page is needed yet"
+        }
+      ],
+      "resultLine": "Severity {severity}. {customer}. {page}."
+    },
+    {
+      "id": "policy-check",
+      "title": "Policy check",
+      "symbol": "checkmark.seal",
+      "inputHint": "Paste the policy, then the case",
+      "acceptsImages": false,
+      "samples": [
+        {
+          "title": "Travel policy",
+          "text": "Policy: flights must be economy class unless the trip is over eight hours.\n\nCase: a six hour flight booked in business class."
+        }
+      ],
+      "questions": [
+        {
+          "id": "broken",
+          "type": "yesNo",
+          "prompt": "Does the case break the policy?",
+          "yes": "The case breaks the policy",
+          "no": "The case follows the policy"
+        },
+        {
+          "id": "confidence",
+          "type": "score",
+          "prompt": "How sure is that call?",
+          "items": [
+            "unsure",
+            "leaning",
+            "fairly sure",
+            "sure",
+            "certain"
+          ]
+        }
+      ],
+      "resultLine": "{broken}. Confidence: {confidence}."
+    },
+    {
+      "id": "tone-check",
+      "title": "Tone check",
+      "symbol": "text.bubble",
+      "inputHint": "Paste what you are about to send",
+      "acceptsImages": false,
+      "samples": [
+        {
+          "title": "Short reply",
+          "text": "Send me the file now. I asked twice already."
+        },
+        {
+          "title": "Friendly note",
+          "text": "Thanks for the quick turnaround. Could you share the final file when you get a moment?"
+        }
+      ],
+      "questions": [
+        {
+          "id": "polite",
+          "type": "yesNo",
+          "prompt": "Is the message polite?",
+          "yes": "It reads as polite",
+          "no": "It reads as curt"
+        },
+        {
+          "id": "clear",
+          "type": "yesNo",
+          "prompt": "Is the message clear?",
+          "yes": "It is clear",
+          "no": "It is unclear"
+        },
+        {
+          "id": "long",
+          "type": "yesNo",
+          "prompt": "Is the message too long?",
+          "yes": "It is too long",
+          "no": "The length is fine"
+        }
+      ],
+      "resultLine": "{polite}. {clear}. {long}."
+    }
+  ]
+}
