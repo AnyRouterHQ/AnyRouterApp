@@ -141,15 +141,15 @@ struct PickerOrderGapTests {
         #expect(PickerSort.allCases.map(\.title) == ["Top this week", "Newest", "Cheapest", "Free", "Name"])
     }
 
-    @Test func routersOfTheSameRankAreOrderedByName() {
-        func router(_ slug: String, _ name: String) -> ModelDescriptor {
-            var model = testModel(id: "anyrouter/anyrouter/\(slug)", source: .anyrouter)
+    @Test func presetsSortByNameWithTheOtherModels() {
+        func model(_ id: String, _ name: String) -> ModelDescriptor {
+            var model = testModel(id: "anyrouter/\(id)", source: .anyrouter)
             model.displayName = name
             return model
         }
         let list = CloudListLogic.arrange(
-            models: [router("zzz2", "Beta"), router("zzz1", "Alpha"), router("coding", "Zed")], query: "", sort: .name,
-            usageRank: [:], showUnusable: true)
-        #expect(list.rest.map(\.displayName) == ["Zed", "Alpha", "Beta"], "known routers lead, unknown ones follow by name")
+            models: [model("anyrouter/coding", "Zed"), model("vendor/mid", "Mid"), model("anyrouter/zzz1", "Alpha")],
+            query: "", sort: .name, usageRank: [:], showUnusable: true)
+        #expect(list.rest.map(\.displayName) == ["Alpha", "Mid", "Zed"], "a preset gets no place at the top")
     }
 }

@@ -30,12 +30,13 @@ struct CloudListLogicTests {
         ).rest.map(\.displayName)
     }
 
-    @Test func topUsageFollowsTheServerOrderWithRoutersFirstAndUnusableLast() {
+    @Test func topUsageFollowsTheServerOrderWithPresetsAmongTheOthersAndUnusableLast() {
         #expect(names(.topUsage) == [
-            "AnyRouter Auto", "AnyRouter Free",
-            "GPT Mini", "Claude Sonnet", "Gemini Flash", "Freebie", "No Pricing", // usable, ranked then A-Z
+            "GPT Mini", "Claude Sonnet", "Gemini Flash", // usable and ranked
+            "AnyRouter Auto", "AnyRouter Free", "Freebie", "No Pricing", // usable, not ranked: A-Z, presets get no lead
             "Locked", // needs a key: after every usable model, still listed
         ])
+        #expect(names(.topUsage, rank: ["openai/gpt-mini": 0, "anyrouter/free": 1]).prefix(3) == ["GPT Mini", "AnyRouter Free", "AnyRouter Auto"])
     }
 
     @Test func offlineWithoutAUsageOrderFallsBackToNameOrder() {
@@ -62,7 +63,7 @@ struct CloudListLogicTests {
         #expect(names(.free) == ["AnyRouter Auto", "AnyRouter Free", "Freebie"])
     }
 
-    @Test func nameSortIsAlphabeticalWithRoutersFirst() {
+    @Test func nameSortIsAlphabetical() {
         #expect(names(.name) == [
             "AnyRouter Auto", "AnyRouter Free", "Claude Sonnet", "Freebie", "Gemini Flash", "GPT Mini", "No Pricing", "Locked",
         ])
@@ -91,7 +92,7 @@ struct CloudListLogicTests {
             models: models, query: "", sort: .topUsage, usageRank: rank, showUnusable: true, picks: picks)
         #expect(list.topPicks.map(\.displayName) == ["AnyRouter Auto", "Claude Sonnet"])
         #expect(!list.rest.contains { $0.displayName == "Claude Sonnet" })
-        #expect(list.rest.first?.displayName == "AnyRouter Free")
+        #expect(list.rest.first?.displayName == "GPT Mini")
     }
 
     @Test func searchingHidesTopPicks() {

@@ -123,9 +123,14 @@ enum PickerRow {
         }
         let availability = info?.availability ?? .usable
         return ModelRowModel(
-            id: model.id, title: model.shortName, idLabel: "", details: details,
+            id: model.id, title: title(model), idLabel: "", details: details,
             brand: ModelBrand.resolve(model), isDimmed: availability != .usable && !model.isInstalled,
             needsKey: availability == .needsKey, capabilities: RowCapability.of(model), isFree: isFree, usage: usage)
+    }
+
+    /// AnyRouter's own presets go by their full id ("anyrouter/auto"), the way people type them in the API.
+    static func title(_ model: ModelDescriptor) -> String {
+        model.isRouter ? model.wireID : model.shortName
     }
 
     /// "GGUF Q4_K_M" or "MLX 4-bit".

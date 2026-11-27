@@ -4,7 +4,6 @@ import Testing
 
 struct TopPicksTests {
     private let config = TopPicksConfig(
-        curated: ["anyrouter/auto", "anyrouter/free"],
         fallback: ["anthropic/claude-sonnet", "openai/gpt-5"], usageCount: 3)
 
     private func world(signedIn: Bool = true) -> [ModelDescriptor] {
@@ -23,16 +22,16 @@ struct TopPicksTests {
 
     private func ids(_ models: [ModelDescriptor]) -> [String] { models.map(\.wireID) }
 
-    @Test func routersLeadThenTheMostUsedUsableModels() {
+    @Test func theMostUsedUsableModelsPresetsIncluded() {
         let rank = ["vendor/locked": 0, "google/gemini": 1, "vendor/big": 2, "anyrouter/coding": 3, "openai/gpt-5": 4, "vendor/small": 5]
         let picks = TopPicks.compose(config: config, models: world(), usageRank: rank)
-        // The locked model is skipped, the coding router is not a "most used" pick, three models are added.
-        #expect(ids(picks) == ["anyrouter/auto", "anyrouter/free", "google/gemini", "vendor/big", "openai/gpt-5"])
+        // The locked model is skipped; a preset counts like any other model; three models.
+        #expect(ids(picks) == ["google/gemini", "vendor/big", "anyrouter/coding"])
     }
 
     @Test func offlineUsesTheBundledFallbackList() {
         let picks = TopPicks.compose(config: config, models: world(), usageRank: [:])
-        #expect(ids(picks) == ["anyrouter/auto", "anyrouter/free", "anthropic/claude-sonnet", "openai/gpt-5"])
+        #expect(ids(picks) == ["anthropic/claude-sonnet", "openai/gpt-5"], "no preset is pinned in front")
     }
 
     @Test func offlineFallbackSkipsModelsTheUserCannotUse() {
@@ -40,28 +39,11 @@ struct TopPicksTests {
         models.removeAll { $0.wireID == "openai/gpt-5" }
         models.append(cloudModel("openai/gpt-5", availability: .needsKey))
         let picks = TopPicks.compose(config: config, models: models, usageRank: [:])
-        #expect(ids(picks) == ["anyrouter/auto", "anyrouter/free", "anthropic/claude-sonnet"])
+        #expect(ids(picks) == ["anthropic/claude-sonnet"])
     }
 
     @Test func signedOutHasNothingToPick() {
         #expect(TopPicks.compose(config: config, models: world(signedIn: false), usageRank: ["google/gemini": 0]).isEmpty)
-    }
-
-    @Test func aMissingCuratedModelIsSimplySkipped() {
-        var models = world()
-        models.removeAll { $0.wireID == "anyrouter/free" }
-        let picks = TopPicks.compose(config: config, models: models, usageRank: [:])
-        #expect(ids(picks).first == "anyrouter/auto")
-        #expect(!ids(picks).contains("anyrouter/free"))
-    }
-
-    @Test func nothingIsListedTwice() {
-        let rank = ["anyrouter/auto": 0, "google/gemini": 1]
-        let picks = TopPicks.compose(
-            config: TopPicksConfig(curated: ["anyrouter/auto", "google/gemini"], fallback: [], usageCount: 3),
-            models: world(), usageRank: rank)
-        #expect(Set(ids(picks)).count == picks.count)
-        #expect(ids(picks) == ["anyrouter/auto", "google/gemini"])
     }
 
     @Test func theBundledFileDecodesAndMatchesTheStandardConfig() throws {
@@ -69,7 +51,6 @@ struct TopPicksTests {
             .deletingLastPathComponent().appendingPathComponent("Features/ModelPicker/top-picks.json")
         let decoded = try JSONDecoder().decode(TopPicksConfig.self, from: Data(contentsOf: url))
         #expect(decoded == TopPicksConfig.standard)
-        #expect(decoded.curated.first == "anyrouter/auto")
     }
 }
 

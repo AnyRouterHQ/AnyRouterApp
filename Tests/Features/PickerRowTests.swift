@@ -34,7 +34,8 @@ struct PickerRowTests {
         let auto = PickerRow.make(cloudModel(
             "anyrouter/auto", name: "AnyRouter Auto", input: 0, output: 0, billing: .free,
             upstreams: 1, members: 7, context: 4_194_304))
-        #expect(auto.title == "AnyRouter")
+        #expect(auto.title == "anyrouter/auto", "a preset shows its full id, not a friendly name")
+        #expect(PickerRow.make(cloudModel("openai/gpt-5", name: "GPT-5")).title == "GPT-5")
         #expect(auto.details == ["Free", "4M ctx", "routes 7 models"])
         #expect(auto.isFree)
         #expect(auto.detailsAfterBadge == "4M ctx · routes 7 models")

@@ -356,9 +356,6 @@ struct ModelPickerSheet: View {
         if !list.starred.isEmpty {
             Section("Starred") { ForEach(list.starred) { modelButton($0) } }
         }
-        if !list.routers.isEmpty {
-            Section("AnyRouter") { ForEach(list.routers) { modelButton($0) } }
-        }
         if !list.topPicks.isEmpty {
             Section("Top picks") { ForEach(list.topPicks) { modelButton($0) } }
         }
