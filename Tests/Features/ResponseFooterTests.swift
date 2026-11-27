@@ -14,41 +14,34 @@ struct ResponseFooterTests {
         return value
     }
 
+    private func value(_ label: String, in metadata: ResponseMetadata) -> String? {
+        ResponseFormat.expanded(metadata).first { $0.label == label }?.value
+    }
+
     @Test func aZeroCostReadsAsZeroDollarsNotFree() {
-        #expect(ResponseFormat.inline(metadata(cost: 0)) == ["$0"])
+        #expect(value("Cost", in: metadata(cost: 0)) == "$0")
         #expect(PriceFormat.cost(0) == "$0")
     }
 
     @Test func smallAndNormalCostsKeepTheirDigits() {
-        #expect(ResponseFormat.inline(metadata(cost: Decimal(string: "0.0004")!)) == ["$0.0004"])
-        #expect(ResponseFormat.inline(metadata(cost: Decimal(string: "0.25")!)) == ["$0.25"])
+        #expect(value("Cost", in: metadata(cost: Decimal(string: "0.0004")!)) == "$0.0004")
+        #expect(value("Cost", in: metadata(cost: Decimal(string: "0.25")!)) == "$0.25")
     }
 
     @Test func anUnknownCostShowsNothing() {
-        #expect(ResponseFormat.inline(metadata(cost: nil)).isEmpty)
-        #expect(ResponseFormat.inline(metadata()).isEmpty)
+        #expect(value("Cost", in: metadata(cost: nil)) == nil)
     }
 
-    @Test func theLineHasOnlyCostAndFirstToken() {
-        let line = ResponseFormat.inline(metadata(cost: 0, ttft: 400, total: 3200, prompt: 12, completion: 80))
-        #expect(line == ["$0", "first token 0.4s"])
-    }
-
-    @Test func totalSpeedAndTokensMoveToTheExpandedDetails() {
-        var value = metadata(cost: 0, ttft: 400, total: 3200, prompt: 12, completion: 80)
-        value.servedModelID = "apple/foundation"
-        value.provider = "On device"
-        value.requestID = "req_1"
-        let labels = ResponseFormat.expanded(value).map(\.label)
-        #expect(labels == ["Model", "Provider", "Total", "Speed", "Tokens", "Request"])
-        #expect(ResponseFormat.expanded(value).first { $0.label == "Total" }?.value == "3.2s")
-        #expect(ResponseFormat.expanded(value).first { $0.label == "Tokens" }?.value == "12 in / 80 out")
-    }
-
-    @Test func expandedDetailsNeverRepeatTheInlineFields() {
-        let labels = ResponseFormat.expanded(metadata(cost: 0, ttft: 400, total: 3200)).map(\.label)
-        #expect(!labels.contains("Cost"))
-        #expect(!labels.contains("First token"))
+    @Test func theDetailsOpenWithCostAndFirstTokenThenTotalSpeedAndTokens() {
+        var full = metadata(cost: 0, ttft: 400, total: 3200, prompt: 12, completion: 80)
+        full.servedModelID = "apple/foundation"
+        full.provider = "On device"
+        full.requestID = "req_1"
+        let labels = ResponseFormat.expanded(full).map(\.label)
+        #expect(labels == ["Model", "Provider", "Cost", "First token", "Total", "Speed", "Tokens", "Request"])
+        #expect(value("First token", in: full) == "0.4s")
+        #expect(value("Total", in: full) == "3.2s")
+        #expect(value("Tokens", in: full) == "12 in / 80 out")
     }
 
     @Test func missingValuesAreLeftOutOfTheDetails() {

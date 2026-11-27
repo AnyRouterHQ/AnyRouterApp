@@ -10,7 +10,7 @@ struct ReadAloudButton: View {
         Button {
             app.speaker.toggle(messageID: message.id, text: message.content, hub: app.voice)
         } label: {
-            Label(speaking ? "Stop reading" : "Read aloud", systemImage: speaking ? "stop.circle" : "speaker.wave.2")
+            Label(speaking ? "Stop reading" : "Read aloud", systemImage: speaking ? "stop" : "play")
                 .labelStyle(.iconOnly)
         }
         .buttonStyle(.borderless)

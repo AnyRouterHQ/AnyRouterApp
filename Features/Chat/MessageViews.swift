@@ -81,98 +81,14 @@ struct MessageRow: View {
             } else if !message.content.isEmpty {
                 MarkdownReply(text: message.content)
             }
-            if !isStreamingThis && !message.content.isEmpty {
-                ReplyFooter(message: message, showsRegenerate: showsRegenerate, onRegenerate: onRegenerate,
-                            showsDetails: showsDetails)
+            if let footer = ReplyFooter.make(
+                content: message.content, isStreaming: isStreamingThis, showsRegenerate: showsRegenerate,
+                showsDetails: showsDetails, requestedName: message.modelName, requestedID: message.modelID,
+                metadata: message.metadata, steps: steps) {
+                ReplyFooterRow(message: message, footer: footer, onRegenerate: onRegenerate)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-/// One line under a reply: the actions first, then the model that wrote it with its cost and first-token time.
-/// The line scrolls sideways when it does not fit. The chevron opens the rest of the details.
-struct ReplyFooter: View {
-    let message: MessageRecord
-    let showsRegenerate: Bool
-    var onRegenerate: () -> Void
-    let showsDetails: Bool
-    @State private var expanded = false
-
-    private var metadata: ResponseMetadata? { message.metadata }
-
-    private var title: String? {
-        ResponseFormat.title(requestedName: message.modelName, requestedID: message.modelID, metadata: metadata)
-    }
-
-    private var brand: ModelBrand {
-        (metadata?.servedModelID ?? message.modelID).map { ModelBrand.resolve(id: $0) } ?? ModelBrand.unknown
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
-                    CopyButton(text: message.content)
-                    ReadAloudButton(message: message)
-                    if showsRegenerate {
-                        Button(action: onRegenerate) {
-                            Label("Regenerate", systemImage: "arrow.clockwise").labelStyle(.iconOnly)
-                        }
-                        .buttonStyle(.borderless)
-                        .foregroundStyle(.secondary)
-                        // The HIG minimum hit area; a borderless button is only as big as its symbol.
-                        .frame(minWidth: 44, minHeight: 44)
-                        .hoverEffect(.highlight)
-                        .accessibilityLabel("Regenerate")
-                    }
-                    info
-                }
-            }
-            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
-            if expanded, let metadata { details(metadata) }
-        }
-    }
-
-    @ViewBuilder
-    private var info: some View {
-        if let title {
-            if showsDetails, let metadata {
-                Button { expanded.toggle() } label: {
-                    HStack(spacing: 6) {
-                        ModelLabel(name: title, brand: brand, style: .inline)
-                        Text(ResponseFormat.inline(metadata).joined(separator: " · ")).lineLimit(1).fixedSize()
-                        Image(systemName: expanded ? "chevron.up" : "chevron.down").imageScale(.small)
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(minHeight: 44)
-                    .padding(.leading, 8)
-                }
-                .buttonStyle(.plain)
-                .hoverEffect(.highlight)
-                .accessibilityIdentifier("response-details")
-            } else {
-                ModelLabel(name: title, brand: brand, style: .inline)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 8)
-            }
-        }
-    }
-
-    private func details(_ metadata: ResponseMetadata) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(ResponseFormat.expanded(metadata), id: \.label) { field in
-                HStack(alignment: .firstTextBaseline) {
-                    Text(field.label)
-                    Spacer(minLength: 12)
-                    Text(field.value).textSelection(.enabled).multilineTextAlignment(.trailing)
-                    if field.label == ResponseFormat.requestLabel { CopyButton(text: field.value) }
-                }
-            }
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
     }
 }
 

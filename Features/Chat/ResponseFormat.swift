@@ -22,14 +22,6 @@ enum ResponseFormat {
         }
     }
 
-    /// On the line under a reply: the cost and the first-token time. Missing numbers are left out.
-    static func inline(_ metadata: ResponseMetadata) -> [String] {
-        var parts: [String] = []
-        if let cost = metadata.costUSD { parts.append(PriceFormat.cost(cost)) }
-        if let ttft = metadata.ttftMs { parts.append("first token \(seconds(ttft))") }
-        return parts
-    }
-
     struct Field: Equatable {
         let label: String
         let value: String
@@ -37,12 +29,14 @@ enum ResponseFormat {
 
     static let requestLabel = "Request"
 
-    /// Under the chevron: everything that is not on the line. Missing values are left out.
+    /// Under the model name: cost, timings, tokens and ids. Missing values are left out.
     static func expanded(_ metadata: ResponseMetadata) -> [Field] {
         var fields: [Field] = []
         func add(_ label: String, _ value: String?) { if let value { fields.append(Field(label: label, value: value)) } }
         add("Model", metadata.servedModelID)
         add("Provider", metadata.provider)
+        add("Cost", metadata.costUSD.map(PriceFormat.cost))
+        add("First token", metadata.ttftMs.map(seconds))
         add("Total", metadata.totalMs.map(seconds))
         add("Speed", metadata.tokensPerSecond.map(speed))
         add("Tokens", tokens(prompt: metadata.promptTokens, completion: metadata.completionTokens))

@@ -3,7 +3,7 @@ import Observation
 import SwiftData
 
 /// Offline sample data for screenshots and UI tests. Active only with the launch argument `-ARDemoData YES`.
-/// Optional flags: `-ARDemoSignedOut YES`, `-ARDemoOnboarding YES`, `-ARDemoTools YES` (a thread with a web search step), `-ARAppearance light|dark`.
+/// Optional flags: `-ARDemoSources YES` (a markdown reply that cites five pages), `-ARReplyTextStep -2...3`, `-ARReplyFont serif|rounded`, `-ARDemoSignedOut YES`, `-ARDemoOnboarding YES`, `-ARDemoTools YES` (a thread with a web search step), `-ARAppearance light|dark`.
 /// `-ARDemoKeepSettings YES` keeps settings from the previous launch, to test persistence.
 enum DemoData {
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: "ARDemoData") }
@@ -30,6 +30,7 @@ enum DemoData {
     /// Thread the shell selects at launch, or nil.
     static var initialThreadID: UUID? { isEnabled && longThreadMessages > 0 ? longThreadID : nil }
     private static var tools: Bool { UserDefaults.standard.bool(forKey: "ARDemoTools") }
+    private static var sources: Bool { UserDefaults.standard.bool(forKey: "ARDemoSources") }
 
     /// Text of the demo search result, read by the UI tests.
     static let demoSearchResult = "Swift 7 adds typed throws everywhere and faster builds."
@@ -88,6 +89,7 @@ enum DemoData {
         }
         insertSwitchThread(in: context, at: now)
         if tools { insertToolThread(in: context, at: now) }
+        if sources { insertSourcesThread(in: context, at: now) }
         if longThreadMessages > 0 { insertLongThread(into: context, now: now) }
         try context.save()
         return container
@@ -138,6 +140,64 @@ enum DemoData {
         return record
     }
 
+    static let sourcesThreadTitle = "Swift actors with sources"
+
+    /// The newest thread: a markdown reply after a web search that found five pages, one of them twice.
+    @MainActor
+    private static func insertSourcesThread(in context: ModelContext, at now: Date) {
+        let thread = ThreadRecord(title: sourcesThreadTitle, createdAt: now.addingTimeInterval(120),
+                                  modelID: "anyrouter/anthropic/claude-sonnet-4-6")
+        context.insert(thread)
+        let question = MessageRecord(role: .user, content: "Explain Swift actors in a few lines, with a small example.",
+                                     createdAt: thread.createdAt)
+        let answer = MessageRecord(role: .assistant, content: markdownAnswer, createdAt: thread.createdAt.addingTimeInterval(20),
+                                   modelName: "Claude Sonnet 4.6", modelID: "anyrouter/anthropic/claude-sonnet-4-6")
+        answer.metadata = ResponseMetadata(
+            requestID: "req_sources", servedModelID: "anthropic/claude-sonnet-4-6", servedModelName: "Claude Sonnet 4.6",
+            provider: "Anthropic", costUSD: Decimal(string: "0.0123"), promptTokens: 1210, completionTokens: 188,
+            upstreamLatencyMs: 900, ttftMs: 900, totalMs: 4800)
+        context.insert(question)
+        context.insert(answer)
+        question.thread = thread
+        answer.thread = thread
+        let call = ToolCall(id: "demo-sources", name: "web_search_exa", argumentsJSON: #"{"query":"swift actors"}"#)
+        answer.toolSteps = [ToolStep(
+            call: call, result: ToolResult(callID: call.id, name: call.name, text: demoSourcesResult, isError: false))]
+    }
+
+    /// The text a search tool returns, the way `WebGrounding.parse` reads it. Reserved example hosts, so nothing is real.
+    private static let demoSourcesResult = """
+    Title: Concurrency, the actor model
+    URL: https://docs.example.com/swift/concurrency
+    Highlights:
+    An actor protects its mutable state.
+
+    Title: Actors in practice
+    URL: https://www.example.org/articles/actors
+    Highlights:
+    Calls from outside need await.
+
+    Title: Actors in practice (print view)
+    URL: https://example.org/articles/actors/
+    Highlights:
+    The same article, written another way.
+
+    Title: Main actor and UI state
+    URL: https://swift.example.net/main-actor
+    Highlights:
+    Use MainActor for UI state.
+
+    Title: Sendable and isolation
+    URL: https://notes.example.com/sendable
+    Highlights:
+    Isolation keeps data races out.
+
+    Title: Migrating to strict concurrency
+    URL: https://blog.example.net/strict-concurrency
+    Highlights:
+    Turn the checks on one module at a time.
+    """
+
     /// The newest thread: one reply that searched the web before answering.
     @MainActor
     private static func insertToolThread(in context: ModelContext, at now: Date) {
@@ -165,6 +225,12 @@ enum DemoData {
         if !UserDefaults.standard.bool(forKey: "ARDemoKeepSettings") { defaults.removePersistentDomain(forName: suite) }
         let settings = AppSettings(defaults: defaults)
         settings.hasOnboarded = !onboarding
+        if UserDefaults.standard.object(forKey: "ARReplyTextStep") != nil {
+            settings.replyTextStep = UserDefaults.standard.integer(forKey: "ARReplyTextStep")
+        }
+        if let raw = UserDefaults.standard.string(forKey: "ARReplyFont"), let font = ReplyFont(rawValue: raw) {
+            settings.replyFont = font
+        }
         if let raw = UserDefaults.standard.string(forKey: "ARAppearance"),
            let appearance = AppSettings.Appearance(rawValue: raw) {
             settings.appearance = appearance
