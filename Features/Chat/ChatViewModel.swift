@@ -891,7 +891,9 @@ final class ChatViewModel {
 
     /// The chat as a model reads it: each reply that used tools ends with its tool digest (agent design 3.4).
     static func turns(of thread: ThreadRecord) -> [ChatMessage] {
-        ToolDigestLogic.turns(thread.orderedMessages, steps: Dictionary(uniqueKeysWithValues: thread.messages.map { ($0.id, $0.toolSteps) }))
+        var steps: [UUID: [ToolStep]] = [:]
+        for message in thread.messages { steps[message.id] = message.toolSteps }
+        return ToolDigestLogic.turns(thread.orderedMessages, steps: steps)
     }
 
     /// A deleted record (or one whose context is gone) must not be read or written: SwiftData traps on it.
