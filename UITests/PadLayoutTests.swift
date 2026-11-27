@@ -127,7 +127,8 @@ final class PadLayoutTests: XCTestCase {
         XCTAssertLessThan(popover.frame.width, app.windows.firstMatch.frame.width / 2)
         XCTAssertGreaterThanOrEqual(popover.frame.minY, pill.frame.midY, "it hangs below the pill")
 
-        popover.buttons["Close"].tap()
+        XCTAssertFalse(popover.buttons["Close"].exists, "a popover closes with a tap outside, not a Close button")
+        app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5)).tap()
         XCTAssertTrue(wait { !app.popovers.firstMatch.exists })
     }
 

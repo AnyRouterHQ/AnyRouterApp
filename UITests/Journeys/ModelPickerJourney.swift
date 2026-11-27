@@ -37,7 +37,12 @@ final class ModelPickerJourney: JourneyCase {
             sleep(1)
             step("picker-anyrouter-tab")
             audit(app, "picker-anyrouter")
-            app.buttons["Close"].tap()
+            // A sheet has Close; the iPad popover closes with a tap outside.
+            if app.buttons["Close"].exists {
+                app.buttons["Close"].tap()
+            } else {
+                app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5)).tap()
+            }
 
             choose(id: "anyrouter/anthropic/claude-sonnet-4-6", shownAs: "Claude Sonnet 4.6", search: "sonnet", app)
             step("chose-claude")

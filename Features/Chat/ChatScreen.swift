@@ -41,7 +41,8 @@ struct ChatScreen: View {
                     ModelTitle(name: chat?.model?.shortName, isLoading: models.isLoading) { shell.isModelPickerPresented = true }
                         // A popover under the title on iPad. On iPhone and in a compact iPad window the system turns it into the sheet.
                         .popover(isPresented: Bindable(shell).isModelPickerPresented, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
-                            ModelPickerSheet(currentID: chat?.model?.id) { chat?.choose($0) }
+                            // Regular width shows a popover, which closes with a tap outside; compact shows a sheet.
+                            ModelPickerSheet(currentID: chat?.model?.id, showsClose: sizeClass != .regular) { chat?.choose($0) }
                                 .frame(minWidth: sizeClass == .regular ? 400 : nil, idealWidth: sizeClass == .regular ? 440 : nil,
                                        minHeight: sizeClass == .regular ? 520 : nil, idealHeight: sizeClass == .regular ? 640 : nil)
                         }

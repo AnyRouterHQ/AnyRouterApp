@@ -137,6 +137,8 @@ struct ModelPickerSheet: View {
     let currentID: String?
     /// Called with the pick; the chat applies it to the next message.
     let onSelect: (ModelDescriptor) -> Void
+    /// A sheet closes with the × button; a popover (iPad) closes with a tap outside, so it has none.
+    let showsClose: Bool
 
     @State private var tab: PickerTab
     @State private var query = ""
@@ -161,8 +163,10 @@ struct ModelPickerSheet: View {
     private let picksConfig = TopPicksConfig.bundled()
     private static let providerKeysURL = URL(string: "https://anyrouter.dev/dashboard/byok")!
 
-    init(currentID: String?, defaults: UserDefaults = PickerFilterStore.standardDefaults, onSelect: @escaping (ModelDescriptor) -> Void) {
+    init(currentID: String?, showsClose: Bool = true, defaults: UserDefaults = PickerFilterStore.standardDefaults,
+         onSelect: @escaping (ModelDescriptor) -> Void) {
         self.currentID = currentID
+        self.showsClose = showsClose
         self.onSelect = onSelect
         let store = PickerFilterStore(defaults: defaults)
         filterStore = store
@@ -230,7 +234,9 @@ struct ModelPickerSheet: View {
                 }
             }
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
+                if showsClose {
+                    ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button { showsFilters = true } label: {
                         Label("Filter", systemImage: filterActive
