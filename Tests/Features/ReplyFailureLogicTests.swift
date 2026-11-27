@@ -92,7 +92,7 @@ struct ReplyFailureLogicTests {
         for kind: ReplyFailure.Kind in [.outOfCredits, .modelUnavailable, .localOutOfMemory] {
             #expect(ReplyFailureLogic.actions(for: kind, canRetry: true) == [.chooseModel, .retry])
         }
-        for kind: ReplyFailure.Kind in [.timeout, .rateLimited, .toolFailed, .cancelled, .unknown] {
+        for kind: ReplyFailure.Kind in [.timeout, .rateLimited, .toolFailed, .cancelled, .unknown, .interrupted] {
             #expect(ReplyFailureLogic.actions(for: kind, canRetry: true) == [.retry])
         }
         let titles = [ReplyFailure.Action.retry, .signIn, .chooseModel, .shortenChat, .openSettings].map(ReplyFailureLogic.title)

@@ -5,6 +5,8 @@ struct ReplyFailure: Codable, Equatable, Sendable {
     enum Kind: String, Codable, CaseIterable, Sendable {
         case offline, timeout, signedOut, outOfCredits, rateLimited, modelUnavailable, contextTooLong
         case toolFailed, localOutOfMemory, localLoadFailed, cancelled, unknown
+        /// Set when a reply starts and cleared when it ends: still there after a launch, the app closed while it was written.
+        case interrupted
 
         /// A kind this build does not know (saved by a newer one) reads as unknown instead of failing the whole reply.
         init(from decoder: any Decoder) throws {
@@ -57,6 +59,7 @@ enum ReplyFailureLogic {
         case .localLoadFailed: String(localized: "The model on this device couldn't load.")
         case .cancelled: String(localized: "The reply stopped before it finished.")
         case .unknown: String(localized: "Something went wrong with this reply.")
+        case .interrupted: String(localized: "The reply stopped when the app closed.")
         }
     }
 
@@ -74,6 +77,7 @@ enum ReplyFailureLogic {
         case .localLoadFailed: "iphone.slash"
         case .cancelled: "stop.circle"
         case .unknown: "exclamationmark.triangle"
+        case .interrupted: "arrow.clockwise.circle"
         }
     }
 
@@ -84,7 +88,7 @@ enum ReplyFailureLogic {
         case .outOfCredits, .modelUnavailable, .localOutOfMemory: .chooseModel
         case .contextTooLong: .shortenChat
         case .localLoadFailed: .openSettings
-        case .offline, .timeout, .rateLimited, .toolFailed, .cancelled, .unknown: .retry
+        case .offline, .timeout, .rateLimited, .toolFailed, .cancelled, .unknown, .interrupted: .retry
         }
         guard canRetry else { return primary == .retry ? [] : [primary] }
         return primary == .retry ? [.retry] : [primary, .retry]

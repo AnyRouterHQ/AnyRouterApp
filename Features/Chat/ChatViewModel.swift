@@ -675,6 +675,10 @@ final class ChatViewModel {
         let history = ComposerMention.applying(mentions, to: live.messages)
         context.insert(assistant)
         assistant.thread = thread
+        // Saved with the reply before anything streams, and cleared by `finish`: if the app is closed mid-reply, the marker
+        // is what the chat finds after the next launch (agent design 1.3, unit G1). The chat ignores it while it streams.
+        assistant.failure = ReplyFailure(kind: .interrupted, detail: String(localized: "The app closed while this reply was being written."))
+        try? save(context)
         var params = settings.generationParams
         let basePrompt = InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt)
         params.systemPrompt = CompactionLogic.systemPrompt(base: basePrompt, summary: live.summary)
@@ -905,8 +909,9 @@ final class ChatViewModel {
         let gotReply = failure == nil && !assistant.content.isEmpty
         if let failure {
             assistant.failure = failure
-        } else if assistant.content.isEmpty && steps.isEmpty && assistant.reasoning == nil {
-            remove(assistant)
+        } else {
+            assistant.failure = nil
+            if assistant.content.isEmpty && steps.isEmpty && assistant.reasoning == nil { remove(assistant) }
         }
         thread.updatedAt = Date()
         phase = .idle

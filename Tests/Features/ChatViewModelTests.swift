@@ -114,6 +114,21 @@ struct ChatViewModelTests {
         #expect(r.vm.phase == .idle)
     }
 
+    /// A reply the app was closed in the middle of (iOS ended it, or the person did) has no callback: the marker saved with
+    /// the reply when it started is what the next launch finds. A reply that ends clears it.
+    @Test func aReplyCarriesTheInterruptedMarkerWhileItStreamsAndLosesItWhenItEnds() async throws {
+        let r = try await rig(ScriptedEngine(chunks: ["partial"], hangs: true))
+        r.vm.input = "Hi"
+        let task = try #require(r.vm.send())
+        #expect(await waitUntil { r.vm.messages.last?.content == "partial" })
+        let reopened = r.reopen()
+        #expect(reopened.messages.last?.failure?.kind == .interrupted, "a relaunch now would show the reply as interrupted")
+        r.vm.stop()
+        await task.value
+        #expect(r.vm.messages.last?.content == "partial")
+        #expect(r.vm.messages.last?.failure == nil, "a reply that ended is not interrupted")
+    }
+
     @Test func aFailedReplyIsStillThereWhenTheChatIsOpenedAgain() async throws {
         let r = try await rig(ScriptedEngine(failure: "boom"))
         r.vm.input = "Hi"
