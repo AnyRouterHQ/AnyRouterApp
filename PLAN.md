@@ -909,3 +909,9 @@ Reviewer passes over main up to 8e275cd (2026-11-27). Fixed items are in `fix(..
 - 2026-11-26 lane-E: switched milestone 1 from ad-hoc to TestFlight: `testflight.yml`, `docs/testflight.md`, ITSAppUsesNonExemptEncryption=NO in project.yml (E1-E2); local checks skipped
 - 2026-11-26 lane-F15: prompt presets (empty-chat starters, composer sheet, custom presets in Settings) (#28); local checks skipped
 - 2026-11-26 lane-F16: home screen redesign, composer layout, thinking flag per thread (#36); engine wiring pending (F17); local checks skipped
+
+### Lane handoff: Inkling (2026-11-27)
+- Done on main (CI green at 6bb70b1): llama.cpp b12811 pin, FitPlanner .streamed tier with the RAM gate, catalog sampling and experimental badge, Inkling prompt formatter and thinking span, Inkling 2 Mini 1-bit build in dev-models.json (F25).
+- In flight: model-smoke for model_id inkling-2, max_tokens 32 (asked of the extra-macos queue owner; not yet dispatched as far as this lane knows). No uncommitted work, no wip branch.
+- Next: read the smoke numbers (load + first token, tokens/s, answer contains 4); if it loads and answers, move the entry to models.json with a generic symbol logo fallback, then the 0.35 GB projector as an optional download.
+- Not started: (a) account summary and cloud model list cache (stale-while-revalidate, cleared on sign out and 401); (b) new chat after time away on a cold launch (apply ResumeLogic with the persisted lastBackgroundedAt before restoreSelection). Briefs are in the manager messages of 2026-11-27.
