@@ -90,13 +90,19 @@ enum ReplySources {
     static func extract(from steps: [ToolStep]) -> [ReplyFooter.Source] {
         var seen = Set<String>()
         var found: [ReplyFooter.Source] = []
-        for step in steps {
+        for step in steps.flatMap(flattened) {
             guard let result = step.result, !result.isError else { continue }
             for source in sources(of: step.call, result: result) where seen.insert(source.id).inserted {
                 found.append(source)
             }
         }
         return found
+    }
+
+    /// A call and, after it, the calls of the subagent it started.
+    private static func flattened(_ step: ToolStep) -> [ToolStep] {
+        if let children = step.children { return [step] + children.flatMap(flattened) }
+        return [step]
     }
 
     private static func sources(of call: ToolCall, result: ToolResult) -> [ReplyFooter.Source] {

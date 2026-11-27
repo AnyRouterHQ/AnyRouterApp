@@ -237,11 +237,22 @@ enum DemoData {
             let call = ToolCall(id: id, name: name, argumentsJSON: arguments)
             return ToolStep(call: call, result: ToolResult(callID: id, name: name, text: result, isError: false))
         }
+        var subagent = step(
+            "demo-parts-5", SubagentLogic.toolName,
+            #"{"title":"Research","model":"anthropic/claude-haiku-4.5","task":"Find two sources on actor isolation."}"#,
+            "Two sources agree: calls into an actor from outside are asynchronous because the actor handles one at a time.")
+        subagent.children = [
+            step("demo-parts-5a", "web_search_exa", #"{"query":"actor isolation"}"#, demoSourcesResult),
+            step("demo-parts-5b", "fetch_url", #"{"url":"https://blog.example.net/strict-concurrency"}"#, "Turn the checks on one module at a time."),
+            step("demo-parts-5c", "fetch_url", #"{"url":"https://swift.example.net/main-actor"}"#, "Use MainActor for UI state."),
+            step("demo-parts-5d", "calculator", #"{"expression":"2*2"}"#, "4"),
+        ]
         answer.toolSteps = [
             step("demo-parts-1", "web_search_exa", #"{"query":"swift actor await"}"#, demoSourcesResult),
             step("demo-parts-2", "fetch_url", #"{"url":"https://docs.example.com/swift/concurrency"}"#, "An actor protects its mutable state."),
             step("demo-parts-3", "fetch_url", #"{"url":"https://notes.example.com/sendable"}"#, "Isolation keeps data races out."),
             step("demo-parts-4", "calculator", #"{"expression":"1+1"}"#, "2"),
+            subagent,
         ]
     }
 

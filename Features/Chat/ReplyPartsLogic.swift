@@ -4,6 +4,7 @@ import Foundation
 enum ReplyPart: Equatable, Identifiable {
     case reasoning(ReasoningTrace, isStreaming: Bool)
     case toolStep([ToolStep])
+    case subagent(Subagent)
     case text(String)
     case file(ChatAttachment)
     case image(ChatAttachment)
@@ -12,6 +13,7 @@ enum ReplyPart: Equatable, Identifiable {
         switch self {
         case .reasoning: "reasoning"
         case .toolStep: "tools"
+        case .subagent(let subagent): "subagent-\(subagent.id)"
         case .text: "text"
         case .file(let attachment): "file-\(attachment.id)"
         case .image(let attachment): "image-\(attachment.id)"
@@ -20,7 +22,7 @@ enum ReplyPart: Equatable, Identifiable {
 }
 
 enum ReplyParts {
-    /// The parts of one reply: what the model thought, the tools it used, its answer, then the files and photos it carries.
+    /// The parts of one reply: what the model thought, the tools it used, the subagents it started, its answer, then the files and photos it carries.
     /// Empty parts are left out.
     /// The model is still thinking while the reply streams and its reasoning has no end yet.
     static func make(
@@ -28,7 +30,9 @@ enum ReplyParts {
     ) -> [ReplyPart] {
         var parts: [ReplyPart] = []
         if let reasoning { parts.append(.reasoning(reasoning, isStreaming: isStreaming && reasoning.durationMs == nil)) }
-        if !steps.isEmpty { parts.append(.toolStep(steps)) }
+        let plain = steps.filter { !SubagentLogic.isSubagent($0) }
+        if !plain.isEmpty { parts.append(.toolStep(plain)) }
+        parts += steps.compactMap(SubagentLogic.make).map { .subagent($0) }
         if !content.isEmpty { parts.append(.text(content)) }
         parts += attachments.map { $0.kind == .image ? .image($0) : .file($0) }
         return parts

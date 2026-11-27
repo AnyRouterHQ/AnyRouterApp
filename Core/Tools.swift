@@ -55,6 +55,8 @@ struct ToolStep: Identifiable, Hashable, Codable, Sendable {
     var result: ToolResult?
     /// The source that ran the call, noted when the call was made. Nil for replies saved before this existed.
     var sourceID: String?
+    /// The calls a subagent made while this one ran, in order. Nil for a plain call and for replies saved before this existed.
+    var children: [ToolStep]?
 
     var id: String { call.id }
 }

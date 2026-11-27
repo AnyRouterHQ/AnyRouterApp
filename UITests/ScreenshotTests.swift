@@ -249,6 +249,12 @@ final class ScreenshotTests: XCTestCase {
             XCTAssertTrue(app.descendants(matching: .any)["reasoning.text"].firstMatch.waitForExistence(timeout: 5))
             capture("reply-parts-reasoning-open", appearance)
 
+            let subagent = app.buttons["subagent.card"].firstMatch
+            XCTAssertTrue(subagent.waitForExistence(timeout: 5), "the subagent is one collapsed line")
+            XCTAssertTrue(subagent.label.contains("Subagent · Research · 4 steps"), "its heading: \(subagent.label)")
+            subagent.tap()
+            capture("reply-parts-subagent-open", appearance)
+
             // The folded part of the chat is above: the divider, then the summary it stands for.
             let divider = app.buttons["compaction.divider"].firstMatch
             var tries = 0

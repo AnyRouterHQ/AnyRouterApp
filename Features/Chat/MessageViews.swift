@@ -76,6 +76,7 @@ struct MessageRow: View {
                 switch part {
                 case .reasoning(let trace, let isStreaming): ReasoningRow(trace: trace, isStreaming: isStreaming)
                 case .toolStep(let calls): ToolChainView(steps: calls, answerStarted: answerStarted)
+                case .subagent(let subagent): SubagentCard(subagent: subagent)
                 case .text(let text): MarkdownReply(text: text)
                 case .file(let attachment), .image(let attachment):
                     MessageAttachments(attachments: [attachment], alignment: .leading)

@@ -657,6 +657,14 @@ Goal: an assistant turn renders its tools, reasoning, subagents, files, images a
 4. Compaction: pure trigger (tokens estimated against the model's known context, 80%) and assembly (summary plus the recent turns); summary written by the current model; stored in `ThreadRecord.compactionData`; old messages stay visible above the divider; the divider expands to the summary; a thread menu item "Compact conversation".
 5. Subagents: `SubagentCard` renders a delegate step ("Subagent · Research · 4 steps") that expands to its own steps. The engine-side delegate tool is added only if it fits the existing tool loop; otherwise this section records the design and stops.
 
+**Subagents, engine side: designed, not built (unit 5, 2026-11-27).** Rendering and data are in: `ToolStep.children` holds a subagent's own steps, `SubagentLogic` reads a `delegate_task` call into a `Subagent`, `SubagentCard` draws it. The tool that makes one does not fit the loop as it is, for three reasons:
+
+1. `ToolHost.execute` returns one `ToolResult`. A subagent's steps have nowhere to go while it runs, so the card could only fill in at the end. It needs a second channel: either a `ToolHost` requirement `children(forCall:)` read by the chat once the result arrives, or a `ChatDelta.subagentStep(parentCallID:, ToolStep)` the engines pass through like `.toolCall`. The second is better (live steps) and touches every engine's switch.
+2. The tool needs the engine registry and a model choice inside `Engines/Tools`, which has none today. A local model cannot run two prompts at once (one resident model, `LocalResidency`), so a subagent on a local model would queue behind the parent, and a cloud subagent from a local parent would send the user's text off the device without the user having picked a cloud model.
+3. Approvals, depth and cost: the subagent gets a read-only tool set and no `delegate_task` (depth one), its tokens and cost have to be added to the reply's `ResponseMetadata` (`combining` exists), and Stop has to cancel both.
+
+Build order when it is wanted: `ChatDelta.subagentStep` and the chat merging it into `ToolStep.children`; `DelegateTool` as a built-in on cloud models only; the cost roll-up; then the user-facing switch in Settings, Integrations.
+
 Not doing: a second renderer for any part, storing parts as their own table, markdown images from the web (still blocked for privacy).
 
 ### Boundary (decision D15)
