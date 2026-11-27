@@ -12,16 +12,16 @@ struct SelectableReplyBlock: View, Equatable {
     /// The size MarkdownReply lays the other blocks out at. Only compared, so a text size change redraws the block.
     let scaledSize: CGFloat
     let font: ReplyFont
-    /// The reply-level items of the selection menu. Left out of `==`: they act on the whole reply and do not change while it is shown.
-    var menu: ReplyMenuActions?
-
-    nonisolated static func == (lhs: SelectableReplyBlock, rhs: SelectableReplyBlock) -> Bool {
-        lhs.text == rhs.text && lhs.size == rhs.size && lhs.scaledSize == rhs.scaledSize && lhs.font == rhs.font
-    }
 
     var body: some View {
-        SelectableReplyText(text: ReplyAttributedText.make(text, size: size, font: font), menu: menu)
+        SelectableReplyText(text: ReplyAttributedText.make(text, size: size, font: font))
     }
+}
+
+extension EnvironmentValues {
+    /// The reply-level items of the selection menu. An environment value, not a field of the block, so the block keeps a
+    /// plain synthesized `==` (a closure field made its conformance cross into the main actor, CI 46057480053).
+    @Entry var replyMenuActions: ReplyMenuActions? = nil
 }
 
 /// What the selection menu of a reply can do with the whole reply.
@@ -33,7 +33,6 @@ struct ReplyMenuActions: Sendable {
 
 private struct SelectableReplyText: UIViewRepresentable {
     let text: NSAttributedString
-    let menu: ReplyMenuActions?
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -75,7 +74,7 @@ private struct SelectableReplyText: UIViewRepresentable {
     }
 
     func updateUIView(_ view: UITextView, context: Context) {
-        context.coordinator.menu = menu
+        context.coordinator.menu = context.environment.replyMenuActions
         guard view.attributedText != text else { return }
         view.attributedText = text
     }

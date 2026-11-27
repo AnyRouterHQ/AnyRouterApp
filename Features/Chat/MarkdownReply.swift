@@ -7,8 +7,6 @@ import SwiftUI
 /// keep MarkdownUI's views. The footer's Copy and the selection menu's Copy Reply copy the whole reply.
 struct MarkdownReply: View {
     let text: String
-    /// Read Aloud and Copy Reply in the selection menu; nil where there is no reply to act on (a settings preview).
-    var menu: ReplyMenuActions?
     /// Scales with Dynamic Type. Passed to the blocks as a value, so a size change redraws them.
     @ScaledMetric(relativeTo: .body) private var size: CGFloat = 17
     /// Settings, Response Customization: the reply text size and typeface.
@@ -25,7 +23,7 @@ struct MarkdownReply: View {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
                     if MarkdownBlocks.isSelectableText(block) {
-                        SelectableReplyBlock(text: block, size: base, scaledSize: points, font: font, menu: menu).equatable()
+                        SelectableReplyBlock(text: block, size: base, scaledSize: points, font: font).equatable()
                     } else {
                         MarkdownBlock(text: block, size: points, font: font).equatable()
                     }
