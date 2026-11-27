@@ -175,6 +175,11 @@ final class PadLayoutTests: XCTestCase {
         if !element(app, "home.greeting").waitForExistence(timeout: 4) {
             app.typeKey("n", modifierFlags: .command)
         }
-        XCTAssertTrue(element(app, "home.greeting").waitForExistence(timeout: 6), "an empty chat opens")
+        // On failure, say what the window shows instead (verify-ui 46031167020 failed here on iPad Pro only, with no clue).
+        let opened = element(app, "home.greeting").waitForExistence(timeout: 6)
+        let selected = app.collectionViews.cells.matching(NSPredicate(format: "isSelected == true")).firstMatch
+        XCTAssertTrue(opened, "an empty chat opens; instead chat.content=\(element(app, "chat.content").exists), "
+            + "selected sidebar row=\(selected.exists ? selected.label : "none"), "
+            + "keyboard focus in sidebar=\(app.collectionViews.firstMatch.hasFocus)")
     }
 }
