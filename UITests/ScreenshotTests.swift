@@ -568,6 +568,27 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// Extract from the + menu: empty, with a document, with fields, and with one field's source marked.
+    private func extractShot(_ stage: String?, _ name: String, tapsField: String? = nil) {
+        forEachAppearance(extra: stage.map { ["-ARDemoExtract", $0] } ?? []) { app, appearance in
+            XCTAssertTrue(app.buttons["Add"].waitForExistence(timeout: 15))
+            app.buttons["Add"].tap()
+            XCTAssertTrue(app.buttons["composer.extract"].waitForExistence(timeout: 5))
+            app.buttons["composer.extract"].tap()
+            XCTAssertTrue(app.navigationBars["Extract"].waitForExistence(timeout: 10))
+            if stage == "fields" || stage == "selected" {
+                XCTAssertTrue(app.buttons["extract-field-Total"].waitForExistence(timeout: 5))
+            }
+            if let tapsField { app.buttons["extract-field-\(tapsField)"].tap() }
+            capture(name, appearance)
+        }
+    }
+
+    func testExtractEmpty() { extractShot(nil, "extract-empty") }
+    func testExtractWithADocument() { extractShot("document", "extract-document") }
+    func testExtractWithFields() { extractShot("fields", "extract-fields") }
+    func testExtractWithOneFieldHighlighted() { extractShot("selected", "extract-highlighted") }
+
     func testAttachmentChip() {
         forEachAppearance(extra: ["-ARDemoAttachFile", "YES"]) { app, appearance in
             XCTAssertTrue(app.descendants(matching: .any)["attachment-chip.notes.txt"].waitForExistence(timeout: 20))
