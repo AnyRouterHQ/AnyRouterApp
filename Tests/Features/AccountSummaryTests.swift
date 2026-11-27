@@ -17,7 +17,7 @@ struct AccountSummaryTests {
         #expect(summary.freeRequests == AccountSummary.FreeRequests(remaining: 4, limit: 5))
         #expect(summary.initials == "AL")
         #expect(summary.usageLine == "Credits: \(AccountSummary.money(12.5))")
-        #expect(summary.subtitle == "ada@example.com · Credits: \(AccountSummary.money(12.5)) · Pro plan")
+        #expect(summary.subtitle == "ada@example.com\nCredits: \(AccountSummary.money(12.5)) · Pro plan", "the email on a line of its own")
     }
 
     @Test func theSubtitleSkipsTheEmailWhenItIsAlreadyTheTitle() {

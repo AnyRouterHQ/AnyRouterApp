@@ -63,10 +63,12 @@ struct AccountSummary: Equatable, Codable, Sendable {
         return nil
     }
 
-    /// The line under the name: email (when the name is not the email), then credits or usage, then the plan.
+    /// The lines under the name: the email (when the name is not the email), then credits or usage and the plan.
+    /// One fact per line, so a long email never splits the credits in two (HIG audit 2026-11-28 #13).
     var subtitle: String? {
-        let parts = [email == title ? nil : email, usageLine, plan.map { "\($0) plan" }].compactMap { $0 }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        let facts = [usageLine, plan.map { "\($0) plan" }].compactMap { $0 }.joined(separator: " · ")
+        let lines = [email == title ? nil : email, facts.isEmpty ? nil : facts].compactMap { $0 }
+        return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }
 
     static func money(_ value: Double) -> String {
