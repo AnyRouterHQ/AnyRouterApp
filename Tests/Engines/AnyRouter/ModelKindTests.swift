@@ -5,6 +5,7 @@ import Testing
 /// Catalog entries copied from the live `GET /api/v1/models`, trimmed to the fields we read.
 enum CatalogSample {
     static let decision = #"{"id":"anyrouter/decision","name":"AnyRouter Decision","category":"text","context_length":393216,"capabilities":["systemone"],"supported_parameters":["state","model","questions","service_tier","max_len"],"architecture":{"modality":"text->text","input_modalities":["text"],"output_modalities":["text"]}}"#
+    static let visionDecision = #"{"id":"google/gemini-decision-1","name":"Gemini Decision 1","category":"text","capabilities":["systemone"],"architecture":{"modality":"text->text","input_modalities":["text","image","audio"],"output_modalities":["text"]}}"#
     static let chat = #"{"id":"anyrouter/byok","name":"AnyRouter BYOK","category":"text","context_length":2000000,"capabilities":["chat","streaming","coding","function-calling","vision"],"supported_parameters":["max_tokens","temperature","stop","tools","tool_choice","top_p"],"architecture":{"modality":"text->text","input_modalities":["text"],"output_modalities":["text"]}}"#
     static let multimodal = #"{"id":"agents-a1/agents-a1-free","name":"Agents A1","category":"multimodal","context_length":262144,"capabilities":["chat","streaming","agentic","coding","vision"],"supported_parameters":["max_tokens","temperature","top_p","stop","stream"],"architecture":{"modality":"text+image->text","input_modalities":["text","image"],"output_modalities":["text"]}}"#
     static let embedding = #"{"id":"aiteamvn/vietnamese-embedding","name":"Vietnamese Embedding","category":"embedding","context_length":8000,"capabilities":["embedding"],"supported_parameters":["input","model","encoding_format"],"architecture":{"modality":"text->embedding","input_modalities":["text"],"output_modalities":["embeddings"]}}"#
@@ -50,13 +51,14 @@ struct ModelKindTests {
 
     @Test func theChatListHoldsOnlyChatModelsAndTheDecisionListOnlyDecisionModels() throws {
         let data = CatalogSample.list(
-            CatalogSample.decision, CatalogSample.chat, CatalogSample.multimodal, CatalogSample.embedding,
-            CatalogSample.rerank, #"{"id":"x/unnamed-decision","capabilities":["systemone"]}"#)
+            CatalogSample.decision, CatalogSample.visionDecision, CatalogSample.chat, CatalogSample.multimodal,
+            CatalogSample.embedding, CatalogSample.rerank, #"{"id":"x/unnamed-decision","capabilities":["systemone"]}"#)
         let response = try JSONDecoder().decode(ModelsResponse.self, from: data)
         #expect(response.descriptors(usable: true).map(\.id) == ["anyrouter/anyrouter/byok", "anyrouter/agents-a1/agents-a1-free"])
         #expect(response.decisionModels() == [
-            DecisionModel(id: "anyrouter/decision", name: "AnyRouter Decision"),
-            DecisionModel(id: "x/unnamed-decision", name: "x/unnamed-decision"),
+            DecisionModel(id: "anyrouter/decision", name: "AnyRouter Decision", acceptsImages: false),
+            DecisionModel(id: "google/gemini-decision-1", name: "Gemini Decision 1", acceptsImages: true),
+            DecisionModel(id: "x/unnamed-decision", name: "x/unnamed-decision", acceptsImages: nil),
         ])
     }
 }

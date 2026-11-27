@@ -22,7 +22,9 @@ extension AnyRouterEngine {
             throw AnyRouterError.signedOut
         }
         guard (200..<300).contains(status) else {
-            throw AnyRouterError.http(status: status, message: AnyRouterError.message(from: data, status: status))
+            let message = AnyRouterError.message(from: data, status: status)
+            if status == 400, DecisionRunError.isImageRejection(data) { throw DecisionRunError.imagesRefused(serverMessage: message) }
+            throw AnyRouterError.http(status: status, message: message)
         }
         var result = try DecisionResult.parse(data, for: request)
         result.latency = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18

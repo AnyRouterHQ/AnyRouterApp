@@ -28,6 +28,20 @@ struct DecisionRequestEncodingTests {
         #expect(questions["q3"]?["criteria"] as? [String] == ["rude", "neutral", "kind"])
     }
 
+    @Test func imagesGoOutAsRawBase64WithoutADataURL() throws {
+        let request = DecisionRequest(
+            model: "m", state: "s", questions: [DecisionQuestion(id: "q1", prompt: "p", kind: .yesNo)],
+            images: [DecisionImage(mediaType: "image/png", data: Data([1, 2, 3]))])
+        let text = try #require(String(data: request.jsonBody(), encoding: .utf8))
+        #expect(text == ##"{"images":[{"base64":"AQID","mediaType":"image/png"}],"model":"m","questions":{"q1":{"instructions":"p","type":"noul"}},"state":"s"}"##)
+        #expect(!text.contains("data:"))
+    }
+
+    @Test func noImagesMeansNoImagesKey() throws {
+        let request = DecisionRequest(model: "m", state: "s", questions: [DecisionQuestion(id: "q1", prompt: "p", kind: .yesNo)])
+        #expect(try body(request)["images"] == nil)
+    }
+
     @Test func theRequestSurvivesAJSONRoundTripForSavedRuns() throws {
         let request = DecisionRequest(model: "m", state: "s", questions: [
             DecisionQuestion(id: "q1", prompt: "p", kind: .choice(options: ["a", "b"]))
@@ -285,6 +299,17 @@ struct AnyRouterEngineDecisionTests {
         await #expect(throws: AnyRouterError.http(status: 400, message: #"Question "q1" must be an object definition."#)) {
             try await engine.runDecision(request)
         }
+    }
+
+    @Test func aRefusedPhotoIsATypedErrorAndAnyOther400StaysHTTP() async {
+        let refused = StubbedAPI { _ in
+            StubRegistry.Reply(status: 400, body: Data(##"{"error":{"message":"bad image","code":"invalid_images"}}"##.utf8))
+        }
+        let engine = AnyRouterEngine(tokens: FakeTokens("sk-ar-1"), config: refused.config, session: refused.session)
+        await #expect(throws: DecisionRunError.imagesRefused(serverMessage: "bad image")) { try await engine.runDecision(request) }
+        #expect(DecisionRunError.imagesRefused(serverMessage: "x").errorDescription == "This model can't read photos. Choose another model.")
+        #expect(!DecisionRunError.isImageRejection(Data("nope".utf8)))
+        #expect(!DecisionRunError.isImageRejection(Data(##"{"error":{"code":"invalid_questions"}}"##.utf8)))
     }
 
     @Test func aSuccessBodyThatIsNotADecisionIsABadResponse() async {

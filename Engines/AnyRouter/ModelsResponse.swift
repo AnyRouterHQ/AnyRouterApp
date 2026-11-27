@@ -139,7 +139,11 @@ struct ModelsResponse: Decodable {
 
     /// Decision models, for the Decisions screen. Ids are the wire ids (`anyrouter/decision`).
     func decisionModels() -> [DecisionModel] {
-        data.filter { $0.kind == .decision }.map { DecisionModel(id: $0.id, name: $0.name ?? $0.id) }
+        data.filter { $0.kind == .decision }.map {
+            DecisionModel(
+                id: $0.id, name: $0.name ?? $0.id,
+                acceptsImages: $0.architecture?.inputModalities.map { $0.contains("image") })
+        }
     }
 
     /// Reads `data` entry by entry: an entry that does not read is counted and skipped.

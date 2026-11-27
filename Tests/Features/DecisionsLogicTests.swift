@@ -71,7 +71,7 @@ struct DecisionsLogicTests {
     }
 
     @Test func kindsHaveTitlesAndOnlyChoiceAndRubricAskForAList() {
-        #expect(QuestionDraft.Kind.allCases.map(\.title) == ["Yes/no", "Choice", "Rubric"])
+        #expect(QuestionDraft.Kind.allCases.map(\.title) == ["Yes/no", "Choice", "Score"])
         #expect(QuestionDraft.Kind.yesNo.listPrompt == nil)
         #expect(QuestionDraft.Kind.choice.listPrompt != nil && QuestionDraft.Kind.rubric.listPrompt != nil)
         #expect(Set(QuestionDraft.Kind.allCases.map(\.id)).count == 3)

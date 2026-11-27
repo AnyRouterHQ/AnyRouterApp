@@ -5,6 +5,30 @@ struct DecisionModel: Identifiable, Hashable, Codable, Sendable {
     /// Wire id, e.g. `anyrouter/decision`.
     var id: String
     var name: String
+    /// From the model list's input modalities. `nil` when the list does not say.
+    var acceptsImages: Bool? = nil
+}
+
+/// A photo sent with a decision request: PNG, JPEG or WebP bytes. On the wire it is raw base64, never a `data:` URL.
+struct DecisionImage: Equatable, Codable, Sendable {
+    var mediaType: String
+    var data: Data
+
+    var wire: [String: Any] { ["mediaType": mediaType, "base64": data.base64EncodedString()] }
+}
+
+/// The server refused the photos (400 `invalid_images`). Mostly a model that does not read images.
+enum DecisionRunError: LocalizedError, Equatable {
+    case imagesRefused(serverMessage: String)
+
+    var errorDescription: String? { "This model can't read photos. Choose another model." }
+
+    /// True for an error body whose `error.code` is `invalid_images`.
+    static func isImageRejection(_ body: Data) -> Bool {
+        let root = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any]
+        let error = root?["error"] as? [String: Any]
+        return error?["code"] as? String == "invalid_images"
+    }
 }
 
 struct DecisionQuestion: Identifiable, Equatable, Codable, Sendable {
@@ -38,12 +62,15 @@ struct DecisionRequest: Equatable, Codable, Sendable {
     var model: String
     var state: String
     var questions: [DecisionQuestion]
+    /// At most 4, sized by `DecisionsLogic`. Only models that read images accept them.
+    var images: [DecisionImage] = []
 
     func jsonBody() throws -> Data {
         var map: [String: Any] = [:]
         for question in questions { map[question.id] = question.wire }
-        return try JSONSerialization.data(
-            withJSONObject: ["model": model, "state": state, "questions": map], options: [.sortedKeys])
+        var body: [String: Any] = ["model": model, "state": state, "questions": map]
+        if !images.isEmpty { body["images"] = images.map(\.wire) }
+        return try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys, .withoutEscapingSlashes])
     }
 }
 
