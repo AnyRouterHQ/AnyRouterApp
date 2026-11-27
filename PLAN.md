@@ -566,6 +566,8 @@ Source: `performAccessibilityAudit` in the verify journeys, run 45825631128 (iPh
 
 Note (closed-drawer layer): with the iPhone drawer closed it sits under the chat at opacity 0 and still appears in XCUITest's tree, so `AccessibilityAuditTests` on Home, chat, picker and settings used to report the drawer's contrast and clipping (rows 6, 8 and parts of 1 are the drawer's, seen only when it is open). Those audits now leave out the closed drawer's labels and say how many; `testDrawer` audits it open.
 
+Note (open drawer layer): with the iPhone drawer open, `main.container` kept an accessibility frame of {0,62,402,778} (run 45929768460, drawer-tree.txt) and sat over the drawer's rows and gear in the tree, so XCUITest called them not hittable and Switch Control could not reach them. 6ccea0f hides the container while the drawer is open and keeps "Close sidebar" as a sibling overlay. Proof: Screenshots run 45946529917, iPhone leg 18 of 18 passed with `tapRow` asserting `isHittable`; `frames.txt` shows gear, compose and scrim hittable, chat container not. Verify UI 45933670046 (9f18cd9, before the fix) timed out at 2 h; its drawer failures should clear on the next run, the AccessibilityAuditTests findings above are still open.
+
 ## Open questions (operator)
 
 - Q1 Add GitHub secrets: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_BASE64` (API key role App Manager).
