@@ -58,9 +58,16 @@ enum RememberLogic {
             let start = cue.keepsCue ? range.lowerBound : range.upperBound
             let text = String(message[start..<stop]).trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet(charactersIn: ",:;-")))
             guard text.contains(where: \.isLetter), text.count <= MemoryKind.fact.textLimit else { continue }
-            return Candidate(text: text.prefix(1).uppercased() + text.dropFirst(), kind: cue.kind, explicit: cue.explicit)
+            let kind = cue.kind == .fact && isAboutTheUser(text) ? MemoryKind.profile : cue.kind
+            return Candidate(text: text.prefix(1).uppercased() + text.dropFirst(), kind: kind, explicit: cue.explicit)
         }
         return nil
+    }
+
+    /// "I'm vegetarian", "Tôi ăn chay": who the user is, so it goes in every chat's profile (About you), not only in recall.
+    private static func isAboutTheUser(_ text: String) -> Bool {
+        let first = text.split { !$0.isLetter }.first?.lowercased()
+        return first == "i" || first == "tôi" || first == "mình"
     }
 
     private static func onlyLeadWords(_ text: Substring) -> Bool {

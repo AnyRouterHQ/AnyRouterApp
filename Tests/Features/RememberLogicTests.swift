@@ -6,7 +6,8 @@ struct RememberLogicTests {
     private func saved(_ message: String) -> String? { RememberLogic.candidate(in: message)?.text }
 
     @Test func anAskToRememberSavesTheStatementWithoutTheAsk() {
-        #expect(RememberLogic.candidate(in: "Remember that I'm vegetarian") == RememberLogic.Candidate(text: "I'm vegetarian", kind: .fact, explicit: true))
+        #expect(RememberLogic.candidate(in: "Remember that I'm vegetarian") == RememberLogic.Candidate(text: "I'm vegetarian", kind: .profile, explicit: true))
+        #expect(RememberLogic.candidate(in: "Remember that my dog is called Mochi") == RememberLogic.Candidate(text: "My dog is called Mochi", kind: .fact, explicit: true))
         #expect(saved("Please remember that my sister lives in Hue. What should I bring her?") == "My sister lives in Hue.")
         #expect(saved("ok, remember that: I work night shifts!") == "I work night shifts!")
         #expect(saved("Thanks. Remember that I'm vegetarian.") == "I'm vegetarian.")
@@ -14,7 +15,8 @@ struct RememberLogicTests {
     }
 
     @Test func vietnameseAsksAndPreferences() {
-        #expect(RememberLogic.candidate(in: "Hãy nhớ rằng tôi ăn chay.") == RememberLogic.Candidate(text: "Tôi ăn chay.", kind: .fact, explicit: true))
+        #expect(RememberLogic.candidate(in: "Hãy nhớ rằng tôi ăn chay.") == RememberLogic.Candidate(text: "Tôi ăn chay.", kind: .profile, explicit: true))
+        #expect(RememberLogic.candidate(in: "Nhớ rằng: 2 giờ chiều họp") == RememberLogic.Candidate(text: "2 giờ chiều họp", kind: .fact, explicit: true))
         #expect(saved("Bạn nhớ rằng mình dị ứng tôm nhé") == "Mình dị ứng tôm nhé")
         #expect(RememberLogic.candidate(in: "Từ giờ trả lời bằng tiếng Việt.") == RememberLogic.Candidate(text: "Trả lời bằng tiếng Việt.", kind: .preference, explicit: false))
         #expect(saved("Từ này nghĩa là gì") == nil, "a tone mark makes another word: this is not \"from now on\"")

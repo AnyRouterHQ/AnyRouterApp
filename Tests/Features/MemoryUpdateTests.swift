@@ -37,7 +37,7 @@ struct MemoryUpdateTests {
         let r = try await rig()
         await r.send("Remember that I'm vegetarian")
         let record = try #require(try r.store.all().first)
-        #expect(record.text == "I'm vegetarian" && record.kind == .fact && record.origin == .askedInChat)
+        #expect(record.text == "I'm vegetarian" && record.kind == .profile && record.origin == .askedInChat)
         #expect(record.scope == .deviceOnly, "said to a model on this device, so it stays off cloud models")
         #expect(record.sourceThreadID == r.vm.thread?.id)
         #expect(record.sourceMessageID == r.vm.messages.first?.id)
