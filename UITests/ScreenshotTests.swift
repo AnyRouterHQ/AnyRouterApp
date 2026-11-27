@@ -590,6 +590,21 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// Settings > Memory with a few items, in the order the page groups them.
+    func testSettingsMemory() {
+        forEachAppearance(extra: ["-ARDemoMemories", "YES"]) { app, appearance in
+            open(app, footer: "Settings")
+            XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+            let element = button(app, containing: "Memory")
+            scrollTo(element, in: app)
+            element.tap()
+            XCTAssertTrue(app.navigationBars["Memory"].waitForExistence(timeout: 5))
+            capture("settings-memory", appearance)
+            app.swipeUp()
+            capture("settings-memory-more", appearance)
+        }
+    }
+
     func testSettingsAccountSignedOut() {
         forEachAppearance(extra: ["-ARDemoSignedOut", "YES"]) { app, appearance in
             open(app, footer: "Settings")

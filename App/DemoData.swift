@@ -6,6 +6,7 @@ import UIKit
 /// Offline sample data for screenshots and UI tests. Active only with the launch argument `-ARDemoData YES`.
 /// Optional flags: `-ARDemoParts YES` (a reply with reasoning, tools, files, a subagent and a compacted history), `-ARDemoSources YES` (a markdown reply that cites five pages), `-ARReplyTextStep -2...3`, `-ARReplyFont serif|rounded`, `-ARDemoSignedOut YES`, `-ARDemoOnboarding YES`, `-ARDemoTools YES` (a thread with a web search step), `-ARAppearance light|dark`.
 /// `-ARDemoKeepSettings YES` keeps settings from the previous launch, to test persistence.
+/// `-ARDemoMemories YES` seeds a few memories for Settings > Memory.
 /// `-ARDemoAwaySeconds N` records a trip to the background N seconds before launch.
 enum DemoData {
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: "ARDemoData") }
@@ -146,8 +147,26 @@ enum DemoData {
         if sources { insertSourcesThread(in: context, at: now) }
         if parts { insertPartsThread(in: context, at: now) }
         if longThreadMessages > 0 { insertLongThread(into: context, now: now) }
+        if memories { try insertMemories(in: context) }
         try context.save()
         return container
+    }
+
+    /// `-ARDemoMemories YES`: a few memories for the Settings > Memory screenshots.
+    private static var memories: Bool { UserDefaults.standard.bool(forKey: "ARDemoMemories") }
+
+    @MainActor
+    private static func insertMemories(in context: ModelContext) throws {
+        let store = MemoryStore(context: context)
+        let lisbon = try context.fetch(FetchDescriptor<ThreadRecord>()).first { $0.title == "Trip ideas for Lisbon" }
+        let now = Date()
+        try store.add("My name is Lan.", kind: .profile, now: now.addingTimeInterval(-50))
+        try store.add("I live in Ho Chi Minh City.", kind: .profile, now: now.addingTimeInterval(-40))
+        try store.add("Short answers. Reply in Vietnamese when I write in Vietnamese.", kind: .preference, now: now.addingTimeInterval(-30))
+        try store.add("I am allergic to peanuts.", kind: .note, now: now.addingTimeInterval(-20))
+        try store.add("My dog is called Mochi.", kind: .fact, origin: .askedInChat, now: now.addingTimeInterval(-10))
+        try store.add("A relaxed 3 day plan for Lisbon: Alfama, Belem, Sintra.", kind: .chatSummary, origin: .extracted,
+                      scope: .deviceOnly, sourceThreadID: lisbon?.id, now: now)
     }
 
     static let switchThreadTitle = "Switch models in a chat"
