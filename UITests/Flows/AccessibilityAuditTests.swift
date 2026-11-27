@@ -136,6 +136,9 @@ final class AccessibilityAuditTests: XCTestCase {
             app.buttons["Model"].tap()
             let tabs = app.segmentedControls.firstMatch
             XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+            // The sheet opens on the AnyRouter tab in demo data; audit the Local tab on purpose.
+            tabs.buttons["Local"].tap()
+            XCTAssertTrue(app.buttons["model-row.apple/foundation"].waitForExistence(timeout: 5))
             audit(app, "model-picker-local", appearance)
             tabs.buttons["AnyRouter"].tap()
             XCTAssertTrue(app.buttons["model-row.anyrouter/anthropic/claude-sonnet-4-6"].waitForExistence(timeout: 5))

@@ -17,12 +17,13 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
-    /// `landscape`: `pngRepresentation` stays in the device's portrait frame (content turned), `image` carries the
-    /// orientation, so its PNG is upright.
+    /// `landscape`: `pngRepresentation` stays in the device's portrait frame (content turned). `image` carries the
+    /// orientation, but `pngData()` drops it (run 46027222840 saved the iPad landscape capture turned), so the image is
+    /// drawn once to bake the orientation into the pixels.
     private func capture(_ name: String, _ appearance: Appearance, landscape: Bool = false) {
         sleep(1)
         let screenshot = XCUIScreen.main.screenshot()
-        let png = landscape ? screenshot.image.pngData() ?? screenshot.pngRepresentation : screenshot.pngRepresentation
+        let png = landscape ? Self.upright(screenshot.image) : screenshot.pngRepresentation
         let attachment = XCTAttachment(uniformTypeIdentifier: "public.png", name: "\(appearance.rawValue)-\(name)", payload: png)
         attachment.lifetime = .keepAlways
         add(attachment)
@@ -34,6 +35,12 @@ final class ScreenshotTests: XCTestCase {
         } catch {
             XCTFail("Could not write \(url.lastPathComponent): \(error)")
         }
+    }
+
+    private static func upright(_ image: UIImage) -> Data {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = image.scale
+        return UIGraphicsImageRenderer(size: image.size, format: format).pngData { _ in image.draw(at: .zero) }
     }
 
     private func button(_ app: XCUIApplication, containing text: String) -> XCUIElement {
@@ -482,6 +489,9 @@ final class ScreenshotTests: XCTestCase {
             app.buttons["Model"].tap()
             let tabs = app.segmentedControls.firstMatch
             XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+            // The sheet opens on the tab of the current model (AnyRouter in demo data), so switch before the capture.
+            tabs.buttons["Local"].tap()
+            XCTAssertTrue(app.buttons["model-row.apple/foundation"].waitForExistence(timeout: 5))
             capture("model-picker-local", appearance)
             tabs.buttons["AnyRouter"].tap()
             XCTAssertTrue(app.buttons["model-row.anyrouter/anthropic/claude-sonnet-4-6"].waitForExistence(timeout: 5))
