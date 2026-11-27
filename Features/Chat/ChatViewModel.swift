@@ -698,6 +698,9 @@ final class ChatViewModel {
         thread.modelID = model.id
         preferredModelID = model.id
         let assistant = MessageRecord(role: .assistant, content: "", modelName: model.shortName, modelID: model.id)
+        // Read before the reply can be deleted with its chat: a deleted record must not be read.
+        let replyID = assistant.id
+        LiveReplies.shared.begin(replyID)
         // What goes out is the summary of the folded part of the chat and the messages after it.
         let live = CompactionLogic.context(messages: Self.turns(of: thread), compaction: thread.compactions.last)
         // The plugins and files the user named with @, and the memories that match the question, are in this request only;
@@ -849,7 +852,7 @@ final class ChatViewModel {
                 if !Task.isCancelled { failure = ReplyFailureLogic.classify(error) }
             }
             if Self.isGone(assistant) || Self.isGone(thread) {
-                self?.abandon()
+                self?.abandon(replyID)
                 return
             }
             // A tag that never closed or never opened: the held characters are what they were.
@@ -882,7 +885,8 @@ final class ChatViewModel {
     }
 
     /// The thread was deleted during the reply: nothing to save, the view model just returns to idle.
-    private func abandon() {
+    private func abandon(_ replyID: UUID) {
+        LiveReplies.shared.end(replyID)
         phase = .idle
         task = nil
         loadingModelName = nil
@@ -944,6 +948,7 @@ final class ChatViewModel {
     /// A failed reply stays, even empty, with its failure on it: the chat shows it in place, also after a relaunch, and
     /// Retry replaces it.
     private func finish(_ assistant: MessageRecord, in thread: ThreadRecord, failure: ReplyFailure?) {
+        LiveReplies.shared.end(assistant.id)
         // Nothing is running any more, so a step without a result was cut off.
         var steps = assistant.toolSteps
         for index in steps.indices where steps[index].result == nil {

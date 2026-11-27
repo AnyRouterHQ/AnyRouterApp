@@ -309,7 +309,8 @@ private struct ChatContent: View {
                 ForEach(messages) { message in
                     let row = MessageRow(
                         message: message,
-                        isStreamingThis: chat.isStreaming && message.id == lastID,
+                        // Live in any window: a second iPad window on this chat shows the reply as streaming, not as stopped.
+                        isStreamingThis: LiveReplies.shared.ids.contains(message.id),
                         showsRegenerate: message.id == lastID && chat.canRegenerate,
                         onRegenerate: { chat.regenerate() },
                         switchNote: switchNotes[message.id],
