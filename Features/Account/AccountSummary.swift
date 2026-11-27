@@ -1,20 +1,21 @@
 import Foundation
 
 /// What the account card shows. Built once from the three AnyRouter endpoints so views never touch JSON.
-struct AccountSummary: Equatable, Sendable {
-    struct Credits: Equatable, Sendable {
+/// Codable for the launch cache: it holds no token, only what the card shows.
+struct AccountSummary: Equatable, Codable, Sendable {
+    struct Credits: Equatable, Codable, Sendable {
         /// Remaining balance in USD.
         var balance: Double
         var used: Double?
     }
 
-    struct FreeRequests: Equatable, Sendable {
+    struct FreeRequests: Equatable, Codable, Sendable {
         var remaining: Int
         var limit: Int
     }
 
     /// Spend on the sign-in key itself (`GET /api/v1/key`), used when credits are not readable.
-    struct KeyUsage: Equatable, Sendable {
+    struct KeyUsage: Equatable, Codable, Sendable {
         var label: String?
         var limit: Double?
         var limitRemaining: Double?

@@ -7,7 +7,11 @@ final class AnyRouterAccountAdapter: AccountService {
     private let auth: AnyRouterAuth
     private let loader: AccountSummaryLoader
     private let telemetry: any Telemetry
+    /// Where the last summary waits for the next launch. Never the token.
+    @ObservationIgnored private let cache: UserDefaults?
     private(set) var summary: AccountSummary?
+
+    static let summaryCacheKey = "account.summaryCache"
 
     struct SignInFailed: LocalizedError {
         let message: String
@@ -17,10 +21,15 @@ final class AnyRouterAccountAdapter: AccountService {
     }
 
     init(auth: AnyRouterAuth, loader: AccountSummaryLoader = AccountSummaryLoader(),
-         telemetry: any Telemetry = NoopTelemetry()) {
+         telemetry: any Telemetry = NoopTelemetry(), cache: UserDefaults? = nil) {
         self.auth = auth
         self.loader = loader
         self.telemetry = telemetry
+        self.cache = cache
+        // Stale while revalidating: a signed-in person sees the last summary at once, `refreshSummary` replaces it.
+        if auth.isSignedIn, let data = cache?.data(forKey: Self.summaryCacheKey) {
+            summary = try? JSONDecoder().decode(AccountSummary.self, from: data)
+        }
     }
 
     var state: AccountState {
@@ -43,7 +52,13 @@ final class AnyRouterAccountAdapter: AccountService {
 
     func signOut() async {
         auth.signOut()
+        forgetSummary()
+    }
+
+    /// Signed out by any path: the menu, a 401, or a key the Keychain no longer has.
+    func forgetSummary() {
         summary = nil
+        cache?.removeObject(forKey: Self.summaryCacheKey)
     }
 
     func refreshSummary() async {
@@ -51,10 +66,12 @@ final class AnyRouterAccountAdapter: AccountService {
         // Off the main thread: a Keychain read can block for seconds on a cold boot.
         let stored = await Task.detached(priority: .userInitiated) { store.token() }.value
         guard let token = stored else {
-            summary = nil
+            forgetSummary()
             return
         }
         // A failed reload keeps the last good summary.
-        if let loaded = await loader.load(token: token) { summary = loaded }
+        guard let loaded = await loader.load(token: token) else { return }
+        summary = loaded
+        cache?.set(try? JSONEncoder().encode(loaded), forKey: Self.summaryCacheKey)
     }
 }

@@ -5,6 +5,7 @@ import Observation
 @MainActor @Observable
 final class ModelStore {
     private static let selectedKey = "models.selectedID"
+    static let cloudListKey = "models.cloudListCache"
 
     @ObservationIgnored private let registry: EngineRegistry
     @ObservationIgnored private let defaults: UserDefaults
@@ -45,6 +46,12 @@ final class ModelStore {
         self.selectedID = defaults.string(forKey: Self.selectedKey)
         self.cloudPrefs = CloudModelPrefs.load(from: defaults)
         apply(usageCache.load())
+        // Stale while revalidating: the last cloud list shows at once, the first refresh replaces it.
+        if let data = defaults.data(forKey: Self.cloudListKey),
+           let cloud = try? JSONDecoder().decode([ModelDescriptor].self, from: data) {
+            listsBySource[.anyrouter] = cloud
+            models = cloud
+        }
         Perf.beginModels()
     }
 
@@ -80,6 +87,7 @@ final class ModelStore {
         // An engine that has not answered yet, or failed, keeps the models it listed before.
         for await listing in registry.modelListings() {
             listsBySource.merge(listing.lists) { _, new in new }
+            if let cloud = listing.lists[.anyrouter] { defaults.set(try? JSONEncoder().encode(cloud), forKey: Self.cloudListKey) }
             let previous = loadFailures
             loadFailures = previous.filter { listing.lists[$0.key] == nil }.merging(listing.failures) { _, new in new }
             for (source, message) in listing.failures where previous[source] != message { onLoadFailure?(source, message) }
@@ -89,6 +97,13 @@ final class ModelStore {
         isLoading = false
         hasLoaded = true
         await refreshWeeklyUsage()
+    }
+
+    /// Signed out or refused (401): the cached cloud list goes, and the next refresh lists what a signed-out person sees.
+    func forgetCloudList() {
+        defaults.removeObject(forKey: Self.cloudListKey)
+        listsBySource[.anyrouter] = nil
+        models.removeAll { $0.source == .anyrouter }
     }
 
     /// A model listed twice keeps its best place.

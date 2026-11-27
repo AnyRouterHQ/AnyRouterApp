@@ -87,11 +87,12 @@ final class AppState {
         let telemetry = dependencies.makeTelemetry()
         self.telemetry = telemetry
         settings = AppSettings()
-        models = ModelStore(
+        let modelStore = ModelStore(
             registry: registry, telemetry: telemetry, usage: AnyRouterWeeklyUsage(),
             onLoadFailure: { [diagnostics] source, message in
                 _ = try? diagnostics.saveModelListFailure(source: source.rawValue, message: message)
             })
+        models = modelStore
         let enginesSignpost = Perf.signposter.beginInterval("launch.engines")
         // One gate and one loaded model for both local engines: a phone has room for one of each.
         let residency = LocalResidency(telemetry: telemetry)
@@ -140,13 +141,21 @@ final class AppState {
         let authSignpost = Perf.signposter.beginInterval("launch.auth")
         let auth = AnyRouterAuth(store: tokenStore, restore: .deferred, hints: dependencies.hints)
         Perf.signposter.endInterval("launch.auth", authSignpost)
-        // Signing in connects the AnyRouter MCP server with the same token; signing out disconnects it.
-        auth.onSignedInChange = { [integrations] in _ = integrations.accountChanged(signedIn: $0) }
+        let accountAdapter = AnyRouterAccountAdapter(auth: auth, telemetry: telemetry, cache: dependencies.hints)
+        // Signing in connects the AnyRouter MCP server with the same token; signing out disconnects it and, like a 401,
+        // forgets the cached account summary and cloud list.
+        auth.onSignedInChange = { [integrations, accountAdapter, modelStore] signedIn in
+            _ = integrations.accountChanged(signedIn: signedIn)
+            if !signedIn {
+                accountAdapter.forgetSummary()
+                modelStore.forgetCloudList()
+            }
+        }
         if auth.isSignedIn { _ = integrations.accountChanged(signedIn: true) }
         let anyRouter = auth.makeEngine()
         registry.register(anyRouter)
         decisions = DecisionsStore(service: AnyRouterDecisionsAdapter(engine: anyRouter))
-        account = AnyRouterAccountAdapter(auth: auth, telemetry: telemetry)
+        account = accountAdapter
         let hubSignpost = Perf.signposter.beginInterval("launch.hub")
         hub = LocalModelHub(
             downloads: ModelDownloadManager(telemetry: telemetry),
