@@ -30,7 +30,7 @@ struct FaviconChain: View {
     @ScaledMetric(relativeTo: .caption) private var size: CGFloat = 18
 
     var body: some View {
-        HStack(spacing: -size * 0.35) {
+        HStack(spacing: -size * 0.3) {
             ForEach(Array(sources.enumerated()), id: \.element.id) { index, source in
                 FaviconView(source: source, size: size)
                     .overlay { Circle().stroke(Color(.systemBackground), lineWidth: 1.5) }

@@ -93,6 +93,8 @@ struct CodeBlockView: View {
     /// From this many lines on, a block shows line numbers.
     static let lineNumberThreshold = 6
 
+    @State private var hasMore = false
+
     private var code: String { content.trimmingCharacters(in: .newlines) }
 
     var body: some View {
@@ -105,7 +107,7 @@ struct CodeBlockView: View {
                 Spacer()
                 CopyButton(text: code, showsLabel: true)
             }
-            .padding(.leading, 12)
+            .padding(.horizontal, 12)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 12) {
                     if lineCount >= CodeBlockView.lineNumberThreshold {
@@ -119,6 +121,19 @@ struct CodeBlockView: View {
                 }
                 .font(.system(.callout, design: .monospaced))
                 .padding(12)
+            }
+            // A line that runs on fades at the edge instead of being cut mid-word; the fade goes when the end is reached.
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentSize.width - geometry.contentOffset.x - geometry.containerSize.width > 1
+            } action: { _, more in
+                hasMore = more
+            }
+            .mask {
+                HStack(spacing: 0) {
+                    Color.black
+                    LinearGradient(colors: [.black, hasMore ? .clear : .black], startPoint: .leading, endPoint: .trailing)
+                        .frame(width: 28)
+                }
             }
         }
         .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: ARTheme.radius))

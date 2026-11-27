@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// The quiet row under a finished reply: copy, share, read aloud and regenerate, then the short model name and the
-/// sources the answer drew on. The model name opens cost, speed and tokens; the sources open a list. What shows, and in
-/// which order, comes from `ReplyFooter`. When the row is too wide for the screen, the model and sources drop to a
-/// second line instead of scrolling out of sight.
+/// The quiet row under a finished reply: copy, share, read aloud and regenerate, then the sources the answer drew on,
+/// then the short model name. The model name opens cost, speed and tokens; the sources open a list. What shows, and in
+/// which order, comes from `ReplyFooter`. The row stays one line and scrolls sideways when it is wider than the screen.
 struct ReplyFooterRow: View {
     let message: MessageRecord
     let footer: ReplyFooter
@@ -15,16 +14,16 @@ struct ReplyFooterRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 0) {
+            // One row. When it is wider than the screen it scrolls sideways; it never wraps.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: -4) {
                     actions
-                    info
+                    sourcesButton
+                    modelInfo
                 }
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 0) { actions }
-                    HStack(spacing: 0) { info }.padding(.leading, 10)
-                }
+                .imageScale(.medium)
             }
+            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
             if expanded, let metadata = message.metadata {
                 details(metadata).transition(.opacity)
             }
@@ -72,7 +71,7 @@ struct ReplyFooterRow: View {
     }
 
     @ViewBuilder
-    private var info: some View {
+    private var modelInfo: some View {
         if footer.hasDetails {
             Button { expanded.toggle() } label: {
                 HStack(spacing: 4) {
@@ -101,6 +100,10 @@ struct ReplyFooterRow: View {
                 .padding(.horizontal, 4)
                 .accessibilityLabel(modelAccessibilityLabel)
         }
+    }
+
+    @ViewBuilder
+    private var sourcesButton: some View {
         if let sourcesLabel = footer.sourcesLabel {
             Button { showsSources = true } label: {
                 HStack(spacing: 6) {
