@@ -72,6 +72,8 @@ final class ChatViewModel {
     @ObservationIgnored var promotedItem: QueueItem?
     @ObservationIgnored var isForeground = true
     @ObservationIgnored var sendsWhenActive = false
+    /// The question being answered was already retried once after folding the chat for Apple's window.
+    @ObservationIgnored private var retriedAfterCompaction = false
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
          settings: AppSettings, models: ModelStore,
@@ -257,7 +259,7 @@ final class ChatViewModel {
     }
 
     private func summarize(_ plan: CompactionPlan, model: ModelDescriptor) async -> String? {
-        let request = CompactionLogic.request(for: plan)
+        let request = CompactionLogic.request(for: plan, structured: model.source == .anyrouter)
         var params = GenerationParams()
         params.temperature = 0.2
         params.maxTokens = CompactionLogic.summaryTokens
@@ -471,6 +473,7 @@ final class ChatViewModel {
         input = ""
         let named = mentions
         mentions = []
+        retriedAfterCompaction = false
         let memory = MemoryStore(context: context).remember(text, messageID: user.id, thread: thread, source: model.source, settings: settings)
         return startStream(model: model, thread: thread, mentions: named, memory: memory)
     }
@@ -502,6 +505,7 @@ final class ChatViewModel {
         context.insert(user)
         user.thread = thread
         user.attachments = item.attachments
+        retriedAfterCompaction = false
         let memory = MemoryStore(context: context).remember(item.text, messageID: user.id, thread: thread, source: model.source, settings: settings)
         _ = startStream(model: model, thread: thread, memory: memory)
         return true
@@ -970,7 +974,29 @@ final class ChatViewModel {
         }
         if gotReply, generatesTitles, let chat = model { titleTask = startTitle(for: thread, chat: chat) }
         if let ended { onReplyEnded?(ended.id, ended.text) }
+        if failure?.kind == .contextTooLong, retryAfterCompaction(assistant, in: thread) { return }
         queueReplyEnded(failure: failure)
+    }
+
+    /// Apple's model said the chat no longer fits its window: fold the older messages once and ask again (agent design
+    /// 3.5). A second failure stays on the reply, with Shorten chat.
+    private func retryAfterCompaction(_ failed: MessageRecord, in thread: ThreadRecord) -> Bool {
+        guard let model, model.source == .apple, !retriedAfterCompaction,
+              let plan = CompactionLogic.plan(
+                messages: thread.orderedMessages.filter { $0.id != failed.id }, compaction: thread.compactions.last,
+                window: windowTokens, keepRecent: CompactionLogic.keepRecentManual)
+        else { return false }
+        retriedAfterCompaction = true
+        phase = .compacting
+        let failure = failed.failure
+        task = Task { [weak self] in
+            guard let self else { return }
+            let folded = await self.fold(plan, model: model, thread: thread)
+            self.phase = .idle
+            self.task = nil
+            if folded { self.regenerate() } else { self.queueReplyEnded(failure: failure) }
+        }
+        return true
     }
 
     /// The always-on memory profile for this request. The chat's first send freezes which items it uses.

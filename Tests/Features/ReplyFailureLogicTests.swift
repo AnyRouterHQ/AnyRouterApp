@@ -37,6 +37,7 @@ struct ReplyFailureLogicTests {
 
     @Test func theWordsOfAnErrorDecideWhenNothingElseDoes() {
         #expect(ReplyFailureLogic.kind(ofText: "Exceeded the context window") == .contextTooLong)
+        #expect(ReplyFailureLogic.kind(ofText: "The context size was exceeded.") == .contextTooLong)
         #expect(ReplyFailureLogic.kind(ofText: "Too Many Requests") == .rateLimited)
         #expect(ReplyFailureLogic.kind(ofText: "Insufficient credits") == .outOfCredits)
         #expect(ReplyFailureLogic.kind(ofText: "The request timed out.") == .timeout)

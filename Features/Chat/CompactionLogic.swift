@@ -43,6 +43,14 @@ enum CompactionLogic {
         Reply with the summary only.
         """
 
+    /// Cloud models summarize under fixed headings (agent design 3.5); a 4k on-device window cannot spare the headings.
+    static let structuredSummarizerPrompt = """
+        You shorten a conversation so it can continue with less text. Write the summary under these headings, each with \
+        brief plain lines, and leave out a heading when nothing belongs under it: Goal, Constraints and preferences, \
+        Progress, Key decisions, Next steps, Critical context. Keep names, numbers, file names and open questions. \
+        Add nothing new. Reply with the summary only.
+        """
+
     /// A few tokens per message for its role.
     private static let perMessageTokens = 4
 
@@ -126,7 +134,7 @@ enum CompactionLogic {
     }
 
     /// The request that asks a model for the summary: its instructions and one message with the transcript.
-    static func request(for plan: CompactionPlan) -> (system: String, messages: [ChatMessage]) {
+    static func request(for plan: CompactionPlan, structured: Bool = false) -> (system: String, messages: [ChatMessage]) {
         var text = ""
         if let previous = plan.previousSummary { text += "Summary so far:\n\(previous)\n\n" }
         text += "New messages:\n"
@@ -135,7 +143,7 @@ enum CompactionLogic {
             text += "\(speaker): \(clipped(message.content))\n"
         }
         text += "\nWrite the updated summary."
-        return (summarizerPrompt, [ChatMessage(role: .user, content: text)])
+        return (structured ? structuredSummarizerPrompt : summarizerPrompt, [ChatMessage(role: .user, content: text)])
     }
 
     /// The model's answer as a summary: trimmed and capped. Nil when it wrote nothing.

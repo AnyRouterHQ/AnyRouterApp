@@ -167,6 +167,12 @@ struct CompactionLogicTests {
         #expect(text.contains("User: What is an actor?"))
         #expect(text.contains("Assistant: A type that guards state."))
         #expect(text.hasSuffix("Write the updated summary."))
+        let cloud = CompactionLogic.request(for: plan, structured: true)
+        #expect(cloud.system == CompactionLogic.structuredSummarizerPrompt)
+        for heading in ["Goal", "Constraints and preferences", "Progress", "Key decisions", "Next steps", "Critical context"] {
+            #expect(cloud.system.contains(heading))
+        }
+        #expect(cloud.messages == request.messages)
     }
 
     @Test func aFirstRequestHasNoSummarySoFarAndALongMessageIsCut() {

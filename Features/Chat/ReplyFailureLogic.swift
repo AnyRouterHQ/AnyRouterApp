@@ -165,7 +165,7 @@ enum ReplyFailureLogic {
     static func kind(ofText text: String) -> ReplyFailure.Kind {
         let text = text.lowercased()
         func has(_ words: String...) -> Bool { words.contains { text.contains($0) } }
-        if has("context length", "context window", "maximum context", "too many tokens", "prompt is too long") { return .contextTooLong }
+        if has("context length", "context window", "context size", "maximum context", "too many tokens", "prompt is too long") { return .contextTooLong }
         if has("rate limit", "too many requests") { return .rateLimited }
         if has("credit", "insufficient balance", "payment required") { return .outOfCredits }
         if has("timed out", "timeout") { return .timeout }
