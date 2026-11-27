@@ -14,8 +14,8 @@ struct ARHomeBackground: View {
     var body: some View {
         LinearGradient(
             stops: [
-                .init(color: Color.accentColor.opacity(scheme == .dark ? ARHomeWash.topOpacityDark : ARHomeWash.topOpacityLight), location: 0),
-                .init(color: Color.accentColor.opacity(0), location: ARHomeWash.fadeEnd),
+                .init(color: ARPalette.tint.opacity(scheme == .dark ? ARHomeWash.topOpacityDark : ARHomeWash.topOpacityLight), location: 0),
+                .init(color: ARPalette.tint.opacity(0), location: ARHomeWash.fadeEnd),
             ],
             startPoint: .top, endPoint: .bottom
         )

@@ -157,9 +157,10 @@ private struct VoiceModelRow: View {
         switch state {
         case .notInstalled, .failed:
             if row.canGet {
-                Button { hub.downloader.start(model) } label: { Text(state.isFailed ? "Retry" : "Get").frame(minWidth: 44, minHeight: 44) }
+                Button { hub.downloader.start(model) } label: { Text(state.isFailed ? "Retry" : "Get") }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)
+                    .controlSize(.small)
                     .accessibilityLabel("Get \(model.title)")
             }
         case .installed:
@@ -167,7 +168,8 @@ private struct VoiceModelRow: View {
                 .foregroundStyle(.secondary)
                 .accessibilityLabel(row.isDefault ? "Default" : "Installed")
         case .downloading, .paused, .verifying:
-            Button(role: .cancel) { hub.downloader.cancel(model) } label: { Text("Cancel").frame(minWidth: 44, minHeight: 44) }
+            Button(role: .cancel) { hub.downloader.cancel(model) } label: { Text("Cancel") }
+                .controlSize(.small)
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.capsule)
         }

@@ -126,7 +126,9 @@ struct LocalModelsScreen: View {
                 NavigationLink {
                     UnavailableModelsScreen()
                 } label: {
-                    Text(LocalModelsLogic.unavailableTitle(count: unavailable.count, device: device))
+                    ListRow(LocalModelsLogic.unavailableTitle(count: unavailable.count, device: device)) {
+                        Image(systemName: "iphone.slash")
+                    }
                 }
                 .accessibilityIdentifier("local.unavailable")
             }
@@ -177,10 +179,12 @@ struct LocalModelsScreen: View {
         case .notInstalled, .failed:
             if entry.unavailableReason == nil {
                 Button { actions.requestDownload(entry) } label: {
-                    Text("Get").frame(minWidth: 44, minHeight: 44)
+                    Text("Get")
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.capsule)
+                // The stock small download capsule; the row around it is the 44 pt target.
+                .controlSize(.small)
                 .accessibilityLabel("Get \(entry.descriptor.displayName)")
             }
         case .installed:

@@ -118,7 +118,7 @@ private struct Avatar: View {
                 // The accent is white in dark mode, so the initials take the background color to stay readable on it.
                 Text(initials).font(.headline).foregroundStyle(Color(.systemBackground))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.accentColor)
+                    .background(ARPalette.tint)
             }
         }
         .frame(width: 48, height: 48)

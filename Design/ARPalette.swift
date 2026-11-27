@@ -4,8 +4,10 @@ import SwiftUI
 /// and white in dark mode), semantic system colors for everything else, and system colors for the Settings tiles.
 /// Do not write `Color(red:)`, `Color(hex)` or `UIColor(red:)` in Features (`scripts/source-check.sh` fails on them).
 enum ARPalette {
-    /// The one tint. Set once as the app accent, so controls pick it up without naming it.
-    static let tint = Color.accentColor
+    /// The one tint, read from the AccentColor asset itself. Not `Color.accentColor`: that one resolves from the UIKit tint
+    /// of the hosting window, which turns system blue once a chat shows a photo or file card (quickLookPreview), so
+    /// pinning it at the root pinned the blue (the reply-parts thread in screenshots 46014514092).
+    static let tint = Color("AccentColor")
 
     /// Text and symbols on a surface filled with the tint (prominent buttons use `prominentLabel()`).
     static let onTint = Color.accentForeground

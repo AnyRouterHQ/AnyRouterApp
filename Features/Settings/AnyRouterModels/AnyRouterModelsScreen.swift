@@ -192,7 +192,7 @@ struct HiddenModelsScreen: View {
                     }
                     .swipeActions(edge: .trailing) {
                         Button { models.unhide(model) } label: { Label("Show", systemImage: "eye") }
-                            .tint(.accentColor)
+                            .tint(ARPalette.tint)
                     }
                 }
             } footer: {

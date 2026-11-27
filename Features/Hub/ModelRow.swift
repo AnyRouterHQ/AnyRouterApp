@@ -15,7 +15,7 @@ enum ModelStatusColor {
     static func badge(_ tone: ModelBadge.Tone) -> Color {
         switch tone {
         case .neutral: .secondary
-        case .info: .accentColor
+        case .info: ARPalette.tint
         case .success: .green
         case .warning: .orange
         }

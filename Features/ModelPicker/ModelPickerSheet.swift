@@ -86,13 +86,13 @@ struct ModelRowView: View {
         }
     }
 
+    /// The gift and "Free" sit as close as the other inline symbols; a `Label` would reserve its icon column.
     private func freeBadge(_ badge: String) -> some View {
-        Label {
-            Text(badge)
-        } icon: {
+        HStack(spacing: 3) {
             Image(systemName: "gift").font(.caption2).imageScale(.small)
+            Text(badge)
         }
-        .labelStyle(.titleAndIcon)
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
