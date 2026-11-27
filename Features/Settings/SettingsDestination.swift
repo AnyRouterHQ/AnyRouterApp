@@ -6,7 +6,7 @@ import Foundation
 /// About owns Diagnostics, Terms and Licenses (`aboutPages`): they push from the About page, not from the root.
 enum SettingsDestination: Hashable, CaseIterable, Sendable {
     case localModels, anyRouterModels
-    case responseCustomization, presets, integrations, chatBehavior
+    case responseCustomization, presets, integrations, chatBehavior, memory
     case shortcuts, theme, privacy, about
     case diagnostics, terms, licenses
 
@@ -25,7 +25,7 @@ enum SettingsDestination: Hashable, CaseIterable, Sendable {
         var destinations: [SettingsDestination] {
             switch self {
             case .models: [.localModels, .anyRouterModels]
-            case .chat: [.responseCustomization, .presets, .integrations, .chatBehavior]
+            case .chat: [.responseCustomization, .presets, .memory, .integrations, .chatBehavior]
             case .app: [.shortcuts, .theme, .privacy, .about]
             }
         }
@@ -42,6 +42,7 @@ enum SettingsDestination: Hashable, CaseIterable, Sendable {
         case .presets: "Presets"
         case .integrations: "Integrations"
         case .chatBehavior: "Chat Behavior"
+        case .memory: "Memory"
         case .shortcuts: "Shortcuts & Controls"
         case .theme: "Theme"
         case .privacy: "Privacy"
@@ -60,6 +61,7 @@ enum SettingsDestination: Hashable, CaseIterable, Sendable {
         case .presets: "text.badge.star"
         case .integrations: "puzzlepiece.extension"
         case .chatBehavior: "bubble.left.and.text.bubble.right"
+        case .memory: "brain"
         case .shortcuts: "square.stack.3d.up"
         case .theme: "circle.lefthalf.filled"
         case .privacy: "lock"

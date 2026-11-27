@@ -30,6 +30,7 @@ extension SettingsDestination {
         case .presets: .orange
         case .integrations: .purple
         case .chatBehavior: .teal
+        case .memory: .brown
         case .shortcuts: .pink
         case .theme: .cyan
         case .privacy: .gray
