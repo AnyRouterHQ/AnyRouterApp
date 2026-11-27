@@ -1,4 +1,5 @@
 import Testing
+import UIKit
 @testable import AnyRouter
 
 struct SettingsDestinationTests {
@@ -38,6 +39,16 @@ struct SettingsDestinationTests {
         for feature in ShortcutsLogic.features {
             #expect(!feature.summary.isEmpty && !feature.howToAdd.isEmpty && !feature.symbol.isEmpty)
             #expect(feature.id == feature.title)
+        }
+    }
+
+    @Test func shortcutsPageListsTheSiriPhrasesOfTheAppShortcuts() {
+        #expect(ShortcutsLogic.siriPhrases.map(\.phrase) == [
+            "Ask AnyRouter", "Fix my English with AnyRouter", "New chat in AnyRouter", "Start voice with AnyRouter",
+        ])
+        for phrase in ShortcutsLogic.siriPhrases {
+            #expect(!phrase.action.isEmpty && UIImage(systemName: phrase.symbol) != nil)
+            #expect(phrase.id == phrase.phrase)
         }
     }
 
