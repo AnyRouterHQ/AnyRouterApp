@@ -255,7 +255,7 @@ Research: [docs/research/local-agent.md](docs/research/local-agent.md) (2026-11-
 
 - [ ] LA1 `BuiltInTool` gets a side-effect class (`read`, `sensitiveRead`, `write`, `external`) and an optional permission; `AgentToolHost` asks per class (writes and external calls every time, no "always allow")
 - [ ] LA2 `DevicePermission` broker (status, request, Settings link) and Settings › Integrations › "On this device" with per-tool switch and status; sensitive tools off by default; our sheet before the system prompt, never at launch
-- [ ] LA3 `ocr_image` (Vision text and document recognition on the chat's image attachments, no permission)
+- [x] LA3 (365642c) `ocr_image` (Vision text and document recognition on the chat's image attachments, no permission). It ranks with the rest in the four-tool window: Apple and local models already get each photo's OCR text in the message (`AttachmentPrompt`), so it would repeat that text and push out the clock, calculator, search or page reader. Cloud models get it in any chat with a photo
 - [ ] LA4 `calendar_search` and `reminders` search (EventKit full access, 20 results, title/time/place only)
 - [ ] LA5 `reminder_create` and event creation behind a confirmation card with the exact payload (event through `EKEventEditViewController`)
 - [ ] LA6 `contacts_lookup` (one field per call, limited-access aware, `ContactAccessButton`)
@@ -642,6 +642,39 @@ Goal: a reply reads like one in a leading AI chat app. Calm markdown, a text siz
 - Sources come from the reply's search and page-read tool calls, one per page (www, trailing slash and case do not make two). Icons come from each site's own `/favicon.ico` over HTTPS, never a favicon service (docs/privacy.md). A letter circle stands in until it loads.
 - Text size is -2 to +3 steps of 6% on top of Dynamic Type; font is System, Serif or Rounded. Both live in `AppSettings` with the other settings keys (not `@AppStorage`, which this app does not use) and show a live preview in Settings, Response Customization.
 
+### Apps: Decisions, Paste and Extract (decision D29)
+
+Goal: AnyRouter's Decisions, Paste and Extract mini-apps as native screens. Each app and its agent tool share one service, built once. Written 2026-11-27 (lane B).
+
+**Services (one each, shared by the screen and the tool)**
+
+| Service | Screen | Tool | Where |
+|---|---|---|---|
+| `DecisionsService` (exists): `decisionModels()`, `run(DecisionRequest) -> DecisionResult` | Decisions, Paste | `decide` (D28 wave) | `Features/Services/DecisionsService.swift` |
+| `ImageTextReading` (365642c): `read(Data) -> ImageText` (text, tables) | Extract, on device by default | `ocr_image` | `Features/Attachments/ImageTextReading.swift` |
+| `AnyRouterOCRReader: ImageTextReading`: `POST /api/v1/ocr/extract`, JSON `{image: data URL, filename}`, 5 MiB cap, answer `{text, format: "markdown", tokens}` | Extract, signed in, opt-in | not offered (the photo would leave the device) | `Engines/AnyRouter/` |
+
+The OCR endpoint takes an `sk-ar-` key; the app's sign-in token is one (`OAuthClient` checks the prefix), so no server change is needed (inferred from the code, not called live; CI has no key).
+
+**Data shapes**
+
+- Decisions (exists): `DecisionRequest {model, state, questions}`, `DecisionQuestion.Kind` = `yesNo` ("noul") | `choice(options)` (an object map on the wire) | `rubric(levels)` ("score", 2 to 10 ordered levels; the builder starts with 10, 11 is rejected by the server). `DecisionResult.answers[].outcome` holds the probabilities.
+- `DecisionSample {id, title, state, questions}`: the one-tap samples (an email, a policy, an incident, an invoice), a static table in `DecisionsLogic`.
+- Paste: `PasteKind` = `json(pretty)` | `jwt(header, payload, expiry)` | `cron(fields, summary)` | `stackTrace(language, frames)` | `color(hex, rgb)` | `text`. `PasteLogic.detect(String) -> PasteKind` runs on device; only `.text` goes to a decision model as one choice question over a fixed category list.
+- Extract: `ExtractPreset {id, title, fields: [FieldSpec]}` with `FieldSpec {name, kind: text|number|date|money}` (receipt, bill, invoice, email, custom). `ExtractedField {name, kind, value, quote, source: Range<Int>?}`: the model returns `{name, value, quote}` as JSON; `ExtractLogic.locate(quote, in: text)` finds the quote in the document text (exact, then case and whitespace folded) and gives character offsets. A field whose quote is not in the text has `source == nil` and says "Not found in the text".
+- Extract runs any chat model (AnyRouter, Apple, local) through `EngineRegistry` with one non-streaming JSON prompt; `ExtractLogic` builds the prompt and parses the reply (code fences stripped).
+
+**Entry**: a sidebar "Apps" section (Decisions, Extract; Paste is a mode of Decisions) and the composer + menu: "Decide about this" (composer text as the state) and "Extract fields" (the current photo or PDF).
+
+**Checklist**
+
+- [ ] AP1 Decisions: model switch to compare two models side by side, Yes/No, Choice and Score builders, probability bars, the four samples
+- [ ] AP2 Paste mode: `PasteLogic` detectors with tests, decision-model classification of plain text
+- [ ] AP3 Extract: source picker (photo, PDF, VisionKit document camera), on-device text, presets, fields with source highlight, any chat model
+- [ ] AP4 `AnyRouterOCRReader` behind a switch in Extract, stubbed `URLSession` fixture tests, 5 MiB check before upload
+- [ ] AP5 Entry: sidebar Apps section, composer + menu items
+- [ ] AP6 Screenshots of Decisions, Paste and Extract, light and dark (lane A queue)
+
 ### Tools by model source (decision D24)
 
 Source by tool, 2026-11-27. "Verified" names the test that fails if the cell changes. The AnyRouter MCP server needs a sign-in in this app (`ToolSourceCatalog.anyRouter.auth`); the no-account web search is Exa.
@@ -653,6 +686,7 @@ Source by tool, 2026-11-27. "Verified" names the test that fails if the cell cha
 | Web search, no account (Exa) | works (default while signed out) | works (default on device) | same as GGUF; without the switch a search runs before the send (`WebGrounding`) | same as GGUF |
 | Web search with the AnyRouter account | works when signed in | not offered: AnyRouter search is for cloud models | not offered, same reason | not offered |
 | Attachments (`read_attachment`) | works when the chat has files | works | same as GGUF | same as GGUF |
+| Text in photos (`ocr_image`) | works when the chat has a photo (`ToolRegistryTests.testOCRImageIsOfferedOnlyInAChatWithAPhotoAndReadsTheStoredImage`) | offered but ranks after the 4; the photo's text is already in the message (`ToolProfileTests.aPhotoInTheChatDoesNotPushOutTheClockCalculatorSearchOrPageReader`) | same as Apple | same as Apple |
 | Custom MCP and other public servers | works, no cap | only the 4 highest in priority: clock, calculator, search, page reader | same 4 | same 4 |
 | Model has no tool support (some cloud models, other local families) | tools shown disabled in the @ list, reason "This model has no tools" | n/a | same | same |
 
