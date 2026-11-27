@@ -298,6 +298,9 @@ final class ChatViewModel {
 
     func dismissError() { errorMessage = nil }
 
+    /// Shows a message in the banner above the composer, for what the chat cannot do right now.
+    func showError(_ message: String) { errorMessage = message }
+
     /// The title of a chat whose first message is only files: the first file's name.
     static func attachmentTitle(_ files: [ChatAttachment]) -> String {
         guard let first = files.first else { return "Attachment" }

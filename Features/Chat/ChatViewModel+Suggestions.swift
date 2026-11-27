@@ -19,14 +19,14 @@ extension ChatViewModel {
     func run(_ action: PresetAction, clipboardText: () -> String) -> Task<Void, Never>? {
         switch action {
         case .askClipboard:
-            if let text = UseCaseLogic.clipboardQuestion(clipboardText()) { fill(text) } else { errorMessage = "Nothing copied yet." }
+            if let text = UseCaseLogic.clipboardQuestion(clipboardText()) { fill(text) } else { showError("Nothing copied yet.") }
             return nil
         case .summarizeLink:
             let request = UseCaseLogic.linkRequest(clipboardText())
             fill(request.text)
             guard request.isReady else { return nil }
             guard supportsTools else {
-                errorMessage = UseCaseLogic.cannotOpenLinks(model?.shortName ?? "This model")
+                showError(UseCaseLogic.cannotOpenLinks(model?.shortName ?? "This model"))
                 return nil
             }
             return send()
