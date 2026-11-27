@@ -929,3 +929,9 @@ Reviewer passes over main up to 8e275cd (2026-11-27). Fixed items are in `fix(..
 - In flight: model-smoke for model_id inkling-2, max_tokens 32 (asked of the extra-macos queue owner; not yet dispatched as far as this lane knows). No uncommitted work, no wip branch.
 - Next: read the smoke numbers (load + first token, tokens/s, answer contains 4); if it loads and answers, move the entry to models.json with a generic symbol logo fallback, then the 0.35 GB projector as an optional download.
 - Not started: (a) account summary and cloud model list cache (stale-while-revalidate, cleared on sign out and 401); (b) new chat after time away on a cold launch (apply ResumeLogic with the persisted lastBackgroundedAt before restoreSelection). Briefs are in the manager messages of 2026-11-27.
+
+### Lane handoff: account+resume+inkling (2026-11-27)
+- Done: a308566 a cold launch after "Start a new chat after" opens a new chat (root cause: the launch task cleared lastBackgroundedAt and AppShell.restoreSelection reopened the thread in a separate, unordered step; restoreSelection now applies ResumeLogic itself; unit tests + UITests/ResumeTests with -ARDemoAwaySeconds). 7777911 account summary and cloud model list cached (stale-while-revalidate, no token, cleared on sign out and on a 401 via onSignedInChange). CI 46010220509 at 3368a48 green with both.
+- Inkling smoke 46009068758 failed: finish length at 32 tokens (budget, not the model) and cancel 3.25 s at 0.2-0.3 tok/s (cancel is checked every decode step). 8082d69 sets the smoke cancel limit to max(2 s, 1.5 steps). Rerun REQUESTed on the board with max_tokens 256.
+- Next: if the rerun passes, move inkling-2 from dev-models.json to models.json with subtitle "1-bit · Experimental · slow" (symbol fallback drop.fill landed in 308f525). Projector add-on not started.
+- Needs a device: resume after iOS kills the app in the background; the Inkling decode speed on a phone.
