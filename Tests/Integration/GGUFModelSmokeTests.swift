@@ -127,7 +127,8 @@ final class GGUFModelSmokeTests: XCTestCase {
 
         XCTAssertFalse(text.isEmpty, "stream produced no text")
         let answer = Self.answer(from: text)
-        XCTAssertTrue(answer.contains("4"), "final answer after the thinking block must contain 4, got: \(SmokeEnv.external ? "(not printed for a model given at run time)" : answer)")
+        // finish "length" means the token budget ran out, often inside the thinking block: rerun with a larger max_tokens.
+        XCTAssertTrue(answer.contains("4"), "final answer after the thinking block must contain 4 (finish \(finishReason ?? "nil")), got: \(SmokeEnv.external ? "(not printed for a model given at run time)" : answer)")
         XCTAssertEqual(done, 1, "exactly one .done")
         XCTAssertTrue(usageBeforeDone, ".usage arrives before .done")
         let reported = try XCTUnwrap(usage, "no .usage delta")
@@ -261,11 +262,15 @@ final class GGUFModelSmokeTests: XCTestCase {
         let total = seconds(clock.now - cancelledAt)
         let latency = max(0, total - baseline)
         XCTAssertTrue(sawDone, "the next chat must complete after the cancel")
-        XCTAssertLessThan(latency, 2.0, "cancel must stop generation within 2s, took \(latency)s")
+        // Cancel is checked before every decode step, so it lands within one step. A model that decodes under one token
+        // a second on the Simulator CPU (a 1-bit 26B ran at 0.2) gets one and a half steps; others keep the 2 s limit.
+        let step = firstPieceAt.flatMap { first in markAt.map { seconds($0 - first) / Double(rateMark - 1) } } ?? 0
+        let limit = max(2.0, 1.5 * step)
+        XCTAssertLessThan(latency, limit, "cancel must stop generation within \(limit)s, took \(latency)s")
         if let firstPieceAt, let markAt, markAt > firstPieceAt {
             SmokeReport.record("GGUF tokens/sec (decode, long story)", String(format: "%.1f (pieces %d to %d)", Double(rateMark - 1) / seconds(markAt - firstPieceAt), 1, rateMark))
         }
-        SmokeReport.record("GGUF cancel", String(format: "stopped %.2f s after cancel (limit 2 s); next chat done %.2f s after cancel, warm baseline %.2f s", latency, total, baseline))
+        SmokeReport.record("GGUF cancel", String(format: "stopped %.2f s after cancel (limit %.2f s); next chat done %.2f s after cancel, warm baseline %.2f s", latency, limit, total, baseline))
     }
 
     func testInstallerRejectsWrongChecksumAndWrongSize() async throws {
