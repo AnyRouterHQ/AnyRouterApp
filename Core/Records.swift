@@ -1,6 +1,14 @@
 import Foundation
 import SwiftData
 
+/// Where a thread's title came from. A title the user set is never replaced.
+enum TitleSource: String, Sendable {
+    /// The first message, cut to length. A generated title may replace it.
+    case firstMessage
+    case generated
+    case user
+}
+
 @Model
 final class ThreadRecord {
     @Attribute(.unique) var id: UUID
@@ -18,6 +26,8 @@ final class ThreadRecord {
     var instructions: String?
     /// Stretches of this chat folded into summaries, as JSON. The messages stay. Optional so existing stores migrate.
     var compactionData: Data?
+    /// `TitleSource` raw value. Optional so existing stores migrate; a chat stored before titles had a source counts as the user's.
+    var titleSourceRaw: String?
     @Relationship(deleteRule: .cascade, inverse: \MessageRecord.thread)
     var messages: [MessageRecord] = []
 
@@ -29,6 +39,11 @@ final class ThreadRecord {
         self.updatedAt = createdAt
         self.isPinned = isPinned
         self.modelID = modelID
+    }
+
+    var titleSource: TitleSource {
+        get { titleSourceRaw.flatMap(TitleSource.init(rawValue:)) ?? .user }
+        set { titleSourceRaw = newValue.rawValue }
     }
 
     var compactions: [Compaction] {

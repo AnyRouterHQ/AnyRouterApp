@@ -6,9 +6,12 @@ import SwiftData
 enum ThreadActions {
     static func togglePin(_ thread: ThreadRecord) { thread.isPinned.toggle() }
 
-    /// An empty name keeps the old title.
+    /// An empty name keeps the old title. A new title is the user's: a generated one never replaces it.
     static func rename(_ thread: ThreadRecord, to proposed: String) {
-        thread.title = ThreadListLogic.renamed(proposed, current: thread.title)
+        let title = ThreadListLogic.renamed(proposed, current: "")
+        guard !title.isEmpty else { return }
+        thread.title = title
+        thread.titleSource = .user
     }
 
     /// The thread's attachment files go with it.

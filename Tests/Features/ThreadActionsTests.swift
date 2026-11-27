@@ -25,6 +25,15 @@ struct ThreadActionsTests {
         #expect(thread.title == "New")
     }
 
+    @Test func renameMakesTheTitleTheUsersAndABlankNameDoesNot() {
+        let thread = ThreadRecord(title: "Old")
+        thread.titleSource = .firstMessage
+        ThreadActions.rename(thread, to: "   ")
+        #expect(thread.titleSource == .firstMessage, "a blank name changes nothing")
+        ThreadActions.rename(thread, to: "Mine")
+        #expect(thread.titleSource == .user)
+    }
+
     @Test func deleteRemovesOnlyThatThread() throws {
         let context = try context()
         let a = ThreadRecord(title: "A"), b = ThreadRecord(title: "B")

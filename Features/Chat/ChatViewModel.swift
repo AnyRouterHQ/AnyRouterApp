@@ -58,6 +58,10 @@ final class ChatViewModel {
     @ObservationIgnored private let webSearch: PreSearcher
     @ObservationIgnored let attachmentStore: AttachmentStore
     @ObservationIgnored private var task: Task<Void, Never>?
+    /// The chat screen turns this on: the first reply then asks for a short title, off the main path. Sends that no
+    /// screen shows (shortcuts, tests) keep the first-message title.
+    @ObservationIgnored var generatesTitles = false
+    @ObservationIgnored private(set) var titleTask: Task<Void, Never>?
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
          settings: AppSettings, models: ModelStore,
@@ -596,6 +600,7 @@ final class ChatViewModel {
         created.thinkingEnabled = thinkingEnabled
         created.toolsDisabled = toolsDisabled
         created.instructions = chatInstructions
+        created.titleSource = .firstMessage
         context.insert(created)
         thread = created
         onThreadCreated?(created.id)
@@ -613,6 +618,8 @@ final class ChatViewModel {
     private func startStream(model: ModelDescriptor, thread: ThreadRecord, mentions: [MentionItem] = []) -> Task<Void, Never> {
         phase = .streaming
         errorMessage = nil
+        // A local model serves one request at a time: the title waits for a quieter moment (the next reply asks again).
+        titleTask?.cancel()
         loadingModelName = (model.source == .gguf || model.source == .mlx) ? model.shortName : nil
         thread.modelID = model.id
         preferredModelID = model.id
@@ -866,6 +873,23 @@ final class ChatViewModel {
             try save(context)
         } catch {
             errorMessage = "Could not save the chat: \(error.localizedDescription)"
+        }
+        if gotReply, generatesTitles, let chat = model { titleTask = startTitle(for: thread, chat: chat) }
+    }
+
+    /// Asks for a title while the thread still has the one cut from its first message. A failure keeps that one.
+    private func startTitle(for thread: ThreadRecord, chat: ModelDescriptor) -> Task<Void, Never>? {
+        let plan = TitleLogic.plan(
+            source: thread.titleSource, messages: thread.orderedMessages, chat: chat, models: models.models, isOnline: isOnline())
+        guard let plan else { return nil }
+        // Holds the view model on purpose: leaving the chat while the model writes must not lose the title.
+        return Task {
+            let title = await TitleGenerator.title(for: plan, registry: self.registry)
+            // The user may have renamed the chat, or deleted it, while the model wrote.
+            guard let title, !Self.isGone(thread), thread.titleSource == .firstMessage else { return }
+            thread.title = title
+            thread.titleSource = .generated
+            try? self.save(self.context)
         }
     }
 }
