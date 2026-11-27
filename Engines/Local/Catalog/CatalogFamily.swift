@@ -24,12 +24,13 @@ struct CatalogVariant: Decodable, Hashable, Sendable {
     var platforms: [String]?
     var minRAMBytes: Int64?
     var memory: CatalogMemory?
+    var sampling: CatalogSampling?
     var createdAt: String?
     var updatedAt: String?
 
     private enum CodingKeys: String, CodingKey {
         case repo, engine, file, params, quant, sizeBytes, contextLength, license, revision, sha256, vision
-        case isOnboarding, platforms, minRAMBytes, memory, createdAt, updatedAt
+        case isOnboarding, platforms, minRAMBytes, memory, sampling, createdAt, updatedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -55,6 +56,7 @@ struct CatalogVariant: Decodable, Hashable, Sendable {
         platforms = try c.decodeIfPresent([String].self, forKey: .platforms)
         minRAMBytes = try c.decodeIfPresent(Int64.self, forKey: .minRAMBytes)
         memory = try c.decodeIfPresent(CatalogMemory.self, forKey: .memory)
+        sampling = try c.decodeIfPresent(CatalogSampling.self, forKey: .sampling)
         createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
         updatedAt = try c.decodeIfPresent(String.self, forKey: .updatedAt)
     }
@@ -73,7 +75,7 @@ struct CatalogFamily: Decodable, Hashable, Sendable {
     var website: String
     /// "thinking", "vision", "audio", "tools", "code", "multilingual".
     var tags: [String]
-    /// "best", "recommended", "new".
+    /// "best", "recommended", "new", "experimental".
     var badges: [String]
     var status: CatalogStatus
     var replacedBy: String?
@@ -105,7 +107,9 @@ struct CatalogFamily: Decodable, Hashable, Sendable {
     func entries(familyIndex: Int) -> [CatalogEntry] {
         // "vision" is a fact of a size, not of a family: only a GGUF size with a projector takes photos.
         let familyCapabilities = Set(["chat"] + tags.filter { $0 != "vision" }.map { $0 == "thinking" ? "reasoning" : $0 })
-        let badgeList = badges.map { CatalogBadge(label: $0.capitalized, tone: $0 == "new" ? "success" : "info") }
+        let badgeList = badges.map {
+            $0 == "experimental" ? CatalogBadge.experimental : CatalogBadge(label: $0.capitalized, tone: $0 == "new" ? "success" : "info")
+        }
         let isRecommended = badges.contains("recommended") || badges.contains("best")
         return variants.enumerated().map { index, variant in
             let capabilities = variant.vision == nil ? familyCapabilities : familyCapabilities.union(["vision"])
@@ -118,7 +122,7 @@ struct CatalogFamily: Decodable, Hashable, Sendable {
                 badges: badgeList, supportsThinking: tags.contains("thinking"), vision: variant.vision,
                 isOnboarding: variant.isOnboarding, platforms: variant.platforms, recommended: isRecommended,
                 minRAMBytes: variant.minRAMBytes, createdAt: variant.createdAt, updatedAt: variant.updatedAt,
-                memory: variant.memory, familyID: id, familyName: name, publisher: publisher, website: website,
+                memory: variant.memory, sampling: variant.sampling, familyID: id, familyName: name, publisher: publisher, website: website,
                 status: status, replacedBy: replacedBy)
         }
     }

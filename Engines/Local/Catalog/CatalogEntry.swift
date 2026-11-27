@@ -18,6 +18,30 @@ enum CatalogOrigin: Int, Sendable, Comparable {
 struct CatalogBadge: Codable, Hashable, Sendable {
     var label: String
     var tone: String?
+
+    /// The catalog badge `experimental`: a size that runs, but slowly or with less accuracy than its full model.
+    static let experimental = CatalogBadge(label: "Experimental · slow", tone: "warning")
+}
+
+/// Sampling the publisher recommends for a size, and a cap on reply length. Applied over the app's defaults for that
+/// model only: a quantized model can loop or ramble with other settings.
+struct CatalogSampling: Codable, Hashable, Sendable {
+    var temperature: Double?
+    var topP: Double?
+    /// 0 turns top-k off.
+    var topK: Int?
+    /// 0 turns min-p off.
+    var minP: Double?
+    /// The most tokens one reply may take, thinking included.
+    var maxOutputTokens: Int?
+
+    func applied(to params: GenerationParams) -> GenerationParams {
+        var params = params
+        if let temperature { params.temperature = temperature }
+        if let topP { params.topP = topP }
+        if let maxOutputTokens { params.maxTokens = min(params.maxTokens ?? maxOutputTokens, maxOutputTokens) }
+        return params
+    }
 }
 
 /// The vision companion of a model: the projector file in the same repo. Data only until image input ships.
@@ -84,6 +108,8 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
     var createdAt: String?
     var updatedAt: String?
     var memory: CatalogMemory?
+    /// GGUF only: recommended sampling and reply cap. Nil uses the app's settings.
+    var sampling: CatalogSampling?
     /// The family this size belongs to. Nil for a repo the user added.
     var familyID: String?
     var familyName: String?
@@ -111,7 +137,7 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         badges: [CatalogBadge] = [], supportsThinking: Bool = false, vision: CatalogVision? = nil,
         isOnboarding: Bool = false, platforms: [String]? = nil, recommended: Bool = false,
         minRAMBytes: Int64? = nil, createdAt: String? = nil, updatedAt: String? = nil,
-        memory: CatalogMemory? = nil, familyID: String? = nil, familyName: String? = nil, publisher: String? = nil,
+        memory: CatalogMemory? = nil, sampling: CatalogSampling? = nil, familyID: String? = nil, familyName: String? = nil, publisher: String? = nil,
         website: String? = nil, status: CatalogStatus = .current, replacedBy: String? = nil
     ) {
         self.repo = repo
@@ -140,6 +166,7 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.memory = memory
+        self.sampling = sampling
         self.familyID = familyID
         self.familyName = familyName
         self.publisher = publisher
@@ -152,7 +179,7 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         case repo, format, file, title, summary, parameters, quantization, sizeBytes
         case contextLength, license, revision, capabilities, order
         case sha256, iconKey, badges, supportsThinking, vision, isOnboarding, platforms, recommended
-        case minRAMBytes, createdAt, updatedAt, memory
+        case minRAMBytes, createdAt, updatedAt, memory, sampling
         case familyID, familyName, publisher, website, status, replacedBy
     }
 
@@ -191,6 +218,7 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
             createdAt: try c.decodeIfPresent(String.self, forKey: .createdAt),
             updatedAt: try c.decodeIfPresent(String.self, forKey: .updatedAt),
             memory: try c.decodeIfPresent(CatalogMemory.self, forKey: .memory),
+            sampling: try c.decodeIfPresent(CatalogSampling.self, forKey: .sampling),
             familyID: try c.decodeIfPresent(String.self, forKey: .familyID),
             familyName: try c.decodeIfPresent(String.self, forKey: .familyName),
             publisher: try c.decodeIfPresent(String.self, forKey: .publisher),
@@ -227,6 +255,7 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
         try c.encodeIfPresent(createdAt, forKey: .createdAt)
         try c.encodeIfPresent(updatedAt, forKey: .updatedAt)
         try c.encodeIfPresent(memory, forKey: .memory)
+        try c.encodeIfPresent(sampling, forKey: .sampling)
         try c.encodeIfPresent(familyID, forKey: .familyID)
         try c.encodeIfPresent(familyName, forKey: .familyName)
         try c.encodeIfPresent(publisher, forKey: .publisher)

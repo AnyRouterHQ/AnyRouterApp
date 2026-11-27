@@ -23,14 +23,14 @@ sizes. The app lists families first, then the sizes of one family.
 | `logo` | Short key for the logo (`gemma`, `qwen`, `llama`, `liquid`). Unknown keys get a generic mark. |
 | `summary`, `website` | One line, and an https link. The summary makes no memory claims. |
 | `tags` | `thinking`, `vision`, `audio`, `tools`, `code`, `multilingual`, `mobile`. Only what the app can use today. `mobile` means a size runs well on a 6 GB phone; a test checks it against the fit check. |
-| `badges` | `best`, `recommended`, `new`. |
+| `badges` | `best`, `recommended`, `new`, `experimental`. `experimental` shows "Experimental · slow", keeps the family out of the top picks, and lists a size that runs here after them in Featured. |
 | `status`, `replacedBy` | `current` or `deprecated`. A deprecated family names the current family that replaces it. |
 | `order` | Smaller first. |
 | `variants` | The sizes. |
 
 | Variant field | Meaning |
 |---|---|
-| `repo`, `engine` (`gguf` or `mlx`), `file` | What to download. `file` is for GGUF only. The app's id for it is `gguf/<repo>/<file>` or `mlx/<repo>`. |
+| `repo`, `engine` (`gguf` or `mlx`), `file` | What to download. `file` is for GGUF only. The app's id for it is `gguf/<repo>/<file>` or `mlx/<repo>`. A file the publisher renamed to `.gguf_file` (so tools that list `*.gguf` skip it) is saved as `.gguf`. |
 | `params`, `quant` | "4B", "E2B"; "Q4_K_M", "4-bit". |
 | `revision` | Full 40-character commit sha. Never a branch. |
 | `sizeBytes` | The file, or the sum of the MLX snapshot files. |
@@ -39,6 +39,7 @@ sizes. The app lists families first, then the sizes of one family.
 | `memory` | `{"fullKVBytesPerToken", "windowKVBytesPerToken", "windowTokens", "activeFraction", "lazyWeightBytes"}`. Written by the scripts from the model's own metadata: KV cache per token, sliding-window layers, expert share, and the embedding tables that mmap keeps out of RAM. The app's fit check uses it. |
 | `vision` | `{"mmprojFile", "mmprojSize", "imageSide"}`: the projector file in the same repo, its size, and the longest image side to feed it. The app downloads it with the model and the size accepts photos (llama.cpp `mtmd`). The family needs the `vision` tag. Add it with `--mmproj FILE --image-side 896`. |
 | `isOnboarding` | Offered first in onboarding when it fits the device. |
+| `sampling` | GGUF only, optional: `{"temperature", "topP", "topK", "minP", "maxOutputTokens"}`. The publisher's sampling, used for this size in place of the app's settings, and a cap on one reply, thinking included. `topK` 0 and `minP` 0 turn those filters off. |
 | `platforms`, `minRAMBytes` | `["ios", "ipados"]`; omit for all. |
 | `createdAt`, `updatedAt` | `yyyy-MM-dd`. "Newest" sorts by them. |
 
@@ -79,6 +80,15 @@ longer matches.
 3. A deprecated model is hidden from browsing, search and recommendations. A person who installed it keeps using it, sees "Older model, try <replacement>" in Local Models, and can delete it.
 4. A model enters `models.json` only after it loaded and answered in the `model-smoke` workflow. New ones start in `dev-models.json`.
 5. Memory claims come from the `memory` facts and the fit check, never from prose.
+
+## Streamed models
+
+A mixture-of-experts file too big for the app's memory limit can still run from mmap: only the experts a token uses stay
+resident, the rest is read from storage through the page cache. `FitPlanner` calls this `.streamed`. It needs a device
+whose RAM holds the whole file plus about 4 GB for iOS and other apps (`FitPlanner.streamingSystemBytes`), so a 7.8 GB
+file needs a 12 GB iPhone; below that, Local Models > Not Available says "Needs an iPhone with 12 GB of memory." A streamed
+model loads with a 4,096-token context, mmap on, no mlock, and every layer on the CPU (Metal would map the whole file into
+GPU buffers that count against the app). Replies are slow: give the size a `sampling.maxOutputTokens` cap.
 
 ## Photos
 

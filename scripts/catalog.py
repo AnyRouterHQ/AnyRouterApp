@@ -23,9 +23,13 @@ QUANT_RE = re.compile(r"(?i)(?<![A-Za-z0-9])((?:IQ|Q)\d(?:_[A-Z0-9]+)*|BF16|F16|
 KNOWN_KEYS = {
     "repo", "format", "file", "title", "summary", "parameters", "quantization", "sizeBytes", "contextLength",
     "license", "revision", "capabilities", "order", "sha256", "iconKey", "badges", "supportsThinking", "vision",
-    "isOnboarding", "platforms", "recommended", "minRAMBytes", "createdAt", "updatedAt", "memory",
+    "isOnboarding", "platforms", "recommended", "minRAMBytes", "createdAt", "updatedAt", "memory", "sampling",
 }
 MEMORY_KEYS = {"fullKVBytesPerToken", "windowKVBytesPerToken", "windowTokens", "activeFraction", "lazyWeightBytes"}
+SAMPLING_KEYS = {"temperature": float, "topP": float, "topK": int, "minP": float, "maxOutputTokens": int}
+# A publisher can rename a GGUF to ".gguf_file" so that tools which list "*.gguf" skip it (unsloth does this for files
+# in a layout only newer llama.cpp loads). The app saves it as ".gguf".
+GGUF_SUFFIXES = (".gguf", ".gguf_file")
 
 _cache = {}
 
@@ -274,14 +278,14 @@ def save(path, document):
 # A family is a model line at one generation: id, name, publisher, line, logo, summary, website, tags, badges, status,
 # replacedBy, order, variants. A variant is one downloadable size: repo, engine (gguf|mlx), file (gguf), params, quant,
 # sizeBytes, contextLength, license, revision, sha256 (gguf), memory, and optional vision, isOnboarding, platforms,
-# minRAMBytes, createdAt, updatedAt.
+# minRAMBytes, sampling, createdAt, updatedAt.
 
 FAMILY_KEYS = ["id", "name", "publisher", "line", "logo", "summary", "website", "tags", "badges", "status",
                "replacedBy", "order", "variants"]
 VARIANT_KEYS = ["repo", "engine", "file", "params", "quant", "sizeBytes", "contextLength", "license", "revision",
-                "sha256", "vision", "isOnboarding", "platforms", "minRAMBytes", "memory", "createdAt", "updatedAt"]
+                "sha256", "vision", "isOnboarding", "platforms", "minRAMBytes", "sampling", "memory", "createdAt", "updatedAt"]
 TAGS = {"thinking", "vision", "audio", "tools", "code", "multilingual", "mobile"}
-BADGES = {"best", "recommended", "new"}
+BADGES = {"best", "recommended", "new", "experimental"}
 STATUSES = {"current", "deprecated"}
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
@@ -340,7 +344,7 @@ def cmd_add(args):
         quant = "4-bit" if "4bit" in repo.lower() else ("8-bit" if "8bit" in repo.lower() else None)
     else:
         if file not in files:
-            sys.exit(f"{file} is not in {repo} at {revision}. Files: " + ", ".join(sorted(p for p in files if p.endswith(".gguf"))))
+            sys.exit(f"{file} is not in {repo} at {revision}. Files: " + ", ".join(sorted(p for p in files if p.endswith(GGUF_SUFFIXES))))
         meta = files[file]
         size = meta["size"]
         match = QUANT_RE.search(os.path.basename(file))
@@ -400,7 +404,7 @@ def cmd_add(args):
     if existing is not None:
         old = family["variants"][existing]
         variant["createdAt"] = old.get("createdAt", today)
-        for key in ("isOnboarding", "platforms", "minRAMBytes", "vision"):
+        for key in ("isOnboarding", "platforms", "minRAMBytes", "vision", "sampling"):
             if key in old and key not in variant:
                 variant[key] = old[key]
         family["variants"][existing] = ordered_variant(variant)
@@ -487,8 +491,8 @@ def check_file(path, offline):
             if not REPO_RE.match(repo) or ".." in repo:
                 bad(vw, f"invalid repo {repo!r}")
                 continue
-            if engine == "gguf" and not str(m.get("file", "")).endswith(".gguf"):
-                bad(vw, "a gguf variant needs a file ending in .gguf")
+            if engine == "gguf" and not str(m.get("file", "")).endswith(GGUF_SUFFIXES):
+                bad(vw, "a gguf variant needs a file ending in .gguf (or .gguf_file)")
                 continue
             ident = entry_id(m)
             if ident in seen:
@@ -522,6 +526,13 @@ def check_file(path, offline):
                 fraction = memory.get("activeFraction")
                 if fraction is not None and not (0 < fraction < 1):
                     bad(vw, f"{ident}: activeFraction must be between 0 and 1")
+            sampling = m.get("sampling")
+            if sampling is not None:
+                wrong = [k for k, v in sampling.items()
+                         if k not in SAMPLING_KEYS or isinstance(v, bool) or not isinstance(v, (int, float))
+                         or (SAMPLING_KEYS[k] is int and not isinstance(v, int)) or v < 0]
+                if engine != "gguf" or wrong or not sampling:
+                    bad(vw, f"{ident}: sampling is for gguf sizes, with non-negative {sorted(SAMPLING_KEYS)} only")
             vision = m.get("vision")
             if vision is not None and (engine != "gguf" or not str(vision.get("mmprojFile", "")).endswith(".gguf")):
                 bad(vw, f"{ident}: vision needs a gguf variant and an mmprojFile ending in .gguf")

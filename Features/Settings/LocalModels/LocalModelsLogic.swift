@@ -27,9 +27,16 @@ enum LocalModelsLogic {
 
     /// The best size of each family for this device, top picks first, without what is already installed
     /// (the Installed section lists those). Downloads in flight stay, so their progress shows where Get was.
+    /// An experimental family is never a pick: its first size that runs here follows the picks, outside the limit, so a
+    /// device that can run it still finds it and one that cannot never sees it.
     static func featured(families: [LocalModelFamily], state: (String) -> DownloadState, limit: Int = 5) -> [LocalModelEntry] {
-        let ranked = FamilyLogic.recommendedEntries(from: families, limit: families.count)
-        return Array(ranked.filter { state($0.id) != .installed }.prefix(max(0, limit)))
+        let (experimental, regular) = (families.filter(FamilyLogic.isExperimental), families.filter { !FamilyLogic.isExperimental($0) })
+        let ranked = FamilyLogic.recommendedEntries(from: regular, limit: regular.count)
+        let picks = ranked.filter { state($0.id) != .installed }.prefix(max(0, limit))
+        let tries = experimental.compactMap { family in
+            family.variants.first { FamilyLogic.canRun($0) && state($0.id) != .installed }
+        }
+        return Array(picks) + tries
     }
 
     struct UnavailableModel: Identifiable, Equatable {
@@ -53,6 +60,7 @@ enum LocalModelsLogic {
     static func reason(for entry: LocalModelEntry, device: String) -> String? {
         if let blocked = entry.unavailableReason { return blocked }
         if let detail = entry.fitDetail, detail.verdict == .wontFit {
+            if let gigabytes = detail.streamsWithRAMGigabytes { return "Needs an \(device) with \(gigabytes) GB of memory." }
             return "Needs about \(FitFormat.gigabytes(detail.neededBytes)), this \(device) allows \(FitFormat.gigabytes(detail.budgetBytes))."
         }
         return entry.fit == .wontFit ? "Too big for this \(device)." : nil

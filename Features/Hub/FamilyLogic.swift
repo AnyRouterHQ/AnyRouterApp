@@ -99,6 +99,11 @@ enum FamilyLogic {
         !Set(family.badges).isDisjoint(with: ["best", "recommended"])
     }
 
+    /// Whether the catalog marks the family experimental (slow, or less accurate than its full-size model).
+    static func isExperimental(_ family: LocalModelFamily) -> Bool {
+        family.badges.contains(CatalogBadge.experimental.label.lowercased())
+    }
+
     static func smallestSize(_ family: LocalModelFamily) -> Int64 {
         family.variants.compactMap(\.descriptor.sizeBytes).min() ?? .max
     }

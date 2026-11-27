@@ -45,6 +45,11 @@ final class ModelDownloadManager {
         session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: queue)
     }
 
+    /// Free space a download must leave: a tenth of its size, and at least 1 GB, so a large model never fills the phone.
+    nonisolated static func spareBytes(forDownload total: Int64) -> Int64 {
+        max(total / 10, 1_000_000_000)
+    }
+
     // MARK: Reading state
 
     func state(for entry: CatalogEntry) -> ModelDownloadState {
@@ -79,7 +84,7 @@ final class ModelDownloadManager {
             let files = try RepoFiles.downloadPlan(for: entry, files: listing)
             guard startTokens[id] == token else { return }
             let total = files.reduce(Int64(0)) { $0 + $1.size }
-            if let free = storage.freeSpaceBytes(), free < total + total / 10 {
+            if let free = storage.freeSpaceBytes(), free < total + Self.spareBytes(forDownload: total) {
                 throw LocalModelError.insufficientSpace(neededBytes: total, freeBytes: free)
             }
             let record = DownloadJobRecord(entry: entry, files: files)
