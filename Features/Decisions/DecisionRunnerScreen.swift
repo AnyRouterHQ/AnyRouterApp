@@ -46,6 +46,9 @@ struct DecisionRunnerScreen: View {
         }
         .safeAreaInset(edge: .bottom) { runBar(store) }
         .onAppear { showsQuestions = store.app == nil }
+        .task {
+            if DemoData.addsDecisionPhoto, store.images.isEmpty, store.showsImageInput { await store.addImages([DemoData.receiptPhoto()]) }
+        }
     }
 
     // MARK: Input

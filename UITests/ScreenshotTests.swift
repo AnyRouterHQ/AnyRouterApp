@@ -471,13 +471,60 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    private func openApps(_ app: XCUIApplication) {
+        showSidebar(app)
+        tapRow(app.buttons["sidebar-apps"])
+        XCTAssertTrue(app.navigationBars["Apps"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["apps-tile-scam-check"].waitForExistence(timeout: 5))
+    }
+
     func testDecisions() {
         forEachAppearance { app, appearance in
-            showSidebar(app)
-            tapRow(app.buttons["sidebar-apps"])
-            XCTAssertTrue(app.navigationBars["Apps"].waitForExistence(timeout: 10))
-            XCTAssertTrue(app.buttons["apps-tile-scam-check"].waitForExistence(timeout: 5))
+            openApps(app)
             capture("apps", appearance)
+        }
+    }
+
+    /// A text app: a sample, Run, the answer as one sentence and its bars.
+    func testDecisionTextApp() {
+        forEachAppearance { app, appearance in
+            openApps(app)
+            app.buttons["apps-tile-email-triage"].tap()
+            let sample = app.buttons["decisions-sample-Needs a reply"]
+            XCTAssertTrue(sample.waitForExistence(timeout: 10))
+            sample.tap()
+            app.buttons["decisions-run"].tap()
+            XCTAssertTrue(app.descendants(matching: .any)["decisions-result-line"].waitForExistence(timeout: 10))
+            app.swipeUp()
+            capture("decision-text-result", appearance)
+        }
+    }
+
+    /// A photo app: the demo receipt (the Simulator has no camera), Run, the answer.
+    func testDecisionPhotoApp() {
+        forEachAppearance(extra: ["-ARDemoDecisionPhoto", "YES"]) { app, appearance in
+            openApps(app)
+            app.buttons["apps-tile-receipt-sort"].tap()
+            XCTAssertTrue(app.buttons["Remove photo"].waitForExistence(timeout: 15), "the demo photo is in the row")
+            capture("decision-photo-ready", appearance)
+            app.buttons["decisions-run"].tap()
+            XCTAssertTrue(app.descendants(matching: .any)["decisions-result-line"].waitForExistence(timeout: 10))
+            app.swipeUp()
+            capture("decision-photo-result", appearance)
+        }
+    }
+
+    /// The custom decision, empty and then filled by a sample.
+    func testDecisionCustom() {
+        forEachAppearance { app, appearance in
+            openApps(app)
+            app.buttons["apps-tile-custom"].tap()
+            XCTAssertTrue(app.navigationBars["Custom decision"].waitForExistence(timeout: 10))
+            capture("decision-custom-empty", appearance)
+            let sample = app.buttons["decisions-sample-Email"]
+            XCTAssertTrue(sample.waitForExistence(timeout: 5))
+            sample.tap()
+            capture("decision-custom-filled", appearance)
         }
     }
 

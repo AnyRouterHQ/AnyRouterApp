@@ -17,7 +17,6 @@ struct DecisionPhotoSection: View {
                     HStack(spacing: 12) {
                         ForEach(Array(store.images.enumerated()), id: \.offset) { index, image in
                             DecisionThumbnail(data: image.data) { store.removeImage(at: index) }
-                                .accessibilityLabel("Photo \(index + 1)")
                         }
                     }
                 }

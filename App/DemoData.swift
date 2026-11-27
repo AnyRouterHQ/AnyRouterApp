@@ -42,6 +42,25 @@ enum DemoData {
     /// without driving the system file picker.
     static var attachesSampleFile: Bool { isEnabled && UserDefaults.standard.bool(forKey: "ARDemoAttachFile") }
 
+    /// `-ARDemoDecisionPhoto YES` puts a drawn receipt in a decision's photo row: the Simulator has no camera.
+    static var addsDecisionPhoto: Bool { isEnabled && UserDefaults.standard.bool(forKey: "ARDemoDecisionPhoto") }
+
+    static func receiptPhoto() -> Data {
+        let size = CGSize(width: 600, height: 800)
+        return UIGraphicsImageRenderer(size: size).jpegData(withCompressionQuality: 0.9) { context in
+            UIColor(white: 0.82, alpha: 1).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 70, y: 40, width: 460, height: 720))
+            let lines = ["CORNER CAFE", "2 flat white   7.00", "1 croissant    2.40", "TOTAL          9.40", "Client meeting"]
+            for (index, line) in lines.enumerated() {
+                line.draw(at: CGPoint(x: 100, y: 90 + index * 70), withAttributes: [
+                    .font: UIFont.monospacedSystemFont(ofSize: 28, weight: .regular), .foregroundColor: UIColor.black,
+                ])
+            }
+        }
+    }
+
     /// `-ARDemoClipboard YES` makes the chat offer the clipboard row, so the screenshot test can capture it.
     static var offersClipboard: Bool { isEnabled && UserDefaults.standard.bool(forKey: "ARDemoClipboard") }
 
