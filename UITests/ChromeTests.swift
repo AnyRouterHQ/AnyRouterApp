@@ -55,6 +55,30 @@ final class ChromeTests: XCTestCase {
         XCTAssertTrue(app.buttons["Add"].waitForExistence(timeout: 15))
         app.buttons["Add"].tap()
         XCTAssertTrue(app.buttons["composer.presets"].waitForExistence(timeout: 5), "presets moved here from the field")
+        XCTAssertTrue(app.buttons["composer.add-camera"].exists)
         XCTAssertTrue(app.buttons["composer.add-photos"].exists)
+        XCTAssertTrue(app.buttons["composer.add-files"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["composer.tool-source.device"].exists, "source switches wait under Tools")
+        let tools = app.buttons["composer.tools"]
+        XCTAssertEqual(tools.exists, app.buttons["composer.plugins"].exists, "Tools shows for every model that takes tools")
+        guard tools.exists else { return }
+        tools.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["composer.tools-toggle"].waitForExistence(timeout: 5), "the chat's switch comes first")
+        let device = app.descendants(matching: .any)["composer.tool-group.device"]
+        XCTAssertTrue(device.waitForExistence(timeout: 5), "one submenu per source group")
+        device.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["composer.tool-source.device"].waitForExistence(timeout: 5))
+    }
+
+    /// The + is a circle as tall as the one-line field and centred on it.
+    func testPlusIsAsTallAsTheFieldAndCentredOnIt() {
+        let app = launch()
+        let plus = app.buttons["Add"]
+        let input = app.descendants(matching: .any)["composer.input"]
+        XCTAssertTrue(plus.waitForExistence(timeout: 15) && input.waitForExistence(timeout: 5))
+        let send = app.buttons["composer.action"]
+        XCTAssertEqual(plus.frame.height, 48, accuracy: 2)
+        XCTAssertEqual(plus.frame.width, plus.frame.height, accuracy: 1)
+        XCTAssertEqual(plus.frame.midY, send.frame.midY, accuracy: 2, "the + and the field's button sit on one line")
     }
 }

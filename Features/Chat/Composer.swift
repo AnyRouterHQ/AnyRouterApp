@@ -39,6 +39,8 @@ struct Composer: View {
     /// Between the field's edge and the 44 pt hit area of its button. The 36 pt circle in that area then sits 6 pt
     /// inside the 48 pt field, concentric with its ends.
     private let fieldInset: CGFloat = 2
+    /// The + circle is as tall as the one-line field (48 pt), so the two read as one row.
+    private var plusSize: CGFloat { buttonSize + 2 * fieldInset }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -103,8 +105,8 @@ struct Composer: View {
                 MentionChips(mentions: model.mentions) { model.removeMention($0) }
             }
             HStack(alignment: .bottom, spacing: 8) {
-                // The same inset as the field's button, so the + stays centred on a one-line field and on its last line.
-                plusMenu.padding(.vertical, fieldInset)
+                // As tall as a one-line field and bottom aligned, so the + stays centred on its last line.
+                plusMenu
                 HStack(alignment: .bottom, spacing: 6) {
                     TextField("", text: $model.input, prompt: Text(hasModel ? "Ask anything" : "Choose a model to start"),
                               axis: .vertical)
@@ -323,15 +325,16 @@ struct Composer: View {
         }
     }
 
-    /// Round button outside the field: photos, camera and files, presets, the Tools and thinking switches, and the memory readout.
+    /// Round button outside the field: camera, photos and files, Read text, presets, plugins, the thinking switch, the Tools
+    /// submenu and the memory readout, in that order from the top.
     private var plusMenu: some View {
         Menu {
             Section {
-                Button("Photos", systemImage: "photo") { readsText = false; showsPhotos = true }
-                    .accessibilityIdentifier("composer.add-photos")
                 Button("Camera", systemImage: "camera") { readsText = false; showsCamera = true }
                     .disabled(!CameraPicker.isAvailable)
                     .accessibilityIdentifier("composer.add-camera")
+                Button("Photos", systemImage: "photo") { readsText = false; showsPhotos = true }
+                    .accessibilityIdentifier("composer.add-photos")
                 Button("Files", systemImage: "folder") { showsFiles = true }
                     .accessibilityIdentifier("composer.add-files")
                 // Reads the text on the device, then offers Translate, Split this bill or Summarize.
@@ -344,57 +347,41 @@ struct Composer: View {
                 }
                 .accessibilityIdentifier("composer.read-text")
             }
-            if presets != nil {
-                Button("Presets", systemImage: "sparkles") { showsPresets = true }
-                    .accessibilityIdentifier("composer.presets")
-            }
-            if model.supportsTools {
-                Button("Plugins", systemImage: "at") {
-                    showsPluginList = true
-                    focused.wrappedValue = true
+            Section {
+                if presets != nil {
+                    Button("Presets", systemImage: "sparkles") { showsPresets = true }
+                        .accessibilityIdentifier("composer.presets")
                 }
-                .accessibilityIdentifier("composer.plugins")
-                Section {
-                    Toggle("Tools", systemImage: "puzzlepiece.extension", isOn: Binding(
-                        get: { model.toolsEnabled },
-                        set: { model.setToolsEnabled($0) }
-                    ))
-                    .accessibilityIdentifier("composer.tools-toggle")
-                    if model.toolsEnabled {
-                        // The same icons as Settings › Integrations.
-                        ForEach(app.tools.menuSources) { source in
-                            Toggle(isOn: Binding(
-                                get: { app.tools.isOn(source, modelSource: model.model?.source) },
-                                set: { app.tools.setSource(source, on: $0) }
-                            )) {
-                                Label {
-                                    Text(OfflineLogic.sourceTitle(source.title, needsNetwork: source.id != ToolSourceCatalog.device.id,
-                                                                  isOffline: app.network.isOffline))
-                                } icon: { ToolSourceIcon(icon: source.icon) }
-                            }
-                            .accessibilityIdentifier("composer.tool-source.\(source.id)")
-                        }
+                if model.supportsTools {
+                    Button("Plugins", systemImage: "at") {
+                        showsPluginList = true
+                        focused.wrappedValue = true
                     }
+                    .accessibilityIdentifier("composer.plugins")
                 }
             }
-            if model.supportsThinking {
-                Section {
+            Section {
+                if model.supportsThinking {
                     Toggle("Enable thinking", systemImage: "brain", isOn: Binding(
                         get: { model.thinkingEnabled },
                         set: { model.setThinkingEnabled($0) }
                     ))
                 }
+                if model.supportsTools { ComposerToolsMenu(model: model) }
             }
             MemoryMenu()
         } label: {
-            Label("Add", systemImage: "plus").labelStyle(.iconOnly).font(.callout.weight(.semibold))
+            // A floating control beside the field, so it takes glass like the field: one 48 pt circle, the field's height.
+            Label("Add", systemImage: "plus")
+                .labelStyle(.iconOnly)
+                .font(.title3.weight(.medium))
+                .foregroundStyle(.primary)
+                .frame(width: plusSize, height: plusSize)
+                .glassEffect(.regular.interactive(), in: .circle)
+                .contentShape(.circle)
         }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .controlSize(.regular)
-        // A circle of about 36 pt, the same as the send button; the hit area stays 44 pt.
-        .frame(minWidth: buttonSize, minHeight: buttonSize)
-        .contentShape(.circle)
+        // The menu lists from the top as written, even though it opens upward from the bottom of the screen.
+        .menuOrder(.fixed)
         .accessibilityLabel("Add")
     }
 

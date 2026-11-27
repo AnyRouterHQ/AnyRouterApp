@@ -65,6 +65,23 @@ final class ToolRegistry {
         defaults.set(disabledBuiltIns.sorted(), forKey: Self.disabledKey)
     }
 
+    /// Turns one listed tool on or off: the same switch Settings › Integrations shows for it.
+    func setTool(_ id: String, on: Bool) {
+        guard let tool = tools.first(where: { $0.id == id }) else { return }
+        switch tool.source {
+        case .builtIn:
+            setBuiltIn(tool.name, enabled: on)
+        case .mcp(let serverID, _):
+            if let source = publicSources.first(where: { $0.server?.id == serverID }), let server = source.server,
+                let pin = source.tools.first(where: { $0.name == tool.name }) {
+                integrations.setEnabled(on, tool: pin.mcpTool, on: server)
+            } else if let server = integrations.servers.first(where: { $0.id == serverID }),
+                let live = integrations.state(for: server).tools.first(where: { $0.name == tool.name }) {
+                integrations.setEnabled(on, tool: live, on: server)
+            }
+        }
+    }
+
     // MARK: Sources
 
     /// Every source Settings lists, in section order.
