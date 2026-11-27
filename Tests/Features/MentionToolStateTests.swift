@@ -3,6 +3,7 @@ import Testing
 @testable import AnyRouter
 
 /// The @ list tells the reader which plugins are on, and why a plugin or file cannot be chosen for a model without tools.
+@MainActor
 struct MentionToolStateTests {
     private let sources = [ToolSourceCatalog.device, ToolSourceCatalog.exa, ToolSourceCatalog.deepWiki]
 
