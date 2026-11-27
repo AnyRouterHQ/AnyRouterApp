@@ -27,6 +27,12 @@ struct ReadTextTests {
         #expect(OCRLogic.languages(supported: []).isEmpty)
     }
 
+    @Test func documentRecognitionAsksForVietnameseThenEnglish() {
+        #expect(OCRLogic.documentLanguageIndexes(codes: ["fr", "en", nil, "vi", "en"]) == [3, 1])
+        #expect(OCRLogic.documentLanguageIndexes(codes: ["en"]) == [0])
+        #expect(OCRLogic.documentLanguageIndexes(codes: ["fr", nil]).isEmpty)
+    }
+
     @Test func eachScanIsItsOwnItem() {
         let first = ScannedText(text: "a")
         #expect(first == first)

@@ -1,4 +1,5 @@
 import Foundation
+import Vision
 
 /// What one on-device pass read in an image: its text in reading order, and each table as rows of cell text.
 /// The `ocr_image` tool and the Extract screen read images through the same reader.
@@ -35,9 +36,19 @@ protocol ImageTextReading: Sendable {
     func read(_ image: Data) async throws -> ImageText
 }
 
-/// On-device Vision text recognition, the same pass a photo gets when it is attached. Nothing leaves the device.
+/// On-device Vision document recognition, which keeps tables, with the line-by-line pass a photo gets when it is
+/// attached as the fallback. Nothing leaves the device.
 struct VisionTextReader: ImageTextReading {
     func read(_ image: Data) async throws -> ImageText {
-        ImageText(text: TextExtraction.ocr(image) ?? "")
+        var request = RecognizeDocumentsRequest()
+        let supported = request.supportedRecognitionLanguages
+        let picks = OCRLogic.documentLanguageIndexes(codes: supported.map { $0.languageCode?.identifier })
+        if !picks.isEmpty { request.textRecognitionOptions.recognitionLanguages = picks.map { supported[$0] } }
+        if let document = try? await request.perform(on: image, orientation: nil).first?.document {
+            let tables = document.tables.map { table in table.rows.map { row in row.map(\.content.text.transcript) } }
+            let read = ImageText(text: document.text.transcript, tables: tables)
+            if !read.isEmpty { return read }
+        }
+        return ImageText(text: TextExtraction.ocr(image) ?? "")
     }
 }

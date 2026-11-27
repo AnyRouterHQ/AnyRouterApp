@@ -99,6 +99,8 @@ struct OCRImageToolTests {
         let read = try await VisionTextReader().read(try Data(contentsOf: url))
         #expect(read.text.contains("CAFE SAIGON"))
         #expect(read.text.contains("TOTAL") && read.text.contains("80,000"))
+        let folded = read.rendered.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+        #expect(folded.contains("cam on"), "Vietnamese line: \(read.rendered)")
         #expect(try await VisionTextReader().read(Data("not an image".utf8)).isEmpty)
     }
 }

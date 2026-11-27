@@ -29,6 +29,12 @@ enum OCRLogic {
         return vietnamese + englishCodes.filter { supported.contains($0) }
     }
 
+    /// Document recognition names languages by code ("vi", "en"). Of the codes it lists, the positions to ask for: the
+    /// first Vietnamese, then the first English. Empty means "use Vision's default".
+    static func documentLanguageIndexes(codes: [String?]) -> [Int] {
+        ["vi", "en"].compactMap { codes.firstIndex(of: $0) }
+    }
+
     /// Several photos: one block each, with a blank line between.
     static func join(_ texts: [String]) -> String {
         texts.joined(separator: "\n\n")
