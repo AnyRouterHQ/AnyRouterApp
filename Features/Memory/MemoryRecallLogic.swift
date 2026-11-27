@@ -1,0 +1,104 @@
+import Foundation
+
+/// Recall before the send (agent design 2.4): facts and chat summaries scored against the user's question with BM25 over
+/// words, the best three put in front of the question for that request only. No model call, so it runs on every engine.
+/// A word that matches exactly counts in full; one that matches only without case and tone marks counts half, because
+/// folding merges Vietnamese words that differ only by a tone mark.
+enum MemoryRecallLogic {
+    struct Candidate: Equatable, Sendable {
+        let id: UUID
+        let text: String
+    }
+
+    struct Hit: Equatable, Sendable {
+        let candidate: Candidate
+        let score: Double
+    }
+
+    static let maxHits = 3
+    /// A starting point: one shared uncommon word passes. The live memory set (unit L1) tunes it.
+    static let minimumScore = 0.2
+    static let heading = "Things the user told you before:"
+
+    /// Words too common to say what a question is about, as typed: "an" is a stop word, "ăn" (eat) is not.
+    private static let stopWords: Set<String> = [
+        "a", "an", "and", "are", "as", "at", "be", "but", "by", "can", "could", "do", "does", "for", "from", "have", "how",
+        "i", "if", "in", "is", "it", "me", "my", "of", "on", "or", "please", "so", "that", "the", "this", "to", "was", "we",
+        "what", "when", "where", "which", "who", "why", "will", "with", "would", "you", "your",
+        "anh", "bạn", "các", "cho", "chị", "có", "của", "được", "em", "gì", "không", "là", "mình", "một", "nào", "này",
+        "nhé", "những", "sao", "thì", "tôi", "và", "với", "toi", "la", "cua", "va", "co", "khong", "mot", "voi", "gi",
+    ]
+
+    /// Tokens the recalled items may take on this model (agent design 3.3).
+    static func budget(for model: ModelDescriptor) -> Int {
+        switch model.source {
+        case .apple: 150
+        case .gguf, .mlx: (model.contextLength ?? 0) > 4096 ? 300 : 150
+        case .anyrouter: 1500
+        }
+    }
+
+    /// The best items for the question, at most three, whole, within the budget.
+    static func recall(_ question: String, from candidates: [Candidate], budget: Int) -> [Hit] {
+        let terms = Array(Set(words(question).filter { !stopWords.contains($0) }.map(fold)))
+        let documents = candidates.map { words($0.text) }
+        let folded = documents.map { $0.map(fold) }
+        let averageLength = Double(documents.map(\.count).reduce(0, +)) / Double(max(documents.count, 1))
+        let count = Double(documents.count)
+        let weights = terms.map { term in
+            let containing = Double(folded.filter { $0.contains(term) }.count)
+            return log(1 + (count - containing + 0.5) / (containing + 0.5))
+        }
+        let exact = Set(words(question))
+        let scored = candidates.indices.map { index in
+            Hit(candidate: candidates[index], score: score(
+                terms: terms, weights: weights, exact: exact, words: documents[index], folded: folded[index], averageLength: averageLength))
+        }
+        var hits: [Hit] = []
+        var lines = [heading]
+        for hit in scored.filter({ $0.score >= minimumScore }).sorted(by: { $0.score > $1.score }) where hits.count < maxHits {
+            let candidate = lines + ["- " + hit.candidate.text]
+            guard TokenCountLogic.estimate(candidate.joined(separator: "\n")) <= budget else { continue }
+            lines = candidate
+            hits.append(hit)
+        }
+        return hits
+    }
+
+    /// The footer's words: "Used 1 memory", "Used 3 memories".
+    static func usedLabel(_ count: Int) -> String {
+        count == 1 ? String(localized: "Used 1 memory") : String(localized: "Used \(count) memories")
+    }
+
+    /// The recalled items in front of the last user message, for this request only.
+    static func applying(_ hits: [Hit], to messages: [ChatMessage]) -> [ChatMessage] {
+        guard !hits.isEmpty, let index = messages.lastIndex(where: { $0.role == .user }) else { return messages }
+        var copy = messages
+        let list = ([heading] + hits.map { "- " + $0.candidate.text }).joined(separator: "\n")
+        copy[index].content = list + "\n\n" + copy[index].content
+        return copy
+    }
+
+    /// Lowercased words; letters and digits only.
+    static func words(_ text: String) -> [String] {
+        text.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
+    }
+
+    private static func fold(_ word: String) -> String {
+        word.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+    }
+
+    /// BM25 (k1 1.2, b 0.75) over folded terms. A word counts 1 when it is also one of the question's words as typed,
+    /// 0.5 when it matches only after folding.
+    private static func score(
+        terms: [String], weights: [Double], exact: Set<String>, words: [String], folded: [String], averageLength: Double
+    ) -> Double {
+        let lengthNorm = 1.2 * (0.25 + 0.75 * Double(words.count) / max(averageLength, 1))
+        return zip(terms, weights).reduce(0) { total, pair in
+            let frequency = zip(words, folded).reduce(0.0) { sum, word in
+                sum + (word.1 != pair.0 ? 0 : exact.contains(word.0) ? 1 : 0.5)
+            }
+            return total + pair.1 * frequency * 2.2 / (frequency + lengthNorm)
+        }
+    }
+}

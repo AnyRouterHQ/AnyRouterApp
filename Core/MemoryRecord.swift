@@ -41,6 +41,13 @@ struct MemoryUpdate: Codable, Equatable, Sendable, Identifiable {
     }
 }
 
+/// A memory put in front of a question (agent design 2.4). The reply's footer lists it with Forget.
+struct MemoryHit: Codable, Equatable, Sendable, Identifiable {
+    var memoryID: UUID
+    var text: String
+    var id: UUID { memoryID }
+}
+
 /// One short thing the app remembers about the user. Lives in the same store as the chats; nothing syncs.
 @Model final class MemoryRecord {
     @Attribute(.unique) var id: UUID

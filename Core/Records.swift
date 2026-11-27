@@ -100,6 +100,8 @@ final class MessageRecord {
     var failureData: Data?
     /// What this turn saved to memory, as JSON (`MemoryUpdate`). Optional so existing stores migrate.
     var memoryUpdatesData: Data?
+    /// The memories recalled for this reply's question, as JSON (`MemoryHit`). Optional so existing stores migrate.
+    var memoryHitsData: Data?
 
     static let clipboardOrigin = "clipboard"
     var fromClipboard: Bool { origin == Self.clipboardOrigin }
@@ -143,6 +145,11 @@ final class MessageRecord {
     var failure: ReplyFailure? {
         get { failureData.flatMap { try? JSONDecoder().decode(ReplyFailure.self, from: $0) } }
         set { failureData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+    }
+
+    var memoryHits: [MemoryHit] {
+        get { memoryHitsData.flatMap { try? JSONDecoder().decode([MemoryHit].self, from: $0) } ?? [] }
+        set { memoryHitsData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
     }
 
     var memoryUpdates: [MemoryUpdate] {

@@ -55,6 +55,12 @@ extension MemoryStore {
         try context.save()
     }
 
+    /// "Forget" on a memory a reply used. One already deleted is gone either way.
+    func forget(_ id: UUID) throws {
+        guard let record = try record(id) else { return }
+        try delete(record)
+    }
+
     private func record(_ id: UUID?) throws -> MemoryRecord? {
         guard let id else { return nil }
         return try context.fetch(FetchDescriptor<MemoryRecord>(predicate: #Predicate { $0.id == id })).first

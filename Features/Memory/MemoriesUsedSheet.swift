@@ -1,0 +1,51 @@
+import SwiftData
+import SwiftUI
+
+/// "Used 2 memories" under a reply opens this list: what was put in front of the question, each with Forget.
+struct MemoriesUsedSheet: View {
+    let hits: [MemoryHit]
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+    @State private var forgotten: Set<UUID> = []
+    @State private var failure: String?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(hits) { hit in
+                        HStack {
+                            Text(hit.text)
+                                .foregroundStyle(forgotten.contains(hit.id) ? .secondary : .primary)
+                                .strikethrough(forgotten.contains(hit.id))
+                            Spacer()
+                            if !forgotten.contains(hit.id) {
+                                Button("Forget", role: .destructive) { forget(hit) }
+                                    .buttonStyle(.borderless)
+                                    .accessibilityIdentifier("memory.forget")
+                            }
+                        }
+                    }
+                } footer: {
+                    Text(failure ?? "These were in front of your question for this reply. Forget removes one from memory.")
+                }
+            }
+            .navigationTitle("Memories used")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func forget(_ hit: MemoryHit) {
+        do {
+            try MemoryStore(context: context).forget(hit.memoryID)
+            forgotten.insert(hit.id)
+            failure = nil
+        } catch {
+            failure = error.localizedDescription
+        }
+    }
+}

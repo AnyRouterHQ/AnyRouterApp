@@ -695,11 +695,14 @@ final class ChatViewModel {
         let assistant = MessageRecord(role: .assistant, content: "", modelName: model.shortName, modelID: model.id)
         // What goes out is the summary of the folded part of the chat and the messages after it.
         let live = CompactionLogic.context(messages: thread.orderedMessages, compaction: thread.compactions.last)
-        // The plugins and files the user named with @ are asked for in this request only; the saved message stays as typed.
-        let history = ComposerMention.applying(mentions, to: live.messages)
+        // The plugins and files the user named with @, and the memories that match the question, are in this request only;
+        // the saved message stays as typed.
+        let recalled = memoryRecall(for: thread, model: model)
+        let history = MemoryRecallLogic.applying(recalled, to: ComposerMention.applying(mentions, to: live.messages))
         context.insert(assistant)
         assistant.thread = thread
         assistant.memoryUpdates = memory
+        assistant.memoryHits = recalled.map { MemoryHit(memoryID: $0.candidate.id, text: $0.candidate.text) }
         // Saved with the reply before anything streams, and cleared by `finish`: if the app is closed mid-reply, the marker
         // is what the chat finds after the next launch (agent design 1.3, unit G1). The chat ignores it while it streams.
         assistant.failure = ReplyFailure(kind: .interrupted, detail: String(localized: "The app closed while this reply was being written."))
@@ -759,7 +762,7 @@ final class ChatViewModel {
                     if await self.fold(plan, model: model, thread: thread) {
                         let rebuilt = CompactionLogic.context(
                             messages: thread.orderedMessages.filter { $0.id != assistant.id }, compaction: thread.compactions.last)
-                        sent = ComposerMention.applying(mentions, to: rebuilt.messages)
+                        sent = MemoryRecallLogic.applying(recalled, to: ComposerMention.applying(mentions, to: rebuilt.messages))
                         sentParams.systemPrompt = CompactionLogic.systemPrompt(base: basePrompt, summary: rebuilt.summary)
                     } else {
                         self.compactionNote = String(localized: "Could not shorten the conversation. It was sent as it is.")
@@ -968,6 +971,28 @@ final class ChatViewModel {
         return MemoryProfileLogic.render(
             items, frozen: frozen, source: model.source,
             deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats, budget: MemoryProfileLogic.budget(for: model))
+    }
+
+    /// Facts and chat summaries that match the question (agent design 2.4), by the same switches and scope rules as the
+    /// profile. An item saved from this very question is left out: the question already says it.
+    private func memoryRecall(for thread: ThreadRecord, model: ModelDescriptor) -> [MemoryRecallLogic.Hit] {
+        guard settings.useMemory, !thread.memoryOff,
+              let question = thread.messages.filter({ $0.role == .user }).max(by: { $0.createdAt < $1.createdAt }) else { return [] }
+        let records = ((try? MemoryStore(context: context).all()) ?? []).filter { record in
+            (record.kind == .fact || (record.kind == .chatSummary && record.sourceThreadID != thread.id))
+                && record.sourceMessageID != question.id
+                && MemoryProfileLogic.allows(record.scope, source: model.source, deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats)
+        }
+        let hits = MemoryRecallLogic.recall(
+            question.content, from: records.map { MemoryRecallLogic.Candidate(id: $0.id, text: $0.text) },
+            budget: MemoryRecallLogic.budget(for: model))
+        let used = Set(hits.map(\.candidate.id))
+        let now = Date()
+        for record in records where used.contains(record.id) {
+            record.lastUsedAt = now
+            record.useCount += 1
+        }
+        return hits
     }
 
     /// Asks for a title while the thread still has the one cut from its first message. A failure keeps that one.

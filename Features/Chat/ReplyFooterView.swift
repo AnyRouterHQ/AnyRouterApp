@@ -11,6 +11,7 @@ struct ReplyFooterRow: View {
 
     @State private var showsSources = false
     @State private var showsDetails = false
+    @State private var showsMemories = false
 
     var body: some View {
         // One row. When it is wider than the screen it scrolls sideways; it never wraps.
@@ -19,11 +20,13 @@ struct ReplyFooterRow: View {
                 actions
                 summary
                 sourcesButton
+                memoriesButton
             }
             .imageScale(.medium)
         }
         .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
         .sheet(isPresented: $showsSources) { SourcesSheet(sources: footer.sources) }
+        .sheet(isPresented: $showsMemories) { MemoriesUsedSheet(hits: message.memoryHits) }
         .sheet(isPresented: $showsDetails) {
             if let details = footer.details { ReplyDetailsSheet(details: details) }
         }
@@ -95,6 +98,28 @@ struct ReplyFooterRow: View {
             .accessibilityLabel(sourcesLabel)
             .accessibilityHint("Shows the sources")
             .accessibilityIdentifier("reply.sources")
+        }
+    }
+
+    /// "Used 2 memories": what recall put in front of the question, each with Forget.
+    @ViewBuilder
+    private var memoriesButton: some View {
+        let hits = message.memoryHits
+        if !hits.isEmpty {
+            Button { showsMemories = true } label: {
+                Label(MemoryRecallLogic.usedLabel(hits.count), systemImage: "brain")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .frame(minHeight: 44)
+                    .padding(.horizontal, 4)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .hoverEffect(.highlight)
+            .accessibilityHint("Shows the memories this reply used")
+            .accessibilityIdentifier("reply.memories")
         }
     }
 }
