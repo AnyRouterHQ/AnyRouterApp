@@ -217,14 +217,16 @@ private struct ChatContent: View {
         .sensoryFeedback(.selection, trigger: tip)
     }
 
-    private func settle(_ proxy: ScrollViewProxy, lastQuestionID: UUID?) {
-        switch ScrollFollow.settle(isStreaming: chat.isStreaming, lastQuestionID: lastQuestionID) {
+    private func settle(_ proxy: ScrollViewProxy, _ event: ScrollFollow.Event, _ lastQuestionID: UUID?) {
+        switch ScrollFollow.settle(after: event, lastQuestionID: lastQuestionID) {
         case .question(let id):
             following = false
             withAnimation(.snappy) { proxy.scrollTo(id, anchor: .top) }
         case .bottom:
             following = true
             proxy.scrollTo("bottom", anchor: .bottom)
+        case .stay:
+            break
         }
     }
 
@@ -235,6 +237,8 @@ private struct ChatContent: View {
         let compactions = Dictionary(chat.compactions.map { ($0.lastMessageID, $0) }, uniquingKeysWith: { first, _ in first })
         let lastQuestionID = messages.last(where: { $0.role == .user })?.id
         let rowSpacing: CGFloat = 20
+        let listPadding: CGFloat = 12
+        let lastIsQuestion = messages.last?.role == .user
         // ScrollViewReader, not a ScrollPosition binding: the binding is written on every scroll frame, which
         // re-evaluates the whole list (the perf baseline showed the scroll CPU more than doubling).
         return ScrollViewReader { proxy in
@@ -256,7 +260,7 @@ private struct ChatContent: View {
                         row.frame(
                             minHeight: ScrollFollow.lastRowMinHeight(
                                 visible: visibleHeight, question: message.id == lastQuestionID ? nil : questionHeight,
-                                spacing: rowSpacing),
+                                spacing: rowSpacing, trailing: rowSpacing + 1 + listPadding),
                             alignment: .top)
                     } else if message.id == lastQuestionID {
                         row.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { questionHeight = $0 }
@@ -285,7 +289,7 @@ private struct ChatContent: View {
             // A container of its own, so the UI tests can measure the column.
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("chat.content")
-            .padding(.vertical, 12)            .readableWidth()
+            .padding(.vertical, listPadding)            .readableWidth()
         }
         .scrollDismissesKeyboard(.interactively)
         .scrollEdgeEffectStyle(.soft, for: .all)
@@ -299,8 +303,12 @@ private struct ChatContent: View {
             following = ScrollFollow.following(from: old, to: new, atBottom: atBottom, was: following)
         }
         // A send or a regenerate puts the question at the top while the reply streams; anything else shows the end.
-        .onChange(of: messages.count) { settle(proxy, lastQuestionID: lastQuestionID) }
-        .onChange(of: chat.isStreaming) { settle(proxy, lastQuestionID: lastQuestionID) }
+        .onChange(of: messages.count) {
+            settle(proxy, .messagesChanged(isStreaming: chat.isStreaming, lastIsQuestion: lastIsQuestion), lastQuestionID)
+        }
+        .onChange(of: chat.isStreaming) { _, streaming in
+            settle(proxy, streaming ? .streamStarted : .streamEnded, lastQuestionID)
+        }
         .onChange(of: messages.last?.toolTraceData) { if following { proxy.scrollTo("bottom", anchor: .bottom) } }
         .onChange(of: messages.last?.content.count) { if following { proxy.scrollTo("bottom", anchor: .bottom) } }
         .overlay(alignment: .bottom) {

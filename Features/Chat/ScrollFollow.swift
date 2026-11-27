@@ -24,24 +24,43 @@ enum ScrollFollow {
     /// The jump-to-latest button: only when the end of the list is off screen and the list is not following on its own.
     static func showsJumpButton(following: Bool, atBottom: Bool) -> Bool { !following && !atBottom }
 
-    /// Where the list goes when messages are added or a reply starts (decision D27).
+    /// What moved the list (decision D27).
+    enum Event: Equatable {
+        /// Messages were added or removed. `lastIsQuestion`: the newest message is the person's, its reply not started yet.
+        case messagesChanged(isStreaming: Bool, lastIsQuestion: Bool)
+        case streamStarted
+        case streamEnded
+    }
+
+    /// Where the list goes after an event.
     enum Settle: Equatable {
-        /// A reply is coming: the person's question goes to the top of the view and the reply grows under it.
+        /// A send or a regenerate: the person's question goes to the top of the view and the reply grows under it.
         case question(UUID)
-        /// Nothing streams (a thread opened, a reply was removed): the end of the list, following.
+        /// A thread opened or a reply was removed: the end of the list, following.
         case bottom
+        /// A reply ended: the reader stays where they are reading.
+        case stay
     }
 
-    static func settle(isStreaming: Bool, lastQuestionID: UUID?) -> Settle {
-        if isStreaming, let lastQuestionID { return .question(lastQuestionID) }
-        return .bottom
+    static func settle(after event: Event, lastQuestionID: UUID?) -> Settle {
+        switch event {
+        case .streamEnded:
+            return .stay
+        case .streamStarted:
+            return lastQuestionID.map(Settle.question) ?? .bottom
+        case .messagesChanged(let isStreaming, let lastIsQuestion):
+            // A send adds the question before the stream starts: settle on it once, not on the end first.
+            guard isStreaming || lastIsQuestion, let lastQuestionID else { return .bottom }
+            return .question(lastQuestionID)
+        }
     }
 
-    /// The least height of the last row, so that the question above it can sit at the top of the visible area.
-    /// `visible` is the list's height without the bars over it; `question` is the height of the question row, nil when
-    /// the last row is the question itself.
-    static func lastRowMinHeight(visible: CGFloat, question: CGFloat?, spacing: CGFloat) -> CGFloat {
-        guard let question else { return max(0, visible) }
-        return max(0, visible - question - spacing)
+    /// The least height of the last row, so that the question above it can sit at the top of the visible area with the
+    /// list's end marker still on screen. `visible` is the list's height without the bars over it; `question` is the
+    /// height of the question row, nil when the last row is the question itself; `trailing` is what follows the last row
+    /// (spacing, the end marker, the bottom padding).
+    static func lastRowMinHeight(visible: CGFloat, question: CGFloat?, spacing: CGFloat, trailing: CGFloat) -> CGFloat {
+        guard let question else { return max(0, visible - trailing) }
+        return max(0, visible - question - spacing - trailing)
     }
 }
