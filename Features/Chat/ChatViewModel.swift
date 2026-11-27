@@ -758,7 +758,7 @@ final class ChatViewModel {
     }
 
     /// Seconds between screen updates while text streams in.
-    static let textInterval: TimeInterval = 0.05
+    nonisolated static let textInterval: TimeInterval = 0.05
 
     static func milliseconds(_ seconds: TimeInterval) -> Int { max(0, Int((seconds * 1000).rounded())) }
 
