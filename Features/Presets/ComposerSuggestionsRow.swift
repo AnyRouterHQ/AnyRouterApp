@@ -57,7 +57,7 @@ struct ComposerSuggestionsRow: View {
         .controlSize(.regular)
         .frame(minHeight: 44)
         .contextMenu {
-            if suggestions.mode == .starters {
+            if suggestions.mode == .starters, preset.action == nil {
                 Button("Send now", systemImage: "arrow.up.circle") { onSend(preset) }
                 Button("Edit in composer", systemImage: "square.and.pencil") { onPreset(preset) }
             }
@@ -65,14 +65,20 @@ struct ComposerSuggestionsRow: View {
         .accessibilityIdentifier("composer.suggestion.preset.\(preset.id)")
     }
 
-    /// Every preset, yours first and then the built-ins by category, and the way to edit them.
+    /// The phone use cases, then the presets (yours first, then the built-ins by category), and the way to edit them.
     private var moreMenu: some View {
         Menu {
-            let mine = presets.all.filter { presets.customIDs.contains($0.id) }
-            if !mine.isEmpty { section("Yours", mine) }
-            ForEach(PromptPreset.Category.allCases) { category in
-                let items = presets.all.filter { $0.category == category && !presets.customIDs.contains($0.id) }
-                if !items.isEmpty { section(category.title, items) }
+            let all = presets.all
+            let deviceItems = all.filter(\.onDevice)
+            if !deviceItems.isEmpty { section("On this device", deviceItems) }
+            let others = all.filter { !$0.onDevice }
+            Section("Presets") {
+                let mine = others.filter { presets.customIDs.contains($0.id) }
+                if !mine.isEmpty { submenu("Yours", mine) }
+                ForEach(PromptPreset.Category.allCases) { category in
+                    let items = others.filter { $0.category == category && !presets.customIDs.contains($0.id) }
+                    if !items.isEmpty { submenu(category.title, items) }
+                }
             }
             Section {
                 Button("Edit Presets…", systemImage: "slider.horizontal.3", action: onEditPresets)
@@ -86,6 +92,14 @@ struct ComposerSuggestionsRow: View {
         .controlSize(.regular)
         .frame(minWidth: 44, minHeight: 44)
         .accessibilityIdentifier("composer.suggestion.more")
+    }
+
+    private func submenu(_ title: String, _ items: [PromptPreset]) -> some View {
+        Menu(title) {
+            ForEach(items) { preset in
+                Button(preset.title, systemImage: preset.symbol) { onPreset(preset) }
+            }
+        }
     }
 
     private func section(_ title: String, _ items: [PromptPreset]) -> some View {

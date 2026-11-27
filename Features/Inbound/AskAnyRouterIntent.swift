@@ -22,7 +22,7 @@ struct PresetEntityQuery: EntityQuery {
 
     /// The presets the user sees in the app: their own first, then the built-ins they have not hidden.
     static func visible() async -> [PresetEntity] {
-        await MainActor.run { PresetStore().all.map { PresetEntity(id: $0.id, title: $0.title) } }
+        await MainActor.run { PresetStore().all.filter { $0.action == nil }.map { PresetEntity(id: $0.id, title: $0.title) } }
     }
 }
 

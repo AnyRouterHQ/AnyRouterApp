@@ -19,8 +19,35 @@ struct PromptPreset: Identifiable, Codable, Hashable, Sendable {
     /// Offered as a button above the keyboard when text is pasted into the message. Built-ins can be switched in Settings
     /// (see `PresetStore.offersOnPaste`); this is their default.
     var offerOnPaste = false
+    /// What the chip does instead of filling the composer (read a photo, use the clipboard, go offline). The prompt is
+    /// empty for these.
+    var action: PresetAction? = nil
+    /// A phone use case: listed first, and under "On this device" in the More menu.
+    var onDevice = false
 
-    private enum CodingKeys: String, CodingKey { case id, title, prompt, category, symbol, options, offerOnPaste }
+    private enum CodingKeys: String, CodingKey { case id, title, prompt, category, symbol, options, offerOnPaste, action, onDevice }
+}
+
+/// A preset that runs something of the phone rather than writing a prompt.
+enum PresetAction: String, Codable, CaseIterable, Sendable {
+    /// Opens the photo picker and reads the text in the photo on the device.
+    case readPhoto
+    /// Puts the copied text in the composer, ready for a question about it.
+    case askClipboard
+    /// Summarizes the page behind a copied link.
+    case summarizeLink
+    /// Switches to a model that runs on the device, or offers the smallest one that fits.
+    case goOffline
+
+    /// The line under the title in lists.
+    var summary: String {
+        switch self {
+        case .readPhoto: "Reads the text in a photo on this device"
+        case .askClipboard: "Ask about the text you copied"
+        case .summarizeLink: "Summarize the page behind a copied link"
+        case .goOffline: "Answer without internet, with a model on this device"
+        }
+    }
 }
 
 /// One picker of a preset and the words each choice puts into the prompt. The first choice is the default.
@@ -48,6 +75,8 @@ extension PromptPreset {
         symbol = try container.decode(String.self, forKey: .symbol)
         options = try container.decodeIfPresent([PresetOption].self, forKey: .options)
         offerOnPaste = try container.decodeIfPresent(Bool.self, forKey: .offerOnPaste) ?? false
+        action = try container.decodeIfPresent(PresetAction.self, forKey: .action)
+        onDevice = try container.decodeIfPresent(Bool.self, forKey: .onDevice) ?? false
     }
 }
 
@@ -74,15 +103,17 @@ enum PresetLogic {
         return UInt64((parts.year ?? 0) * 10_000 + (parts.month ?? 0) * 100 + (parts.day ?? 0))
     }
 
-    /// Custom presets stay first, then the built-ins with pickers (the helpers, like "Reply to this", must always be one
-    /// tap away); the shuffle only reorders the rest.
+    /// Custom presets stay first, then the phone use cases, then the built-ins with pickers (the helpers, like "Reply to
+    /// this", must always be one tap away); the shuffle only reorders the rest.
     static func featured(_ items: [PromptPreset], customIDs: Set<String>, category: PromptPreset.Category?,
                          seed: UInt64, limit: Int) -> [PromptPreset] {
         let filtered = filter(items, category: category)
         let custom = filtered.filter { customIDs.contains($0.id) }
         let builtIns = filtered.filter { !customIDs.contains($0.id) }
-        let rest = shuffled(builtIns.filter { !$0.hasOptions }, seed: seed)
-        return Array((custom + builtIns.filter(\.hasOptions) + rest).prefix(limit))
+        let useCases = builtIns.filter(\.onDevice)
+        let helpers = builtIns.filter { $0.hasOptions && !$0.onDevice }
+        let rest = shuffled(builtIns.filter { !$0.hasOptions && !$0.onDevice }, seed: seed)
+        return Array((custom + useCases + helpers + rest).prefix(limit))
     }
 }
 

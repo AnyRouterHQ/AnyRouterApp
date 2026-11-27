@@ -16,10 +16,15 @@ struct Composer: View {
     @State private var showsPluginList = false
     /// The photo or camera picker that is open reads text into the composer instead of attaching the image.
     @State private var readsText = false
+    /// "Answer offline" found nothing installed: the smallest model that fits, waiting for a yes.
+    @State private var offerDownload: LocalModelEntry?
+    /// What "Answer offline" did, said under the field until the next edit.
+    @State private var deviceNote: String?
     /// Owned by the chat screen so a tap outside the card can dismiss the keyboard.
     var focused: FocusState<Bool>.Binding
     @Environment(AppSettings.self) private var settings
     @Environment(AppState.self) private var app
+    @Environment(ModelStore.self) private var models
     @Environment(ShellModel.self) private var shell
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -54,7 +59,7 @@ struct Composer: View {
             if app.dictation.isActive {
                 DictationBar(dictation: app.dictation, hub: app.voice)
             }
-            if let notice = model.modelNotice {
+            if let notice = deviceNote ?? model.modelNotice {
                 Text(notice)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -82,11 +87,7 @@ struct Composer: View {
                 ComposerSuggestionsRow(
                     suggestions: suggestions, presets: presets, leadingInset: fieldInset,
                     onPaste: { text in model.input = text; app.clipboard.dismiss() },
-                    onPreset: { preset in
-                        // For the clipboard this read is the person's own tap. The row itself never reads the text.
-                        model.choose(preset, mode: suggestions.mode, clipboardText: { UIPasteboard.general.string ?? "" })
-                        app.clipboard.dismiss()
-                    },
+                    onPreset: { pick($0, mode: suggestions.mode) },
                     onSend: { model.sendNow($0) },
                     onEditPresets: { shell.presentSettings(closeSidebar: false, destination: .presets) },
                     onDismiss: { model.dismissPasteOffer(); app.clipboard.dismiss() })
@@ -134,6 +135,7 @@ struct Composer: View {
         .onChange(of: model.voiceTick) { app.dictation.begin(text: $model.input, hub: app.voice) }
         .onChange(of: model.input) { old, new in
             model.inputChanged(from: old, to: new)
+            if new != old { deviceNote = nil }
             if !new.isEmpty { app.clipboard.dismiss() }
             if showsPluginList, new != old { showsPluginList = false }
             // New input cuts off the voice that is reading a reply.
@@ -165,9 +167,21 @@ struct Composer: View {
                       allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { model.attachFiles(urls) }
         }
+        .confirmationDialog(
+            offerDownload.map(OfflineLogic.downloadQuestion) ?? "", isPresented: Binding(
+                get: { offerDownload != nil }, set: { if !$0 { offerDownload = nil } }),
+            titleVisibility: .visible, presenting: offerDownload
+        ) { entry in
+            Button("Download") {
+                app.hub.download(entry)
+                deviceNote = OfflineLogic.downloadingMessage(entry)
+            }
+        } message: { entry in
+            Text(OfflineLogic.downloadMessage(entry))
+        }
         .sheet(isPresented: $showsPresets) {
             if let presets {
-                PresetSheet(store: presets, onPick: { model.usePreset($0) }, onSend: { model.sendNow($0) })
+                PresetSheet(store: presets, onPick: { pick($0, mode: .starters) }, onSend: { model.sendNow($0) })
             }
         }
         .task { app.clipboard.check(composerEmpty: model.input.isEmpty) }
@@ -175,6 +189,39 @@ struct Composer: View {
             guard settings.showKeyboardOnLaunch, !shell.didFocusComposerOnLaunch else { return }
             shell.didFocusComposerOnLaunch = true
             focused.wrappedValue = true
+        }
+    }
+
+    /// A preset was chosen in the row, the More menu or the presets sheet. A phone use case runs its action; any other
+    /// preset fills the composer the way its mode says.
+    private func pick(_ preset: PromptPreset, mode: ComposerSuggestionMode) {
+        defer { app.clipboard.dismiss() }
+        // Reading the clipboard here is the person's own tap. The row itself never reads the text.
+        let clipboard = { UIPasteboard.general.string ?? "" }
+        guard let action = preset.action else {
+            model.choose(preset, mode: mode, clipboardText: clipboard)
+            return
+        }
+        switch action {
+        case .readPhoto:
+            readsText = true
+            showsPhotos = true
+        case .goOffline:
+            goOffline()
+        case .askClipboard, .summarizeLink:
+            model.run(action, clipboardText: clipboard)
+        }
+    }
+
+    private func goOffline() {
+        switch OfflineLogic.plan(models: models.models, catalog: app.hub.catalog) {
+        case .use(let device):
+            model.choose(device)
+            deviceNote = OfflineLogic.usingMessage(device)
+        case .download(let entry):
+            offerDownload = entry
+        case .unavailable:
+            deviceNote = OfflineLogic.nothingFitsMessage
         }
     }
 

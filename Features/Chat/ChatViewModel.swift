@@ -338,7 +338,7 @@ final class ChatViewModel {
     /// Text the app put in the composer itself (a preset, a Shortcut). The change that brings exactly this text is not a paste.
     @ObservationIgnored private var ownText: String?
 
-    private func fill(_ text: String) {
+    func fill(_ text: String) {
         input = text
         ownText = text
         pasteOffered = false

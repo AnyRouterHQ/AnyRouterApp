@@ -23,7 +23,9 @@ struct PresetSheet: View {
                 }
                 .foregroundStyle(.primary)
                 .contextMenu {
-                    Button("Send now", systemImage: "arrow.up.circle") { onSend(preset); dismiss() }
+                    if preset.action == nil {
+                        Button("Send now", systemImage: "arrow.up.circle") { onSend(preset); dismiss() }
+                    }
                 }
             }
             .overlay {

@@ -30,6 +30,7 @@
   {
     "id": "reply-to-this",
     "offerOnPaste": true,
+    "onDevice": true,
     "title": "Reply to this",
     "prompt": "Write a reply to the message below. Tone: {tone}. Language: {language}. Give the reply text only, with no introduction and no notes.\n\nMessage:\n",
     "category": "write",
@@ -117,7 +118,44 @@
     "prompt": "Fix the grammar, spelling and wording of the text below. Keep my meaning and tone. Give the corrected text first, then a short list of what you changed.\n\nText:\n",
     "category": "write",
     "symbol": "text.badge.checkmark",
-    "offerOnPaste": true
+    "offerOnPaste": true,
+    "onDevice": true
+  },
+  {
+    "id": "read-photo",
+    "title": "Read text from a photo",
+    "prompt": "",
+    "category": "explore",
+    "symbol": "text.viewfinder",
+    "action": "readPhoto",
+    "onDevice": true
+  },
+  {
+    "id": "ask-clipboard",
+    "title": "Ask about the clipboard",
+    "prompt": "",
+    "category": "explore",
+    "symbol": "doc.on.clipboard",
+    "action": "askClipboard",
+    "onDevice": true
+  },
+  {
+    "id": "summarize-link",
+    "title": "Summarize a link",
+    "prompt": "",
+    "category": "learn",
+    "symbol": "link",
+    "action": "summarizeLink",
+    "onDevice": true
+  },
+  {
+    "id": "go-offline",
+    "title": "Answer offline",
+    "prompt": "",
+    "category": "explore",
+    "symbol": "wifi.slash",
+    "action": "goOffline",
+    "onDevice": true
   },
   {
     "id": "polish-email",

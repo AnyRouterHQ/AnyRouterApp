@@ -21,7 +21,7 @@ struct PresetTests {
         #expect(Set(items.map(\.id)).count == items.count)
         for item in items {
             #expect(!item.title.trimmingCharacters(in: .whitespaces).isEmpty, "\(item.id) title")
-            #expect(!item.prompt.trimmingCharacters(in: .whitespaces).isEmpty, "\(item.id) prompt")
+            #expect(item.action != nil || !item.prompt.trimmingCharacters(in: .whitespaces).isEmpty, "\(item.id) prompt")
             #expect(UIImage(systemName: item.symbol) != nil, "\(item.id) symbol \(item.symbol)")
         }
         #expect(Set(items.map(\.category)) == Set(PromptPreset.Category.allCases))

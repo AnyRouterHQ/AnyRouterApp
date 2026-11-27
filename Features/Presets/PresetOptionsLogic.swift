@@ -41,6 +41,7 @@ enum PresetOptionsLogic {
 
     /// A line for a chip or a list row: the option names when there are pickers, else the prompt.
     static func summary(_ preset: PromptPreset) -> String {
+        if let action = preset.action { return action.summary }
         guard let options = preset.options, !options.isEmpty else { return preset.prompt }
         return "Choose " + options.map { $0.title.lowercased() }.joined(separator: " and ")
     }

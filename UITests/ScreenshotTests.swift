@@ -180,6 +180,18 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// The More menu on the empty chat: the phone use cases under "On this device", then the presets.
+    func testComposerMoreMenu() {
+        forEachAppearance { app, appearance in
+            XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
+            let more = app.descendants(matching: .any)["composer.suggestion.more"]
+            XCTAssertTrue(more.waitForExistence(timeout: 10), "the More menu ends the row")
+            more.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["composer.suggestion.edit"].waitForExistence(timeout: 5), "Edit Presets is in the menu")
+            capture("composer-more-menu", appearance)
+        }
+    }
+
     func testThreadList() {
         forEachAppearance { app, appearance in
             showSidebar(app)
