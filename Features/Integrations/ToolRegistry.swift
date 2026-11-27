@@ -29,6 +29,8 @@ final class ToolRegistry {
     /// Public web services with no account. The app passes `ToolSourceCatalog.publicSources`.
     let publicSources: [ToolSource]
     private let builtIns: [any BuiltInTool]
+    /// Where the chat's photos are stored, for `ocr_image`.
+    private let attachmentStore: AttachmentStore
     @ObservationIgnored private let defaults: UserDefaults
     private(set) var disabledBuiltIns: Set<String>
     /// What the user chose per source. A source with no entry follows its default.
@@ -38,10 +40,12 @@ final class ToolRegistry {
         integrations: IntegrationsStore,
         builtIns: [any BuiltInTool] = ToolRegistry.standardBuiltIns(),
         publicSources: [ToolSource] = [],
+        attachmentStore: AttachmentStore = .shared,
         defaults: UserDefaults = .standard
     ) {
         self.integrations = integrations
         self.builtIns = builtIns
+        self.attachmentStore = attachmentStore
         self.publicSources = publicSources
         self.defaults = defaults
         disabledBuiltIns = Set(defaults.stringArray(forKey: Self.disabledKey) ?? [])
@@ -110,8 +114,11 @@ final class ToolRegistry {
 
     // MARK: Listing
 
-    /// Every built-in tool Settings lists. `read_attachment` is listed always but only offered to a model in a chat with attachments.
-    var listedBuiltIns: [any BuiltInTool] { builtIns + [ReadAttachmentTool(provider: NoAttachments())] }
+    /// Every built-in tool Settings lists. `read_attachment` and `ocr_image` are listed always but only offered to a model in
+    /// a chat with attachments, or with photos.
+    var listedBuiltIns: [any BuiltInTool] {
+        builtIns + [ReadAttachmentTool(provider: NoAttachments()), OCRImageTool(images: [])]
+    }
 
     var searchMatch: WebSearchBinding.Match? { WebSearchBinding.find(in: integrations.enabledTools) }
 
@@ -222,6 +229,11 @@ final class ToolRegistry {
         var builtIns = deviceOn ? self.builtIns.filter { isBuiltInEnabled($0.name) } : []
         if deviceOn, !context.attachments.isEmpty, isBuiltInEnabled("read_attachment") {
             builtIns.append(ReadAttachmentTool(provider: ThreadAttachments(attachments: context.attachments)))
+        }
+        // Ranks with the rest in a four-tool window: Apple and local models already get each photo's text in the message.
+        let images = context.attachments.filter { $0.kind == .image }
+        if deviceOn, !images.isEmpty, isBuiltInEnabled(OCRImageTool.toolName) {
+            builtIns.append(OCRImageTool(images: images, store: attachmentStore))
         }
         return HostPlan(match: match, scrape: scrape, builtIns: builtIns, mcpTools: mcpTools)
     }

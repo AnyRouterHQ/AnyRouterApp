@@ -23,6 +23,7 @@ struct ToolSummaryTests {
         #expect(text(["fetch_url", "fetch_url", "fetch_url"]) == "Read 3 pages")
         #expect(text(["read_attachment"]) == "Read 1 file")
         #expect(text(["read_attachment", "read_attachment"]) == "Read 2 files")
+        #expect(text(["ocr_image", "read_attachment"]) == "Read 2 files", "reading a photo's text counts as reading a file")
         #expect(text(["calculator"]) == "Did the math")
         #expect(text(["current_date_time"]) == "Checked the time")
     }

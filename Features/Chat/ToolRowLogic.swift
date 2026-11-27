@@ -54,6 +54,9 @@ enum ToolRowLogic {
         case "read_attachment":
             let verb = running ? "Reading" : "Read"
             return "\(verb) \(text("name").map(truncated) ?? "the attachments")"
+        case "ocr_image":
+            let verb = running ? "Reading text in" : "Read text in"
+            return "\(verb) \(text("name").map(truncated) ?? "the photos")"
         default:
             if lowered.contains("search") { return running ? "Searching the web" : "Searched the web" }
             return "\(running ? "Using" : "Used") \(call.name)"
@@ -92,6 +95,7 @@ enum ToolRowLogic {
         case "calculator": return "Calculator"
         case "current_date_time": return "Date and time"
         case "read_attachment": return "Attachment"
+        case "ocr_image": return "Text in photos"
         default:
             let spaced = toolName.split(whereSeparator: { $0 == "_" || $0 == "-" }).joined(separator: " ")
             return spaced.prefix(1).uppercased() + spaced.dropFirst()
@@ -106,6 +110,7 @@ enum ToolRowLogic {
         case "calculator": return "plusminus"
         case "current_date_time": return "clock"
         case "read_attachment": return "paperclip"
+        case "ocr_image": return "text.viewfinder"
         default: return ToolSourceCatalog.symbol(forTool: toolName)
         }
     }
@@ -122,7 +127,7 @@ enum ToolRowLogic {
         case "web_search": return text("query").map(truncated)
         case "fetch_url": return text("url").flatMap(shortURL)
         case "calculator": return text("expression").map(truncated)
-        case "read_attachment": return text("name").map(truncated)
+        case "read_attachment", "ocr_image": return text("name").map(truncated)
         case "current_date_time": return nil
         default:
             let firstText = args.keys.sorted().lazy.compactMap { text($0) }.first

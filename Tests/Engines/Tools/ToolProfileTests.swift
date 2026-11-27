@@ -49,6 +49,20 @@ struct ToolProfileTests {
         ])
     }
 
+    /// `ocr_image` takes no slot from the four: Apple and local models already get each photo's text in the message.
+    /// It is offered after `read_attachment`, so with room for one more it is the one left out.
+    @Test func aPhotoInTheChatDoesNotPushOutTheClockCalculatorSearchOrPageReader() {
+        let names = ["fetch_url", "current_date_time", "calculator", "read_attachment", "ocr_image", "web_search"]
+        let expected = ["current_date_time", "calculator", "web_search", "fetch_url"]
+        #expect(ToolProfile.apple.shaped(names.map { spec($0) }).map(\.name) == expected)
+        #expect(ToolProfile.compact.shaped(names.map { spec($0) }).map(\.name) == expected)
+        #expect(ToolProfile.full.shaped(names.map { spec($0) }).map(\.name) == names, "a cloud model gets it")
+        let signedOut = ["fetch_url", "current_date_time", "calculator", "read_attachment", "ocr_image"]
+        #expect(ToolProfile.apple.shaped(signedOut.map { spec($0) }).map(\.name) == [
+            "current_date_time", "calculator", "fetch_url", "read_attachment",
+        ])
+    }
+
     @Test func localModelsAndAppleBothKeepFour() {
         #expect(ToolProfile.apple.maxTools == 4)
         #expect(ToolProfile.compact.maxTools == 4)

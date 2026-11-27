@@ -108,6 +108,8 @@ struct ToolChainTests {
         #expect(ToolRowLogic.symbol(for: "fetch_url") == "globe")
         #expect(ToolRowLogic.symbol(for: "current_date_time") == "clock")
         #expect(ToolRowLogic.symbol(for: "read_attachment") == "paperclip")
+        #expect(ToolRowLogic.symbol(for: "ocr_image") == "text.viewfinder")
+        #expect(ToolRowLogic.displayName(for: "ocr_image") == "Text in photos")
     }
 
     @Test func longArgumentsAndResultsAreCutUntilShowMore() {
@@ -189,6 +191,8 @@ struct ToolChainTests {
         #expect(title("current_date_time", "{}", done: true) == "Checked the date and time")
         #expect(title("read_attachment", #"{"name":"a.txt"}"#, done: true) == "Read a.txt")
         #expect(title("read_attachment", "{}", done: false) == "Reading the attachments")
+        #expect(title("ocr_image", #"{"name":"bill.jpg"}"#, done: true) == "Read text in bill.jpg")
+        #expect(title("ocr_image", "{}", done: false) == "Reading text in the photos")
         #expect(title("search_docs", "{}", done: false) == "Searching the web")
         #expect(title("search_docs", "{}", done: true) == "Searched the web")
         #expect(title("deploy", "{}", done: false) == "Using deploy")
@@ -212,6 +216,7 @@ struct ToolChainTests {
         #expect(summary("fetch_url", "{}") == nil)
         #expect(summary("calculator", #"{"expression":"2+2"}"#) == "2+2")
         #expect(summary("read_attachment", #"{"name":"a.txt"}"#) == "a.txt")
+        #expect(summary("ocr_image", #"{"name":"bill.jpg"}"#) == "bill.jpg")
         #expect(summary("deploy", #"{"count":3}"#) == nil)
         #expect(summary("deploy", #"{"target":"  prod  "}"#) == "prod")
         #expect(summary("deploy", #"{"target":"   "}"#) == nil)

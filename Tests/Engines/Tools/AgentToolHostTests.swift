@@ -159,7 +159,7 @@ final class ToolRegistryTests: XCTestCase {
     func testBuiltInsAreOnByDefaultAndTheirSwitchesPersist() {
         let defaults = testDefaults()
         let registry = makeRegistry(defaults: defaults)
-        XCTAssertEqual(registry.tools.map(\.name), ["fetch_url", "current_date_time", "calculator", "read_attachment"])
+        XCTAssertEqual(registry.tools.map(\.name), ["fetch_url", "current_date_time", "calculator", "read_attachment", "ocr_image"])
         XCTAssertTrue(registry.tools.allSatisfy { $0.enabled && $0.source == .builtIn && !$0.needsApproval })
 
         registry.setBuiltIn("calculator", enabled: false)
@@ -202,6 +202,37 @@ final class ToolRegistryTests: XCTestCase {
         XCTAssertFalse(registry.makeHost(approver: NeverAsks(), context: ToolContext(attachments: files))!.specs.contains { $0.name == "read_attachment" })
     }
 
+    func testOCRImageIsOfferedOnlyInAChatWithAPhotoAndReadsTheStoredImage() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "ocr-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = AttachmentStore(root: root)
+        let defaults = testDefaults()
+        let integrations = IntegrationsStore(
+            defaults: defaults, credentials: FakeCredentialStore(),
+            anyRouterToken: { "tok" }, session: MCPStubProtocol.session())
+        let registry = ToolRegistry(integrations: integrations, attachmentStore: store, defaults: defaults)
+        let notes = ChatAttachment(id: UUID(), kind: .text, filename: "notes.txt", utType: "public.plain-text",
+                                   byteCount: 4, relativePath: "t/notes.txt", extractedText: "milk")
+        XCTAssertTrue(registry.tools.contains { $0.name == "ocr_image" }, "listed in Settings always")
+        XCTAssertFalse(registry.makeHost(approver: NeverAsks(), context: ToolContext(attachments: [notes]))!
+            .specs.contains { $0.name == "ocr_image" }, "a chat with only a text file has no photo to read")
+
+        let id = UUID()
+        let path = try store.write(try ocrReceiptFixture(), id: id, fileExtension: "png")
+        let receipt = ChatAttachment(id: id, kind: .image, filename: "receipt.png", utType: "public.png",
+                                     byteCount: 1, relativePath: path, isOCR: true)
+        let host = try XCTUnwrap(registry.makeHost(approver: NeverAsks(), context: ToolContext(attachments: [notes, receipt])))
+        XCTAssertTrue(host.specs.contains { $0.name == "ocr_image" })
+        let read = await host.execute(ToolCall(id: "1", name: "ocr_image", argumentsJSON: #"{"name":"RECEIPT.png"}"#))
+        XCTAssertFalse(read.isError, read.text)
+        XCTAssertTrue(read.text.hasPrefix("[receipt.png]\n"), read.text)
+        XCTAssertTrue(read.text.contains("TOTAL") && read.text.contains("80,000"), read.text)
+
+        registry.setBuiltIn("ocr_image", enabled: false)
+        XCTAssertFalse(registry.makeHost(approver: NeverAsks(), context: ToolContext(attachments: [receipt]))!
+            .specs.contains { $0.name == "ocr_image" })
+    }
+
     func testAnyRouterToolsMergeAndWebSearchForwardsToTheSearchTool() async throws {
         let seen = Seen()
         serveSearchServer { request in
@@ -214,7 +245,7 @@ final class ToolRegistryTests: XCTestCase {
 
         let names = registry.tools.map(\.name)
         XCTAssertEqual(names, [
-            "web_search", "fetch_url", "current_date_time", "calculator", "read_attachment",
+            "web_search", "fetch_url", "current_date_time", "calculator", "read_attachment", "ocr_image",
             "firecrawl_search", "get_credits", "calculator",
         ])
         let mcpCalculator = registry.tools.last!
@@ -258,7 +289,7 @@ final class ToolRegistryTests: XCTestCase {
         await registry.integrations.refresh(.anyRouter)
         XCTAssertTrue(registry.tools.contains { $0.name == "get_credits" })
         registry.integrations.accountChanged(signedIn: false)
-        XCTAssertEqual(registry.tools.map(\.name), ["fetch_url", "current_date_time", "calculator", "read_attachment"])
+        XCTAssertEqual(registry.tools.map(\.name), ["fetch_url", "current_date_time", "calculator", "read_attachment", "ocr_image"])
     }
 }
 
@@ -513,4 +544,11 @@ final class RegistryExfiltrationTests: XCTestCase {
         XCTAssertEqual(research.count, 5)
         XCTAssertTrue(research.allSatisfy { $0.needsApproval && !$0.enabled })
     }
+}
+
+private final class OCRFixtureAnchor {}
+
+private func ocrReceiptFixture() throws -> Data {
+    let url = try XCTUnwrap(Bundle(for: OCRFixtureAnchor.self).url(forResource: "receipt", withExtension: "png"))
+    return try Data(contentsOf: url)
 }

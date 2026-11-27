@@ -41,7 +41,7 @@ enum ToolSummary {
         if name.contains("search") { return .search }
         switch name {
         case "fetch_url": return .page
-        case "read_attachment": return .file
+        case "read_attachment", "ocr_image": return .file
         case "calculator": return .calculation
         case "current_date_time": return .clock
         default: return .other(toolName)
