@@ -711,8 +711,11 @@ final class ChatViewModel {
         let instructions = InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt)
         let profile = memoryProfile(for: thread, model: model)
         let recallBlock = MemoryRecallLogic.block(recalled)
+        // Cloud models with tools get the skills index and `read_skill` (agent design 4, unit K1).
+        let offersSkills = model.source == .anyrouter && toolsEnabled && mentions.isEmpty && model.capabilities.contains("tools")
+        let skills = offersSkills ? SkillLogic.index(SkillLogic.bundled, budget: PromptBudget.forModel(model).skills) : nil
         let prompt = PromptAssembler.assemble(
-            instructions: instructions, profile: profile, summary: live.summary,
+            instructions: instructions, profile: profile, skills: skills, summary: live.summary,
             turns: ComposerMention.applying(mentions, to: live.messages), context: recallBlock)
         let history = prompt.messages
         context.insert(assistant)
@@ -740,6 +743,7 @@ final class ChatViewModel {
             if model.source == .anyrouter, settings.useMemory, !thread.memoryOff {
                 toolContext.memoryTools = ChatMemoryTools(context: context, thread: thread, reply: assistant, settings: settings).tools
             }
+            if offersSkills { toolContext.memoryTools.append(ReadSkillTool(skills: SkillLogic.bundled)) }
             host = toolHost(toolContext)
             if skipsToolsOffline(toolContext) { offlineToolNote = OfflineLogic.toolNote }
         }
@@ -782,7 +786,7 @@ final class ChatViewModel {
                             messages: Self.turns(of: thread).filter { $0.id != assistant.id }, compaction: thread.compactions.last)
                         // The system message stays as it was: the summary goes with the first kept question.
                         sent = PromptAssembler.assemble(
-                            instructions: instructions, profile: profile, summary: rebuilt.summary,
+                            instructions: instructions, profile: profile, skills: skills, summary: rebuilt.summary,
                             turns: ComposerMention.applying(mentions, to: rebuilt.messages), context: recallBlock).messages
                     } else {
                         self.compactionNote = String(localized: "Could not shorten the conversation. It was sent as it is.")

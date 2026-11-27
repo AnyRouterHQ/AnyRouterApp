@@ -3,19 +3,21 @@ import Foundation
 /// The parts of one request (agent design 3.2). Instructions and the profile are the stable start of every request;
 /// the summary, the turns and this turn's context come after them and change.
 enum PromptSection: String, CaseIterable, Sendable {
-    case instructions, profile, summary, turns, context
+    case instructions, profile, skills, summary, turns, context
 }
 
 /// Tokens the sections with a cap may take on one model (agent design 3.3). The turns take what is left.
 struct PromptBudget: Equatable, Sendable {
     var profile: Int
     var memoryHits: Int
+    /// The skills index: cloud models only, which have `read_skill`.
+    var skills: Int = 0
 
     static func forModel(_ model: ModelDescriptor) -> PromptBudget {
         switch model.source {
         case .apple: PromptBudget(profile: 120, memoryHits: 150)
         case .gguf, .mlx: (model.contextLength ?? 0) > 4096 ? PromptBudget(profile: 200, memoryHits: 300) : PromptBudget(profile: 120, memoryHits: 150)
-        case .anyrouter: PromptBudget(profile: 500, memoryHits: 1500)
+        case .anyrouter: PromptBudget(profile: 500, memoryHits: 1500, skills: 1500)
         }
     }
 }
@@ -39,9 +41,9 @@ enum PromptAssembler {
     static let perMessageTokens = 4
 
     static func assemble(
-        instructions: String?, profile: String?, summary: String?, turns: [ChatMessage], context: String?
+        instructions: String?, profile: String?, skills: String? = nil, summary: String?, turns: [ChatMessage], context: String?
     ) -> AssembledPrompt {
-        let system = [instructions, profile].compactMap { $0 }.joined(separator: "\n\n")
+        let system = [instructions, profile, skills].compactMap { $0 }.joined(separator: "\n\n")
         let summaryText = summary.map { summaryHeading + "\n" + $0 }
         var messages = turns
         if let summaryText, let first = messages.firstIndex(where: { $0.role == .user }) {
@@ -53,6 +55,7 @@ enum PromptAssembler {
         let used: [PromptSection: Int] = [
             .instructions: tokens(instructions),
             .profile: tokens(profile),
+            .skills: tokens(skills),
             .summary: tokens(summaryText),
             .turns: turns.reduce(0) { $0 + TokenCountLogic.estimate($1.content) + perMessageTokens },
             .context: tokens(context),

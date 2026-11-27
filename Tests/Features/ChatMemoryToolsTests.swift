@@ -127,8 +127,10 @@ struct ChatMemoryToolsTests {
                 toolHost: { context in context.memoryTools.isEmpty ? nil : AgentToolHost(builtIns: context.memoryTools, search: nil, mcp: nil) })
             vm.input = "hi"
             await vm.send()?.value
-            let expected: [String]? = source == .anyrouter ? ["memory", "search_chats"] : nil
+            let expected: [String]? = source == .anyrouter ? ["memory", "search_chats", "read_skill"] : nil
             #expect(engine.toolsSeen.seen == [expected])
+            let skills = engine.systemPromptsSeen.seen.first??.contains(SkillLogic.indexHeading) == true
+            #expect(skills == (source == .anyrouter), "the skills index goes with read_skill, to cloud models only")
         }
     }
 }

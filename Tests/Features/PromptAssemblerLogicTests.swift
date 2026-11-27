@@ -15,6 +15,9 @@ struct PromptAssemblerLogicTests {
         #expect(later.systemPrompt == plain.systemPrompt, "a summary or a recall never changes the start of the request")
         #expect(PromptAssembler.assemble(instructions: nil, profile: "P", summary: nil, turns: turns, context: nil).systemPrompt == "P")
         #expect(PromptAssembler.assemble(instructions: nil, profile: nil, summary: nil, turns: turns, context: nil).systemPrompt == nil)
+        let withSkills = PromptAssembler.assemble(instructions: "Be brief.", profile: "P", skills: "S", summary: nil, turns: turns, context: nil)
+        #expect(withSkills.systemPrompt == "Be brief.\n\nP\n\nS")
+        #expect(withSkills.used[.skills] == TokenCountLogic.estimate("S"))
     }
 
     @Test func theSummaryGoesWithTheFirstQuestionAndTheContextWithTheLastSoRolesStillAlternate() {
@@ -45,6 +48,6 @@ struct PromptAssemblerLogicTests {
         #expect(PromptBudget.forModel(model(.gguf, nil)) == PromptBudget(profile: 120, memoryHits: 150))
         #expect(PromptBudget.forModel(model(.gguf, 4096)) == PromptBudget(profile: 120, memoryHits: 150))
         #expect(PromptBudget.forModel(model(.mlx, 8192)) == PromptBudget(profile: 200, memoryHits: 300))
-        #expect(PromptBudget.forModel(model(.anyrouter, 128_000)) == PromptBudget(profile: 500, memoryHits: 1500))
+        #expect(PromptBudget.forModel(model(.anyrouter, 128_000)) == PromptBudget(profile: 500, memoryHits: 1500, skills: 1500))
     }
 }
