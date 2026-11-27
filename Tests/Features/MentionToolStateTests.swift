@@ -14,7 +14,7 @@ struct MentionToolStateTests {
     @Test func pluginRowsSayOnOrOffAndKeepTheirKind() {
         let rows = ComposerMention.items(sources: sources, files: [], isOn: { $0.id != "deepwiki" })
         #expect(rows.map(\.detail) == ["Plugin · On", "Plugin · On", "Plugin · Off"])
-        #expect(rows.allSatisfy(\.isAvailable))
+        #expect(rows.allSatisfy { $0.isAvailable })
         #expect(rows.map(\.trailing) == ["Plugin", "Plugin", "Plugin"], "the kind itself does not change")
     }
 
