@@ -35,6 +35,9 @@ final class AppSettings {
         static let newChatDelay = "settings.newChatDelay"
         static let newChatDelayMigrated = "settings.newChatDelayMigrated"
         static let backgroundedAt = "settings.backgroundedAt"
+        static let useMemory = "settings.useMemory"
+        static let saveMemoriesAutomatically = "settings.saveMemoriesAutomatically"
+        static let deviceMemoriesInCloudChats = "settings.deviceMemoriesInCloudChats"
     }
 
     /// The key behind `onDeviceTools`, so an engine can read the switch without the main actor.
@@ -178,6 +181,24 @@ final class AppSettings {
     var lastBackgroundedAt: Date? {
         get { access(keyPath: \.lastBackgroundedAt); return defaults.object(forKey: Key.backgroundedAt) as? Date }
         set { withMutation(keyPath: \.lastBackgroundedAt) { defaults.set(newValue, forKey: Key.backgroundedAt) } }
+    }
+
+    /// Memory: the profile, recall and writes. Off means none of them. On by default.
+    var useMemory: Bool {
+        get { access(keyPath: \.useMemory); return defaults.object(forKey: Key.useMemory) as? Bool ?? true }
+        set { withMutation(keyPath: \.useMemory) { defaults.set(newValue, forKey: Key.useMemory) } }
+    }
+
+    /// Save memories from chats without asking. Off means only typed items and "Remember" requests are saved. On by default.
+    var saveMemoriesAutomatically: Bool {
+        get { access(keyPath: \.saveMemoriesAutomatically); return defaults.object(forKey: Key.saveMemoriesAutomatically) as? Bool ?? true }
+        set { withMutation(keyPath: \.saveMemoriesAutomatically) { defaults.set(newValue, forKey: Key.saveMemoriesAutomatically) } }
+    }
+
+    /// Memories that came from on-device chats may reach cloud models. Off by default.
+    var deviceMemoriesInCloudChats: Bool {
+        get { access(keyPath: \.deviceMemoriesInCloudChats); return defaults.bool(forKey: Key.deviceMemoriesInCloudChats) }
+        set { withMutation(keyPath: \.deviceMemoriesInCloudChats) { defaults.set(newValue, forKey: Key.deviceMemoriesInCloudChats) } }
     }
 
     var generationParams: GenerationParams {
