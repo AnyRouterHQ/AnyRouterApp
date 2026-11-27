@@ -5,6 +5,8 @@ enum DiagnosticKind: String, Sendable, CaseIterable {
     case crash, hang, cpu, disk, diagnostic, metric
     /// A model list that could not be loaded. Written by the app, not delivered by MetricKit.
     case modelList
+    /// The steps of one local model load (`ModelLoadTrace`). Written by the app.
+    case modelLoad
 
     var title: String {
         switch self {
@@ -15,6 +17,7 @@ enum DiagnosticKind: String, Sendable, CaseIterable {
         case .diagnostic: "Diagnostic"
         case .metric: "Metrics"
         case .modelList: "Model list error"
+        case .modelLoad: "Model load"
         }
     }
 
@@ -79,20 +82,35 @@ struct DiagnosticsStore: Sendable {
         return "\(source): \(error)"
     }
 
+    /// Saves the trace of a load attempt. The first save names its file; pass that name to later saves to replace it, so one
+    /// attempt stays one record however many steps it has.
+    @discardableResult
+    func saveModelLoad(_ trace: ModelLoadTrace, replacing name: String? = nil, now: Date = Date()) throws -> String {
+        try write(JSONEncoder().encode(trace), kind: .modelLoad, now: now, name: name)
+    }
+
+    /// The trace in a model load record, nil for any other kind or a file that does not read.
+    func modelLoadTrace(of record: DiagnosticRecord) -> ModelLoadTrace? {
+        guard record.kind == .modelLoad, let data = try? Data(contentsOf: record.url) else { return nil }
+        return try? JSONDecoder().decode(ModelLoadTrace.self, from: data)
+    }
+
     /// Newest first.
     func list() -> [DiagnosticRecord] {
         let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
         return files.compactMap(Self.record(for:)).sorted { ($0.date, $1.id) > ($1.date, $0.id) }
     }
 
-    private func write(_ json: Data, kind: DiagnosticKind, now: Date) throws {
+    @discardableResult
+    private func write(_ json: Data, kind: DiagnosticKind, now: Date, name: String? = nil) throws -> String {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let millis = Int(now.timeIntervalSince1970 * 1000)
-        let name = "\(millis)-\(kind.rawValue)-\(UUID().uuidString.prefix(8)).json"
+        let name = name ?? "\(millis)-\(kind.rawValue)-\(UUID().uuidString.prefix(8)).json"
         try json.write(to: directory.appending(path: name), options: .atomic)
         for stale in list().dropFirst(limit) {
             try FileManager.default.removeItem(at: stale.url)
         }
+        return name
     }
 
     private static func record(for url: URL) -> DiagnosticRecord? {

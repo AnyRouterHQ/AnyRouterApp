@@ -57,7 +57,8 @@ struct DiagnosticsSettings: View {
                                 Text(record.date, format: .dateTime.year().month().day().hour().minute())
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                                if let message = appState.diagnostics.modelListMessage(of: record) {
+                                if let message = appState.diagnostics.modelListMessage(of: record)
+                                    ?? appState.diagnostics.modelLoadTrace(of: record)?.summary {
                                     Text(message).font(.caption).foregroundStyle(.secondary)
                                 }
                             }

@@ -96,7 +96,7 @@ final class AppState {
         let enginesSignpost = Perf.signposter.beginInterval("launch.engines")
         // One gate and one loaded model for both local engines: a phone has room for one of each.
         let residency = LocalResidency(telemetry: telemetry)
-        let gguf = GGUFEngine(telemetry: telemetry, residency: residency)
+        let gguf = GGUFEngine(telemetry: telemetry, residency: residency, loadLog: diagnostics)
         let mlx = MLXEngine(telemetry: telemetry, residency: residency)
         registry.register(AppleFoundationEngine())
         // The on-device engines only write text; the wrapper gives them a tool loop unless the person turned it off.

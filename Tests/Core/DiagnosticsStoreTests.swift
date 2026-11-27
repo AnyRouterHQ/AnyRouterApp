@@ -27,7 +27,7 @@ struct DiagnosticsStoreTests {
 
     @Test func everyKindHasATitle() {
         #expect(DiagnosticKind.allCases.map(\.title) == [
-            "Crash", "Hang", "CPU exception", "Disk write exception", "Diagnostic", "Metrics", "Model list error",
+            "Crash", "Hang", "CPU exception", "Disk write exception", "Diagnostic", "Metrics", "Model list error", "Model load",
         ])
     }
 

@@ -49,7 +49,7 @@ struct GGUFEngineTests {
     private let entry = CatalogEntry(
         repo: "ggml-org/tiny-llamas", format: .gguf, file: "stories260K.gguf", title: "Tiny", quantization: "F32")
 
-    private func makeEngine(installFixture: Bool) throws -> GGUFEngine {
+    private func makeEngine(installFixture: Bool, loadLog: DiagnosticsStore? = nil) throws -> GGUFEngine {
         let storage = LocalModelStorage(root: makeTempDirectory())
         if installFixture {
             let source = try #require(
@@ -65,7 +65,7 @@ struct GGUFEngineTests {
         let catalog = CatalogService(
             bundled: { CatalogDocument(schemaVersion: 1, updatedAt: nil, models: []) },
             cacheDirectory: makeTempDirectory(), settings: { CatalogSettings() })
-        return GGUFEngine(storage: storage, catalog: catalog)
+        return GGUFEngine(storage: storage, catalog: catalog, loadLog: loadLog)
     }
 
     private func collect(_ engine: GGUFEngine, prompt: String, params: GenerationParams) async throws -> [ChatDelta] {
@@ -82,6 +82,40 @@ struct GGUFEngineTests {
             if case .text(let piece) = delta { return piece }
             return nil
         }.joined()
+    }
+
+    /// A phone test of a big model needs evidence even when the system ends the app: each load leaves one record with
+    /// its steps, and a reply on weights already loaded adds none.
+    @Test(.timeLimit(.minutes(2)))
+    func aLoadAndItsFirstReplyLeaveOneRecordOfTheirSteps() async throws {
+        let store = DiagnosticsStore(directory: makeTempDirectory().appending(path: "Diagnostics"))
+        let engine = try makeEngine(installFixture: true, loadLog: store)
+        var params = GenerationParams()
+        params.temperature = 0
+        params.maxTokens = 8
+        _ = try await collect(engine, prompt: "Once upon a time", params: params)
+        _ = try await collect(engine, prompt: "Once upon a time", params: params)
+        let records = store.list()
+        #expect(records.map(\.kind) == [.modelLoad])
+        let trace = try #require(records.first.flatMap(store.modelLoadTrace(of:)))
+        #expect(trace.model == "stories260K.gguf", "the record names the file, never the repo")
+        #expect(trace.stages.map(\.step) == [.started, .mapped, .contextReady, .firstToken, .finished])
+        #expect(trace.stages[1].note?.contains("token context") == true)
+    }
+
+    @Test(.timeLimit(.minutes(2)))
+    func theFirstReplyAfterAWarmUpAddsToTheWarmUpsRecord() async throws {
+        let store = DiagnosticsStore(directory: makeTempDirectory().appending(path: "Diagnostics"))
+        let engine = try makeEngine(installFixture: true, loadLog: store)
+        await engine.warm(model: entry.descriptor(isInstalled: true))
+        var params = GenerationParams()
+        params.temperature = 0
+        params.maxTokens = 4
+        _ = try await collect(engine, prompt: "Hi", params: params)
+        let records = store.list()
+        #expect(records.count == 1)
+        let trace = try #require(records.first.flatMap(store.modelLoadTrace(of:)))
+        #expect(trace.stages.map(\.step) == [.started, .mapped, .contextReady, .firstToken, .finished])
     }
 
     @Test func engineListsTheInstalledGGUFModel() async throws {

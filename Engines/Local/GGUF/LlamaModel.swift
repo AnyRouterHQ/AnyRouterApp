@@ -28,6 +28,8 @@ final class LlamaModel: @unchecked Sendable {
     /// Context size chosen from the memory this device can give: the largest that fits. A generation lowers it when the
     /// system cannot allocate that much, so the next one starts from what worked.
     private(set) var contextSize: Int
+    /// How this model runs here, for the load record in Diagnostics: GPU layers or streamed, and the planned context.
+    let loadPlan: String
     private let template: String?
     /// The text of the vocabulary's BOS token (for example `<|begin_of_text|>`), nil when it has none.
     private let bosText: String?
@@ -63,7 +65,9 @@ final class LlamaModel: @unchecked Sendable {
         params.load_mode = LLAMA_LOAD_MODE_MMAP
         #if targetEnvironment(simulator)
         params.n_gpu_layers = 0
+        let plan = "Simulator, CPU only"
         #else
+        let plan: String
         if estimate.streamsFromStorage {
             // A streamed model runs on the CPU alone, so only the experts in use are resident. Zero GPU layers is not
             // enough: with the Metal device in the list, llama.cpp still sends long prompts' matrix work to the GPU,
@@ -73,10 +77,12 @@ final class LlamaModel: @unchecked Sendable {
             params.split_mode = LLAMA_SPLIT_MODE_NONE
             params.main_gpu = -1
             params.use_extra_bufts = false
+            plan = "streamed from storage, CPU only"
         } else {
             params.n_gpu_layers = GPUOffload.layers(
                 blockCount: info?.blockCount ?? 0, fileBytes: fileBytes,
                 gpuBudgetBytes: MTLCreateSystemDefaultDevice().map { Int64($0.recommendedMaxWorkingSetSize) })
+            plan = "\(params.n_gpu_layers) of \((info?.blockCount ?? 0) + 1) layers on the GPU"
         }
         #endif
         LlamaLoadLog.begin()
@@ -95,6 +101,7 @@ final class LlamaModel: @unchecked Sendable {
         self.profile = profile
         self.trainedContext = Int(llama_model_n_ctx_train(model))
         self.contextSize = planned
+        self.loadPlan = "\(plan), \(planned)-token context"
         self.bosText = Self.specialPiece(llama_vocab_bos(vocab), vocab: vocab)
         self.eosText = Self.specialPiece(llama_vocab_eos(vocab), vocab: vocab)
         let template = llama_model_chat_template(model, nil).map { String(cString: $0) }
@@ -257,11 +264,11 @@ final class LlamaModel: @unchecked Sendable {
     /// Runs the prompt and streams the answer through `emit`. Throws `CancellationError` when `isCancelled` turns true.
     func generate(
         promptTokens: [llama_token], params: GenerationParams, sampling: CatalogSampling? = nil, isCancelled: () -> Bool,
-        emit: (String) -> Void
+        onStep: ((ModelLoadTrace.Step, String?) -> Void)? = nil, emit: (String) -> Void
     ) throws -> LlamaResult {
         try generate(
             promptSize: promptTokens.count, batch: 512, contextCap: nil, params: params, sampling: sampling,
-            isCancelled: isCancelled, emit: emit
+            isCancelled: isCancelled, onStep: onStep, emit: emit
         ) { context, batchSize in
             // Prefill in n_batch sized chunks; only the last token produces logits.
             var tokens = promptTokens
@@ -283,12 +290,12 @@ final class LlamaModel: @unchecked Sendable {
     /// into the tokens the model reads.
     func generate(
         images prompt: PreparedVision, params: GenerationParams, sampling: CatalogSampling? = nil,
-        isCancelled: () -> Bool, emit: (String) -> Void
+        isCancelled: () -> Bool, onStep: ((ModelLoadTrace.Step, String?) -> Void)? = nil, emit: (String) -> Void
     ) throws -> LlamaResult {
         // A photo is read in one piece (up to a few hundred tokens), so the batch must hold it.
         try generate(
             promptSize: prompt.tokenCount, batch: 1024, contextCap: prompt.contextCap, params: params, sampling: sampling,
-            isCancelled: isCancelled, emit: emit
+            isCancelled: isCancelled, onStep: onStep, emit: emit
         ) { context, batchSize in
             try prompt.evaluate(context: context, batchSize: batchSize)
         }
@@ -298,7 +305,8 @@ final class LlamaModel: @unchecked Sendable {
     /// number of positions the prompt takes, checked against the context before anything is allocated.
     private func generate(
         promptSize: Int, batch: Int, contextCap: Int?, params: GenerationParams, sampling: CatalogSampling?,
-        isCancelled: () -> Bool, emit: (String) -> Void, prefill: (OpaquePointer, Int) throws -> Void
+        isCancelled: () -> Bool, onStep: ((ModelLoadTrace.Step, String?) -> Void)?, emit: (String) -> Void,
+        prefill: (OpaquePointer, Int) throws -> Void
     ) throws -> LlamaResult {
         guard promptSize < contextSize else {
             throw GGUFError.promptTooLong(tokens: promptSize, limit: contextSize)
@@ -326,6 +334,7 @@ final class LlamaModel: @unchecked Sendable {
         guard promptSize < attempt else {
             throw GGUFError.promptTooLong(tokens: promptSize, limit: attempt)
         }
+        onStep?(.contextReady, "\(attempt)-token context, \(promptSize)-token prompt")
         let sampler = Self.makeSampler(params, topK: sampling?.topK ?? 40, minP: sampling?.minP ?? 0)
         defer { llama_sampler_free(sampler) }
 
@@ -337,9 +346,15 @@ final class LlamaModel: @unchecked Sendable {
         var thought = ThoughtChannelFilter(open: thoughtChannel?.open, close: thoughtChannel?.close)
         var span = ThinkingSpanTagger(open: thinkingSpan?.open, close: thinkingSpan?.close)
         let limit = params.maxTokens ?? Int.max
+        let clock = ContinuousClock()
+        var firstTokenAt: ContinuousClock.Instant?
         while generated < limit {
             if isCancelled() { throw CancellationError() }
             var token = llama_sampler_sample(sampler, context, -1)
+            if firstTokenAt == nil {
+                firstTokenAt = clock.now
+                onStep?(.firstToken, nil)
+            }
             if llama_vocab_is_eog(vocab, token) {
                 reason = "stop"
                 break
@@ -358,6 +373,12 @@ final class LlamaModel: @unchecked Sendable {
             guard status == 0 else { throw GGUFError.decodeFailed(status) }
         }
         if let tail = accumulator.flush() { emit(tail) }
+        if let onStep {
+            let decode = firstTokenAt.map { clock.now - $0 } ?? .zero
+            let seconds = Double(decode.components.seconds) + Double(decode.components.attoseconds) / 1e18
+            let rate = generated > 1 && seconds > 0 ? String(format: ", %.2f tokens/s", Double(generated - 1) / seconds) : ""
+            onStep(.finished, "\(generated) tokens\(rate)")
+        }
         return LlamaResult(promptTokens: promptSize, completionTokens: generated, finishReason: reason)
     }
 

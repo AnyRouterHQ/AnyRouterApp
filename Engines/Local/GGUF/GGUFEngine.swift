@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// Chats with downloaded GGUF models through llama.cpp.
 final class GGUFEngine: ChatEngine {
@@ -8,15 +9,20 @@ final class GGUFEngine: ChatEngine {
     private let catalog: CatalogService
     private let residency: LocalResidency
     private let attachments: AttachmentStore
+    /// Where each load leaves its steps (Settings › Diagnostics). Nil records nothing.
+    private let loadLog: DiagnosticsStore?
+    /// A load the warm-up started, by model id: the first reply after it adds its steps to the same record.
+    private let warmedTraces = Mutex<[String: ModelLoadRecorder]>([:])
     /// One generation at a time, shared with the other local engines. Internal so tests can hold it.
     var gate: GenerationGate { residency.gate }
 
     /// Pass one `LocalResidency` to every local engine of the app. Without it the engine keeps its own.
     init(storage: LocalModelStorage = LocalModelStorage(), catalog: CatalogService = CatalogService(),
          telemetry: any Telemetry = NoopTelemetry(), residency: LocalResidency? = nil,
-         attachments: AttachmentStore = .shared) {
+         attachments: AttachmentStore = .shared, loadLog: DiagnosticsStore? = nil) {
         self.storage = storage
         self.attachments = attachments
+        self.loadLog = loadLog
         self.catalog = catalog
         self.residency = residency ?? LocalResidency(telemetry: telemetry)
     }
@@ -57,16 +63,30 @@ final class GGUFEngine: ChatEngine {
     func warm(model: ModelDescriptor) async {
         guard let manifest = storage.readManifest(entryID: model.id), let file = manifest.files.first else { return }
         guard await residency.gate.tryAcquire() else { return }
-        _ = try? await loadWeights(model.id, file: file.path, installedAt: manifest.completedAt)
+        let trace = loadLog.map { ModelLoadRecorder(store: $0, model: file.path) }
+        _ = try? await loadWeights(model.id, file: file.path, installedAt: manifest.completedAt, trace: trace)
+        if let trace, trace.isOpen { warmedTraces.withLock { $0[model.id] = trace } }
         await residency.gate.release()
     }
 
     /// The loaded weights of an installed model, loading them first when they are not in memory.
-    private func loadWeights(_ id: String, file: String, installedAt: Date?) async throws -> LlamaModel {
+    private func loadWeights(
+        _ id: String, file: String, installedAt: Date?, trace: ModelLoadRecorder? = nil
+    ) async throws -> LlamaModel {
         let path = storage.fileURL(forEntryID: id, path: file).path
         return try await residency.models.weights(
             LlamaModel.self, at: path, id: id, installedAt: installedAt, source: .gguf
-        ) { try LlamaModel(path: path) }
+        ) {
+            trace?.mark(.started)
+            do {
+                let llama = try LlamaModel(path: path)
+                trace?.mark(.mapped, note: llama.loadPlan)
+                return llama
+            } catch {
+                trace?.mark(.failed, note: error.localizedDescription)
+                throw error
+            }
+        }
     }
 
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
@@ -74,22 +94,28 @@ final class GGUFEngine: ChatEngine {
         AsyncThrowingStream { continuation in
             let task = Task.detached(priority: .userInitiated) { [self, storage, residency, attachments] in
                 await residency.gate.acquire()
+                // Steps of this reply are recorded only when it loaded the weights, or follows the warm-up that did.
+                var steps: ModelLoadRecorder?
                 do {
                     // Stop pressed while this waited its turn: do not load a model for a reply nobody reads.
                     try Task.checkCancellation()
                     guard let manifest = storage.readManifest(entryID: model.id), let file = manifest.files.first else {
                         throw GGUFError.modelNotInstalled(model.id)
                     }
-                    let llama = try await loadWeights(model.id, file: file.path, installedAt: manifest.completedAt)
+                    let warmed = warmedTraces.withLock { $0.removeValue(forKey: model.id) }
+                    let trace = warmed ?? loadLog.map { ModelLoadRecorder(store: $0, model: file.path) }
+                    let llama = try await loadWeights(model.id, file: file.path, installedAt: manifest.completedAt, trace: trace)
+                    steps = trace?.isOpen == true ? trace : nil
                     let sampling = (try? await catalog.entries())?.first(where: { $0.id == model.id })?.sampling
                     let tuned = sampling.map { $0.applied(to: params) } ?? params
                     let result: LlamaResult
                     if let images = await imageInput(model: model, manifest: manifest, messages: messages) {
                         result = try Self.runWithImages(
-                            llama, messages: messages, params: tuned, sampling: sampling, input: images, store: attachments
+                            llama, messages: messages, params: tuned, sampling: sampling, input: images, store: attachments,
+                            trace: steps
                         ) { continuation.yield(.text($0)) }
                     } else {
-                        result = try Self.run(llama, messages: messages, params: tuned, sampling: sampling) {
+                        result = try Self.run(llama, messages: messages, params: tuned, sampling: sampling, trace: steps) {
                             continuation.yield(.text($0))
                         }
                     }
@@ -97,8 +123,10 @@ final class GGUFEngine: ChatEngine {
                     continuation.yield(.done(finishReason: result.finishReason))
                     continuation.finish()
                 } catch is CancellationError {
+                    steps?.mark(.stopped)
                     continuation.finish()
                 } catch {
+                    if steps?.isOpen == true { steps?.mark(.failed, note: error.localizedDescription) }
                     continuation.finish(throwing: error)
                 }
                 await residency.gate.release()
@@ -142,7 +170,7 @@ final class GGUFEngine: ChatEngine {
 
     private static func runWithImages(
         _ llama: LlamaModel, messages: [ChatMessage], params: GenerationParams, sampling: CatalogSampling?, input: ImageInput,
-        store: AttachmentStore, emit: (String) -> Void
+        store: AttachmentStore, trace: ModelLoadRecorder?, emit: (String) -> Void
     ) throws -> LlamaResult {
         let contextSize = llama.contextSize
         let reserve = min(params.maxTokens ?? 1024, contextSize / 2)
@@ -161,12 +189,13 @@ final class GGUFEngine: ChatEngine {
         let prepared = try llama.prepareImages(
             text: llama.formatPrompt(fitted), images: data, projectorPath: input.projectorPath)
         return try llama.generate(
-            images: prepared, params: params, sampling: sampling, isCancelled: { Task.isCancelled }, emit: emit)
+            images: prepared, params: params, sampling: sampling, isCancelled: { Task.isCancelled },
+            onStep: trace?.onStep, emit: emit)
     }
 
     private static func run(
         _ llama: LlamaModel, messages: [ChatMessage], params: GenerationParams, sampling: CatalogSampling?,
-        emit: (String) -> Void
+        trace: ModelLoadRecorder?, emit: (String) -> Void
     ) throws -> LlamaResult {
         let contextSize = llama.contextSize
         // Leave room for the answer, then drop the oldest turns that do not fit.
@@ -180,6 +209,7 @@ final class GGUFEngine: ChatEngine {
         }
         let tokens = try llama.tokenize(llama.formatPrompt(fitted))
         return try llama.generate(
-            promptTokens: tokens, params: params, sampling: sampling, isCancelled: { Task.isCancelled }, emit: emit)
+            promptTokens: tokens, params: params, sampling: sampling, isCancelled: { Task.isCancelled },
+            onStep: trace?.onStep, emit: emit)
     }
 }
