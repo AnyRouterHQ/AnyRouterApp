@@ -38,8 +38,17 @@ struct AccountCard: View {
         } icon: {
             ARLogoMark(size: 32).foregroundStyle(.primary)
         }
-        Button("Sign in with AnyRouter") { signIn(.signIn) }
-        Button("Create account") { signIn(.signUp) }
+        // Buttons that look like buttons: with a mono tint, plain list buttons read as static text.
+        Button { signIn(.signIn) } label: {
+            Text("Sign in with AnyRouter").frame(maxWidth: .infinity).prominentLabel()
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        Button { signIn(.signUp) } label: {
+            Text("Create account").frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
         if let signInError {
             // Plain, neutral text: server details are not shown to the user.
             Text(signInError).font(.footnote).foregroundStyle(.secondary)
