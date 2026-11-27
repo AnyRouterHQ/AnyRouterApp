@@ -7,10 +7,10 @@ final class AppleToolGuidanceTests: XCTestCase {
         ToolSpec(name: name, title: nil, description: "d", inputSchemaJSON: #"{"type":"object","properties":{"q":{"type":"string"}}}"#, isReadOnly: true)
     }
 
-    func testAppleGetsFourToolsAndLocalModelsKeepEight() {
+    func testAppleAndLocalModelsBothGetFourTools() {
         XCTAssertEqual(ToolProfile.apple.maxTools, 4)
         XCTAssertEqual(ToolProfile.forModel(.apple), .apple)
-        XCTAssertEqual(ToolProfile.forModel(.gguf).maxTools, 8)
+        XCTAssertEqual(ToolProfile.forModel(.gguf).maxTools, 4)
     }
 
     func testTheTimeToolAndTheCalculatorSurviveTheCutInAFullApp() {

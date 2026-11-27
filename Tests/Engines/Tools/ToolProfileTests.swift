@@ -116,14 +116,14 @@ final class ToolProfileHostTests: XCTestCase {
         XCTAssertEqual(result.text.count, 20_000 + "\n[Result cut at 20000 characters.]".count)
     }
 
-    /// The model only sees eight tools, but a call to one it was not shown still gets the address check.
+    /// The model only sees four tools, but a call to one it was not shown still gets the address check.
     func testAToolLeftOutOfTheListStillMeetsTheAddressCheck() async {
-        let tools = (0..<9).map { Quiet(name: "tool\($0)") }
+        let tools = (0..<5).map { Quiet(name: "tool\($0)") }
         let approver = DenyingApprover()
         let host = AgentToolHost(builtIns: tools, search: nil, mcp: nil, approver: approver, profile: .compact)
-        XCTAssertEqual(host.specs.count, 8)
-        XCTAssertFalse(host.specs.contains { $0.name == "tool8" })
-        let result = await host.execute(call("tool8", #"{"url":"https://unwritten.example/page"}"#))
+        XCTAssertEqual(host.specs.count, 4)
+        XCTAssertFalse(host.specs.contains { $0.name == "tool4" })
+        let result = await host.execute(call("tool4", #"{"url":"https://unwritten.example/page"}"#))
         XCTAssertTrue(result.isError)
         XCTAssertEqual(approver.requests.count, 1)
         XCTAssertEqual(approver.requests.first?.urls, ["https://unwritten.example/page"])
