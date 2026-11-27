@@ -14,27 +14,32 @@ struct ToolApprovalCard: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
-            HStack(spacing: 8) {
-                Button { answer(.allowOnce) } label: { Text("Allow once").prominentLabel() }
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityIdentifier("tool-approval.inline.allow-once")
-                // Same rule as the dialog: a request with a reason is about this one call.
-                if request.reason == nil || request.canRemember {
-                    Button("Always allow") { answer(.alwaysAllow) }
-                        .buttonStyle(.bordered)
-                        .accessibilityIdentifier("tool-approval.inline.always-allow")
-                }
-                Button("Don't allow", role: .cancel) { answer(.deny) }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("tool-approval.inline.deny")
+            // Large controls keep the 44 pt hit area; they wrap to a column when one row does not fit (large text).
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { buttons }
+                VStack(alignment: .leading, spacing: 8) { buttons }
             }
-            .controlSize(.small)
-            .frame(minHeight: 44)
+            .controlSize(.large)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 14))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tool-approval.inline")
+    }
+
+    @ViewBuilder private var buttons: some View {
+        Button { answer(.allowOnce) } label: { Text("Allow once").prominentLabel() }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("tool-approval.inline.allow-once")
+        // Same rule as the dialog: a request with a reason is about this one call.
+        if request.reason == nil || request.canRemember {
+            Button("Always allow") { answer(.alwaysAllow) }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("tool-approval.inline.always-allow")
+        }
+        Button("Don't allow", role: .cancel) { answer(.deny) }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("tool-approval.inline.deny")
     }
 }
