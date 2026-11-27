@@ -490,7 +490,13 @@ final class ScreenshotTests: XCTestCase {
             let tabs = app.segmentedControls.firstMatch
             XCTAssertTrue(tabs.waitForExistence(timeout: 5))
             // The sheet opens on the tab of the current model (AnyRouter in demo data), so switch before the capture.
-            tabs.buttons["Local"].tap()
+            // Both tabs' rows can sit in the tree, so wait for the segment itself to be selected, not for a row.
+            let local = tabs.buttons["Local"]
+            for _ in 0..<3 where !local.isSelected {
+                local.tap()
+                sleep(1)
+            }
+            XCTAssertTrue(local.isSelected, "the Local segment is selected before the capture")
             XCTAssertTrue(app.buttons["model-row.apple/foundation"].waitForExistence(timeout: 5))
             capture("model-picker-local", appearance)
             tabs.buttons["AnyRouter"].tap()
@@ -508,6 +514,23 @@ final class ScreenshotTests: XCTestCase {
             manage.tap()
             XCTAssertTrue(app.navigationBars["Local Models"].waitForExistence(timeout: 10))
             capture("hub", appearance)
+        }
+    }
+
+    /// Browse all models scrolled to the experimental Inkling 2 Mini row (its symbol tile, size and fit line).
+    func testHubInkling() {
+        forEachAppearance { app, appearance in
+            open(app, footer: "Settings")
+            let manage = button(app, containing: "Local Models")
+            scrollTo(manage, in: app)
+            manage.tap()
+            XCTAssertTrue(app.navigationBars["Local Models"].waitForExistence(timeout: 10))
+            let browse = app.buttons["local.browse"]
+            scrollTo(browse, in: app)
+            browse.tap()
+            let inkling = button(app, containing: "Inkling 2 Mini")
+            scrollTo(inkling, in: app)
+            capture("hub-inkling", appearance)
         }
     }
 

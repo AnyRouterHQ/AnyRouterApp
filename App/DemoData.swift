@@ -525,9 +525,12 @@ enum DemoData {
          "Stronger reasoning, still phone sized.", ["gguf", "1.7B", "Q4_K_M"], .fits, "qwen3"),
         ("gguf/bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_M.gguf", "Llama 3.2 3B Instruct", 2_020_000_000,
          "Best quality of the small Llama models.", ["gguf", "3B", "Q4_K_M"], .tight, "llama32"),
+        // The experimental 1-bit mixture-of-experts entry, under a demo repo id (the real one lives in catalog/models.json).
+        ("gguf/demo/Inkling-2-Mini-GGUF/Inkling-2-Mini-1bit.gguf", "Inkling 2 Mini", 6_881_463_904,
+         "Experimental 1-bit mixture of experts. Streams from storage; best with 16 GB.", ["gguf", "26B", "1-bit"], .tight, "inkling"),
     ]
 
-    private static let familyNames = ["qwen3": "Qwen3", "llama32": "Llama 3.2", "gemma3": "Gemma 3"]
+    private static let familyNames = ["qwen3": "Qwen3", "llama32": "Llama 3.2", "gemma3": "Gemma 3", "inkling": "Inkling 2 Mini"]
 
     /// Sizes that do not fit the demo device (3.2 GB for models), so Local Models has a Not available list.
     private static let tooBigCatalog: [(id: String, name: String, size: Int64, summary: String)] = [
