@@ -111,7 +111,8 @@ struct LocalModelsScreen: View {
                 let state = hub.downloadState(for: entry.id)
                 HStack(spacing: 8) {
                     Button { detail = entry } label: {
-                        ModelRow(entry: entry, state: state).contentShape(Rectangle())
+                        // Fills the row so Get sits at the trailing edge, not right after the name.
+                        ModelRow(entry: entry, state: state).frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .hoverEffect(.highlight)
