@@ -1,7 +1,7 @@
 name: Mac
 
 # The Mac app is the iOS app "Designed for iPad" (PLAN F7, D22). This builds it for the Mac destination and captures
-# five key screens (light and dark) into the screenshots artifact, named Mac-<light|dark>-<screen>.png.
+# the launch screen (light and dark) into the screenshots artifact, named Mac-<light|dark>-<screen>.png.
 # Nightly or by hand. It shares the extra-macOS concurrency group with the other capture workflows.
 on:
   workflow_dispatch:
@@ -73,33 +73,24 @@ jobs:
             codesign --force --deep --sign - "$app"
           done
 
-      - name: Capture five screens
-        run: |
-          set +e
-          xcodebuild test-without-building \
-            -project AnyRouter.xcodeproj -scheme AnyRouterScreenshots \
-            -destination "platform=macOS,variant=Designed for iPad" \
-            -derivedDataPath DerivedData \
-            -only-testing:AnyRouterUITests/ScreenshotTests/testEmptyChat \
-            -only-testing:AnyRouterUITests/ScreenshotTests/testChatWithMarkdown \
-            -only-testing:AnyRouterUITests/ScreenshotTests/testThreadList \
-            -only-testing:AnyRouterUITests/ScreenshotTests/testModelPicker \
-            -only-testing:AnyRouterUITests/ScreenshotTests/testSettings \
-            -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 180 \
-            -maximum-test-execution-time-allowance 300 \
-            -resultBundlePath TestResults.xcresult \
-            CODE_SIGNING_ALLOWED=NO \
-            > test.log 2>&1
-          tail -n 60 test.log
-          grep -E "Test Case .* (passed|failed)" test.log | sed 's/^.*Test Case //' > results.txt || true
-
-      - name: Name the files
-        if: always()
+      # XCUITest refuses this destination ("UI tests are not supported on My Mac (Designed for iPad)", run 45979452103),
+      # so the app is opened by hand with demo data and its window is captured with screencapture.
+      - name: Capture the launch screen
         run: |
           mkdir -p screenshots
-          python3 scripts/export-xcresult-screenshots.py TestResults.xcresult screenshots Mac
-          cp results.txt screenshots/Mac-results.txt 2>/dev/null || true
+          for appearance in light dark; do
+            open -n DerivedData/Build/Products/Debug-iphoneos/AnyRouter.app --args -ARDemoData YES -ARAppearance "$appearance"
+            id=""
+            for _ in $(seq 1 30); do
+              id=$(swift scripts/mac-window-id.swift AnyRouter 2>/dev/null) && break
+              sleep 2
+            done
+            if [ -z "$id" ]; then echo "No AnyRouter window"; exit 1; fi
+            sleep 3
+            screencapture -x -o -l"$id" "screenshots/Mac-$appearance-empty-chat.png"
+            pkill -x AnyRouter || true
+            sleep 2
+          done
           {
             echo "## Mac (Designed for iPad)"
             echo "$(ls screenshots/*.png 2>/dev/null | wc -l) screenshots"
@@ -111,10 +102,3 @@ jobs:
           name: screenshots-mac
           path: screenshots
           retention-days: 14
-
-      - uses: actions/upload-artifact@v7
-        if: failure()
-        with:
-          name: TestResults-mac
-          path: TestResults.xcresult
-          retention-days: 3

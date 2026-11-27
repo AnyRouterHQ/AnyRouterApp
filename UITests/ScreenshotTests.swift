@@ -21,9 +21,7 @@ final class ScreenshotTests: XCTestCase {
     /// orientation, so its PNG is upright.
     private func capture(_ name: String, _ appearance: Appearance, landscape: Bool = false) {
         sleep(1)
-        // On a Mac the screen is the whole desktop: capture the app's window.
-        let screenshot = ProcessInfo.processInfo.isiOSAppOnMac
-            ? XCUIApplication().windows.firstMatch.screenshot() : XCUIScreen.main.screenshot()
+        let screenshot = XCUIScreen.main.screenshot()
         let png = landscape ? screenshot.image.pngData() ?? screenshot.pngRepresentation : screenshot.pngRepresentation
         let attachment = XCTAttachment(uniformTypeIdentifier: "public.png", name: "\(appearance.rawValue)-\(name)", payload: png)
         attachment.lifetime = .keepAlways
