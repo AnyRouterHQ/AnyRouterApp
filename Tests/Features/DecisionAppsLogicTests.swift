@@ -26,9 +26,9 @@ struct DecisionAppsLogicTests {
 
     // MARK: Catalog
 
-    @Test func theBundledCatalogHasTheSixStarterAppsInOrder() throws {
-        #expect(try apps().map(\.id) == ["scam-check", "email-triage", "receipt-sort", "incident-triage", "policy-check", "tone-check"])
-        #expect(try Set(apps().map(\.id)).count == 6)
+    @Test func theBundledCatalogHasTheStarterAppsAndPasteInOrder() throws {
+        #expect(try apps().map(\.id) == ["scam-check", "email-triage", "receipt-sort", "incident-triage", "policy-check", "tone-check", "paste"])
+        #expect(try Set(apps().map(\.id)).count == 7)
         #expect(try apps().allSatisfy { !$0.samples.isEmpty })
     }
 
@@ -119,10 +119,10 @@ struct DecisionAppsLogicTests {
 
     @Test func theTilesAreTheAppsThenTheCustomDecision() throws {
         let tiles = DecisionAppsLogic.tiles(for: try apps())
-        #expect(tiles.count == 7 && tiles.last?.target == .custom && tiles.last?.title == "Custom decision")
+        #expect(tiles.count == 8 && tiles.last?.target == .custom && tiles.last?.title == "Custom decision")
         #expect(tiles.first == AppTile(id: "scam-check", title: "Scam check", subtitle: "Paste a message or add a screenshot",
                                        symbol: "exclamationmark.shield", target: .decision("scam-check")))
-        #expect(Set(tiles.map(\.id)).count == 7)
+        #expect(Set(tiles.map(\.id)).count == 8)
         #expect(DecisionAppsLogic.tiles(for: []).map(\.target) == [.custom])
     }
 

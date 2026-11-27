@@ -270,6 +270,43 @@
         }
       ],
       "resultLine": "{polite}. {clear}. {long}."
+    },
+    {
+      "id": "paste",
+      "title": "Paste",
+      "symbol": "doc.on.clipboard",
+      "inputHint": "Paste JSON, a token, a cron line, a stack trace, a color or text",
+      "acceptsImages": false,
+      "samples": [
+        {
+          "title": "JSON",
+          "text": "{\"user\":\"ana\",\"active\":true,\"tags\":[\"a\",\"b\"]}"
+        },
+        {
+          "title": "Cron",
+          "text": "*/15 9-17 * * 1-5"
+        },
+        {
+          "title": "Note",
+          "text": "Please send the signed contract before Friday and tell me if the price changed."
+        }
+      ],
+      "questions": [
+        {
+          "id": "kind",
+          "type": "choice",
+          "prompt": "What kind of text is this?",
+          "items": [
+            "question",
+            "request",
+            "announcement",
+            "complaint",
+            "praise",
+            "note"
+          ]
+        }
+      ],
+      "resultLine": "Best fit: {kind}."
     }
   ]
 }

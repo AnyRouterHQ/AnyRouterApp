@@ -23,6 +23,7 @@ struct DecisionRunnerScreen: View {
                     Text("\(store.state.count) of \(DecisionsLogic.maxStateCharacters) characters")
                 }
             }
+            if store.app?.id == DecisionAppsLogic.pasteAppID { PasteCard(state: store.state) }
             if store.showsImageInput || !store.images.isEmpty {
                 DecisionPhotoSection(store: store)
             } else if store.app?.acceptsImages ?? true {

@@ -58,6 +58,9 @@ struct AppTile: Identifiable, Equatable, Sendable {
 }
 
 enum DecisionAppsLogic {
+    /// The app whose screen also shows what the device itself found in the paste (`PasteLogic`).
+    static let pasteAppID = "paste"
+
     /// The Apps list: each decision app, then the custom decision last.
     static func tiles(for apps: [DecisionApp]) -> [AppTile] {
         apps.map { AppTile(id: $0.id, title: $0.title, subtitle: $0.inputHint, symbol: $0.symbol, target: .decision($0.id)) }
