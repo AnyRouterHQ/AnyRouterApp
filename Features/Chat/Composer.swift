@@ -50,7 +50,8 @@ struct Composer: View {
         Binding(get: { offerDownload != nil }, set: { if !$0 { offerDownload = nil } })
     }
 
-    var body: some View {
+    /// The field and what sits around it. Split from `body` so the type checker keeps up with the long modifier chain.
+    private var fieldStack: some View {
         VStack(spacing: 8) {
             if let query = mentionQuery ?? (showsPluginList ? "" : nil) {
                 let close: (() -> Void)? = mentionQuery == nil ? { showsPluginList = false } : nil
@@ -205,6 +206,10 @@ struct Composer: View {
                     voiceGate = nil
                 })
         }
+    }
+
+    var body: some View {
+        fieldStack
         .fileImporter(isPresented: $showsFiles, allowedContentTypes: AttachmentLogic.importableTypes,
                       allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { model.attachFiles(urls) }
