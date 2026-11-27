@@ -1,9 +1,29 @@
 import Foundation
 import SwiftData
 import Testing
+import UIKit
 @testable import AnyRouter
 
 struct CompactionLogicTests {
+    /// The meter says how full the window is, with the needle at full once compaction would start (80%).
+    @Test func theContextMeterFollowsTheShareOfTheWindow() {
+        #expect(CompactionLogic.contextFraction(used: 420, window: 1_000) == 0.42)
+        #expect(CompactionLogic.contextFraction(used: 420, window: nil) == nil)
+        #expect(CompactionLogic.contextFraction(used: 420, window: 0) == nil)
+        let cases: [(Double, String, String)] = [
+            (0.05, "5% of context used", "gauge.with.dots.needle.0percent"),
+            (0.3, "30% of context used", "gauge.with.dots.needle.33percent"),
+            (0.5, "50% of context used", "gauge.with.dots.needle.50percent"),
+            (0.7, "70% of context used", "gauge.with.dots.needle.67percent"),
+            (0.85, "85% of context used", "gauge.with.dots.needle.100percent"),
+        ]
+        for (fraction, text, symbol) in cases {
+            let meter = CompactionLogic.meter(fraction: fraction)
+            #expect(meter.text == text && meter.symbol == symbol)
+            #expect(UIImage(systemName: meter.symbol) != nil)
+        }
+    }
+
     private func message(_ role: ChatMessage.Role, _ text: String) -> ChatMessage { ChatMessage(role: role, content: text) }
 
     /// user, assistant, user, assistant, ... with short texts.

@@ -84,6 +84,7 @@ final class ChatViewModel {
         self.thinkingEnabled = thread?.thinkingEnabled ?? false
         self.toolsDisabled = thread?.toolsDisabled ?? false
         self.chatInstructions = thread?.instructions
+        refreshContextFraction()
     }
 
     var supportsThinking: Bool { model?.supportsThinking ?? false }
@@ -144,6 +145,7 @@ final class ChatViewModel {
     func choose(_ model: ModelDescriptor) {
         preferredModelID = model.id
         models.select(model)
+        refreshContextFraction()
         guard let thread else { return }
         thread.modelID = model.id
         do {
@@ -180,6 +182,21 @@ final class ChatViewModel {
 
     var canCompact: Bool { phase == .idle && model != nil && manualPlan() != nil }
 
+    /// How full the model's window is with this chat (0.42 is 42%), for the meter in the chat menu. Nil when the model
+    /// does not say its window. Kept, not computed: it is worked out when a reply or a compaction ends, the chat opens or
+    /// the model changes, never per streamed token.
+    private(set) var contextFraction: Double?
+
+    func refreshContextFraction() {
+        guard let thread, let model else {
+            contextFraction = nil
+            return
+        }
+        let live = CompactionLogic.context(messages: thread.orderedMessages, compaction: thread.compactions.last)
+        let used = CompactionLogic.usedTokens(systemPrompt: nil, summary: live.summary, messages: live.messages)
+        contextFraction = CompactionLogic.contextFraction(used: used, window: CompactionLogic.window(for: model))
+    }
+
     /// "Compact conversation" in the chat menu: folds the older messages into a summary written by the current model.
     @discardableResult
     func compactConversation() -> Task<Void, Never>? {
@@ -192,6 +209,7 @@ final class ChatViewModel {
             let folded = await self.fold(plan, model: model, thread: thread)
             if !folded, !Task.isCancelled { self.errorMessage = String(localized: "Could not shorten the conversation.") }
             self.phase = .idle
+            self.refreshContextFraction()
             self.task = nil
         }
         self.task = task
@@ -836,6 +854,7 @@ final class ChatViewModel {
         task = nil
         loadingModelName = nil
         errorMessage = failure
+        refreshContextFraction()
         if gotReply { settings.noteSuccessfulChat() }
         do {
             try save(context)

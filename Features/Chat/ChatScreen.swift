@@ -55,6 +55,13 @@ struct ChatScreen: View {
                 Menu {
                     Button("Instructions for this chat", systemImage: "text.badge.star") { showsInstructions = true }
                         .accessibilityIdentifier("chat.instructions")
+                    if let fraction = chat?.contextFraction {
+                        let meter = CompactionLogic.meter(fraction: fraction)
+                        // Read-only: the meter sits beside the action that frees the room.
+                        Button(meter.text, systemImage: meter.symbol) {}
+                            .disabled(true)
+                            .accessibilityIdentifier("chat.context")
+                    }
                     Button("Compact conversation", systemImage: "rectangle.compress.vertical") { chat?.compactConversation() }
                         .disabled(!(chat?.canCompact ?? false))
                         .accessibilityIdentifier("chat.compact")

@@ -88,6 +88,30 @@ enum CompactionLogic {
         return total
     }
 
+    /// The share of the window a chat takes, 0.42 for 42%; above 1 when it no longer fits. Nil without a window.
+    static func contextFraction(used: Int, window: Int?) -> Double? {
+        guard let window, window > 0 else { return nil }
+        return Double(used) / Double(window)
+    }
+
+    /// The meter in the chat menu: "42% of context used" and a gauge symbol whose needle follows it.
+    static func meter(fraction: Double) -> (text: String, symbol: String) {
+        let percent = Int((fraction * 100).rounded())
+        let needle: String
+        if fraction < 0.2 {
+            needle = "0percent"
+        } else if fraction < 0.45 {
+            needle = "33percent"
+        } else if fraction < 0.6 {
+            needle = "50percent"
+        } else if fraction < threshold {
+            needle = "67percent"
+        } else {
+            needle = "100percent"
+        }
+        return (String(localized: "\(percent)% of context used"), "gauge.with.dots.needle.\(needle)")
+    }
+
     static func needsCompaction(used: Int, window: Int?) -> Bool {
         guard let window else { return false }
         return Double(used) >= Double(window) * threshold
