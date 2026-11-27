@@ -640,6 +640,7 @@ Note (open drawer layer): with the iPhone drawer open, `main.container` kept an 
 - Q4 Resolved: icon from the public AnyRouter logo, anyrouter.dev orange accent (#8).
 - Q7 "No cloud models" on a signed-in device (28bd02c). The public catalog decodes fine (510 entries checked against the decoder), so the cause is on the signed-in path and not proven without a key. What the code did: every engine error was dropped by `try?`, each partial answer replaced the whole list, and an empty list always read "No cloud models". Now the reason and Retry show, and Settings > Diagnostics keeps it. If it still happens, the Diagnostics row names the cause.
 - Q8 The reply details sheet shows only what a message stores. Not stored today: tool call duration, agent rounds, granted approvals, reasoning tokens, cost breakdown, context window used (%), prompt sections with token counts, per-reply compaction events, finish reason. Which of them should the chat loop and engines record (each is one optional field on `ResponseMetadata` or `ToolStep`, decode-safe)?
+- Q8 Decisions photos: the live `GET /api/v1/models` carries `architecture.input_modalities` for decision models (only some list "image"), so the app hides the photo input for a text-only model. Unverified: which exact error a backend that cannot read images returns. The app maps 400 `invalid_images` to "This model can't read photos. Choose another model." Server question: confirm that code is used for that case, and whether an empty `state` is accepted when only photos are sent (the app sends a fixed line instead).
 - Q5 Resolved: a sign-in token calls `tools/list` on `https://anyrouter.dev/api/v1/mcp` (initialize 200, 31 tools, no session id); no extra scope is needed.
 
 ## Native UX & performance
@@ -702,11 +703,12 @@ The OCR endpoint takes an `sk-ar-` key; the app's sign-in token is one (`OAuthCl
 
 **Checklist**
 
-- [ ] AP1 Decisions: model switch to compare two models side by side, Yes/No, Choice and Score builders, probability bars, the four samples
+- [x] AP1 (10946a7, 1b61f52, 13c6429, 74d6609) Decisions as apps: six bundled apps (`catalog/decision-apps.json`), one runner screen, Yes/No, Choice and Score builders (Score starts with 10 levels), the answer as one sentence plus probability bars, four custom samples, photos and a live camera, Recent as its own sheet. Skipped: the side-by-side model compare (one model per run keeps the screen simple).
+- [ ] AP1b Each decision app as a Shortcuts action (later, not built)
 - [ ] AP2 Paste mode: `PasteLogic` detectors with tests, decision-model classification of plain text
 - [ ] AP3 Extract: source picker (photo, PDF, VisionKit document camera), on-device text, presets, fields with source highlight, any chat model
 - [ ] AP4 `AnyRouterOCRReader` behind a switch in Extract, stubbed `URLSession` fixture tests, 5 MiB check before upload
-- [ ] AP5 Entry: sidebar Apps section, composer + menu items
+- [ ] AP5 Entry: sidebar Apps row (13c6429) and composer "Decide about this" (5547939) are done; Extract's tile and "Extract fields" are the other worker's
 - [ ] AP6 Screenshots of Decisions, Paste and Extract, light and dark (lane A queue)
 
 ### Tools by model source (decision D24)
