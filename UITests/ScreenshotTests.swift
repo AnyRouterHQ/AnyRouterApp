@@ -180,7 +180,8 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
-    /// The voice button on a phone with no speech model downloaded: the Voice Mode cover with the model's real size.
+    /// The voice button on a phone with no speech model downloaded: the Voice Mode cover naming the model with its real size,
+    /// then the picker for another model open.
     func testVoiceModeGate() throws {
         var offered = true
         forEachAppearance { app, appearance in
@@ -192,6 +193,13 @@ final class ScreenshotTests: XCTestCase {
                 return
             }
             capture("voice-mode-gate", appearance)
+            XCTAssertTrue(app.descendants(matching: .any)["voice-gate.model"].exists, "the gate names the model")
+            let choose = app.buttons["voice-gate.choose"]
+            XCTAssertTrue(choose.waitForExistence(timeout: 5), "a phone that fits more than one speech model can pick another")
+            choose.tap()
+            let recommended = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Recommended")).firstMatch
+            XCTAssertTrue(recommended.waitForExistence(timeout: 5), "the picker marks this device's model")
+            capture("voice-mode-gate-picker", appearance)
         }
         if !offered { throw XCTSkip("No speech model fits this simulator, so the voice button dictates at once") }
     }

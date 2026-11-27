@@ -150,6 +150,47 @@ struct VoiceHubTests {
         #expect(VoiceModeGateLogic.offer(recommended: nil, installedSTT: false, declined: false) == nil)
     }
 
+    @Test func theGateNamesTheModelWithItsLanguagesAndSize() {
+        let base = VoiceFixtures.model("whisper-base", size: 149_484_796, order: 2)
+        let size = ByteCountFormatter.string(fromByteCount: 149_484_796, countStyle: .file)
+        #expect(VoiceModeGateLogic.sizeLabel(base) == size)
+        #expect(VoiceModeGateLogic.headline(base) == "whisper-base · Many languages · \(size)")
+        let english = VoiceFixtures.model("voice-en", languages: ["en"], size: 79_400_740)
+        #expect(VoiceModeGateLogic.headline(english).hasPrefix("voice-en · \(VoiceLanguage("en").name) · "))
+    }
+
+    /// The picker lists the downloads of the Voice settings list that fit this phone, in its order, never the System row,
+    /// a voice (text to speech) or a model that will not fit.
+    @Test func theGatePicksFromTheSameModelsAsSettingsThatFitThePhone() {
+        let gb8 = DeviceClass.gb8.memory(.standard)
+        let huge = VoiceFixtures.model("whisper-huge", detects: true, size: 6_000_000_000, order: 9)
+        let r = rig(catalog: [small, voice, huge, tiny])
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        #expect(VoiceModeGateLogic.options(r.hub.models(.stt) + r.hub.models(.tts), memory: gb8).map(\.id) == ["whisper-tiny", "whisper-small"])
+        #expect(VoiceModeGateLogic.options(r.hub.models(.stt), memory: DeviceMemory(budgetBytes: 1, physicalBytes: 1)).isEmpty)
+        #expect(VoiceModeGateLogic.options(r.hub.models(.stt), memory: gb8).contains(where: { $0.id == r.hub.recommended(.stt, memory: gb8)?.id }),
+                "the offer is one of the choices")
+    }
+
+    @Test func theRecommendedChoiceIsBadgedAndATightOneSaysSo() {
+        let gb8 = DeviceClass.gb8.memory(.standard)
+        let tight = VoiceFixtures.model("whisper-tight", size: 900_000_000, order: 5)
+        #expect(VoiceFit.verdict(tight, memory: gb8) == .tight, "fixture is tight on 8 GB")
+        let title = { (model: VoiceModel) in VoiceModeGateLogic.optionTitle(model, recommended: small, memory: gb8) }
+        #expect(title(small) == VoiceModeGateLogic.headline(small) + " · Recommended")
+        #expect(title(tiny) == VoiceModeGateLogic.headline(tiny))
+        #expect(title(tight) == VoiceModeGateLogic.headline(tight) + " · Tight on this device")
+        #expect(VoiceModeGateLogic.optionTitle(tiny, recommended: nil, memory: gb8) == VoiceModeGateLogic.headline(tiny))
+    }
+
+    @Test func theChosenModelIsTheSettingSettingsReads() {
+        let r = rig(catalog: [small, tiny])
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        r.hub.select(tiny)
+        #expect(r.hub.settings.selectedSTT == "whisper-tiny")
+        #expect(r.hub.isSelected(tiny) && r.hub.selectedID(.stt) == "whisper-tiny")
+    }
+
     @Test func aBrokenCatalogShowsAsAnEmptyList() {
         let hub = VoiceHub(
             settings: VoiceSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!),
