@@ -350,7 +350,7 @@ final class ScreenshotTests: XCTestCase {
             let sources = app.buttons["reply.sources"].firstMatch
             XCTAssertTrue(sources.waitForExistence(timeout: 5))
             XCTAssertEqual(sources.label, "5 sources", "six results, one of them the same page twice")
-            XCTAssertTrue(app.buttons["reply.share"].firstMatch.exists, "share sits in the row next to copy")
+            XCTAssertFalse(app.buttons["reply.share"].exists, "share moved into the reply's long-press menu")
             capture("reply-sources", appearance)
             sources.tap()
             XCTAssertTrue(app.navigationBars["Sources"].waitForExistence(timeout: 5))
@@ -391,12 +391,17 @@ final class ScreenshotTests: XCTestCase {
             showSidebar(app)
             tapRow(app.staticTexts["Switch models in a chat"])
             XCTAssertTrue(app.staticTexts["switch-note"].waitForExistence(timeout: 10))
+            // A free cloud reply, a paid one and a local one, each with its own footer line.
+            let paid = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "$0.0004")).firstMatch
+            XCTAssertTrue(paid.waitForExistence(timeout: 5), "the paid reply shows its price")
+            XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Gemma 4 E2B")).firstMatch.exists)
+            let free = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Nemotron 3.5")).firstMatch
+            XCTAssertTrue(free.exists, "the free reply has a line too")
+            XCTAssertFalse(free.label.contains("$"), "a free reply shows no price")
             capture("response-footer", appearance)
-            let details = app.buttons["response-details"].firstMatch
-            XCTAssertTrue(details.waitForExistence(timeout: 5))
-            details.tap()
-            XCTAssertTrue(app.staticTexts["req_demo01"].waitForExistence(timeout: 5)
-                || app.staticTexts["req_demo02"].waitForExistence(timeout: 5))
+            paid.tap()
+            XCTAssertTrue(app.buttons["reply.details.copy-all"].waitForExistence(timeout: 5), "the details sheet opens")
+            XCTAssertTrue(app.staticTexts["req_demo02"].waitForExistence(timeout: 5))
             capture("response-details", appearance)
         }
     }

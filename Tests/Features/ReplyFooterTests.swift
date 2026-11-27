@@ -36,14 +36,14 @@ struct ReplyFooterTests {
         #expect(make(content: "") == nil)
     }
 
-    @Test func actionsComeInTheOrderCopyShareReadAloud() throws {
+    @Test func theRowHasCopyAndShareAndReadAloudLeaveIt() throws {
         let footer = try #require(make())
-        #expect(footer.actions == [.copy, .share, .readAloud])
+        #expect(footer.actions == [.copy])
     }
 
     @Test func regenerateComesLastAndOnlyWhenOffered() throws {
         let footer = try #require(make(regenerate: true))
-        #expect(footer.actions == [.copy, .share, .readAloud, .regenerate])
+        #expect(footer.actions == [.copy, .regenerate])
     }
 
     // MARK: Model label
@@ -79,58 +79,81 @@ struct ReplyFooterTests {
         #expect(f5.modelLabel == nil)
     }
 
-    // MARK: First token
+    // MARK: The line
 
-    private func fast() -> ResponseMetadata {
+    private func meta(
+        cost: String? = nil, completion: Int? = nil, ttft: Int? = nil, total: Int? = nil
+    ) -> ResponseMetadata {
         var value = ResponseMetadata()
-        value.ttftMs = 400
+        value.costUSD = cost.flatMap { Decimal(string: $0) }
+        value.completionTokens = completion
+        value.ttftMs = ttft
+        value.totalMs = total
         return value
     }
 
-    @Test func theFirstTokenTimeFollowsTheModelName() throws {
-        let footer = try #require(make(name: "Claude Sonnet 4.6", metadata: fast()))
-        #expect(footer.ttft == "0.4s")
-        #expect(footer.modelLine == "Sonnet 4.6 · 0.4s")
+    @Test func aPaidReplyReadsModelPriceAndSpeed() throws {
+        let metadata = meta(cost: "0.0012", completion: 84, ttft: 400, total: 2400)
+        let footer = try #require(make(name: "Claude Haiku 4.5", metadata: metadata))
+        #expect(footer.summary.parts == ["Haiku 4.5", "$0.0012", "42 tok/s"])
+        #expect(footer.summary.line == "Haiku 4.5 · $0.0012 · 42 tok/s")
     }
 
-    @Test func withTheSettingOffTheRowHasOnlyTheName() throws {
-        let footer = try #require(make(details: false, name: "Claude Sonnet 4.6", metadata: fast()))
-        #expect(footer.ttft == nil)
-        #expect(footer.modelLine == "Sonnet 4.6")
+    @Test func aFreeReplyShowsNoPrice() throws {
+        let metadata = meta(cost: "0", completion: 84, ttft: 400, total: 2400)
+        let footer = try #require(make(name: "Nemotron 3.5 Bolt E4B", metadata: metadata))
+        #expect(footer.summary.price == nil)
+        #expect(footer.summary.line == "Nemotron 3.5 · 42 tok/s")
     }
 
-    @Test func aTimeWithoutANameStandsAlone() throws {
-        let footer = try #require(make(metadata: fast()))
-        #expect(footer.modelLine == "0.4s")
+    @Test func aLocalOrAppleReplyShowsNoPrice() throws {
+        // Local and Apple models are stored with cost 0 and provider "On device" (ChatViewModel.finalMetadata).
+        var local = meta(cost: "0", completion: 40, ttft: 500, total: 1500)
+        local.provider = "On device"
+        let footer = try #require(make(name: "Apple Intelligence", id: "apple/foundation", metadata: local))
+        #expect(footer.summary.line == "Apple · 40 tok/s")
     }
 
-    @Test func aDotSeparatesTheSourcesFromTheModelLineOnlyWhenBothAreThere() throws {
-        let page = search([("One", "https://a.example.com/1")])
-        let both = try #require(make(name: "Claude Sonnet 4.6", metadata: fast(), steps: [page]))
-        #expect(both.sourcesLabel == "1 source")
-        #expect(both.modelLine == "Sonnet 4.6 · 0.4s")
-        #expect(both.separatesSourcesAndModel)
-        let noSources = try #require(make(name: "Claude Sonnet 4.6", metadata: fast()))
-        #expect(!noSources.separatesSourcesAndModel)
-        let noModel = try #require(make(steps: [page]))
-        #expect(!noModel.separatesSourcesAndModel)
+    @Test func aMissingCostOrSpeedLeavesThePartOut() throws {
+        let noSpeed = try #require(make(name: "Claude Haiku 4.5", metadata: meta(cost: "0.5")))
+        #expect(noSpeed.summary.parts == ["Haiku 4.5", "$0.50"])
+        let nothing = try #require(make(name: "Claude Haiku 4.5", metadata: ResponseMetadata()))
+        #expect(nothing.summary.parts == ["Haiku 4.5"])
     }
 
-    @Test func noNameAndNoTimeMeansNoLine() throws {
-        #expect(try #require(make()).modelLine == nil)
+    @Test func withoutAModelNameThePriceStandsAlone() throws {
+        let footer = try #require(make(metadata: meta(cost: "0.5")))
+        #expect(footer.summary.line == "$0.50")
     }
 
-    // MARK: Details
+    @Test func noNameAndNoMetadataMeansNoLine() throws {
+        let footer = try #require(make())
+        #expect(footer.summary.parts.isEmpty)
+        #expect(footer.summary.line == nil)
+    }
 
-    @Test func detailsOpenOnlyWhenTheSettingIsOnAndSomethingIsKnown() throws {
-        let f6 = try #require(make(metadata: timed()))
-        #expect(f6.hasDetails)
-        let f7 = try #require(make(details: false, metadata: timed()))
-        #expect(f7.hasDetails == false)
-        let f8 = try #require(make())
-        #expect(f8.hasDetails == false)
-        let f9 = try #require(make(metadata: ResponseMetadata()))
-        #expect(f9.hasDetails == false)
+    @Test func speedIsRoundedToWholeTokensPerSecond() {
+        #expect(ResponseFormat.speed(41.6) == "42 tok/s")
+        #expect(ResponseFormat.speed(7.2) == "7 tok/s")
+    }
+
+    @Test func withTheSettingOffOnlyTheNameStaysAndNothingOpens() throws {
+        let metadata = meta(cost: "0.0012", completion: 84, ttft: 400, total: 2400)
+        let footer = try #require(make(details: false, name: "Claude Haiku 4.5", metadata: metadata))
+        #expect(footer.summary.line == "Haiku 4.5")
+        #expect(footer.details == nil)
+        #expect(!footer.hasDetails)
+        let bare = try #require(make(details: false, name: "Claude Haiku 4.5"))
+        #expect(bare.summary.line == "Haiku 4.5")
+    }
+
+    @Test func theSheetOpensWhenSomethingIsStored() throws {
+        #expect(try #require(make(metadata: timed())).hasDetails)
+        #expect(try #require(make()).hasDetails == false)
+        #expect(try #require(make(metadata: ResponseMetadata())).hasDetails == false)
+        let call = ToolCall(id: "c", name: "calculator", argumentsJSON: "{}")
+        let step = ToolStep(call: call, result: ToolResult(callID: "c", name: "calculator", text: "2", isError: false))
+        #expect(try #require(make(steps: [step])).hasDetails, "tool calls alone are worth a sheet")
     }
 
     // MARK: Sources

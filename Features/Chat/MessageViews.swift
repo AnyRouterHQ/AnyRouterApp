@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// One message row: user text in a rounded bubble, assistant reply as plain markdown with actions.
 struct MessageRow: View {
@@ -16,6 +17,7 @@ struct MessageRow: View {
     var statusNote: String?
     /// Retry, Sign in, Choose another model, … from a failed reply.
     var onFailureAction: (ReplyFailure.Action) -> Void
+    @Environment(AppState.self) private var app
 
     init(message: MessageRecord, isStreamingThis: Bool, showsRegenerate: Bool,
          onRegenerate: @escaping () -> Void, switchNote: String? = nil, showsDetails: Bool = true,
@@ -63,6 +65,17 @@ struct MessageRow: View {
         }
     }
 
+    /// Read Aloud and Copy Reply for the long-press menu of the reply text. Values only, so the closures hold no record.
+    private var replyMenu: ReplyMenuActions {
+        let id = message.id
+        let content = message.content
+        let state = app
+        return ReplyMenuActions(
+            isReading: { state.speaker.speakingID == id },
+            readAloud: { state.speaker.toggle(messageID: id, text: content, hub: state.voice) },
+            copyReply: { UIPasteboard.general.string = content })
+    }
+
     private var assistantRow: some View {
         // Body time of an assistant row. The MarkdownUI subtree below builds its layout later, outside this interval.
         let signpost = Perf.signposter.beginInterval("row.assistant")
@@ -87,7 +100,7 @@ struct MessageRow: View {
                 case .reasoning(let trace, let isStreaming): ReasoningRow(trace: trace, isStreaming: isStreaming)
                 case .toolStep(let calls): ToolChainView(steps: calls, answerStarted: answerStarted)
                 case .subagent(let subagent): SubagentCard(subagent: subagent)
-                case .text(let text): MarkdownReply(text: text)
+                case .text(let text): MarkdownReply(text: text, menu: replyMenu)
                 case .file(let attachment), .image(let attachment):
                     MessageAttachments(attachments: [attachment], alignment: .leading)
                 }
@@ -124,7 +137,8 @@ struct MessageRow: View {
             if let footer = ReplyFooter.make(
                 content: message.content, isStreaming: isStreamingThis, showsRegenerate: showsRegenerate,
                 showsDetails: showsDetails, requestedName: message.modelName, requestedID: message.modelID,
-                metadata: message.metadata, steps: steps) {
+                metadata: message.metadata, steps: steps,
+                reasoningMs: message.reasoning?.durationMs) {
                 ReplyFooterRow(message: message, footer: footer, onRegenerate: onRegenerate)
             }
         }

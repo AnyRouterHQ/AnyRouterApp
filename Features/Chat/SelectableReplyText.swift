@@ -3,7 +3,8 @@ import UIKit
 
 /// One text block of a reply (a heading, a list, a paragraph) in a read-only UITextView, so a long press selects any range
 /// in place with the system's handles and Copy, Look Up, Translate and Share. SwiftUI's `Text` on iOS copies a whole text
-/// only, and a context menu preview cannot take a drag, so the reply's actions stay in its footer.
+/// only, and a context menu preview cannot take a drag. The selection menu gets "Read Aloud" and "Copy Reply" (the whole
+/// reply) after the system's own items.
 struct SelectableReplyBlock: View, Equatable {
     let text: String
     /// The body size at the default text size; the fonts scale from it with Dynamic Type.
@@ -11,17 +12,51 @@ struct SelectableReplyBlock: View, Equatable {
     /// The size MarkdownReply lays the other blocks out at. Only compared, so a text size change redraws the block.
     let scaledSize: CGFloat
     let font: ReplyFont
+    /// The reply-level items of the selection menu. Left out of `==`: they act on the whole reply and do not change while it is shown.
+    var menu: ReplyMenuActions?
+
+    static func == (lhs: SelectableReplyBlock, rhs: SelectableReplyBlock) -> Bool {
+        lhs.text == rhs.text && lhs.size == rhs.size && lhs.scaledSize == rhs.scaledSize && lhs.font == rhs.font
+    }
 
     var body: some View {
-        SelectableReplyText(text: ReplyAttributedText.make(text, size: size, font: font))
+        SelectableReplyText(text: ReplyAttributedText.make(text, size: size, font: font), menu: menu)
     }
+}
+
+/// What the selection menu of a reply can do with the whole reply.
+struct ReplyMenuActions: Sendable {
+    var isReading: @MainActor @Sendable () -> Bool
+    var readAloud: @MainActor @Sendable () -> Void
+    var copyReply: @MainActor @Sendable () -> Void
 }
 
 private struct SelectableReplyText: UIViewRepresentable {
     let text: NSAttributedString
+    let menu: ReplyMenuActions?
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    @MainActor
+    final class Coordinator: NSObject, UITextViewDelegate {
+        var menu: ReplyMenuActions?
+
+        func textView(_ textView: UITextView, editMenuForTextIn range: NSRange, suggestedActions: [UIMenuElement]) -> UIMenu? {
+            guard let menu else { return UIMenu(children: suggestedActions) }
+            let reading = menu.isReading()
+            let read = UIAction(
+                title: reading ? "Stop Reading" : "Read Aloud", image: UIImage(systemName: reading ? "stop" : "speaker.wave.2")
+            ) { _ in MainActor.assumeIsolated { menu.readAloud() } }
+            let copy = UIAction(title: "Copy Reply", image: UIImage(systemName: "doc.on.doc")) { _ in
+                MainActor.assumeIsolated { menu.copyReply() }
+            }
+            return UIMenu(children: suggestedActions + [UIMenu(options: .displayInline, children: [read, copy])])
+        }
+    }
 
     func makeUIView(context: Context) -> UITextView {
         let view = UITextView(usingTextLayoutManager: true)
+        view.delegate = context.coordinator
         view.isEditable = false
         view.isSelectable = true
         view.isScrollEnabled = false
@@ -40,6 +75,7 @@ private struct SelectableReplyText: UIViewRepresentable {
     }
 
     func updateUIView(_ view: UITextView, context: Context) {
+        context.coordinator.menu = menu
         guard view.attributedText != text else { return }
         view.attributedText = text
     }

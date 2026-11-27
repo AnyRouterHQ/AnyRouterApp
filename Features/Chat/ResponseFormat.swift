@@ -1,6 +1,6 @@
 import Foundation
 
-/// Text for the details under a reply: model, cost, timings, tokens.
+/// Text for the footer line and the details sheet of a reply: times, speed, sizes, names.
 enum ResponseFormat {
     /// "0.6s", "2.1s", "12s". Under a tenth of a second reads "<0.1s".
     static func seconds(_ ms: Int) -> String {
@@ -13,36 +13,11 @@ enum ResponseFormat {
         "\(Int(tokensPerSecond.rounded())) tok/s"
     }
 
-    static func tokens(prompt: Int?, completion: Int?) -> String? {
-        switch (prompt, completion) {
-        case let (p?, c?): return "\(p) in / \(c) out"
-        case let (p?, nil): return "\(p) in"
-        case let (nil, c?): return "\(c) out"
-        case (nil, nil): return nil
-        }
-    }
-
-    struct Field: Equatable {
-        let label: String
-        let value: String
-    }
-
-    static let requestLabel = "Request"
-
-    /// Under the model name: cost, timings, tokens and ids. Missing values are left out.
-    static func expanded(_ metadata: ResponseMetadata) -> [Field] {
-        var fields: [Field] = []
-        func add(_ label: String, _ value: String?) { if let value { fields.append(Field(label: label, value: value)) } }
-        add("Model", metadata.servedModelID)
-        add("Provider", metadata.provider)
-        add("Cost", metadata.costUSD.map(PriceFormat.cost))
-        add("Total", metadata.totalMs.map(seconds))
-        add("Speed", metadata.tokensPerSecond.map(speed))
-        add("Tokens", tokens(prompt: metadata.promptTokens, completion: metadata.completionTokens))
-        add("Cached tokens", metadata.cachedTokens.map(String.init))
-        add("Upstream latency", metadata.upstreamLatencyMs.map(seconds))
-        add(requestLabel, metadata.requestID)
-        return fields
+    /// "40 B", "1.2 KB", "3.4 MB": the size of a tool result.
+    static func size(_ bytes: Int) -> String {
+        if bytes < 1024 { return "\(bytes) B" }
+        if bytes < 1024 * 1024 { return String(format: "%.1f KB", Double(bytes) / 1024) }
+        return String(format: "%.1f MB", Double(bytes) / (1024 * 1024))
     }
 
     /// "AnyRouter → Nemotron 3.5 Bolt E4B" when a router picked the model, else the model's name.

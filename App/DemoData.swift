@@ -152,8 +152,8 @@ enum DemoData {
 
     static let switchThreadTitle = "Switch models in a chat"
 
-    /// A thread where the model changed between replies, with response details on both: shows the
-    /// footer, its expanded details and the "Switched to" note.
+    /// A thread where the model changed between replies: a free cloud reply, a paid one and a local one. Shows the
+    /// footer line for each, the details sheet and the "Switched to" note.
     @MainActor
     private static func insertSwitchThread(in context: ModelContext, at now: Date) {
         let created = now.addingTimeInterval(-60)
@@ -180,6 +180,11 @@ enum DemoData {
                 requestID: "req_demo02", servedModelID: "openai/gpt-5", servedModelName: "GPT-5", provider: "OpenAI",
                 costUSD: Decimal(string: "0.0004"), promptTokens: 74, completionTokens: 12, cachedTokens: 40,
                 upstreamLatencyMs: 880, ttftMs: 700, totalMs: 1300))
+        add(.user, "And one that runs on this phone?", at: 20)
+        add(.assistant, "Pocketpost. It never leaves the device.", at: 25, name: "Gemma 4 E2B", id: "gguf/demo/gemma-4-e2b.gguf",
+            metadata: ResponseMetadata(
+                servedModelID: "gguf/demo/gemma-4-e2b.gguf", servedModelName: "Gemma 4 E2B", provider: "On device",
+                costUSD: 0, promptTokens: 20, completionTokens: 60, ttftMs: 500, totalMs: 3500))
     }
 
     /// A finished reply with its response details, never stored. Settings previews draw the real reply row from it.

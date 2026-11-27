@@ -1,6 +1,6 @@
 import XCTest
 
-/// Settings, Responses, "Show response details": the line under each reply (model, first token, speed)
+/// Settings, Responses, "Show response details": the line under each reply (model, price, speed)
 /// is there by default, goes away when the toggle is off and stays away after a relaunch.
 @MainActor
 final class ResponseDetailsJourney: JourneyCase {
