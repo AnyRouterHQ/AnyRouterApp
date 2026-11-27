@@ -15,7 +15,7 @@ struct SelectableReplyBlock: View, Equatable {
     /// The reply-level items of the selection menu. Left out of `==`: they act on the whole reply and do not change while it is shown.
     var menu: ReplyMenuActions?
 
-    static func == (lhs: SelectableReplyBlock, rhs: SelectableReplyBlock) -> Bool {
+    nonisolated static func == (lhs: SelectableReplyBlock, rhs: SelectableReplyBlock) -> Bool {
         lhs.text == rhs.text && lhs.size == rhs.size && lhs.scaledSize == rhs.scaledSize && lhs.font == rhs.font
     }
 
