@@ -30,6 +30,11 @@ final class ThreadRecord {
     var queueData: Data?
     /// `TitleSource` raw value. Optional so existing stores migrate; a chat stored before titles had a source counts as the user's.
     var titleSourceRaw: String?
+    /// Ids of the memory items this chat puts in its prompt, as JSON, frozen at its first send (agent design 2.4).
+    /// Optional so existing stores migrate.
+    var profileSnapshotData: Data?
+    /// "Don't use memory in this chat".
+    var memoryOff: Bool = false
     @Relationship(deleteRule: .cascade, inverse: \MessageRecord.thread)
     var messages: [MessageRecord] = []
 
@@ -51,6 +56,11 @@ final class ThreadRecord {
     var queue: MessageQueue {
         get { queueData.flatMap { try? JSONDecoder().decode(MessageQueue.self, from: $0) } ?? MessageQueue() }
         set { queueData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
+    }
+
+    var profileSnapshot: [UUID]? {
+        get { profileSnapshotData.flatMap { try? JSONDecoder().decode([UUID].self, from: $0) } }
+        set { profileSnapshotData = newValue.flatMap { try? JSONEncoder().encode($0) } }
     }
 
     var compactions: [Compaction] {

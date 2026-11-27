@@ -69,6 +69,12 @@ struct ChatScreen: View {
                     .accessibilityIdentifier("chat.rename")
                     Button("Instructions for this chat", systemImage: "text.badge.star") { showsInstructions = true }
                         .accessibilityIdentifier("chat.instructions")
+                    if settings.useMemory, let chat {
+                        Toggle(isOn: Binding(get: { chat.memoryOff }, set: { chat.setMemoryOff($0) })) {
+                            Label("Don't use memory in this chat", systemImage: "brain")
+                        }
+                        .accessibilityIdentifier("chat.memoryOff")
+                    }
                     if let fraction = chat?.contextFraction {
                         let meter = CompactionLogic.meter(fraction: fraction)
                         // Read-only: the meter sits beside the action that frees the room.

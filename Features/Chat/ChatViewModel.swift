@@ -23,6 +23,8 @@ final class ChatViewModel {
     /// Per-thread "Enable thinking"; a new chat keeps it here until the first send creates the thread.
     private(set) var thinkingEnabled = false
     private(set) var toolsDisabled = false
+    /// "Don't use memory in this chat". A new chat keeps the choice until the first send creates the thread.
+    private(set) var memoryOff = false
     /// Instructions for this chat only; they replace the global ones. A new chat keeps them until the first send.
     private(set) var chatInstructions: String?
     /// Model id saved on this thread. `nil` follows the default for new chats.
@@ -95,6 +97,7 @@ final class ChatViewModel {
         self.models = models
         self.thinkingEnabled = thread?.thinkingEnabled ?? false
         self.toolsDisabled = thread?.toolsDisabled ?? false
+        self.memoryOff = thread?.memoryOff ?? false
         self.chatInstructions = thread?.instructions
         refreshContextFraction()
     }
@@ -111,6 +114,13 @@ final class ChatViewModel {
         toolsDisabled = !on
         guard let thread else { return }
         thread.toolsDisabled = !on
+        try? context.save()
+    }
+
+    func setMemoryOff(_ off: Bool) {
+        memoryOff = off
+        guard let thread else { return }
+        thread.memoryOff = off
         try? context.save()
     }
 
@@ -647,6 +657,7 @@ final class ChatViewModel {
         let created = ThreadRecord(id: id, title: ThreadListLogic.title(fromFirstMessage: firstMessage))
         created.thinkingEnabled = thinkingEnabled
         created.toolsDisabled = toolsDisabled
+        created.memoryOff = memoryOff
         created.instructions = chatInstructions
         created.titleSource = .firstMessage
         context.insert(created)
@@ -683,7 +694,9 @@ final class ChatViewModel {
         assistant.failure = ReplyFailure(kind: .interrupted, detail: String(localized: "The app closed while this reply was being written."))
         try? save(context)
         var params = settings.generationParams
-        let basePrompt = InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt)
+        let basePrompt = MemoryProfileLogic.systemPrompt(
+            base: InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt),
+            profile: memoryProfile(for: thread, model: model))
         params.systemPrompt = CompactionLogic.systemPrompt(base: basePrompt, summary: live.summary)
         let autoPlan = automaticPlan(
             thread: thread, model: model, systemPrompt: params.systemPrompt, sent: history, placeholder: assistant.id)
@@ -932,6 +945,18 @@ final class ChatViewModel {
         if gotReply, generatesTitles, let chat = model { titleTask = startTitle(for: thread, chat: chat) }
         if let ended { onReplyEnded?(ended.id, ended.text) }
         queueReplyEnded(failure: failure)
+    }
+
+    /// The always-on memory profile for this request. The chat's first send freezes which items it uses.
+    private func memoryProfile(for thread: ThreadRecord, model: ModelDescriptor) -> String? {
+        let items = ((try? MemoryStore(context: context).all()) ?? []).map {
+            MemoryProfileLogic.Item(id: $0.id, kind: $0.kind, text: $0.text, scope: $0.scope, createdAt: $0.createdAt)
+        }
+        if thread.profileSnapshot == nil { thread.profileSnapshot = MemoryProfileLogic.frozenIDs(items) }
+        guard settings.useMemory, !thread.memoryOff, let frozen = thread.profileSnapshot else { return nil }
+        return MemoryProfileLogic.render(
+            items, frozen: frozen, source: model.source,
+            deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats, budget: MemoryProfileLogic.budget(for: model))
     }
 
     /// Asks for a title while the thread still has the one cut from its first message. A failure keeps that one.
