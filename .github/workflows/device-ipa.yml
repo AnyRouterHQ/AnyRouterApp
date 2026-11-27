@@ -119,6 +119,54 @@ jobs:
           path: AnyRouter-debug-unsigned.ipa
           retention-days: 14
 
+      # A second IPA, ad-hoc signed with each target's entitlements file (written by xcodegen), so a re-signer that keeps
+      # the binary's entitlements (a paid team) keeps the increased memory limit. The unsigned IPA above stays as it is:
+      # a free-account tool may refuse entitlements its profile lacks. Inside out, never --deep: each extension gets its own
+      # entitlements, frameworks none, the app last.
+      - name: Ad-hoc sign a copy with the entitlements
+        run: |
+          set -euo pipefail
+          rm -rf Signed AnyRouter-debug-adhoc.ipa
+          mkdir Signed
+          cp -R Payload Signed/
+          APP=Signed/Payload/AnyRouter.app
+          find "$APP" -depth \( -name '*.framework' -o -name '*.dylib' \) -print0 | while IFS= read -r -d '' item; do
+            codesign --force --sign - --timestamp=none "$item"
+          done
+          for appex in "$APP"/PlugIns/*.appex; do
+            name=$(basename "$appex" .appex)
+            if [ "$name" = "AnyRouterShare" ]; then
+              codesign --force --sign - --timestamp=none --entitlements Share/AnyRouterShare.entitlements "$appex"
+            else
+              codesign --force --sign - --timestamp=none "$appex"
+            fi
+          done
+          codesign --force --sign - --timestamp=none --entitlements App/AnyRouter.entitlements "$APP"
+          codesign --verify --strict "$APP"
+          (cd Signed && zip -qry ../AnyRouter-debug-adhoc.ipa Payload)
+          {
+            echo "## Entitlements in the ad-hoc signed IPA"
+            echo
+            for bundle in "$APP" "$APP"/PlugIns/*.appex; do
+              echo "### $(basename "$bundle")"
+              echo '```'
+              codesign -d --entitlements - --xml "$bundle" 2>/dev/null | plutil -p - 2>/dev/null || echo "(none)"
+              echo '```'
+            done
+            echo
+            echo "The unsigned IPA carries none:"
+            echo '```'
+            codesign -d --entitlements - --xml Payload/AnyRouter.app 2>&1 | head -3 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the ad-hoc signed IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: AnyRouter-debug-adhoc
+          path: AnyRouter-debug-adhoc.ipa
+          retention-days: 14
+
       - name: Summary
         run: |
           SIZE=$(du -h AnyRouter-debug-unsigned.ipa | cut -f1)
@@ -132,4 +180,7 @@ jobs:
             echo "1. Download the artifact \`AnyRouter-debug-unsigned\` and unzip it to get the .ipa."
             echo "2. Open the .ipa in Sideloadly or AltStore and sign in with your own Apple ID."
             echo "3. Free Apple ID builds expire after 7 days; re-install to renew. See docs/sideload.md."
+            echo ""
+            echo "\`AnyRouter-debug-adhoc\` is the same build ad-hoc signed with its entitlements (increased memory limit, App Group),"
+            echo "for a signing tool and account that keep them. See docs/sideload.md, Running Inkling 2 Mini on a 12 GB iPhone."
           } >> "$GITHUB_STEP_SUMMARY"
