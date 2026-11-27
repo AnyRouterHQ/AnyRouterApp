@@ -25,6 +25,7 @@ struct RootView: View {
             .focusedSceneValue(\.shell, shell)
             .environment(appState.settings)
             .environment(appState.models)
+            .overlay { VoiceReadyBanner() }
             .transformEnvironment(\.horizontalSizeClass) { if let forced = Self.forcedSizeClass { $0 = forced } }
             .onChange(of: appState.settings.appearance, initial: true) { _, appearance in
                 WindowAppearance.apply(appearance)

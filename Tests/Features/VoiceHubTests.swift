@@ -11,6 +11,18 @@ struct VoiceHubTests {
         let root: URL
     }
 
+    /// Answers the notification settings and records what the hub asked and posted.
+    @MainActor
+    private final class FakeNotifier: ReadyNotifying {
+        var status: VoiceReadyLogic.Permission
+        private(set) var asked = 0
+        private(set) var posts: [(title: String, body: String)] = []
+        init(_ status: VoiceReadyLogic.Permission) { self.status = status }
+        func permission() async -> VoiceReadyLogic.Permission { status }
+        func requestPermission() async { asked += 1 }
+        func post(title: String, body: String) async { posts.append((title, body)) }
+    }
+
     /// A model with one file, so a transport has something to fail or hang on. With no files a download just installs.
     private func withFile(_ model: VoiceModel) -> VoiceModel {
         var model = model
@@ -18,7 +30,10 @@ struct VoiceHubTests {
         return model
     }
 
-    private func rig(catalog: [VoiceModel], transport: ((VoiceModelStorage) -> FakeVoiceTransport)? = nil) -> Rig {
+    private func rig(
+        catalog: [VoiceModel], transport: ((VoiceModelStorage) -> FakeVoiceTransport)? = nil,
+        notifier: (any ReadyNotifying)? = nil, active: Bool = true
+    ) -> Rig {
         let system = FakeSpeechToText(id: "system")
         let systemVoice = FakeTextToSpeech(id: "system")
         let root = FileManager.default.temporaryDirectory.appending(path: "voice-\(UUID().uuidString)")
@@ -26,7 +41,8 @@ struct VoiceHubTests {
         let hub = VoiceHub(
             settings: VoiceSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!),
             downloader: VoiceModelDownloader(storage: storage, transport: transport?(storage) ?? InertVoiceTransport()),
-            catalog: { catalog }, systemSTT: { system }, systemTTS: { systemVoice })
+            catalog: { catalog }, systemSTT: { system }, systemTTS: { systemVoice },
+            notifier: notifier ?? InertReadyNotifier(), isAppActive: { active })
         return Rig(hub: hub, system: system, systemVoice: systemVoice, root: root)
     }
 
@@ -266,6 +282,56 @@ struct VoiceHubTests {
         await r.hub.downloader.start(tiny)?.value
         #expect(r.hub.settings.voiceModeTarget == "whisper-small")
         #expect(r.hub.settings.selectedSTT == nil, "Get in Settings does not select")
+    }
+
+    @Test func tappingDownloadAsksForNotificationsOnlyWhenTheAnswerIsOpen() async throws {
+        for (status, expected) in [(VoiceReadyLogic.Permission.notDetermined, 1), (.granted, 0), (.denied, 0)] {
+            let notifier = FakeNotifier(status)
+            let r = rig(catalog: [tiny], notifier: notifier)
+            defer { try? FileManager.default.removeItem(at: r.root) }
+            await r.hub.startVoiceModeDownload(tiny)?.value
+            for _ in 0..<50 where notifier.asked < expected { try await Task.sleep(for: .milliseconds(20)) }
+            try await Task.sleep(for: .milliseconds(50))
+            #expect(notifier.asked == expected)
+        }
+    }
+
+    @Test func aFinishWhileAwayPostsOneNotificationWhenAllowedAndNeverAsks() async throws {
+        let allowed = FakeNotifier(.granted)
+        let r = rig(catalog: [tiny], notifier: allowed, active: false)
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        await r.hub.startVoiceModeDownload(tiny)?.value
+        for _ in 0..<50 where allowed.posts.isEmpty { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(allowed.posts.map(\.title) == ["Voice Mode is ready"])
+        #expect(allowed.posts.first?.body.contains("whisper-tiny") == true)
+        #expect(allowed.asked == 0)
+        #expect(r.hub.voiceDownload.phase == .ready, "the banner is waiting for the next visit")
+
+        let refused = FakeNotifier(.denied)
+        let other = rig(catalog: [tiny], notifier: refused, active: false)
+        defer { try? FileManager.default.removeItem(at: other.root) }
+        await other.hub.startVoiceModeDownload(tiny)?.value
+        await other.hub.announceReady(modelTitle: "x", appIsActive: false)
+        #expect(refused.posts.isEmpty && refused.asked == 0)
+    }
+
+    @Test func aFinishInFrontIsTheBannerNotANotification() async throws {
+        let notifier = FakeNotifier(.granted)
+        let r = rig(catalog: [tiny], notifier: notifier, active: true)
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        await r.hub.startVoiceModeDownload(tiny)?.value
+        await Task.yield()
+        #expect(notifier.posts.isEmpty)
+        #expect(r.hub.voiceDownload.phase == .ready)
+    }
+
+    @Test func startOnTheBannerAsksTheComposerOnceAndClearsTheBanner() async throws {
+        let r = rig(catalog: [tiny])
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        await r.hub.startVoiceModeDownload(tiny)?.value
+        #expect(r.hub.startRequests == 0 && r.hub.voiceDownload.phase == .ready)
+        r.hub.requestStart()
+        #expect(r.hub.startRequests == 1 && r.hub.voiceDownload == .idle)
     }
 
     @Test func aBrokenCatalogShowsAsAnEmptyList() {

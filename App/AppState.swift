@@ -174,7 +174,9 @@ final class AppState {
         let hubSignpost = Perf.signposter.beginInterval("launch.hub")
         // Voice models download on the same background session as chat models, so they finish while the app is away.
         let downloads = ModelDownloadManager(telemetry: telemetry)
-        voice = VoiceHub(downloader: VoiceModelDownloader(transport: BackgroundVoiceTransport(manager: downloads)))
+        voice = VoiceHub(
+            downloader: VoiceModelDownloader(transport: BackgroundVoiceTransport(manager: downloads)),
+            notifier: SystemReadyNotifier(), isAppActive: { UIApplication.shared.applicationState == .active })
         hub = LocalModelHub(
             downloads: downloads,
             unloadModel: { id in

@@ -13,9 +13,13 @@ final class VoiceHub {
     let downloader: VoiceModelDownloader
     /// The speech model that finished downloading for Voice Mode and has not been shown as ready yet.
     private(set) var readyModelID: String?
+    /// Bumped when the person taps Start on the "ready" banner. The composer starts listening on each change.
+    private(set) var startRequests = 0
 
     @ObservationIgnored private let loadCatalog: () throws -> [VoiceModel]
     @ObservationIgnored private var cachedCatalog: [VoiceModel]?
+    @ObservationIgnored private let notifier: any ReadyNotifying
+    @ObservationIgnored private let isAppActive: @MainActor () -> Bool
     @ObservationIgnored private let makeSystemSTT: @MainActor () -> any SpeechToText
     @ObservationIgnored private let makeSystemTTS: @MainActor () -> any TextToSpeech
     @ObservationIgnored private var systemSTTEngine: (any SpeechToText)?
@@ -29,10 +33,13 @@ final class VoiceHub {
         settings: VoiceSettings = VoiceSettings(), downloader: VoiceModelDownloader = VoiceModelDownloader(),
         catalog: @escaping () throws -> [VoiceModel] = { try BundledVoiceCatalog.load() },
         systemSTT: @escaping @MainActor () -> any SpeechToText = { SystemSpeechToText() },
-        systemTTS: @escaping @MainActor () -> any TextToSpeech = { SystemTextToSpeech() }
+        systemTTS: @escaping @MainActor () -> any TextToSpeech = { SystemTextToSpeech() },
+        notifier: any ReadyNotifying = InertReadyNotifier(), isAppActive: @escaping @MainActor () -> Bool = { true }
     ) {
         self.settings = settings
         self.downloader = downloader
+        self.notifier = notifier
+        self.isAppActive = isAppActive
         loadCatalog = catalog
         makeSystemSTT = systemSTT
         makeSystemTTS = systemTTS
@@ -82,7 +89,9 @@ final class VoiceHub {
     func startVoiceModeDownload(_ model: VoiceModel) -> Task<Void, Never>? {
         settings.voiceModeTarget = model.id
         readyModelID = nil
-        return downloader.start(model)
+        let task = downloader.start(model)
+        Task { await askForNotifications() }
+        return task
     }
 
     /// Stops the Voice Mode download and throws away what was fetched.
@@ -93,6 +102,25 @@ final class VoiceHub {
 
     /// The "ready" state has been shown.
     func dismissReady() { readyModelID = nil }
+
+    /// Start on the "ready" banner.
+    func requestStart() {
+        startRequests += 1
+        readyModelID = nil
+    }
+
+    /// Asked when the person taps Download, while the app is in front: iOS shows no prompt to an app that is away. Only
+    /// when they have not answered before.
+    func askForNotifications() async {
+        if VoiceReadyLogic.shouldAsk(await notifier.permission()) { await notifier.requestPermission() }
+    }
+
+    /// One local notification when the app is away and allowed to send one. In front, the banner and haptic show instead.
+    func announceReady(modelTitle: String?, appIsActive: Bool) async {
+        let permission = await notifier.permission()
+        guard VoiceReadyLogic.announcement(appIsActive: appIsActive, permission: permission) == .notification else { return }
+        await notifier.post(title: VoiceReadyLogic.title, body: VoiceReadyLogic.notificationBody(modelTitle: modelTitle))
+    }
 
     /// The chosen model that is not installed yet. A failed one counts until the person says Not Now.
     private var pendingOffer: VoiceModel? {
@@ -105,9 +133,13 @@ final class VoiceHub {
         guard settings.voiceModeTarget == id else { return }
         switch outcome {
         case .installed:
-            if let model = catalog.first(where: { $0.id == id }) { select(model) }
+            let model = catalog.first(where: { $0.id == id })
+            if let model { select(model) }
             settings.voiceModeTarget = nil
             readyModelID = id
+            let title = model?.title
+            let active = isAppActive()
+            Task { await announceReady(modelTitle: title, appIsActive: active) }
         case .cancelled:
             settings.voiceModeTarget = nil
         case .failed:
