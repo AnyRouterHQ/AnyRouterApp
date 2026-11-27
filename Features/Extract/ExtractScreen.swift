@@ -198,7 +198,7 @@ struct ExtractScreen: View {
         Menu {
             Picker("Model", selection: selection) {
                 Text("Default model").tag(String?.none)
-                ForEach((app.models.models).filter(\.isInstalled)) { Text($0.shortName).tag(Optional($0.id)) }
+                ForEach(app.models.models.filter(\.isInstalled)) { ModelLabel(model: $0).tag(Optional($0.id)) }
             }
         } label: {
             Label(session.resolvedModel?.shortName ?? "Model", systemImage: "cpu")
