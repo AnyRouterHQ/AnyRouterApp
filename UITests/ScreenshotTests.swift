@@ -208,6 +208,26 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// The + menu from the top (Camera first), its Tools submenu with this chat's switch, and the "On this device" switches.
+    func testPlusMenu() {
+        forEachAppearance { app, appearance in
+            XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
+            app.buttons["Add"].tap()
+            XCTAssertTrue(app.buttons["composer.add-camera"].waitForExistence(timeout: 5))
+            capture("plus-menu", appearance)
+            let tools = app.descendants(matching: .any)["composer.tools"]
+            guard tools.exists else { return XCTFail("the demo model takes tools, so Tools is in the menu") }
+            tools.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["composer.tools-toggle"].waitForExistence(timeout: 5))
+            capture("plus-menu-tools", appearance)
+            let device = app.descendants(matching: .any)["composer.tool-group.device"]
+            XCTAssertTrue(device.waitForExistence(timeout: 5))
+            device.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["composer.tool-source.device"].waitForExistence(timeout: 5))
+            capture("plus-menu-tools-device", appearance)
+        }
+    }
+
     /// The @ list: every plugin with its icon and On or Off, then presets and files.
     func testMentionPanel() {
         forEachAppearance { app, appearance in
