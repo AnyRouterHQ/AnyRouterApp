@@ -97,12 +97,12 @@ private struct PhoneShell: View {
         ZStack(alignment: .leading) {
             Color(.systemBackground)
             if reduceMotion {
-                chat(progress: progress, width: width, shifted: false)
+                chat(progress: progress)
                 sidebar(width: width).opacity(progress)
             } else {
                 // Fully out of the tree while closed: accessibilityHidden alone left the List cells reachable.
                 sidebar(width: width).opacity(progress > 0.001 ? 1 : 0)
-                chat(progress: progress, width: width, shifted: true)
+                chat(progress: progress).offset(x: progress * width)
             }
         }
         .ignoresSafeArea(.container)
@@ -124,22 +124,12 @@ private struct PhoneShell: View {
             .accessibilityHidden(!shell.isSidebarOpen)
     }
 
-    /// `shifted`: slide the chat right by the drawer width. The offset is applied here, before the accessibility container,
-    /// so the container's frame follows the drawn chat; applied outside, it kept covering the whole drawer in the tree.
-    private func chat(progress: CGFloat, width: CGFloat, shifted: Bool) -> some View {
+    private func chat(progress: CGFloat) -> some View {
         Detail()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemBackground))
             .allowsHitTesting(!shell.isSidebarOpen)
             .accessibilityHidden(shell.isSidebarOpen)
-            .overlay {
-                // Closes the drawer on a tap on the visible strip of chat. Invisible: the chat is never dimmed.
-                Button { setOpen(false) } label: { Color.clear.contentShape(.rect) }
-                    .buttonStyle(.plain)
-                    .allowsHitTesting(shell.isSidebarOpen)
-                    .accessibilityLabel("Close sidebar")
-                    .accessibilityHidden(!shell.isSidebarOpen)
-            }
             // Concentric with the display corners while the drawer is open or moving; no clip when closed.
             .clipShape(progress > 0.001 ? AnyShape(ConcentricRectangle()) : AnyShape(Rectangle()))
             .overlay {
@@ -150,9 +140,20 @@ private struct PhoneShell: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
-            .offset(x: shifted ? progress * width : 0)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("main.container")
+            // The container's accessibility frame ignores the drawer offset (a run measured {0,62,402,778} with the drawer
+            // open), so it sat over the drawer's rows and gear in the tree. Out of the tree while the drawer is open.
+            .accessibilityHidden(shell.isSidebarOpen)
+            .overlay {
+                // Closes the drawer on a tap on the visible strip of chat. Invisible: the chat is never dimmed.
+                // A sibling of the container, not a child, so it stays reachable while the container is hidden.
+                Button { setOpen(false) } label: { Color.clear.contentShape(.rect) }
+                    .buttonStyle(.plain)
+                    .allowsHitTesting(shell.isSidebarOpen)
+                    .accessibilityLabel("Close sidebar")
+                    .accessibilityHidden(!shell.isSidebarOpen)
+            }
     }
 
     private func drag(width: CGFloat) -> some Gesture {

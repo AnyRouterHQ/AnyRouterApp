@@ -115,13 +115,12 @@ final class ScreenshotTests: XCTestCase {
         tapRow(button(app, containing: title))
     }
 
-    /// Taps a drawer row like a finger would, after checking it exists.
+    /// Taps a drawer row through the accessibility tree. The rows must be hittable there: the chat's accessibility
+    /// container is hidden while the drawer is open, so Switch Control and VoiceOver reach them too.
     private func tapRow(_ element: XCUIElement) {
         XCTAssertTrue(element.waitForExistence(timeout: 10), "row \(element)")
-        // XCUITest reports static text rows of the open drawer as "not hittable" (its accessibility container sits
-        // over them, see PLAN.md) although a finger reaches them: testDrawerGearOpensSettingsByCoordinate proves that.
-        // Tap like a finger when XCUITest refuses; the assertion after each tap still checks the result.
-        if element.isHittable { element.tap() } else { element.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).tap() }
+        XCTAssertTrue(element.isHittable, "drawer row is reachable through the accessibility tree: \(element)")
+        element.tap()
     }
 
     private func scrollTo(_ element: XCUIElement, in app: XCUIApplication) {
@@ -147,6 +146,7 @@ final class ScreenshotTests: XCTestCase {
             showSidebar(app)
             let gear = app.buttons["Settings"].firstMatch
             XCTAssertTrue(gear.exists, "gear is in the tree")
+            XCTAssertTrue(gear.isHittable, "gear is hittable with the drawer open")
             gear.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
             XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10), "a tap at the gear's centre opens Settings")
             capture("drawer-gear-coordinate-tap", appearance)
