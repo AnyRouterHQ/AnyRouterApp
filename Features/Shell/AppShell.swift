@@ -100,7 +100,8 @@ private struct PhoneShell: View {
                 chat(progress: progress, width: width)
                 sidebar(width: width).opacity(progress)
             } else {
-                sidebar(width: width)
+                // Fully out of the tree while closed: accessibilityHidden alone left the List cells reachable.
+                sidebar(width: width).opacity(progress > 0.001 ? 1 : 0)
                 chat(progress: progress, width: width).offset(x: progress * width)
             }
         }
