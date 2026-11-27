@@ -14,8 +14,9 @@ extension XCUIApplication {
         let menu = buttons["Menu"]
         if menu.exists { return menu.frame.minX > window.width / 2 }
         let compose = buttons["sidebar.compose"]
+        guard compose.exists else { return false }
         let frame = compose.frame
-        return compose.exists && !frame.isEmpty && frame.midX > window.minX && frame.midX < window.maxX
+        return !frame.isEmpty && frame.midX > window.minX && frame.midX < window.maxX
     }
 
     /// Brings the thread list on screen. iPhone: the drawer behind the Menu button. iPad: a column that is open in
