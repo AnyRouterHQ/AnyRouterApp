@@ -121,8 +121,14 @@ jobs:
         env:
           ONLY: ${{ inputs.only }}
         run: |
+          # An app left from the runs above must not be the one the trace attaches to (run 45999561239 caught a
+          # pid that was gone a moment later), so stop it, wait for the test's own launch, then take the newest.
+          pkill -x AnyRouter || true
           (
-            for _ in $(seq 1 240); do pid=$(pgrep -x AnyRouter) && break; sleep 0.25; done
+            for _ in $(seq 1 240); do pgrep -x AnyRouter > /dev/null && break; sleep 0.25; done
+            sleep 8
+            pid=$(pgrep -nx AnyRouter)
+            echo "attaching to $pid"
             sudo xcrun xctrace record --template 'Time Profiler' --attach "$pid" --time-limit 90s --output perf/profile.trace
           ) > perf/xctrace.log 2>&1 &
           recorder=$!
