@@ -82,6 +82,7 @@ jobs:
                                       "title": f"{family['name']} {v['params']}", "quantization": v.get("quant"),
                                       "sizeBytes": v["sizeBytes"], "contextLength": v.get("contextLength"),
                                       "revision": v["revision"], "sha256": v.get("sha256"), "vision": v.get("vision"),
+                                      "sampling": v.get("sampling"),
                                       "status": family["status"]})
               return out
           production = [m for m in ggufs("catalog/models.json") if m["status"] == "current"]
@@ -123,12 +124,14 @@ jobs:
           print(f"MODEL_TITLE={entry['title']}")
           print(f"MODEL_ID={'external' if external else 'gguf/' + repo + '/' + file}")
           print(f"MODEL_EXTERNAL={'1' if external else ''}")
+          # A file over 4 GB is downloaded each run: the repo's 10 GB cache would evict every other entry to hold it.
+          print(f"MODEL_BIG={'1' if entry['sizeBytes'] > 4_000_000_000 else ''}")
           print("MODEL_ENTRY_JSON=" + json.dumps(entry, separators=(",", ":")))
           PY
 
       - name: Cache the model file
         id: model-cache
-        if: env.MODEL_EXTERNAL != '1'
+        if: env.MODEL_EXTERNAL != '1' && env.MODEL_BIG != '1'
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/model
@@ -138,7 +141,8 @@ jobs:
         if: env.MODEL_EXTERNAL == '1' || steps.model-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p "$RUNNER_TEMP/model"
-          curl -L --fail --retry 5 --retry-delay 5 -o "$RUNNER_TEMP/model/$MODEL_FILE" \
+          # A file inside a folder of the repo (Mainline_Support/...) keeps that folder.
+          curl -L --fail --retry 5 --retry-delay 5 --create-dirs -o "$RUNNER_TEMP/model/$MODEL_FILE" \
             "https://huggingface.co/$MODEL_REPO/resolve/$MODEL_REV/$MODEL_FILE"
 
       - name: Download the image projector (a size that takes photos)

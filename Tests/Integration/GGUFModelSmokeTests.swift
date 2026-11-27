@@ -43,7 +43,7 @@ final class GGUFModelSmokeTests: XCTestCase {
             entry = try XCTUnwrap(ggufs.min { ($0.sizeBytes ?? .max) < ($1.sizeBytes ?? .max) }, "bundled catalog has no GGUF entry")
         }
         let file = try XCTUnwrap(entry.file)
-        XCTAssertEqual(source.lastPathComponent, file, "the workflow must download the chosen GGUF file")
+        XCTAssertEqual(source.lastPathComponent, (file as NSString).lastPathComponent, "the workflow must download the chosen GGUF file")
         XCTAssertEqual(size, entry.sizeBytes, "catalog sizeBytes must match the real file")
 
         let storage = LocalModelStorage(root: makeTempDirectory())
