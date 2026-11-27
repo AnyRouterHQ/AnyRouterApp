@@ -24,8 +24,18 @@ struct PromptPreset: Identifiable, Codable, Hashable, Sendable {
     var action: PresetAction? = nil
     /// A phone use case: listed first, and under "On this device" in the More menu.
     var onDevice = false
+    /// The second line of a starter card, which reads on from the title ("Quiz me" / "on world geography").
+    var detail = ""
 
-    private enum CodingKeys: String, CodingKey { case id, title, prompt, category, symbol, options, offerOnPaste, action, onDevice }
+    private enum CodingKeys: String, CodingKey {
+        case id, title, prompt, category, symbol, options, offerOnPaste, action, onDevice, detail
+    }
+
+    /// The card's second line. A preset without one, such as the person's own, shows what it does or its prompt.
+    var cardDetail: String {
+        if !detail.isEmpty { return detail }
+        return action?.summary ?? prompt.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+    }
 }
 
 /// A preset that runs something of the phone rather than writing a prompt.
@@ -77,6 +87,7 @@ extension PromptPreset {
         offerOnPaste = try container.decodeIfPresent(Bool.self, forKey: .offerOnPaste) ?? false
         action = try container.decodeIfPresent(PresetAction.self, forKey: .action)
         onDevice = try container.decodeIfPresent(Bool.self, forKey: .onDevice) ?? false
+        detail = try container.decodeIfPresent(String.self, forKey: .detail) ?? ""
     }
 }
 

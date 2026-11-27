@@ -28,9 +28,13 @@ struct Composer: View {
     @Environment(ShellModel.self) private var shell
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ScaledMetric(relativeTo: .body) private var fieldRadius: CGFloat = 26
+    /// Half the one-line field height (48 pt), so one line is a capsule.
+    @ScaledMetric(relativeTo: .body) private var fieldRadius: CGFloat = 24
     /// The round button keeps its 44 pt minimum at the default size and grows with Dynamic Type.
     @ScaledMetric(relativeTo: .body) private var buttonSize: CGFloat = 44
+    /// Between the field's edge and the 44 pt hit area of its button. The 36 pt circle in that area then sits 6 pt
+    /// inside the 48 pt field, concentric with its ends.
+    private let fieldInset: CGFloat = 2
 
     var body: some View {
         VStack(spacing: 8) {
@@ -95,7 +99,8 @@ struct Composer: View {
                 MentionChips(mentions: model.mentions) { model.removeMention($0) }
             }
             HStack(alignment: .bottom, spacing: 8) {
-                plusMenu
+                // The same inset as the field's button, so the + stays centred on a one-line field and on its last line.
+                plusMenu.padding(.vertical, fieldInset)
                 HStack(alignment: .bottom, spacing: 6) {
                     TextField("", text: $model.input, prompt: Text(hasModel ? "Ask anything" : "Choose a model to start"),
                               axis: .vertical)
@@ -110,12 +115,14 @@ struct Composer: View {
                             if model.canSend { _ = model.send() }
                             return .handled
                         }
-                        .padding(.vertical, 8)
+                        // As tall as the button on one line, so the placeholder sits in the middle of the field.
+                        .padding(.vertical, 11)
+                        .frame(minHeight: buttonSize)
                     trailingButton
                 }
-                .padding(.leading, 14)
-                .padding(.trailing, 4)
-                .padding(.vertical, 4)
+                .padding(.leading, 16)
+                .padding(.trailing, fieldInset)
+                .padding(.vertical, fieldInset)
                 // A floating control over the list, so it takes glass directly (the only such place).
                 // One line is a capsule; more lines keep the same corner radius.
                 .glassEffect(.regular.interactive(), in: .rect(cornerRadius: fieldRadius))

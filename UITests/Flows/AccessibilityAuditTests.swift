@@ -86,6 +86,8 @@ final class AccessibilityAuditTests: XCTestCase {
     func testHome() {
         eachAppearance { app, appearance in
             XCTAssertTrue(app.element(UITestIDs.homeSubtitle).waitForExistence(timeout: 15))
+            // The starter cards above the composer are part of Home: wait for them so the audit covers them.
+            XCTAssertTrue(app.descendants(matching: .any)["composer.suggestions"].waitForExistence(timeout: 10))
             audit(app, "home", appearance)
         }
     }

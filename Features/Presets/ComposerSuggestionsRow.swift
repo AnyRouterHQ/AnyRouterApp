@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The one row above the composer: what was copied, a few preset chips and a More menu, all one line, in
-/// glass like the controls beside the field. What shows, and in what order, is decided by `ComposerSuggestionLogic`.
+/// The one row above the composer: on an empty chat, two-line starter cards; for a copy or a paste, one-line chips.
+/// Both are glass like the controls beside the field, and a More menu ends the row. What shows, and in what order, is
+/// decided by `ComposerSuggestionLogic`.
 struct ComposerSuggestionsRow: View {
     let suggestions: ComposerSuggestions
     let presets: PresetStore
@@ -10,6 +11,7 @@ struct ComposerSuggestionsRow: View {
     var onSend: (PromptPreset) -> Void
     var onEditPresets: () -> Void
     var onDismiss: () -> Void
+    @ScaledMetric(relativeTo: .subheadline) private var cardRadius: CGFloat = 18
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -17,7 +19,8 @@ struct ComposerSuggestionsRow: View {
                 ForEach(suggestions.items) { item in
                     switch item {
                     case .clipboard(let kind): clipboardChip(kind)
-                    case .preset(let preset): presetChip(preset)
+                    case .preset(let preset):
+                        if suggestions.mode == .starters { starterCard(preset) } else { presetChip(preset) }
                     case .more: moreMenu
                     }
                 }
@@ -62,8 +65,26 @@ struct ComposerSuggestionsRow: View {
         .controlSize(.regular)
         .chipOutline(.capsule)
         .frame(minHeight: 44)
+        .accessibilityIdentifier("composer.suggestion.preset.\(preset.id)")
+    }
+
+    /// A starter on the empty chat: the title in bold over a line that reads on from it. A tap fills the composer; the
+    /// context menu sends it at once.
+    private func starterCard(_ preset: PromptPreset) -> some View {
+        Button { onPreset(preset) } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(preset.title).font(.subheadline.weight(.semibold))
+                Text(preset.cardDetail).font(.subheadline).foregroundStyle(.secondary)
+            }
+            .lineLimit(1)
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.glass)
+        .buttonBorderShape(.roundedRectangle(radius: cardRadius))
+        .controlSize(.regular)
+        .chipOutline(.rect(cornerRadius: cardRadius))
         .contextMenu {
-            if suggestions.mode == .starters, preset.action == nil {
+            if preset.action == nil {
                 Button("Send now", systemImage: "arrow.up.circle") { onSend(preset) }
                 Button("Edit in composer", systemImage: "square.and.pencil") { onPreset(preset) }
             }

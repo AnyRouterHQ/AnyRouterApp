@@ -1,6 +1,7 @@
 [
   {
     "id": "spanish-week",
+    "detail": "30 minutes a day for a week",
     "title": "Weekly Spanish plan",
     "prompt": "I am a beginner learning Spanish and can study 30 minutes a day. Build me a 7-day plan. For each day give: (1) a theme, (2) 8 new words with example sentences, (3) one short grammar point with two examples, (4) a 5-minute speaking or writing exercise. End with a quiz of 10 questions that mixes all days, and put the answers at the very bottom.",
     "category": "learn",
@@ -8,6 +9,7 @@
   },
   {
     "id": "explain-simply",
+    "detail": "how vaccines train the body",
     "title": "Explain like I am new",
     "prompt": "Explain how vaccines train the immune system. Start with a one-sentence summary, then a simple analogy, then a short step-by-step explanation, then three common misunderstandings.",
     "category": "learn",
@@ -15,6 +17,7 @@
   },
   {
     "id": "quiz-me",
+    "detail": "on world geography",
     "title": "Quiz me",
     "prompt": "Quiz me on world geography. Ask one question at a time, wait for my answer, tell me if I was right, and raise the difficulty after every two correct answers.",
     "category": "learn",
@@ -22,6 +25,7 @@
   },
   {
     "id": "study-plan",
+    "detail": "three weeks, an hour a day",
     "title": "Exam study plan",
     "prompt": "I have an exam in 3 weeks and 1 hour per weekday to study. Ask me for the subject and my weak topics first, then build a week-by-week plan with review sessions and a final mock test.",
     "category": "learn",
@@ -29,6 +33,7 @@
   },
   {
     "id": "reply-to-this",
+    "detail": "in the tone you choose",
     "offerOnPaste": true,
     "onDevice": true,
     "title": "Reply to this",
@@ -59,6 +64,7 @@
   },
   {
     "id": "translate",
+    "detail": "into the language you pick",
     "title": "Translate",
     "prompt": "Translate the text below into {language}. Keep the meaning, names and numbers. Give the translation only.\n\nText:\n",
     "category": "write",
@@ -83,6 +89,7 @@
   },
   {
     "id": "split-bill",
+    "detail": "with the tip, between friends",
     "title": "Split this bill",
     "prompt": "Split the bill below equally between {people}, with {tip}. List each line item with its price, then the subtotal, the tip, the total, and what each person pays. Show the arithmetic. If a price is hard to read, say so instead of guessing.\n\nBill:\n",
     "category": "plan",
@@ -114,6 +121,7 @@
   },
   {
     "id": "fix-english",
+    "detail": "grammar, spelling and wording",
     "title": "Fix my English",
     "prompt": "Fix the grammar, spelling and wording of the text below. Keep my meaning and tone. Give the corrected text first, then a short list of what you changed.\n\nText:\n",
     "category": "write",
@@ -123,6 +131,7 @@
   },
   {
     "id": "read-photo",
+    "detail": "a sign, a menu or a page",
     "title": "Read text from a photo",
     "prompt": "",
     "category": "explore",
@@ -132,6 +141,7 @@
   },
   {
     "id": "ask-clipboard",
+    "detail": "about what you just copied",
     "title": "Ask about the clipboard",
     "prompt": "",
     "category": "explore",
@@ -141,6 +151,7 @@
   },
   {
     "id": "summarize-link",
+    "detail": "from a link you copied",
     "title": "Summarize a link",
     "prompt": "",
     "category": "learn",
@@ -150,6 +161,7 @@
   },
   {
     "id": "go-offline",
+    "detail": "with a model on this device",
     "title": "Answer offline",
     "prompt": "",
     "category": "explore",
@@ -159,6 +171,7 @@
   },
   {
     "id": "polish-email",
+    "detail": "clear, polite and short",
     "title": "Polish my email",
     "prompt": "Rewrite the email below so it is clear, polite and under 120 words. Keep my meaning. Give two versions: one formal, one friendly.\n\nEmail:\n",
     "category": "write",
@@ -166,6 +179,7 @@
   },
   {
     "id": "cover-letter",
+    "detail": "for the role you want",
     "title": "Cover letter",
     "prompt": "Help me write a one-page cover letter. Ask me five short questions about the role and my background, then write the letter in a warm, direct tone without clichés.",
     "category": "write",
@@ -173,6 +187,7 @@
   },
   {
     "id": "story-start",
+    "detail": "about a lighthouse keeper",
     "title": "Short story",
     "prompt": "Write a 400-word short story about a lighthouse keeper who finds a message in a bottle. Give it a twist ending and a title.",
     "category": "write",
@@ -180,6 +195,7 @@
   },
   {
     "id": "summarize",
+    "detail": "in three bullet points",
     "title": "Summarize text",
     "prompt": "Summarize the text below in three bullet points, then in one sentence, then list any open questions it leaves.\n\nText:\n",
     "category": "write",
@@ -188,6 +204,7 @@
   },
   {
     "id": "weekly-plan",
+    "detail": "around your goals and energy",
     "title": "Plan my week",
     "prompt": "Help me plan my week. Ask me about my fixed commitments, goals and energy levels, then propose a day-by-day schedule with focus blocks, breaks and one buffer slot per day.",
     "category": "plan",
@@ -195,6 +212,7 @@
   },
   {
     "id": "trip-plan",
+    "detail": "a relaxed city break for two",
     "title": "3-day trip",
     "prompt": "Plan a relaxed 3-day city trip for two people on a mid-range budget. Ask me for the city and interests first, then give a morning, afternoon and evening plan per day with rough costs.",
     "category": "plan",
@@ -202,6 +220,7 @@
   },
   {
     "id": "meal-prep",
+    "detail": "five vegetarian days",
     "title": "Meal prep",
     "prompt": "Create a 5-day vegetarian meal prep plan with about 100 g of protein per day. Include a shopping list grouped by aisle and simple reheating instructions.",
     "category": "plan",
@@ -209,6 +228,7 @@
   },
   {
     "id": "decide",
+    "detail": "pros, cons and a pick",
     "title": "Weigh a decision",
     "prompt": "Help me decide between two options. Ask me what they are and what matters most, then make a pros and cons table, score each option, and give a recommendation with the main risk.",
     "category": "plan",
@@ -216,6 +236,7 @@
   },
   {
     "id": "explain-code",
+    "detail": "line by line, with its bugs",
     "title": "Explain this code",
     "prompt": "Explain what the code below does, line by line in plain language, then point out any bugs or edge cases.\n\nCode:\n",
     "category": "code",
@@ -223,6 +244,7 @@
   },
   {
     "id": "debug",
+    "detail": "find the cause step by step",
     "title": "Debug with me",
     "prompt": "I have a bug. Ask me for the error message, the code and what I expected, then walk me through likely causes from most to least probable and how to check each one.",
     "category": "code",
@@ -230,6 +252,7 @@
   },
   {
     "id": "regex",
+    "detail": "for 24-hour times",
     "title": "Write a regex",
     "prompt": "Write a regular expression that matches valid 24-hour times like 07:45 and 23:59. Explain each part and give five matching and five non-matching examples.",
     "category": "code",
@@ -237,6 +260,7 @@
   },
   {
     "id": "brainstorm",
+    "detail": "ten weekend side projects",
     "title": "Brainstorm ideas",
     "prompt": "Brainstorm 10 side project ideas that a single developer can ship in a weekend. For each, give a one-line pitch and the hardest part.",
     "category": "explore",
@@ -244,6 +268,7 @@
   },
   {
     "id": "key-points",
+    "detail": "of the page at a link",
     "title": "Key points",
     "prompt": "Open the page at the link below and list its key points, most important first, one line each.\n\nLink:\n",
     "category": "learn",
@@ -251,6 +276,7 @@
   },
   {
     "id": "describe-image",
+    "detail": "what this image shows",
     "title": "Describe",
     "prompt": "Describe this image: what it shows, any text in it, and anything notable.",
     "category": "explore",

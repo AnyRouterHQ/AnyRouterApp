@@ -117,6 +117,27 @@ struct PasteOfferStoreTests {
         #expect(try JSONDecoder().decode(PromptPreset.self, from: encoded).offerOnPaste == false)
     }
 
+    /// Every starter card has a second line: the bundled ones from presets.json, the person's own from what they do.
+    @Test func everyBundledPresetHasACardDetailAndOlderPresetsFallBack() throws {
+        let items = try PresetStore.bundled(bundle: Bundle(for: PresetStore.self))
+        #expect(!items.isEmpty)
+        for item in items { #expect(!item.detail.isEmpty, "\(item.id) has no detail in presets.json") }
+        #expect(items.first { $0.id == "quiz-me" }?.cardDetail == "on world geography")
+
+        let json = Data(#"{"id":"a","title":"A","prompt":"Plan my day\nwith breaks","category":"plan","symbol":"x"}"#.utf8)
+        let saved = try JSONDecoder().decode(PromptPreset.self, from: json)
+        #expect(saved.detail.isEmpty, "a preset saved before the field existed still loads")
+        #expect(saved.cardDetail == "Plan my day")
+        let useCase = PromptPreset(id: "o", title: "O", prompt: "", category: .plan, symbol: "x", action: .goOffline)
+        #expect(useCase.cardDetail == PresetAction.goOffline.summary)
+        #expect(PromptPreset(id: "e", title: "E", prompt: "", category: .plan, symbol: "x").cardDetail.isEmpty)
+
+        var mine = PromptPreset(id: "m", title: "M", prompt: "P", category: .plan, symbol: "x")
+        mine.detail = "my own line"
+        let reread = try JSONDecoder().decode(PromptPreset.self, from: JSONEncoder().encode(mine))
+        #expect(reread.cardDetail == "my own line")
+    }
+
     @Test func theBundledFixEnglishPresetIsOfferedByDefault() throws {
         let items = try PresetStore.bundled(bundle: Bundle(for: PresetStore.self))
         #expect(items.first { $0.id == InboundPreset.fixEnglish }?.offerOnPaste == true)
