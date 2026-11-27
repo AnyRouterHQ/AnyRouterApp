@@ -70,9 +70,15 @@ struct AgentToolHost: ToolHost {
         return result
     }
 
-    /// A call that needs no approval of its own but could carry chat text out: a URL the user never wrote, or a
-    /// search that repeats a long passage of the chat. MCP tools that need approval already ask in `MCPToolHost`.
+    /// A built-in write or external call, asked every time; or a call that needs no approval of its own but could carry
+    /// chat text out: a URL the user never wrote, or a search that repeats a long passage of the chat. MCP tools that
+    /// need approval already ask in `MCPToolHost`.
     private func approvalRequest(for call: ToolCall) -> ToolApprovalRequest? {
+        if let tool = builtIns[call.name], !tool.sideEffect.isRead, !tool.undoesInsteadOfAsking {
+            // A reason keeps "Always allow" off the card and the dialog.
+            let reason = tool.sideEffect == .write ? "This changes data in the app." : "This sends something outside the app."
+            return ToolApprovalRequest(serverName: "This device", spec: tool.spec, call: call, reason: reason)
+        }
         guard let spec = allSpecs.first(where: { $0.name == call.name }), spec.isReadOnly,
             let arguments = MCPToolHost.arguments(from: call.argumentsJSON)
         else { return nil }

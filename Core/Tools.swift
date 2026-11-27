@@ -8,10 +8,33 @@ struct ToolSpec: Identifiable, Hashable, Codable, Sendable {
     var description: String
     /// JSON Schema of the arguments object, as JSON text.
     var inputSchemaJSON: String
-    /// False when the server did not mark the tool read-only: the user is asked before it runs.
-    var isReadOnly: Bool
+    /// What running the tool can change. The tool host's approvals follow it.
+    var sideEffect: ToolSideEffect
 
     var id: String { name }
+    /// The tool only reads: no approval of its own, but the exfiltration guard still checks what it sends.
+    var isReadOnly: Bool { sideEffect.isRead }
+}
+
+extension ToolSpec {
+    /// A tool known only as read-only or not, as an MCP server marks it: anything that is not read-only acts on the server.
+    init(name: String, title: String?, description: String, inputSchemaJSON: String, isReadOnly: Bool) {
+        self.init(name: name, title: title, description: description, inputSchemaJSON: inputSchemaJSON, sideEffect: isReadOnly ? .read : .external)
+    }
+}
+
+/// The side-effect class of a tool (PLAN LA1).
+enum ToolSideEffect: String, Codable, CaseIterable, Sendable {
+    /// Reads nothing private and changes nothing. Runs without asking.
+    case read
+    /// Reads the user's own data, such as other chats. Runs without asking; what it read is the user's.
+    case sensitiveRead
+    /// Changes data in the app or on the device. Asked every time, never "always allowed".
+    case write
+    /// Acts outside the app: sends something or changes a server. Asked every time, never "always allowed".
+    case external
+
+    var isRead: Bool { self == .read || self == .sensitiveRead }
 }
 
 struct ToolCall: Identifiable, Hashable, Codable, Sendable {

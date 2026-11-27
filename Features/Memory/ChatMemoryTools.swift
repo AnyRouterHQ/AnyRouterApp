@@ -89,9 +89,11 @@ final class ChatMemoryTools {
     }
 }
 
-/// `memory`: search, add or remove one saved item.
+/// `memory`: search, add or remove one saved item. A write that never asks: the reply shows each change with Undo.
 struct MemoryTool: BuiltInTool {
     let backend: ChatMemoryTools
+    let sideEffect = ToolSideEffect.write
+    let undoesInsteadOfAsking = true
     let name = MemoryToolLogic.memoryName
     let title = "Memory"
     let summary = "What you told the app before"
@@ -101,9 +103,10 @@ struct MemoryTool: BuiltInTool {
     func run(_ arguments: JSONValue) async throws -> String { try await backend.memory(arguments) }
 }
 
-/// `search_chats`: earlier chats that mention the query.
+/// `search_chats`: earlier chats that mention the query. It reads the user's own chats, so it is a sensitive read.
 struct SearchChatsTool: BuiltInTool {
     let backend: ChatMemoryTools
+    let sideEffect = ToolSideEffect.sensitiveRead
     let name = MemoryToolLogic.searchChatsName
     let title = "Search chats"
     let summary = "Find earlier chats"

@@ -1,6 +1,6 @@
 import Foundation
 
-/// A tool that runs on the device. Built-in tools only read: they never need the user's approval.
+/// A tool that runs on the device. A write or external tool is asked about every time it runs (PLAN LA1).
 protocol BuiltInTool: Sendable {
     /// The name the model calls it by. Letters, digits and `_`.
     var name: String { get }
@@ -12,14 +12,20 @@ protocol BuiltInTool: Sendable {
     var inputSchemaJSON: String { get }
     /// The tool needs an internet connection, so it is left out while the device is offline.
     var needsNetwork: Bool { get }
+    /// What running it can change.
+    var sideEffect: ToolSideEffect { get }
+    /// A write that runs without asking because the reply shows what it changed with Undo.
+    var undoesInsteadOfAsking: Bool { get }
     func run(_ arguments: JSONValue) async throws -> String
 }
 
 extension BuiltInTool {
     var needsNetwork: Bool { false }
+    var sideEffect: ToolSideEffect { .read }
+    var undoesInsteadOfAsking: Bool { false }
 
     var spec: ToolSpec {
-        ToolSpec(name: name, title: title, description: description, inputSchemaJSON: inputSchemaJSON, isReadOnly: true)
+        ToolSpec(name: name, title: title, description: description, inputSchemaJSON: inputSchemaJSON, sideEffect: sideEffect)
     }
 }
 
