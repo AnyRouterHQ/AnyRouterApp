@@ -20,7 +20,8 @@ struct DocumentScanner: UIViewControllerRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     @MainActor
-    final class Coordinator: NSObject, VNDocumentCameraViewControllerDelegate {
+    // VisionKit calls the delegate on the main thread but does not mark the protocol; Swift 6 needs that said here.
+    final class Coordinator: NSObject, @preconcurrency VNDocumentCameraViewControllerDelegate {
         let parent: DocumentScanner
         init(_ parent: DocumentScanner) { self.parent = parent }
 
