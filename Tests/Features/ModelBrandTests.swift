@@ -82,6 +82,24 @@ struct ModelBrandTests {
         }
     }
 
+    @Test func aColorMarkIsUsedWhereItReadsAndTheSingleColorMarkElsewhere() {
+        #expect(ModelBrand.table.colorMarks["google"] == .any)
+        #expect(ModelBrand.colorAsset(for: "Logo-google", dark: false) == "Logo-google-color")
+        #expect(ModelBrand.colorAsset(for: "Logo-google", dark: true) == "Logo-google-color")
+        #expect(ModelBrand.table.colorMarks["aws"] == .light)
+        #expect(ModelBrand.colorAsset(for: "Logo-aws", dark: false) == "Logo-aws-color")
+        #expect(ModelBrand.colorAsset(for: "Logo-aws", dark: true) == nil, "black parts vanish in dark mode")
+        #expect(ModelBrand.colorAsset(for: "Logo-openai", dark: false) == nil, "no color mark: the template")
+        #expect(ModelBrand.colorAsset(for: ModelBrand.anyRouterMark, dark: false) == nil)
+    }
+
+    @Test func everyColorMarkShipsItsImage() {
+        for slug in ModelBrand.table.colorMarks.keys {
+            #expect(UIImage(named: "Logo-\(slug)-color") != nil, "Logo-\(slug)-color is missing from the asset catalog")
+            #expect(ModelBrand.table.brands[slug] != nil)
+        }
+    }
+
     @Test func aLogoFromTheAPIWins() throws {
         var model = cloudModel("openai/gpt-5")
         model.cloud?.logoURL = URL(string: "https://example.com/openai.png")

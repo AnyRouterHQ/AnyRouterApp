@@ -227,5 +227,40 @@
       "prefix": "inkling",
       "symbol": "drop.fill"
     }
-  ]
+  ],
+  "colorMarks": {
+    "aion-labs": "light",
+    "antgroup": "any",
+    "arcee": "any",
+    "aws": "light",
+    "baidu": "any",
+    "bytedance": "any",
+    "cloudflare": "any",
+    "cohere": "any",
+    "deepseek": "any",
+    "exa": "any",
+    "fireworks": "light",
+    "google": "any",
+    "huggingface": "any",
+    "internlm": "any",
+    "meta": "any",
+    "microsoft": "any",
+    "minimax": "any",
+    "mistral": "any",
+    "morph": "any",
+    "nvidia": "any",
+    "openrouter": "any",
+    "perplexity": "any",
+    "qwen": "any",
+    "reflection": "light",
+    "sakana": "any",
+    "snowflake": "any",
+    "stepfun": "any",
+    "tencent": "any",
+    "together": "any",
+    "upstage": "any",
+    "venice": "any",
+    "vllm": "any",
+    "z-ai": "any"
+  }
 }

@@ -4,12 +4,17 @@ import SwiftUI
 struct ModelLogo: View {
     let brand: ModelBrand
     var size: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Group {
             switch brand {
             case .asset(let name):
-                Image(name).resizable().renderingMode(.template).scaledToFit()
+                if let color = ModelBrand.colorAsset(for: name, dark: colorScheme == .dark) {
+                    Image(color).resizable().scaledToFit()
+                } else {
+                    Image(name).resizable().renderingMode(.template).scaledToFit()
+                }
             case .symbol(let name):
                 Image(systemName: name).resizable().scaledToFit()
             case .tile(let name):
