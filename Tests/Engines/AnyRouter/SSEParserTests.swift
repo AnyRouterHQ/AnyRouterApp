@@ -20,6 +20,7 @@ final class SSEParserTests: XCTestCase {
     static func describe(_ delta: ChatDelta) -> String {
         switch delta {
         case .text(let text): return "text:\(text)"
+        case .reasoning(let text): return "reasoning:\(text)"
         case .usage(let prompt, let completion): return "usage:\(prompt)/\(completion)"
         case .done(let reason): return "done:\(reason ?? "nil")"
         case .toolCall(let call): return "toolCall:\(call.name)"

@@ -221,6 +221,22 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// One reply with its parts: the reasoning row (collapsed, then open), the tool line, the answer and the footer.
+    func testReplyParts() {
+        forEachAppearance(extra: ["-ARDemoParts", "YES"]) { app, appearance in
+            showSidebar(app)
+            tapRow(app.staticTexts["Reply parts"])
+            let reasoning = app.buttons["reasoning.row"].firstMatch
+            XCTAssertTrue(reasoning.waitForExistence(timeout: 10), "the reasoning row is there")
+            XCTAssertTrue(reasoning.label.contains("Thought for 12s"), "it says how long the model thought: \(reasoning.label)")
+            capture("reply-parts", appearance)
+            reasoning.tap()
+            XCTAssertTrue(app.staticTexts["reasoning.text"].firstMatch.waitForExistence(timeout: 5)
+                || app.descendants(matching: .any)["reasoning.text"].waitForExistence(timeout: 5))
+            capture("reply-parts-reasoning-open", appearance)
+        }
+    }
+
     /// A markdown reply that cites pages: the footer row with its favicon chain and "5 sources", then the list behind it.
     func testReplyWithSources() {
         forEachAppearance(extra: ["-ARDemoSources", "YES"]) { app, appearance in

@@ -119,7 +119,7 @@ final class GGUFModelSmokeTests: XCTestCase {
             case .done(let reason):
                 done += 1
                 finishReason = reason
-            case .toolCall, .toolResult, .metadata:
+            case .toolCall, .toolResult, .metadata, .reasoning:
                 break
             }
         }
@@ -188,7 +188,7 @@ final class GGUFModelSmokeTests: XCTestCase {
             switch delta {
             case .text(let piece): text += piece
             case .usage(let prompt, let completion): usage = (prompt, completion)
-            case .done, .toolCall, .toolResult, .metadata: break
+            case .done, .toolCall, .toolResult, .metadata, .reasoning: break
             }
         }
         let elapsed = clock.now - start

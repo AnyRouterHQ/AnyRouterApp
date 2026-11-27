@@ -3,7 +3,7 @@ import Observation
 import SwiftData
 
 /// Offline sample data for screenshots and UI tests. Active only with the launch argument `-ARDemoData YES`.
-/// Optional flags: `-ARDemoSources YES` (a markdown reply that cites five pages), `-ARReplyTextStep -2...3`, `-ARReplyFont serif|rounded`, `-ARDemoSignedOut YES`, `-ARDemoOnboarding YES`, `-ARDemoTools YES` (a thread with a web search step), `-ARAppearance light|dark`.
+/// Optional flags: `-ARDemoParts YES` (a reply with reasoning, tools, files, a subagent and a compacted history), `-ARDemoSources YES` (a markdown reply that cites five pages), `-ARReplyTextStep -2...3`, `-ARReplyFont serif|rounded`, `-ARDemoSignedOut YES`, `-ARDemoOnboarding YES`, `-ARDemoTools YES` (a thread with a web search step), `-ARAppearance light|dark`.
 /// `-ARDemoKeepSettings YES` keeps settings from the previous launch, to test persistence.
 enum DemoData {
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: "ARDemoData") }
@@ -31,6 +31,7 @@ enum DemoData {
     static var initialThreadID: UUID? { isEnabled && longThreadMessages > 0 ? longThreadID : nil }
     private static var tools: Bool { UserDefaults.standard.bool(forKey: "ARDemoTools") }
     private static var sources: Bool { UserDefaults.standard.bool(forKey: "ARDemoSources") }
+    private static var parts: Bool { UserDefaults.standard.bool(forKey: "ARDemoParts") }
 
     /// Text of the demo search result, read by the UI tests.
     static let demoSearchResult = "Swift 7 adds typed throws everywhere and faster builds."
@@ -97,6 +98,7 @@ enum DemoData {
         insertSwitchThread(in: context, at: now)
         if tools { insertToolThread(in: context, at: now) }
         if sources { insertSourcesThread(in: context, at: now) }
+        if parts { insertPartsThread(in: context, at: now) }
         if longThreadMessages > 0 { insertLongThread(into: context, now: now) }
         try context.save()
         return container
@@ -145,6 +147,41 @@ enum DemoData {
             costUSD: Decimal(string: "0.0004"), promptTokens: 74, completionTokens: 12, cachedTokens: 40,
             upstreamLatencyMs: 880, ttftMs: 700, totalMs: 1300)
         return record
+    }
+
+    static let partsThreadTitle = "Reply parts"
+
+    /// The newest thread: one answer that thought for 12 seconds, searched the web and cited five pages.
+    @MainActor
+    private static func insertPartsThread(in context: ModelContext, at now: Date) {
+        let thread = ThreadRecord(title: partsThreadTitle, createdAt: now.addingTimeInterval(180),
+                                  modelID: "anyrouter/anthropic/claude-sonnet-4-6")
+        context.insert(thread)
+        let question = MessageRecord(role: .user, content: "Why do Swift actors need await?", createdAt: thread.createdAt)
+        let answer = MessageRecord(
+            role: .assistant,
+            content: "An actor runs one task at a time, so a call from outside may have to **wait its turn**. `await` marks that wait.",
+            createdAt: thread.createdAt.addingTimeInterval(20),
+            modelName: "Claude Sonnet 4.6", modelID: "anyrouter/anthropic/claude-sonnet-4-6")
+        answer.metadata = ResponseMetadata(
+            requestID: "req_parts", servedModelID: "anthropic/claude-sonnet-4-6", servedModelName: "Claude Sonnet 4.6",
+            provider: "Anthropic", costUSD: Decimal(string: "0.0123"), promptTokens: 1210, completionTokens: 188,
+            upstreamLatencyMs: 900, ttftMs: 900, totalMs: 14_000)
+        answer.reasoning = ReasoningTrace(
+            text: """
+            The question is about isolation. An actor serializes access to its state.
+            A caller outside the actor cannot touch the state directly, so the call is asynchronous.
+            That is why the compiler asks for await: the call is a suspension point.
+            I will check the Swift documentation and then answer in two sentences.
+            """,
+            durationMs: 12_000)
+        context.insert(question)
+        context.insert(answer)
+        question.thread = thread
+        answer.thread = thread
+        let call = ToolCall(id: "demo-parts", name: "web_search_exa", argumentsJSON: #"{"query":"swift actor await"}"#)
+        answer.toolSteps = [ToolStep(
+            call: call, result: ToolResult(callID: call.id, name: call.name, text: demoSourcesResult, isError: false))]
     }
 
     static let sourcesThreadTitle = "Swift actors with sources"

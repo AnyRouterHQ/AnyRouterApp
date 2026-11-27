@@ -166,6 +166,8 @@ struct AnyRouterEngine: ChatEngine {
                     case .text(let piece):
                         round.text += piece
                         emit(delta)
+                    case .reasoning:
+                        emit(delta)
                     case .usage(let prompt, let completion):
                         round.usage = (prompt, completion)
                     case .metadata(let metadata):

@@ -48,6 +48,8 @@ struct GenerationParams: Codable, Sendable {
 enum ChatDelta: Sendable, Equatable {
     /// Append-only suffix.
     case text(String)
+    /// Append-only suffix of what the model thinks before it answers. Shown apart from the answer and never sent back.
+    case reasoning(String)
     case usage(prompt: Int, completion: Int)
     case done(finishReason: String?)
     /// The model asked for a tool. Emitted once per call, before it runs.

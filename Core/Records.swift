@@ -45,6 +45,8 @@ final class MessageRecord {
     /// Tool calls of an assistant reply as JSON. Display only: it is never sent back to a model.
     /// Optional so existing stores migrate without a mapping.
     var toolTraceData: Data?
+    /// What the model thought before it answered, as JSON. Display only. Optional so existing stores migrate without a mapping.
+    var reasoningData: Data?
     /// Who served this reply, cost and speed, as JSON. Optional so existing stores migrate without a mapping.
     var metadataData: Data?
     /// Display name of the model that wrote this reply. Optional so existing stores migrate.
@@ -82,6 +84,11 @@ final class MessageRecord {
     var metadata: ResponseMetadata? {
         get { metadataData.flatMap { try? JSONDecoder().decode(ResponseMetadata.self, from: $0) } }
         set { metadataData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+    }
+
+    var reasoning: ReasoningTrace? {
+        get { reasoningData.flatMap { try? JSONDecoder().decode(ReasoningTrace.self, from: $0) } }
+        set { reasoningData = newValue.flatMap { try? JSONEncoder().encode($0) } }
     }
 
     var toolSteps: [ToolStep] {

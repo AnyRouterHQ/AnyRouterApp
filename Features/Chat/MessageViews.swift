@@ -55,6 +55,10 @@ struct MessageRow: View {
         let signpost = Perf.signposter.beginInterval("row.assistant")
         defer { Perf.signposter.endInterval("row.assistant", signpost) }
         let steps = message.toolSteps
+        let parts = ReplyParts.make(
+            reasoning: message.reasoning, steps: steps, content: message.content, isStreaming: isStreamingThis)
+        let answerStarted = !message.content.isEmpty
+        let thinking = parts.contains { if case .reasoning(_, true) = $0 { true } else { false } }
         return VStack(alignment: .leading, spacing: 6) {
             if let switchNote {
                 Text(switchNote)
@@ -64,8 +68,15 @@ struct MessageRow: View {
                     .padding(.bottom, 6)
                     .accessibilityIdentifier("switch-note")
             }
-            if !steps.isEmpty { ToolChainView(steps: steps, answerStarted: !message.content.isEmpty) }
-            if message.content.isEmpty && isStreamingThis && !steps.contains(where: { $0.result == nil }) {
+            ForEach(parts) { part in
+                switch part {
+                case .reasoning(let trace, let isStreaming): ReasoningRow(trace: trace, isStreaming: isStreaming)
+                case .toolStep(let calls): ToolChainView(steps: calls, answerStarted: answerStarted)
+                case .text(let text): MarkdownReply(text: text)
+                }
+            }
+            // The model is loading, or has not started the answer, and nothing else on the row says it is working.
+            if isStreamingThis && !answerStarted && !thinking && !steps.contains(where: { $0.result == nil }) {
                 if let loadingModelName {
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
@@ -78,8 +89,6 @@ struct MessageRow: View {
                     TypingDots()
                         .padding(.vertical, 8)
                 }
-            } else if !message.content.isEmpty {
-                MarkdownReply(text: message.content)
             }
             if let footer = ReplyFooter.make(
                 content: message.content, isStreaming: isStreamingThis, showsRegenerate: showsRegenerate,

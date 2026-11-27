@@ -102,6 +102,9 @@ struct ChatChunkDecoder {
         var deltas: [ChatDelta] = []
         if let choices = json["choices"] as? [[String: Any]] {
             for choice in choices {
+                if let delta = choice["delta"] as? [String: Any], let thought = Self.reasoning(in: delta) {
+                    deltas.append(.reasoning(thought))
+                }
                 if let delta = choice["delta"] as? [String: Any],
                     let text = delta["content"] as? String, !text.isEmpty {
                     deltas.append(.text(text))
@@ -128,6 +131,14 @@ struct ChatChunkDecoder {
             }
         }
         return deltas
+    }
+
+    /// The reasoning in a stream delta. Servers name it `reasoning_content` or `reasoning`.
+    static func reasoning(in delta: [String: Any]) -> String? {
+        for key in ["reasoning_content", "reasoning"] {
+            if let text = delta[key] as? String, !text.isEmpty { return text }
+        }
+        return nil
     }
 
     /// `anyrouter_metadata`: requestId, model, upstream {provider, backend, latencyMs}, usage, cost {amount, currency}.

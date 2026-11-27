@@ -559,6 +559,22 @@ final class ChatViewModel {
             var ttftMs: Int?
             // A fast local model makes 50 tokens a second; the screen takes them 20 times a second.
             var pending = TextCoalescer(interval: Self.textInterval)
+            // What the model thinks before it answers: sent as reasoning deltas, or inline as <think> in the text.
+            var splitter = ReasoningSplitter()
+            var thoughts = ReasoningRecorder()
+            var thoughtsShownAt: TimeInterval?
+            func showThoughts(_ piece: String) {
+                thoughts.add(piece, at: clock())
+                let time = clock()
+                if let last = thoughtsShownAt, time - last < Self.textInterval { return }
+                thoughtsShownAt = time
+                assistant.reasoning = thoughts.trace
+            }
+            func endThoughts() {
+                guard !thoughts.hasEnded, thoughts.trace != nil else { return }
+                thoughts.end(at: clock())
+                assistant.reasoning = thoughts.trace
+            }
             do {
                 for try await delta in stream {
                     // A chunk that was already buffered when the user pressed stop is dropped.
@@ -567,15 +583,26 @@ final class ChatViewModel {
                     if Self.isGone(assistant) || Self.isGone(thread) { break }
                     if case .text = delta {} else if let held = pending.flush() { assistant.content += held }
                     switch delta {
+                    case .reasoning(let piece):
+                        self?.loadingModelName = nil
+                        showThoughts(piece)
                     case .text(let piece):
+                        let split = splitter.feed(piece)
+                        if !split.reasoning.isEmpty {
+                            self?.loadingModelName = nil
+                            showThoughts(split.reasoning)
+                        }
+                        if split.text.isEmpty { continue }
+                        endThoughts()
                         if !firstTokenSeen {
                             firstTokenSeen = true
                             self?.loadingModelName = nil
                             ttftMs = Self.milliseconds(clock() - startedAt)
                             telemetry.track(.firstTokenMs(TelemetryEvent.milliseconds(ContinuousClock.now - started), source: source))
                         }
-                        if let text = pending.add(piece, now: clock()) { assistant.content += text }
+                        if let text = pending.add(split.text, now: clock()) { assistant.content += text }
                     case .toolCall(let call):
+                        endThoughts()
                         assistant.toolSteps.append(ToolStep(call: call, result: nil, sourceID: tools?.sourceID(forTool: call.name)))
                     case .toolResult(let result): Self.fill(result, in: assistant)
                     case .usage(let prompt, let completion): tokens = (prompt, completion)
@@ -592,8 +619,14 @@ final class ChatViewModel {
                 self?.abandon()
                 return
             }
+            // A tag that never closed or never opened: the held characters are what they were.
+            let rest = splitter.finish()
+            if !rest.reasoning.isEmpty { showThoughts(rest.reasoning) }
+            if !rest.text.isEmpty, let text = pending.add(rest.text, now: clock()) { assistant.content += text }
             if let held = pending.flush() { assistant.content += held }
-            if !assistant.content.isEmpty || !assistant.toolSteps.isEmpty {
+            endThoughts()
+            if thoughts.trace != nil { assistant.reasoning = thoughts.trace }
+            if !assistant.content.isEmpty || !assistant.toolSteps.isEmpty || assistant.reasoning != nil {
                 assistant.metadata = Self.finalMetadata(
                     reported, tokens: tokens, model: model, ttftMs: ttftMs,
                     totalMs: Self.milliseconds(clock() - startedAt),
@@ -680,7 +713,7 @@ final class ChatViewModel {
         }
         if steps != assistant.toolSteps { assistant.toolSteps = steps }
         let gotReply = failure == nil && !assistant.content.isEmpty
-        if assistant.content.isEmpty && steps.isEmpty { remove(assistant) }
+        if assistant.content.isEmpty && steps.isEmpty && assistant.reasoning == nil { remove(assistant) }
         thread.updatedAt = Date()
         phase = .idle
         task = nil
