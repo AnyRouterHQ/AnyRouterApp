@@ -66,6 +66,65 @@ enum Gemma4Formatter {
     }
 }
 
+/// Inkling 2 message format. Its template is jinja with a `{% generation %}` block the engine cannot compile, and
+/// llama.cpp's built-in list does not know it. Each message is `<|message_ROLE|><|content_text|>TEXT<|end_message|>`,
+/// an answer ends with `<|content_model_end_sampling|>` (the end-of-generation token), and a system line with the
+/// thinking effort comes before the first message that is not a system one. The prompt adds no reply header: the model
+/// writes `<|message_model|>` itself, then `<|content_thinking|>` for its reasoning or `<|content_text|>` for the answer.
+enum InklingFormatter {
+    static let thinking = "<|content_thinking|>"
+    static let endMessage = "<|end_message|>"
+    /// The template's scale is 0 to 0.99 and its default is 0.9. A phone reads every expert from storage, so it asks for
+    /// low effort (0.2): the model card warns of long reasoning loops, and each token costs seconds.
+    static let effort = "0.2"
+
+    static func matches(template: String) -> Bool {
+        template.contains("<|message_model|>") && template.contains("<|content_text|>")
+    }
+
+    static func format(_ messages: [PromptMessage]) -> String {
+        let effortLine = "<|message_system|><|content_text|>Thinking effort level: \(effort)\(endMessage)"
+        var text = ""
+        var wroteEffort = false
+        for message in messages {
+            if !wroteEffort, message.role != "system" {
+                text += effortLine
+                wroteEffort = true
+            }
+            let role = message.role == "assistant" ? "model" : message.role
+            text += "<|message_\(role)|><|content_text|>\(message.content)\(endMessage)"
+            if message.role == "assistant" { text += "<|content_model_end_sampling|>" }
+        }
+        return wroteEffort ? text : text + effortLine
+    }
+}
+
+/// Writes `<think>` and `</think>` around a reasoning span that a model marks with special tokens, which print as
+/// nothing: the open token starts it, the next close token ends it. The reasoning row then reads it like any other.
+struct ThinkingSpanTagger {
+    let open: Int32?
+    let close: Int32?
+    private var inside = false
+
+    init(open: Int32?, close: Int32?) {
+        self.open = open
+        self.close = close
+    }
+
+    /// The tag to write for this token, or nil when it is not a span boundary.
+    mutating func tag(for token: Int32) -> String? {
+        if let open, token == open, !inside {
+            inside = true
+            return "<think>"
+        }
+        if let close, token == close, inside {
+            inside = false
+            return "</think>"
+        }
+        return nil
+    }
+}
+
 /// Gemma 4 can open a thinking channel (`<|channel>thought ... <channel|>`) before its answer.
 /// The app has no thinking view yet, so tokens inside the channel are not shown.
 struct ThoughtChannelFilter {

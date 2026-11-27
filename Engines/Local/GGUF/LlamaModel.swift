@@ -35,6 +35,9 @@ final class LlamaModel: @unchecked Sendable {
     /// The template compiled once; nil when the model has none or it uses syntax the engine cannot compile.
     private let jinja: JinjaChatTemplate?
     private let thoughtChannel: (open: llama_token, close: llama_token)?
+    /// Models whose reasoning is a span of special tokens (Inkling) get `<think>` tags written around it, so the
+    /// reasoning row shows it apart from the answer.
+    private let thinkingSpan: (open: llama_token, close: llama_token)?
 
     init(path: String) throws {
         _ = Self.backend
@@ -61,7 +64,9 @@ final class LlamaModel: @unchecked Sendable {
         #if targetEnvironment(simulator)
         params.n_gpu_layers = 0
         #else
-        params.n_gpu_layers = GPUOffload.layers(
+        // A streamed model stays on the CPU: Metal would map the whole file into GPU buffers, which the system charges
+        // to the app, and the point of streaming is that only the experts in use are resident.
+        params.n_gpu_layers = estimate.streamsFromStorage ? 0 : GPUOffload.layers(
             blockCount: info?.blockCount ?? 0, fileBytes: fileBytes,
             gpuBudgetBytes: MTLCreateSystemDefaultDevice().map { Int64($0.recommendedMaxWorkingSetSize) })
         #endif
@@ -82,12 +87,21 @@ final class LlamaModel: @unchecked Sendable {
         self.eosText = Self.specialPiece(llama_vocab_eos(vocab), vocab: vocab)
         let template = llama_model_chat_template(model, nil).map { String(cString: $0) }
         self.template = template
-        self.jinja = template.flatMap { Gemma4Formatter.matches(template: $0) ? nil : JinjaChatTemplate(source: $0) }
+        self.jinja = template.flatMap {
+            Gemma4Formatter.matches(template: $0) || InklingFormatter.matches(template: $0) ? nil : JinjaChatTemplate(source: $0)
+        }
         if let template, Gemma4Formatter.matches(template: template),
            let open = Self.specialToken("<|channel>", vocab: vocab), let close = Self.specialToken("<channel|>", vocab: vocab) {
             self.thoughtChannel = (open, close)
         } else {
             self.thoughtChannel = nil
+        }
+        if let template, InklingFormatter.matches(template: template),
+           let open = Self.specialToken(InklingFormatter.thinking, vocab: vocab),
+           let close = Self.specialToken(InklingFormatter.endMessage, vocab: vocab) {
+            self.thinkingSpan = (open, close)
+        } else {
+            self.thinkingSpan = nil
         }
     }
 
@@ -148,12 +162,13 @@ final class LlamaModel: @unchecked Sendable {
     // MARK: Prompt
 
     /// Which formatter wrote a prompt, for the smoke report.
-    enum PromptPath: String, Sendable { case gemma4, jinja, native, chatML }
+    enum PromptPath: String, Sendable { case gemma4, inkling, jinja, native, chatML }
 
-    /// The prompt in the model's own chat format, and which formatter produced it. In order: the Gemma 4 formatter, the
-    /// model's own template rendered with Jinja, llama.cpp's built-in list of templates, and ChatML as the last resort.
+    /// The prompt in the model's own chat format, and which formatter produced it. In order: the Gemma 4 and Inkling
+    /// formatters, the model's own template rendered with Jinja, llama.cpp's built-in list of templates, and ChatML as the last resort.
     func format(_ messages: [PromptMessage]) -> (path: PromptPath, text: String) {
         if let template, Gemma4Formatter.matches(template: template) { return (.gemma4, Gemma4Formatter.format(messages)) }
+        if let template, InklingFormatter.matches(template: template) { return (.inkling, InklingFormatter.format(messages)) }
         if let rendered = jinja?.render(messages, bos: bosText, eos: eosText) { return (.jinja, rendered) }
         if let native = formatWithTemplate(messages) { return (.native, native) }
         return (.chatML, ChatMLFormatter.format(messages))
@@ -229,10 +244,12 @@ final class LlamaModel: @unchecked Sendable {
 
     /// Runs the prompt and streams the answer through `emit`. Throws `CancellationError` when `isCancelled` turns true.
     func generate(
-        promptTokens: [llama_token], params: GenerationParams, isCancelled: () -> Bool, emit: (String) -> Void
+        promptTokens: [llama_token], params: GenerationParams, sampling: CatalogSampling? = nil, isCancelled: () -> Bool,
+        emit: (String) -> Void
     ) throws -> LlamaResult {
         try generate(
-            promptSize: promptTokens.count, batch: 512, contextCap: nil, params: params, isCancelled: isCancelled, emit: emit
+            promptSize: promptTokens.count, batch: 512, contextCap: nil, params: params, sampling: sampling,
+            isCancelled: isCancelled, emit: emit
         ) { context, batchSize in
             // Prefill in n_batch sized chunks; only the last token produces logits.
             var tokens = promptTokens
@@ -253,11 +270,12 @@ final class LlamaModel: @unchecked Sendable {
     /// The answer to a prompt with photos. The photos and the text around them go through `mtmd`, which encodes each photo
     /// into the tokens the model reads.
     func generate(
-        images prompt: PreparedVision, params: GenerationParams, isCancelled: () -> Bool, emit: (String) -> Void
+        images prompt: PreparedVision, params: GenerationParams, sampling: CatalogSampling? = nil,
+        isCancelled: () -> Bool, emit: (String) -> Void
     ) throws -> LlamaResult {
         // A photo is read in one piece (up to a few hundred tokens), so the batch must hold it.
         try generate(
-            promptSize: prompt.tokenCount, batch: 1024, contextCap: prompt.contextCap, params: params,
+            promptSize: prompt.tokenCount, batch: 1024, contextCap: prompt.contextCap, params: params, sampling: sampling,
             isCancelled: isCancelled, emit: emit
         ) { context, batchSize in
             try prompt.evaluate(context: context, batchSize: batchSize)
@@ -267,8 +285,8 @@ final class LlamaModel: @unchecked Sendable {
     /// Creates the context, reads the prompt through `prefill`, then samples until the model stops. `promptSize` is the
     /// number of positions the prompt takes, checked against the context before anything is allocated.
     private func generate(
-        promptSize: Int, batch: Int, contextCap: Int?, params: GenerationParams, isCancelled: () -> Bool,
-        emit: (String) -> Void, prefill: (OpaquePointer, Int) throws -> Void
+        promptSize: Int, batch: Int, contextCap: Int?, params: GenerationParams, sampling: CatalogSampling?,
+        isCancelled: () -> Bool, emit: (String) -> Void, prefill: (OpaquePointer, Int) throws -> Void
     ) throws -> LlamaResult {
         guard promptSize < contextSize else {
             throw GGUFError.promptTooLong(tokens: promptSize, limit: contextSize)
@@ -296,7 +314,7 @@ final class LlamaModel: @unchecked Sendable {
         guard promptSize < attempt else {
             throw GGUFError.promptTooLong(tokens: promptSize, limit: attempt)
         }
-        let sampler = Self.makeSampler(params)
+        let sampler = Self.makeSampler(params, topK: sampling?.topK ?? 40, minP: sampling?.minP ?? 0)
         defer { llama_sampler_free(sampler) }
 
         try prefill(context, Int(contextParams.n_batch))
@@ -305,6 +323,7 @@ final class LlamaModel: @unchecked Sendable {
         var reason = "length"
         var accumulator = UTF8Accumulator()
         var thought = ThoughtChannelFilter(open: thoughtChannel?.open, close: thoughtChannel?.close)
+        var span = ThinkingSpanTagger(open: thinkingSpan?.open, close: thinkingSpan?.close)
         let limit = params.maxTokens ?? Int.max
         while generated < limit {
             if isCancelled() { throw CancellationError() }
@@ -314,7 +333,12 @@ final class LlamaModel: @unchecked Sendable {
                 break
             }
             generated += 1
-            if thought.isVisible(token), let text = accumulator.append(pieceBytes(token)) { emit(text) }
+            if let tag = span.tag(for: token) {
+                if let text = accumulator.flush() { emit(text) }
+                emit(tag)
+            } else if thought.isVisible(token), let text = accumulator.append(pieceBytes(token)) {
+                emit(text)
+            }
             let status = withUnsafeMutablePointer(to: &token) { pointer in
                 llama_decode(context, llama_batch_get_one(pointer, 1))
             }
@@ -325,13 +349,15 @@ final class LlamaModel: @unchecked Sendable {
         return LlamaResult(promptTokens: promptSize, completionTokens: generated, finishReason: reason)
     }
 
-    private static func makeSampler(_ params: GenerationParams) -> UnsafeMutablePointer<llama_sampler> {
+    /// `topK` 0 and `minP` 0 leave those filters out.
+    private static func makeSampler(_ params: GenerationParams, topK: Int, minP: Double) -> UnsafeMutablePointer<llama_sampler> {
         let chain = llama_sampler_chain_init(llama_sampler_chain_default_params())!
         if params.temperature <= 0 {
             llama_sampler_chain_add(chain, llama_sampler_init_greedy())
         } else {
-            llama_sampler_chain_add(chain, llama_sampler_init_top_k(40))
+            if topK > 0 { llama_sampler_chain_add(chain, llama_sampler_init_top_k(Int32(clamping: topK))) }
             llama_sampler_chain_add(chain, llama_sampler_init_top_p(Float(params.topP), 1))
+            if minP > 0 { llama_sampler_chain_add(chain, llama_sampler_init_min_p(Float(minP), 1)) }
             llama_sampler_chain_add(chain, llama_sampler_init_temp(Float(params.temperature)))
             llama_sampler_chain_add(chain, llama_sampler_init_dist(UInt32.random(in: .min ... .max)))
         }

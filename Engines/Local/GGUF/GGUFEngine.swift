@@ -81,13 +81,17 @@ final class GGUFEngine: ChatEngine {
                         throw GGUFError.modelNotInstalled(model.id)
                     }
                     let llama = try await loadWeights(model.id, file: file.path, installedAt: manifest.completedAt)
+                    let sampling = (try? await catalog.entries())?.first(where: { $0.id == model.id })?.sampling
+                    let tuned = sampling.map { $0.applied(to: params) } ?? params
                     let result: LlamaResult
                     if let images = await imageInput(model: model, manifest: manifest, messages: messages) {
                         result = try Self.runWithImages(
-                            llama, messages: messages, params: params, input: images, store: attachments
+                            llama, messages: messages, params: tuned, sampling: sampling, input: images, store: attachments
                         ) { continuation.yield(.text($0)) }
                     } else {
-                        result = try Self.run(llama, messages: messages, params: params) { continuation.yield(.text($0)) }
+                        result = try Self.run(llama, messages: messages, params: tuned, sampling: sampling) {
+                            continuation.yield(.text($0))
+                        }
                     }
                     continuation.yield(.usage(prompt: result.promptTokens, completion: result.completionTokens))
                     continuation.yield(.done(finishReason: result.finishReason))
@@ -137,7 +141,7 @@ final class GGUFEngine: ChatEngine {
     }
 
     private static func runWithImages(
-        _ llama: LlamaModel, messages: [ChatMessage], params: GenerationParams, input: ImageInput,
+        _ llama: LlamaModel, messages: [ChatMessage], params: GenerationParams, sampling: CatalogSampling?, input: ImageInput,
         store: AttachmentStore, emit: (String) -> Void
     ) throws -> LlamaResult {
         let contextSize = llama.contextSize
@@ -156,11 +160,13 @@ final class GGUFEngine: ChatEngine {
         let data = try imageData(built.images, side: input.side, store: store)
         let prepared = try llama.prepareImages(
             text: llama.formatPrompt(fitted), images: data, projectorPath: input.projectorPath)
-        return try llama.generate(images: prepared, params: params, isCancelled: { Task.isCancelled }, emit: emit)
+        return try llama.generate(
+            images: prepared, params: params, sampling: sampling, isCancelled: { Task.isCancelled }, emit: emit)
     }
 
     private static func run(
-        _ llama: LlamaModel, messages: [ChatMessage], params: GenerationParams, emit: (String) -> Void
+        _ llama: LlamaModel, messages: [ChatMessage], params: GenerationParams, sampling: CatalogSampling?,
+        emit: (String) -> Void
     ) throws -> LlamaResult {
         let contextSize = llama.contextSize
         // Leave room for the answer, then drop the oldest turns that do not fit.
@@ -174,6 +180,6 @@ final class GGUFEngine: ChatEngine {
         }
         let tokens = try llama.tokenize(llama.formatPrompt(fitted))
         return try llama.generate(
-            promptTokens: tokens, params: params, isCancelled: { Task.isCancelled }, emit: emit)
+            promptTokens: tokens, params: params, sampling: sampling, isCancelled: { Task.isCancelled }, emit: emit)
     }
 }
