@@ -98,8 +98,12 @@ struct CompactionChatTests {
         await say(r.vm, "Question 5")
         let request = try #require(r.engine.log.calls.last)
         #expect(!request.isSummary)
-        #expect(request.messages.map(\.content) == ["Question 4", "Reply.", "Question 5"])
-        #expect(request.system?.contains("They talked about actors.") == true)
+        #expect(request.messages.count == 3)
+        #expect(request.messages.map(\.content).dropFirst() == ["Reply.", "Question 5"])
+        let first = try #require(request.messages.first?.content)
+        #expect(first.hasPrefix(PromptAssembler.summaryHeading) && first.contains("They talked about actors.") && first.hasSuffix("Question 4"),
+                "the summary goes with the first kept question")
+        #expect(request.system?.contains("They talked about actors.") != true, "a compaction leaves the system message as it was")
     }
 
     @Test func aChatTooShortToFoldHasNothingToCompact() async throws {
@@ -137,7 +141,8 @@ struct CompactionChatTests {
         #expect(calls.filter(\.isSummary).count == 1)
         let chatCall = try #require(calls.last)
         #expect(!chatCall.isSummary, "the summary comes first, then the reply")
-        #expect(chatCall.system?.contains("They talked about actors.") == true)
+        #expect(chatCall.messages.first?.content.contains("They talked about actors.") == true)
+        #expect(chatCall.system?.contains("They talked about actors.") != true)
         #expect(chatCall.messages.count == 5, "the last two exchanges and the new question")
         let compaction = try #require(r.vm.compactions.first)
         #expect(compaction.droppedCount == 4)

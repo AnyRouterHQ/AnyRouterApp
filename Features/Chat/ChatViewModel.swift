@@ -220,8 +220,10 @@ final class ChatViewModel {
             return
         }
         let live = CompactionLogic.context(messages: thread.orderedMessages, compaction: thread.compactions.last)
-        let used = CompactionLogic.usedTokens(systemPrompt: nil, summary: live.summary, messages: live.messages)
-        contextFraction = CompactionLogic.contextFraction(used: used, window: CompactionLogic.window(for: model))
+        let prompt = PromptAssembler.assemble(
+            instructions: InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt),
+            profile: memoryProfile(for: thread, model: model), summary: live.summary, turns: live.messages, context: nil)
+        contextFraction = CompactionLogic.contextFraction(used: prompt.total, window: CompactionLogic.window(for: model))
     }
 
     /// "Compact conversation" in the chat menu: folds the older messages into a summary written by the current model.
@@ -278,10 +280,9 @@ final class ChatViewModel {
     /// The chat is about to fill the model's window: what to fold first, so the reply has room.
     /// `placeholder` is the reply being written: it is in the thread already, empty, and is not part of the chat yet.
     private func automaticPlan(
-        thread: ThreadRecord, model: ModelDescriptor, systemPrompt: String?, sent: [ChatMessage], placeholder: UUID
+        thread: ThreadRecord, model: ModelDescriptor, used: Int, placeholder: UUID
     ) -> CompactionPlan? {
         let window = CompactionLogic.window(for: model)
-        let used = CompactionLogic.usedTokens(systemPrompt: systemPrompt, summary: nil, messages: sent)
         guard CompactionLogic.needsCompaction(used: used, window: window) else { return nil }
         return CompactionLogic.plan(
             messages: thread.orderedMessages.filter { $0.id != placeholder }, compaction: thread.compactions.last,
@@ -698,7 +699,13 @@ final class ChatViewModel {
         // The plugins and files the user named with @, and the memories that match the question, are in this request only;
         // the saved message stays as typed.
         let recalled = memoryRecall(for: thread, model: model)
-        let history = MemoryRecallLogic.applying(recalled, to: ComposerMention.applying(mentions, to: live.messages))
+        let instructions = InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt)
+        let profile = memoryProfile(for: thread, model: model)
+        let recallBlock = MemoryRecallLogic.block(recalled)
+        let prompt = PromptAssembler.assemble(
+            instructions: instructions, profile: profile, summary: live.summary,
+            turns: ComposerMention.applying(mentions, to: live.messages), context: recallBlock)
+        let history = prompt.messages
         context.insert(assistant)
         assistant.thread = thread
         assistant.memoryUpdates = memory
@@ -708,12 +715,8 @@ final class ChatViewModel {
         assistant.failure = ReplyFailure(kind: .interrupted, detail: String(localized: "The app closed while this reply was being written."))
         try? save(context)
         var params = settings.generationParams
-        let basePrompt = MemoryProfileLogic.systemPrompt(
-            base: InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt),
-            profile: memoryProfile(for: thread, model: model))
-        params.systemPrompt = CompactionLogic.systemPrompt(base: basePrompt, summary: live.summary)
-        let autoPlan = automaticPlan(
-            thread: thread, model: model, systemPrompt: params.systemPrompt, sent: history, placeholder: assistant.id)
+        params.systemPrompt = prompt.systemPrompt
+        let autoPlan = automaticPlan(thread: thread, model: model, used: prompt.total, placeholder: assistant.id)
         compactionNote = nil
         var host: (any ToolHost)?
         offlineToolNote = nil
@@ -760,13 +763,14 @@ final class ChatViewModel {
                 stream = earlyStream
             } else {
                 var sent = history
-                var sentParams = params
                 if let plan = autoPlan, let self {
                     if await self.fold(plan, model: model, thread: thread) {
                         let rebuilt = CompactionLogic.context(
                             messages: thread.orderedMessages.filter { $0.id != assistant.id }, compaction: thread.compactions.last)
-                        sent = MemoryRecallLogic.applying(recalled, to: ComposerMention.applying(mentions, to: rebuilt.messages))
-                        sentParams.systemPrompt = CompactionLogic.systemPrompt(base: basePrompt, summary: rebuilt.summary)
+                        // The system message stays as it was: the summary goes with the first kept question.
+                        sent = PromptAssembler.assemble(
+                            instructions: instructions, profile: profile, summary: rebuilt.summary,
+                            turns: ComposerMention.applying(mentions, to: rebuilt.messages), context: recallBlock).messages
                     } else {
                         self.compactionNote = String(localized: "Could not shorten the conversation. It was sent as it is.")
                     }
@@ -774,7 +778,7 @@ final class ChatViewModel {
                 if let plan = groundingPlan, let self {
                     sent = await self.ground(sent, query: plan.query, context: plan.context, assistant: assistant)
                 }
-                stream = engine.stream(model: model, messages: sent, params: sentParams, tools: tools)
+                stream = engine.stream(model: model, messages: sent, params: params, tools: tools)
             }
             var failure: ReplyFailure?
             var firstTokenSeen = false
@@ -973,7 +977,7 @@ final class ChatViewModel {
         guard settings.useMemory, !thread.memoryOff, let frozen = thread.profileSnapshot else { return nil }
         return MemoryProfileLogic.render(
             items, frozen: frozen, source: model.source,
-            deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats, budget: MemoryProfileLogic.budget(for: model))
+            deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats, budget: PromptBudget.forModel(model).profile)
     }
 
     /// Facts and chat summaries that match the question (agent design 2.4), by the same switches and scope rules as the
@@ -988,7 +992,7 @@ final class ChatViewModel {
         }
         let hits = MemoryRecallLogic.recall(
             question.content, from: records.map { MemoryRecallLogic.Candidate(id: $0.id, text: $0.text) },
-            budget: MemoryRecallLogic.budget(for: model))
+            budget: PromptBudget.forModel(model).memoryHits)
         let used = Set(hits.map(\.candidate.id))
         let now = Date()
         for record in records where used.contains(record.id) {

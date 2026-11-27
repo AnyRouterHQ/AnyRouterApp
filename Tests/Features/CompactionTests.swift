@@ -90,24 +90,7 @@ struct CompactionLogicTests {
         #expect(context.messages == messages)
     }
 
-    @Test func theSummaryFollowsTheSystemPrompt() {
-        #expect(CompactionLogic.systemPrompt(base: "Be brief.", summary: nil) == "Be brief.")
-        #expect(CompactionLogic.systemPrompt(base: nil, summary: nil) == nil)
-        let with = CompactionLogic.systemPrompt(base: "Be brief.", summary: "S")
-        #expect(with?.hasPrefix("Be brief.\n\n") == true)
-        #expect(with?.hasSuffix("summary):\nS") == true)
-        #expect(CompactionLogic.systemPrompt(base: nil, summary: "S")?.hasPrefix("Earlier in this conversation") == true)
-        #expect(CompactionLogic.systemPrompt(base: "", summary: "S")?.hasPrefix("Earlier in this conversation") == true)
-    }
-
     // MARK: When
-
-    @Test func whatARequestTakesUpCountsTheSystemPromptTheSummaryAndEveryMessage() {
-        let messages = [message(.user, "abcdefgh"), message(.assistant, "abcd")]
-        // 3 + 2 for the texts, 4 each for the two roles, 2 for the system prompt, 3 for the summary (TokenCountLogic).
-        #expect(CompactionLogic.usedTokens(systemPrompt: "abcd", summary: "abcdefgh", messages: messages) == 2 + 3 + (3 + 4) + (2 + 4))
-        #expect(CompactionLogic.usedTokens(systemPrompt: nil, summary: nil, messages: []) == 0)
-    }
 
     @Test func compactionStartsAtEightyPercentOfTheWindow() {
         #expect(CompactionLogic.needsCompaction(used: 80, window: 100))

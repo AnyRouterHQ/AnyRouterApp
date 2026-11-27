@@ -23,15 +23,6 @@ enum MemoryProfileLogic {
         kinds.flatMap { kind in items.filter { $0.kind == kind }.sorted { $0.createdAt > $1.createdAt } }.map(\.id)
     }
 
-    /// Tokens the profile may take on this model (agent design 3.3).
-    static func budget(for model: ModelDescriptor) -> Int {
-        switch model.source {
-        case .apple: 120
-        case .gguf, .mlx: (model.contextLength ?? 0) > 4096 ? 200 : 120
-        case .anyrouter: 500
-        }
-    }
-
     /// A cloud model gets items learned in on-device chats only when the user allowed it.
     static func allows(_ scope: MemoryScope, source: ModelSource, deviceMemoriesInCloud: Bool) -> Bool {
         source != .anyrouter || scope == .everywhere || deviceMemoriesInCloud
@@ -49,12 +40,5 @@ enum MemoryProfileLogic {
             if TokenCountLogic.estimate(candidate.joined(separator: "\n")) <= budget { lines = candidate }
         }
         return lines.count > 1 ? lines.joined(separator: "\n") : nil
-    }
-
-    /// The instructions, then the profile.
-    static func systemPrompt(base: String?, profile: String?) -> String? {
-        guard let profile else { return base }
-        guard let base else { return profile }
-        return base + "\n\n" + profile
     }
 }

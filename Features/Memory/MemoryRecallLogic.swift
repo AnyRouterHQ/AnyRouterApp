@@ -27,15 +27,6 @@ enum MemoryRecallLogic {
         "nhé", "những", "sao", "thì", "tôi", "và", "với", "toi", "la", "cua", "va", "co", "khong", "mot", "voi", "gi",
     ]
 
-    /// Tokens the recalled items may take on this model (agent design 3.3).
-    static func budget(for model: ModelDescriptor) -> Int {
-        switch model.source {
-        case .apple: 150
-        case .gguf, .mlx: (model.contextLength ?? 0) > 4096 ? 300 : 150
-        case .anyrouter: 1500
-        }
-    }
-
     /// The best items for the question, at most three, whole, within the budget.
     static func recall(_ question: String, from candidates: [Candidate], budget: Int) -> [Hit] {
         var hits: [Hit] = []
@@ -74,13 +65,9 @@ enum MemoryRecallLogic {
         count == 1 ? String(localized: "Used 1 memory") : String(localized: "Used \(count) memories")
     }
 
-    /// The recalled items in front of the last user message, for this request only.
-    static func applying(_ hits: [Hit], to messages: [ChatMessage]) -> [ChatMessage] {
-        guard !hits.isEmpty, let index = messages.lastIndex(where: { $0.role == .user }) else { return messages }
-        var copy = messages
-        let list = ([heading] + hits.map { "- " + $0.candidate.text }).joined(separator: "\n")
-        copy[index].content = list + "\n\n" + copy[index].content
-        return copy
+    /// The recalled items as the text that goes in front of the question, for this request only. Nil without hits.
+    static func block(_ hits: [Hit]) -> String? {
+        hits.isEmpty ? nil : ([heading] + hits.map { "- " + $0.candidate.text }).joined(separator: "\n")
     }
 
     /// Lowercased words; letters and digits only.

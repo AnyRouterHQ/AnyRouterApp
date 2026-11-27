@@ -71,22 +71,6 @@ enum CompactionLogic {
         return (result.applied?.summary, result.messages)
     }
 
-    /// The system prompt with the summary after it.
-    static func systemPrompt(base: String?, summary: String?) -> String? {
-        guard let summary else { return base }
-        let note = "Earlier in this conversation (older messages were shortened into this summary):\n\(summary)"
-        guard let base, !base.isEmpty else { return note }
-        return base + "\n\n" + note
-    }
-
-    /// What a request would take up.
-    static func usedTokens(systemPrompt: String?, summary: String?, messages: [ChatMessage]) -> Int {
-        var total = 0
-        for text in [systemPrompt, summary].compactMap({ $0 }) { total += TokenCountLogic.estimate(text) }
-        for message in messages { total += TokenCountLogic.estimate(message.content) + perMessageTokens }
-        return total
-    }
-
     /// The share of the window a chat takes, 0.42 for 42%; above 1 when it no longer fits. Nil without a window.
     static func contextFraction(used: Int, window: Int?) -> Double? {
         guard let window, window > 0 else { return nil }
