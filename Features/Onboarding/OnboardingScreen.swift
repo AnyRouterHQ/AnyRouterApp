@@ -10,6 +10,8 @@ struct OnboardingScreen: View {
 
     @State private var flow = SignInFlow.State.signedOut
     @State private var showsLocalStep = false
+    /// The screen's width, so the list keeps the buttons' readable width on iPad.
+    @State private var width: CGFloat = 0
 
     private var appleAvailable: Bool { models.models.contains { $0.source == .apple && $0.isInstalled } }
     private var signedIn: Bool { app.account.state.isSignedIn }
@@ -46,9 +48,12 @@ struct OnboardingScreen: View {
                 }
             }
             .formStyle(.grouped)
+            .readableWidth(Self.readableWidth, in: width)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             .navigationBarTitleDisplayMode(.inline)
-            // The actions stay reachable at the bottom, above the home indicator.
-            .safeAreaInset(edge: .bottom) { actions }
+            // The actions stay reachable at the bottom, above the home indicator. A bar, not a painted band: the scroll
+            // edge effect gives it depth.
+            .safeAreaBar(edge: .bottom) { actions }
             .navigationDestination(isPresented: $showsLocalStep) { OnboardingLocalStep(onFinish: onFinish) }
         }
     }
@@ -85,8 +90,9 @@ struct OnboardingScreen: View {
             .disabled(authorizing)
             .accessibilityIdentifier("onboarding.signIn")
             if !signedIn {
+                // Glass, not bordered: the bordered fill nearly vanished on the light and dark backgrounds.
                 Button { authorize(.signUp) } label: { Text("Create account").frame(maxWidth: .infinity) }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
                     .controlSize(.large)
                     .disabled(authorizing)
                     .accessibilityIdentifier("onboarding.signUp")
@@ -97,11 +103,12 @@ struct OnboardingScreen: View {
                 .accessibilityIdentifier("onboarding.onDevice")
         }
         // A readable width on iPad instead of buttons across the whole screen.
-        .frame(maxWidth: 560)
+        .frame(maxWidth: Self.readableWidth)
         .padding()
         .frame(maxWidth: .infinity)
-        .background(.bar)
     }
+
+    private static let readableWidth: CGFloat = 560
 
     /// Opens the web sheet. A new account comes back signed in: the sheet ends at the same consent step as
     /// sign-in, so there is no second login. The email can be verified later (see Settings).
@@ -152,4 +159,16 @@ struct OnboardingScreen: View {
     return OnboardingScreen {}
         .environment(state)
         .environment(state.models)
+}
+
+private extension View {
+    /// On a screen much wider than `maxWidth` the list's rows keep that width, centred, like the buttons under them.
+    @ViewBuilder
+    func readableWidth(_ maxWidth: CGFloat, in width: CGFloat) -> some View {
+        if width > maxWidth + 80 {
+            contentMargins(.horizontal, (width - maxWidth) / 2, for: .scrollContent)
+        } else {
+            self
+        }
+    }
 }
