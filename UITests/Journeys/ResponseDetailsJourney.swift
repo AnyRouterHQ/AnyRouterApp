@@ -26,6 +26,10 @@ final class ResponseDetailsJourney: JourneyCase {
         XCTAssertEqual(XCTWaiter().wait(for: [expected], timeout: 5), .completed, "toggle did not change")
         step("toggle-\(on ? "on" : "off")")
         audit(app, "response-customization")
+        // "Close" belongs to the Settings root; this page is pushed on top of it, so go back first.
+        let back = app.buttons["BackButton"]
+        if back.exists { back.tap() }
+        XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 5), "Settings root shows Close")
         app.buttons["Close"].tap()
         sleep(1)
     }

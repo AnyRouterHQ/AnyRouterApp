@@ -22,6 +22,9 @@ final class ComposerJourney: JourneyCase {
             let send = app.buttons["Send"]
             XCTAssertTrue(send.waitForExistence(timeout: 5))
             XCTAssertTrue(send.isEnabled, "text enables Send")
+            // At large text the screenshot caught the field holding only "H": wait for every key before sending.
+            let typedAll = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "Hello there"), object: input)
+            XCTAssertEqual(XCTWaiter().wait(for: [typedAll], timeout: 10), .completed, "the field holds the whole text: \(String(describing: input.value))")
             step("typed")
 
             send.tap()
