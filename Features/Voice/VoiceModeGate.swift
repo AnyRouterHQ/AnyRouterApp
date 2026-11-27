@@ -86,7 +86,10 @@ struct VoiceModeGate: View {
             actions
         }
         .padding(.vertical, 24)
-        .readableWidth()
+        // A column like onboarding's: on an iPad the download button and the text stay a phone's width, not the sheet's.
+        .padding(.horizontal, ARTheme.pagePadding)
+        .frame(maxWidth: 560)
+        .frame(maxWidth: .infinity)
         .onChange(of: state) { _, new in
             if new == .installed { onReady() }
         }
