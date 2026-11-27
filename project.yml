@@ -83,6 +83,10 @@ targets:
       path: App/AnyRouter.entitlements
       properties:
         com.apple.developer.kernel.increased-memory-limit: true
+        # llama.cpp maps a model file whole. Without this the app's address space is capped (about 7.4 GiB on a phone
+        # with more than 3 GiB of RAM, from the kernel source), which a 6.9 GB file nearly fills. Paid teams only:
+        # a free Apple ID drops it, and Settings › Diagnostics shows whether this install has it.
+        com.apple.developer.kernel.extended-virtual-addressing: true
         # Shares from the extension wait here for the app. A build signed without this capability has no inbox.
         com.apple.security.application-groups:
           - group.dev.anyrouter.app
