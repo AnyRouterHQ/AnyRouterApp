@@ -45,7 +45,7 @@ struct ComposerSuggestionsRow: View {
         .buttonStyle(.glass)
         .buttonBorderShape(.capsule)
         .controlSize(.regular)
-        .chipOutline(Capsule())
+        .chipOutline(.capsule)
         .frame(minHeight: 44)
         .accessibilityHint("Puts it in the message to edit")
         .accessibilityIdentifier("composer.suggestion.clipboard")
