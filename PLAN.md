@@ -287,7 +287,7 @@ Entry points (reach AnyRouter from anywhere on the phone; owner sonnet-medium-lo
 
 Units from `docs/research/agent-design.md` § 6, in this order. Each is one push to main ending in a green CI run.
 
-- [ ] M1 `MemoryRecord`, `MemoryStore` (add, edit, delete, caps, scope), Settings › Memory with its three switches
+- [x] M1 (f08e1c9; unit and gate tests green in CI 46065997695, Memory files at 100%; UI test and screenshots pending on the board) `MemoryRecord`, `MemoryStore` (add, edit, delete, caps, scope), Settings › Memory with its three switches
 - [x] A1 (8cb2708; Apple's own counter comes with A2, where a request is assembled) Token counter replaces `CompactionLogic.tokens` (English, Vietnamese, Chinese tests; Apple counter behind `#available(iOS 26.4, *)`)
 - [ ] M2 Always-on profile in the prompt, frozen per thread; "Don't use memory in this chat"
 - [ ] M3 "Remember that" classifier (English, Vietnamese), "Remember this" action, "Memory updated" row with Undo and Edit
