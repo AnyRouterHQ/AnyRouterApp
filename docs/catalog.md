@@ -30,7 +30,7 @@ sizes. The app lists families first, then the sizes of one family.
 
 | Variant field | Meaning |
 |---|---|
-| `repo`, `engine` (`gguf` or `mlx`), `file` | What to download. `file` is for GGUF only. The app's id for it is `gguf/<repo>/<file>` or `mlx/<repo>`. A file the publisher renamed to `.gguf_file` (so tools that list `*.gguf` skip it) is saved as `.gguf`. |
+| `repo`, `engine` (`gguf` or `mlx`), `file` | What to download. `file` is for GGUF only. The app's id for it is `gguf/<repo>/<file>` or `mlx/<repo>`. |
 | `params`, `quant` | "4B", "E2B"; "Q4_K_M", "4-bit". |
 | `revision` | Full 40-character commit sha. Never a branch. |
 | `sizeBytes` | The file, or the sum of the MLX snapshot files. |
@@ -85,7 +85,7 @@ longer matches.
 
 A mixture-of-experts file too big for the app's memory limit can still run from mmap: only the experts a token uses stay
 resident, the rest is read from storage through the page cache. `FitPlanner` calls this `.streamed`. It needs a device
-whose RAM holds the whole file plus about 4 GB for iOS and other apps (`FitPlanner.streamingSystemBytes`), so a 7.8 GB
+whose RAM holds the whole file plus about 4 GB for iOS and other apps (`FitPlanner.streamingSystemBytes`), so a 6.9 GB
 file needs a 12 GB iPhone; below that, Local Models > Not Available says "Needs an iPhone with 12 GB of memory." A streamed
 model loads with a 4,096-token context, mmap on, no mlock, and every layer on the CPU (Metal would map the whole file into
 GPU buffers that count against the app). Replies are slow: give the size a `sampling.maxOutputTokens` cap.

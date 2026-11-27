@@ -57,20 +57,14 @@ struct LocalModelStorage: Sendable {
         directory(forEntryID: id).appending(path: Self.manifestName)
     }
 
-    /// Where a repo file lives on disk, relative to the model folder. A GGUF its publisher renamed to `.gguf_file` (so
-    /// tools that list `*.gguf` skip it) is saved as `.gguf` again.
-    static func diskPath(forRepoPath path: String) -> String {
-        path.hasSuffix(".gguf_file") ? String(path.dropLast("_file".count)) : path
-    }
-
-    /// Final location of one file of an installed model. `path` is the file's path in the repo.
+    /// Final location of one file of an installed model.
     func fileURL(forEntryID id: String, path: String) -> URL {
-        directory(forEntryID: id).appending(path: Self.diskPath(forRepoPath: path))
+        directory(forEntryID: id).appending(path: path)
     }
 
     /// Where a file waits until the whole model has been verified.
     func partialFileURL(forEntryID id: String, path: String) -> URL {
-        partialDirectory(forEntryID: id).appending(path: Self.diskPath(forRepoPath: path))
+        partialDirectory(forEntryID: id).appending(path: path)
     }
 
     func resumeDataURL(forEntryID id: String, path: String) -> URL {

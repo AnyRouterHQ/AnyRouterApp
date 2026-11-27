@@ -27,9 +27,6 @@ KNOWN_KEYS = {
 }
 MEMORY_KEYS = {"fullKVBytesPerToken", "windowKVBytesPerToken", "windowTokens", "activeFraction", "lazyWeightBytes"}
 SAMPLING_KEYS = {"temperature": float, "topP": float, "topK": int, "minP": float, "maxOutputTokens": int}
-# A publisher can rename a GGUF to ".gguf_file" so that tools which list "*.gguf" skip it (unsloth does this for files
-# in a layout only newer llama.cpp loads). The app saves it as ".gguf".
-GGUF_SUFFIXES = (".gguf", ".gguf_file")
 
 _cache = {}
 
@@ -344,7 +341,7 @@ def cmd_add(args):
         quant = "4-bit" if "4bit" in repo.lower() else ("8-bit" if "8bit" in repo.lower() else None)
     else:
         if file not in files:
-            sys.exit(f"{file} is not in {repo} at {revision}. Files: " + ", ".join(sorted(p for p in files if p.endswith(GGUF_SUFFIXES))))
+            sys.exit(f"{file} is not in {repo} at {revision}. Files: " + ", ".join(sorted(p for p in files if p.endswith(".gguf"))))
         meta = files[file]
         size = meta["size"]
         match = QUANT_RE.search(os.path.basename(file))
@@ -491,8 +488,8 @@ def check_file(path, offline):
             if not REPO_RE.match(repo) or ".." in repo:
                 bad(vw, f"invalid repo {repo!r}")
                 continue
-            if engine == "gguf" and not str(m.get("file", "")).endswith(GGUF_SUFFIXES):
-                bad(vw, "a gguf variant needs a file ending in .gguf (or .gguf_file)")
+            if engine == "gguf" and not str(m.get("file", "")).endswith(".gguf"):
+                bad(vw, "a gguf variant needs a file ending in .gguf")
                 continue
             ident = entry_id(m)
             if ident in seen:
