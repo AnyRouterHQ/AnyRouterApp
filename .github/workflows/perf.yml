@@ -138,7 +138,10 @@ jobs:
             sleep 8
             kill -0 "$pid" 2>/dev/null || pid=$(pgrep -nx AnyRouter)
             echo "attaching to $pid"
-            sudo xcrun xctrace record --template 'Time Profiler' --attach "$pid" --time-limit 90s --output perf/profile.trace
+            # The app runs in the Simulator: xctrace finds its pid only on that device (runs 46067127411 and 46072012563
+            # said "Cannot find process" without --device). `sample` reads the same pid from the host as a fallback.
+            sample "$pid" 60 -file perf/sample.txt > /dev/null 2>&1 &
+            sudo xcrun xctrace record --template 'Time Profiler' --device "$IPHONE_UDID" --attach "$pid" --time-limit 90s --output perf/profile.trace
           ) > perf/xctrace.log 2>&1 &
           recorder=$!
           xcodebuild test-without-building \
@@ -181,6 +184,7 @@ jobs:
             perf/run-*.log
             perf/profile.txt
             perf/xctrace.log
+            perf/sample.txt
           retention-days: 30
 
       - name: Fail when nothing was measured or a test failed
