@@ -205,8 +205,12 @@ struct ShareHandoffTests {
         request.files = [pdfURL]
         request.readsTextFrom = [photoURL, unreadable]
         _ = vm.start(request, preset: nil)
+        // Vision reads the photo off the main actor and can take seconds on a busy CI simulator, longer than a polling
+        // budget. The view model keeps every ingest and scan task, so wait for those to end instead of a clock.
+        await vm.finishIngesting()
 
-        #expect(await waitUntil { vm.pending.count == 1 && vm.scannedText != nil })
+        #expect(vm.pending.count == 1)
+        #expect(vm.scannedText != nil)
         #expect(vm.pending.first?.filename == "report.pdf")
         #expect(vm.scannedText?.text.contains("TOTAL") == true)
         #expect(vm.input == "Summarize this")
