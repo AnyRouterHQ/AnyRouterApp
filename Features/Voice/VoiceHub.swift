@@ -11,6 +11,8 @@ final class VoiceHub {
 
     let settings: VoiceSettings
     let downloader: VoiceModelDownloader
+    /// The speech model that finished downloading for Voice Mode and has not been shown as ready yet.
+    private(set) var readyModelID: String?
 
     @ObservationIgnored private let loadCatalog: () throws -> [VoiceModel]
     @ObservationIgnored private var cachedCatalog: [VoiceModel]?
@@ -34,6 +36,7 @@ final class VoiceHub {
         loadCatalog = catalog
         makeSystemSTT = systemSTT
         makeSystemTTS = systemTTS
+        downloader.onFinished = { [weak self] id, outcome in self?.downloadEnded(id, outcome) }
     }
 
     // MARK: Catalog
@@ -56,11 +59,57 @@ final class VoiceHub {
     }
 
     /// The speech model the voice button offers before it listens, or nil to listen at once (`VoiceModeGateLogic`).
+    /// A model the person already chose comes first, so the gate never offers a second download beside a running one.
     func voiceModeOffer(memory: DeviceMemory = .current()) -> VoiceModel? {
         VoiceModeGateLogic.offer(
             recommended: recommended(.stt, memory: memory),
             installedSTT: !downloader.installedIDs(in: models(.stt)).isEmpty,
-            declined: settings.voiceModeDeclined)
+            declined: settings.voiceModeDeclined, pending: pendingOffer)
+    }
+
+    // MARK: Voice Mode download
+
+    /// What the voice button shows about the Voice Mode download (`VoiceDownloadState`).
+    var voiceDownload: VoiceDownloadState {
+        VoiceDownloadLogic.state(
+            target: settings.voiceModeTarget, finished: readyModelID, models: catalog,
+            download: { [downloader] in downloader.state(for: $0) })
+    }
+
+    /// Downloads the model chosen on the Voice Mode gate. When it is installed it becomes the selected speech model, even
+    /// if the app was in the background or closed meanwhile (`downloadEnded`).
+    @discardableResult
+    func startVoiceModeDownload(_ model: VoiceModel) -> Task<Void, Never>? {
+        settings.voiceModeTarget = model.id
+        readyModelID = nil
+        return downloader.start(model)
+    }
+
+    /// Stops the Voice Mode download and throws away what was fetched.
+    func cancelVoiceModeDownload(_ model: VoiceModel) { downloader.cancel(model) }
+
+    /// The "ready" state has been shown.
+    func dismissReady() { readyModelID = nil }
+
+    /// The chosen model that is not installed yet. A failed one counts until the person says Not Now.
+    private var pendingOffer: VoiceModel? {
+        guard let id = settings.voiceModeTarget, let model = catalog.first(where: { $0.id == id && $0.kind == .stt }) else { return nil }
+        let state = downloader.state(for: model)
+        return state.isActive || (state != .installed && !settings.voiceModeDeclined) ? model : nil
+    }
+
+    private func downloadEnded(_ id: String, _ outcome: VoiceDownloadOutcome) {
+        guard settings.voiceModeTarget == id else { return }
+        switch outcome {
+        case .installed:
+            if let model = catalog.first(where: { $0.id == id }) { select(model) }
+            settings.voiceModeTarget = nil
+            readyModelID = id
+        case .cancelled:
+            settings.voiceModeTarget = nil
+        case .failed:
+            break
+        }
     }
 
     // MARK: Selection

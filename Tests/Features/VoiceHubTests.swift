@@ -11,13 +11,32 @@ struct VoiceHubTests {
         let root: URL
     }
 
-    private func rig(catalog: [VoiceModel]) -> Rig {
+    private struct FailingFetcher: VoiceFileFetching {
+        func fetch(_ url: URL, to destination: URL, progress: @escaping @Sendable (Int64) -> Void) async throws {
+            throw URLError(.notConnectedToInternet)
+        }
+    }
+
+    private struct HangingFetcher: VoiceFileFetching {
+        func fetch(_ url: URL, to destination: URL, progress: @escaping @Sendable (Int64) -> Void) async throws {
+            try await Task.sleep(for: .seconds(60))
+        }
+    }
+
+    /// A model with one file, so a fetcher has something to fail or hang on. With no files a download just installs.
+    private func withFile(_ model: VoiceModel) -> VoiceModel {
+        var model = model
+        model.files = [VoiceModelFile(path: "a.bin", url: URL(string: "https://example.com/a.bin")!, sizeBytes: 1)]
+        return model
+    }
+
+    private func rig(catalog: [VoiceModel], fetcher: (any VoiceFileFetching)? = nil) -> Rig {
         let system = FakeSpeechToText(id: "system")
         let systemVoice = FakeTextToSpeech(id: "system")
         let root = FileManager.default.temporaryDirectory.appending(path: "voice-\(UUID().uuidString)")
         let hub = VoiceHub(
             settings: VoiceSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!),
-            downloader: VoiceModelDownloader(storage: VoiceModelStorage(root: root)),
+            downloader: VoiceModelDownloader(storage: VoiceModelStorage(root: root), fetcher: fetcher ?? URLSessionFileFetcher()),
             catalog: { catalog }, systemSTT: { system }, systemTTS: { systemVoice })
         return Rig(hub: hub, system: system, systemVoice: systemVoice, root: root)
     }
@@ -150,6 +169,13 @@ struct VoiceHubTests {
         #expect(VoiceModeGateLogic.offer(recommended: nil, installedSTT: false, declined: false) == nil)
     }
 
+    @Test func aModelChosenBeforeIsOfferedAgainInsteadOfTheRecommendation() {
+        #expect(VoiceModeGateLogic.offer(recommended: small, installedSTT: false, declined: false, pending: tiny) == tiny)
+        #expect(VoiceModeGateLogic.offer(recommended: small, installedSTT: false, declined: true, pending: tiny) == tiny)
+        #expect(VoiceModeGateLogic.offer(recommended: small, installedSTT: true, declined: false, pending: tiny) == nil,
+                "once a speech model is installed, Voice Mode starts")
+    }
+
     @Test func theGateNamesTheModelWithItsLanguagesAndSize() {
         let base = VoiceFixtures.model("whisper-base", size: 149_484_796, order: 2)
         let size = ByteCountFormatter.string(fromByteCount: 149_484_796, countStyle: .file)
@@ -183,12 +209,74 @@ struct VoiceHubTests {
         #expect(VoiceModeGateLogic.optionTitle(tiny, recommended: nil, memory: gb8) == VoiceModeGateLogic.headline(tiny))
     }
 
-    @Test func theChosenModelIsTheSettingSettingsReads() {
+    /// The path the gate relies on once its cover is gone: the model the person chose (not the recommendation) is the
+    /// selected speech model when its download ends, with no view alive to write it.
+    @Test func aVoiceModeDownloadThatFinishesIsTheSelectedModelAndReady() async throws {
+        let gb8 = DeviceClass.gb8.memory(.standard)
         let r = rig(catalog: [small, tiny])
         defer { try? FileManager.default.removeItem(at: r.root) }
-        r.hub.select(tiny)
+        #expect(r.hub.voiceDownload == .idle)
+        let task = try #require(r.hub.startVoiceModeDownload(tiny))
+        #expect(r.hub.settings.voiceModeTarget == "whisper-tiny")
+        #expect(r.hub.voiceDownload.phase == .downloading && r.hub.voiceDownload.modelID == "whisper-tiny")
+        #expect(r.hub.voiceModeOffer(memory: gb8)?.id == "whisper-tiny", "opened again, the gate shows this download, not the recommendation")
+        await task.value
         #expect(r.hub.settings.selectedSTT == "whisper-tiny")
-        #expect(r.hub.isSelected(tiny) && r.hub.selectedID(.stt) == "whisper-tiny")
+        #expect(r.hub.settings.voiceModeTarget == nil)
+        #expect(r.hub.voiceDownload.phase == .ready && r.hub.readyModelID == "whisper-tiny")
+        #expect(r.hub.voiceModeOffer(memory: gb8) == nil, "the next tap goes straight into Voice Mode")
+        r.hub.dismissReady()
+        #expect(r.hub.voiceDownload == .idle)
+    }
+
+    @Test func cancellingTheVoiceModeDownloadForgetsTheChoice() async throws {
+        let model = withFile(tiny)
+        let r = rig(catalog: [model], fetcher: HangingFetcher())
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        let task = try #require(r.hub.startVoiceModeDownload(model))
+        await Task.yield()
+        r.hub.cancelVoiceModeDownload(model)
+        await task.value
+        #expect(r.hub.settings.voiceModeTarget == nil && r.hub.settings.selectedSTT == nil)
+        #expect(r.hub.voiceDownload == .idle)
+    }
+
+    /// A failed download keeps the choice for Try Again, until the person says Not Now.
+    @Test func aFailedVoiceModeDownloadCanBeRetriedUntilNotNow() async throws {
+        let gb8 = DeviceClass.gb8.memory(.standard)
+        let model = withFile(tiny)
+        let r = rig(catalog: [model, small], fetcher: FailingFetcher())
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        await r.hub.startVoiceModeDownload(model)?.value
+        #expect(r.hub.voiceDownload.phase == .failed && r.hub.voiceDownload.canRetry)
+        #expect(r.hub.settings.voiceModeTarget == "whisper-tiny")
+        #expect(r.hub.settings.selectedSTT == nil)
+        #expect(r.hub.voiceModeOffer(memory: gb8)?.id == "whisper-tiny", "Try Again is on the gate")
+        r.hub.settings.voiceModeDeclined = true
+        #expect(r.hub.voiceModeOffer(memory: gb8) == nil, "Not Now dictates with the System engine")
+        let again = try #require(r.hub.startVoiceModeDownload(model), "Try Again starts it once more")
+        await again.value
+        #expect(r.hub.voiceDownload.phase == .failed)
+    }
+
+    @Test func aChosenModelThatIsNotInTheSpeechCatalogIsNotOffered() {
+        let gb8 = DeviceClass.gb8.memory(.standard)
+        let r = rig(catalog: [small, voice])
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        r.hub.settings.voiceModeTarget = "voice-en"
+        #expect(r.hub.voiceModeOffer(memory: gb8)?.id == "whisper-small", "a voice (text to speech) is not a Voice Mode model")
+        r.hub.settings.voiceModeTarget = "gone"
+        #expect(r.hub.voiceModeOffer(memory: gb8)?.id == "whisper-small")
+        #expect(r.hub.voiceDownload == .idle)
+    }
+
+    @Test func aDownloadFromSettingsLeavesTheVoiceModeChoiceAlone() async throws {
+        let r = rig(catalog: [small, tiny])
+        defer { try? FileManager.default.removeItem(at: r.root) }
+        r.hub.settings.voiceModeTarget = "whisper-small"
+        await r.hub.downloader.start(tiny)?.value
+        #expect(r.hub.settings.voiceModeTarget == "whisper-small")
+        #expect(r.hub.settings.selectedSTT == nil, "Get in Settings does not select")
     }
 
     @Test func aBrokenCatalogShowsAsAnEmptyList() {

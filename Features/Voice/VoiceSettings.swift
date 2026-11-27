@@ -11,6 +11,7 @@ final class VoiceSettings {
         static let forced = "voice.dictationLanguage"
         static let last = "voice.lastLanguage"
         static let modeDeclined = "voice.modeDeclined"
+        static let modeTarget = "voice.modeTarget"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -46,6 +47,14 @@ final class VoiceSettings {
     var voiceModeDeclined: Bool {
         get { access(keyPath: \.voiceModeDeclined); return defaults.bool(forKey: Key.modeDeclined) }
         set { withMutation(keyPath: \.voiceModeDeclined) { defaults.set(newValue, forKey: Key.modeDeclined) } }
+    }
+
+    /// The speech model chosen on the Voice Mode download, from Download until it is installed (then it becomes
+    /// `selectedSTT`) or cancelled. It survives a relaunch, so a download that finished while the app was away is still
+    /// the model Voice Mode uses.
+    var voiceModeTarget: String? {
+        get { access(keyPath: \.voiceModeTarget); return defaults.string(forKey: Key.modeTarget) }
+        set { withMutation(keyPath: \.voiceModeTarget) { defaults.set(newValue, forKey: Key.modeTarget) } }
     }
 
     /// The language dictation settled on last time, tried first next time.

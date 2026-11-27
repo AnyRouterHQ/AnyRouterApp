@@ -35,6 +35,13 @@ struct URLSessionFileFetcher: VoiceFileFetching {
     }
 }
 
+/// How a download ended, for whoever started it.
+enum VoiceDownloadOutcome: Equatable, Sendable {
+    case installed
+    case cancelled
+    case failed
+}
+
 /// Downloads voice models, one file after another. The same `ModelDownloadState` machine as the chat models.
 /// Voice models are folders of small and medium files (up to about 650 MB) from Hugging Face, so this uses a plain
 /// foreground session, not the background session of `ModelDownloadManager` (GGUF and MLX repos). A file that finished
@@ -46,6 +53,8 @@ final class VoiceModelDownloader {
     let storage: VoiceModelStorage
     @ObservationIgnored private let fetcher: any VoiceFileFetching
     @ObservationIgnored private var tasks: [String: Task<Void, Never>] = [:]
+    /// Called on the main actor when a download ends, whoever started it.
+    @ObservationIgnored var onFinished: (@MainActor (String, VoiceDownloadOutcome) -> Void)?
 
     init(storage: VoiceModelStorage = VoiceModelStorage(), fetcher: any VoiceFileFetching = URLSessionFileFetcher()) {
         self.storage = storage
@@ -126,12 +135,15 @@ final class VoiceModelDownloader {
             try storage.writeManifest(VoiceInstalledManifest(
                 id: id, files: model.files.map { .init(path: $0.path, size: $0.sizeBytes) }, completedAt: Date()))
             apply(.verified, to: id)
+            onFinished?(id, .installed)
         } catch {
             if Task.isCancelled {
                 try? storage.delete(id)
                 apply(.cancel, to: id)
+                onFinished?(id, .cancelled)
             } else {
                 apply(.fail(error.localizedDescription), to: id)
+                onFinished?(id, .failed)
             }
         }
     }

@@ -45,7 +45,7 @@ final class AppState {
     /// The tool approval sheet's queue.
     let toolApprovals = ToolApprovalCenter()
     /// Voice engines, voice models and their settings, and the one dictation session (there is one microphone).
-    let voice = VoiceHub()
+    let voice = DemoData.isEnabled ? DemoData.voiceHub() : VoiceHub()
     let dictation = DictationController()
     /// Reads replies aloud.
     let speaker = ReplySpeaker()

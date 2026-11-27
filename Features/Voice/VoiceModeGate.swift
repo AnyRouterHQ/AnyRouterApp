@@ -4,9 +4,11 @@ import SwiftUI
 enum VoiceModeGateLogic {
     /// The recommended speech model, or nil to dictate at once: nothing fits this device, a downloaded speech model is
     /// already installed, or the person chose Not Now before.
-    static func offer(recommended: VoiceModel?, installedSTT: Bool, declined: Bool) -> VoiceModel? {
-        guard !installedSTT, !declined else { return nil }
-        return recommended
+    /// A `pending` model (chosen before, not installed) is offered again instead of the recommendation.
+    static func offer(recommended: VoiceModel?, installedSTT: Bool, declined: Bool, pending: VoiceModel? = nil) -> VoiceModel? {
+        guard !installedSTT else { return nil }
+        if let pending { return pending }
+        return declined ? nil : recommended
     }
 
     /// The model's real download size, from the catalog.
@@ -42,10 +44,13 @@ enum VoiceModeGateLogic {
 }
 
 /// Voice Mode before its model is on the phone: which model it is, the real size and a way to pick another one, then the
-/// download's progress. `model` is the offer (the device's recommendation); the person can change it. When the chosen model
-/// is installed, `onReady` runs and the caller closes this and starts listening.
+/// download's progress. `model` is the offer (the device's recommendation, or the model already being downloaded); the
+/// person can change it. Download starts in the background and closes this at once: the chat stays usable, and the hub
+/// selects the model when it is installed. Opened again while it downloads, this shows the progress. If the model is
+/// installed while this is open, `onReady` runs and the caller closes this and starts listening.
 struct VoiceModeGate: View {
     @Environment(AppState.self) private var app
+    @Environment(\.dismiss) private var dismiss
     let model: VoiceModel
     let downloader: VoiceModelDownloader
     var onReady: () -> Void
@@ -83,11 +88,7 @@ struct VoiceModeGate: View {
         .padding(.vertical, 24)
         .readableWidth()
         .onChange(of: state) { _, new in
-            guard new == .installed else { return }
-            onReady()
-            // The caller's onReady selects the offer; the model that finished is the one the person chose, and it is the
-            // setting Settings › Local Models › Voice reads too.
-            app.voice.select(chosen)
+            if new == .installed { onReady() }
         }
     }
 
@@ -99,19 +100,21 @@ struct VoiceModeGate: View {
                 ProgressView(value: state.fraction ?? 0)
                     .accessibilityLabel("Downloading the voice model")
                     .accessibilityIdentifier("voice-gate.progress")
-                Button("Cancel", role: .cancel) { downloader.cancel(chosen) }
+                wideButton("Continue in Background", id: "voice-gate.background") { dismiss() }
+                Button("Cancel Download", role: .cancel) { app.voice.cancelVoiceModeDownload(chosen) }
                     .controlSize(.large)
                     .frame(minHeight: 44)
+                    .accessibilityIdentifier("voice-gate.cancel")
             case .failed(let message):
                 Text(message)
                     .font(.footnote)
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
-                wideButton("Try Again", id: "voice-gate.download") { downloader.start(chosen) }
+                wideButton("Try Again", id: "voice-gate.download") { startInBackground() }
                 chooser
                 notNow
             default:
-                wideButton(VoiceModeGateLogic.downloadTitle(chosen), id: "voice-gate.download") { downloader.start(chosen) }
+                wideButton(VoiceModeGateLogic.downloadTitle(chosen), id: "voice-gate.download") { startInBackground() }
                 chooser
                 notNow
             }
@@ -140,6 +143,11 @@ struct VoiceModeGate: View {
             .frame(minHeight: 44)
             .accessibilityIdentifier("voice-gate.choose")
         }
+    }
+
+    private func startInBackground() {
+        app.voice.startVoiceModeDownload(chosen)
+        dismiss()
     }
 
     private var notNow: some View {
