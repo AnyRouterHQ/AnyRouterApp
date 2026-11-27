@@ -23,6 +23,11 @@ struct DecisionRunnerScreen: View {
                     Text("\(store.state.count) of \(DecisionsLogic.maxStateCharacters) characters")
                 }
             }
+            if store.showsImageInput || !store.images.isEmpty {
+                DecisionPhotoSection(store: store)
+            } else if store.app?.acceptsImages ?? true {
+                Section { Label("This model reads text only. To add photos, choose another model in the model menu.", systemImage: "photo.badge.exclamationmark").foregroundStyle(.secondary) }
+            }
             Section {
                 DisclosureGroup("Questions", isExpanded: $showsQuestions) { questionRows($store) }
                     .accessibilityIdentifier("decisions-questions")
