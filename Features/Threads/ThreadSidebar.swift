@@ -167,7 +167,8 @@ struct ThreadSidebar: View {
     private func rows(_ items: [ThreadRecord]) -> some View {
         ForEach(items) { thread in
             Text(thread.title)
-                .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+                // One line at the default size; above it the title wraps instead of being cut (accessibility audit, drawer).
+                .lineLimit(typeSize > .large ? nil : 1)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(minHeight: rowHeight)
                 .rowInsets()

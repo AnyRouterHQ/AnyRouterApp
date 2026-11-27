@@ -230,7 +230,7 @@ struct ModelPickerSheet: View {
                 }
             }
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
                 ToolbarItem(placement: .primaryAction) {
                     Button { showsFilters = true } label: {
                         Label("Filter", systemImage: filterActive

@@ -104,6 +104,8 @@ struct CodeBlockView: View {
                 Text((language?.isEmpty == false ? language : nil) ?? "code")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
+                    // As tall as Copy beside it: the audit measured the label alone as a too-small hit area.
+                    .frame(minHeight: 44)
                 Spacer()
                 CopyButton(text: code, showsLabel: true)
             }
