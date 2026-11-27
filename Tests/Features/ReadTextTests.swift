@@ -91,7 +91,9 @@ struct ReadTextTests {
         let vm = try await chat()
         vm.readText(from: [try receiptFixture()])
         #expect(vm.ingesting == 1)
-        #expect(await waitUntil { vm.scannedText != nil })
+        // Vision can take seconds on a busy CI simulator: wait for the scan task, not a polling budget.
+        await vm.finishIngesting()
+        #expect(vm.scannedText != nil)
         #expect(vm.scannedText?.text.contains("TOTAL") == true)
         #expect(vm.ingesting == 0)
         #expect(vm.pending.isEmpty)
@@ -101,7 +103,7 @@ struct ReadTextTests {
     @Test func aPhotoWithoutTextSaysSo() async throws {
         let vm = try await chat()
         vm.readText(from: [pngData(width: 300, height: 200)])
-        #expect(await waitUntil { vm.errorMessage != nil })
+        await vm.finishIngesting()
         #expect(vm.errorMessage == OCRLogic.noTextMessage)
         #expect(vm.scannedText == nil)
         #expect(vm.ingesting == 0)
