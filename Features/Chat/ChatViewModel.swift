@@ -40,6 +40,9 @@ final class ChatViewModel {
 
     /// Called once when the first send creates the thread.
     @ObservationIgnored var onThreadCreated: (@MainActor (UUID) -> Void)?
+    /// Called when a reply with text ends, with that text, before a queued message starts the next reply. The end is an
+    /// event, not a change of `isStreaming`: a queued send keeps it true from one reply to the next.
+    @ObservationIgnored var onReplyEnded: (@MainActor (_ messageID: UUID, _ text: String) -> Void)?
 
     @ObservationIgnored private let context: ModelContext
     @ObservationIgnored private let registry: EngineRegistry
@@ -907,6 +910,8 @@ final class ChatViewModel {
         }
         if steps != assistant.toolSteps { assistant.toolSteps = steps }
         let gotReply = failure == nil && !assistant.content.isEmpty
+        // Read before `remove`, which deletes an empty reply.
+        let ended = assistant.content.isEmpty ? nil : (id: assistant.id, text: assistant.content)
         if let failure {
             assistant.failure = failure
         } else {
@@ -925,6 +930,7 @@ final class ChatViewModel {
             errorMessage = "Could not save the chat: \(error.localizedDescription)"
         }
         if gotReply, generatesTitles, let chat = model { titleTask = startTitle(for: thread, chat: chat) }
+        if let ended { onReplyEnded?(ended.id, ended.text) }
         queueReplyEnded(failure: failure)
     }
 

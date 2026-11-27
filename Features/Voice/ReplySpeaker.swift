@@ -34,8 +34,12 @@ final class ReplySpeaker {
     }
 
     /// A reply that is arriving. `text` is everything so far; `isFinal` when the reply is complete.
+    /// A reply that follows one whose text is all in hand (a queued message sent as it ended) is read after its last
+    /// sentences. A reply still arriving is cut off.
     func follow(messageID: UUID, text: String, isFinal: Bool, hub: VoiceHub) {
-        if speakingID != messageID { begin(messageID, hub: hub) }
+        if speakingID != messageID {
+            if speakingID != nil && replyEnded { readNext(messageID) } else { begin(messageID, hub: hub) }
+        }
         feed(messageID, text, isFinal: isFinal)
     }
 
@@ -68,6 +72,11 @@ final class ReplySpeaker {
         self.hub = hub
         notice = nil
         speakingID = messageID
+    }
+
+    private func readNext(_ messageID: UUID) {
+        speakingID = messageID
+        replyEnded = false
     }
 
     private func feed(_ messageID: UUID, _ text: String, isFinal: Bool) {

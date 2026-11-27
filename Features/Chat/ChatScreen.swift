@@ -124,6 +124,11 @@ struct ChatScreen: View {
                                           await app.tools.preSearch(query: query, approver: app.toolApprovals, context: context)
                                       }))
         model.onThreadCreated = { [shell] id in shell.selectedThreadID = id }
+        // "Read replies aloud" reads the end of a reply from here, also when a queued message starts the next one at once.
+        model.onReplyEnded = { [app] id, text in
+            guard app.voice.settings.readRepliesAloud else { return }
+            app.speaker.follow(messageID: id, text: text, isFinal: true, hub: app.voice)
+        }
         model.generatesTitles = true
         if DemoData.attachesSampleFile, thread == nil { model.attachFiles([DemoData.sampleAttachmentURL()]) }
         chat = model
@@ -201,10 +206,10 @@ private struct ChatContent: View {
         }
     }
 
-    /// "Read replies aloud": feeds the reply being written, and its end, to the speaker.
+    /// "Read replies aloud": feeds the reply being written to the speaker. Its end comes from `onReplyEnded`.
     private func followReply() {
-        guard app.voice.settings.readRepliesAloud, let last = chat.messages.last, last.role == .assistant else { return }
-        app.speaker.follow(messageID: last.id, text: last.content, isFinal: !chat.isStreaming, hub: app.voice)
+        guard chat.isStreaming, app.voice.settings.readRepliesAloud, let last = chat.messages.last, last.role == .assistant else { return }
+        app.speaker.follow(messageID: last.id, text: last.content, isFinal: false, hub: app.voice)
     }
 
     /// With the keyboard up and the @ list open there is little room above the composer. The greeting then gives way

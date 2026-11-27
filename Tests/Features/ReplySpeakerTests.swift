@@ -114,6 +114,24 @@ struct ReplySpeakerTests {
         #expect(!r.speaker.isSpeaking)
     }
 
+    @Test func aReplyThatFollowsAFinishedOneIsReadAfterItsLastSentence() async {
+        let r = rig()
+        r.voice.holds = true
+        let old = UUID()
+        let new = UUID()
+        r.speaker.follow(messageID: old, text: english + " And these are the last words", isFinal: true, hub: r.hub)
+        await settle { r.voice.spoken.count == 1 }
+        r.speaker.follow(messageID: new, text: vietnamese + " ", isFinal: false, hub: r.hub)
+        #expect(r.voice.stopCount == 0, "the finished reply is not cut off")
+        #expect(r.speaker.speakingID == new)
+        await settle {
+            r.voice.release()
+            return r.voice.spoken.count == 3
+        }
+        #expect(r.voice.spoken.map(\.text) == [english, "And these are the last words", vietnamese])
+        r.speaker.stop()
+    }
+
     @Test func theNoticeNamesTheLanguageAndWhereToGetTheVoice() {
         let notice = ReplySpeaker.missingVoiceNotice(.vietnamese)
         #expect(notice.contains(VoiceLanguage.vietnamese.name) && notice.contains("Spoken Content"))

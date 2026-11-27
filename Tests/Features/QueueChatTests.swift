@@ -66,6 +66,17 @@ struct QueueChatTests {
         #expect(r.vm.messages.map(\.role) == [.user, .assistant, .user, .assistant, .user, .assistant])
     }
 
+    @Test func aReplyEndsBeforeTheQueuedMessageGoesOutAlthoughStreamingNeverStops() async throws {
+        let r = try await rig(numbered())
+        var ends: [(text: String, questions: Int)] = []
+        r.vm.onReplyEnded = { _, text in ends.append((text, r.vm.messages.filter { $0.role == .user }.count)) }
+        _ = try #require(start(r.vm, "one"))
+        enqueue(r.vm, "two")
+        #expect(await waitUntil { contents(r.vm) == ["one", "reply 1", "two", "reply 2"] && r.vm.phase == .idle })
+        #expect(ends.map { $0.text } == ["reply 1", "reply 2"])
+        #expect(ends.map { $0.questions } == [1, 2], "reply 1 ends before the queued question is added")
+    }
+
     @Test func theQueueIsStoredWithTheThread() async throws {
         let r = try await rig(ScriptedEngine(chunks: ["partial"], hangs: true))
         let task = try #require(start(r.vm, "one"))
