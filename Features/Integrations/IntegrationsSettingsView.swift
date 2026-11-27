@@ -39,11 +39,13 @@ struct IntegrationsSettingsView: View {
 
     private var onDeviceModelsSection: some View {
         Section {
-            ToolToggleRow(
-                icon: .symbol("cpu"), title: "Tools on this device's models",
-                subtitle: "Qwen, Llama 3 and Gemma models can call the tools above. Uses part of their small context.",
-                isOn: Bindable(settings).onDeviceTools)
-                .accessibilityIdentifier("tools.on-device-models")
+            Toggle(isOn: Bindable(settings).onDeviceTools) {
+                ListRow(
+                    "Tools on this device's models",
+                    subtitle: "Qwen, Llama 3 and Gemma models can call the tools above. Uses part of their small context."
+                ) { ToolSourceIcon(icon: .symbol("cpu")) }
+            }
+            .accessibilityIdentifier("tools.on-device-models")
         } footer: {
             Text("These models get four tools at most, so the list fits their small context. Calls from them are not yet checked on a device.")
         }
@@ -88,12 +90,14 @@ private struct ToolSourceRow: View {
     var body: some View {
         let signedOut = source.requiresSignIn && app.integrations.state(for: .anyRouter).status == .needsSignIn
         HStack(spacing: 0) {
-            ToolToggleRow(
-                icon: source.icon, title: source.title,
-                subtitle: signedOut ? "Sign in to connect" : source.subtitle,
-                isOn: Binding(
-                    get: { app.tools.isOn(source, modelSource: modelSource) },
-                    set: { app.tools.setSource(source, on: $0) }))
+            Toggle(isOn: Binding(
+                get: { app.tools.isOn(source, modelSource: modelSource) },
+                set: { app.tools.setSource(source, on: $0) })
+            ) {
+                ListRow(source.title, subtitle: signedOut ? "Sign in to connect" : source.subtitle) {
+                    ToolSourceIcon(icon: source.icon)
+                }
+            }
             .disabled(signedOut)
             .accessibilityIdentifier("tools.source.\(source.id)")
             Button { open(source) } label: {
@@ -106,29 +110,6 @@ private struct ToolSourceRow: View {
             .foregroundStyle(.secondary)
             .accessibilityIdentifier("tools.detail.\(source.id)")
         }
-    }
-}
-
-/// A switch with an icon, a name and one line about it. A light tap when it flips.
-struct ToolToggleRow: View {
-    let icon: ToolSource.Icon
-    let title: String
-    let subtitle: String
-    @Binding var isOn: Bool
-
-    var body: some View {
-        Toggle(isOn: $isOn) {
-            Label {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                    Text(subtitle).font(.footnote).foregroundStyle(.secondary).lineLimit(3)
-                }
-            } icon: {
-                ToolSourceIcon(icon: icon)
-            }
-        }
-        .frame(minHeight: 44)
-        .sensoryFeedback(.impact(weight: .light), trigger: isOn)
     }
 }
 

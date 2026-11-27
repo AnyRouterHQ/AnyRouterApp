@@ -18,11 +18,12 @@ struct ToolSourceScreen: View {
     var body: some View {
         Form {
             Section {
-                ToolToggleRow(
-                    icon: source.icon, title: source.title, subtitle: source.subtitle,
-                    isOn: Binding(
-                        get: { app.tools.isOn(source, modelSource: modelSource) },
-                        set: { app.tools.setSource(source, on: $0) }))
+                Toggle(isOn: Binding(
+                    get: { app.tools.isOn(source, modelSource: modelSource) },
+                    set: { app.tools.setSource(source, on: $0) })
+                ) {
+                    ListRow(source.title, subtitle: source.subtitle) { ToolSourceIcon(icon: source.icon) }
+                }
             }
             if let server = source.server { connection(server) }
             toolsSection
@@ -109,11 +110,14 @@ struct ToolSourceScreen: View {
         case .onDevice:
             Section {
                 ForEach(app.tools.tools.filter { $0.source == .builtIn && $0.name != WebSearchBinding.name }) { tool in
-                    ToolToggleRow(
-                        icon: .symbol(ToolSourceCatalog.symbol(forTool: tool.name)), title: tool.title, subtitle: tool.description,
-                        isOn: Binding(
-                            get: { app.tools.isBuiltInEnabled(tool.name) },
-                            set: { app.tools.setBuiltIn(tool.name, enabled: $0) }))
+                    Toggle(isOn: Binding(
+                        get: { app.tools.isBuiltInEnabled(tool.name) },
+                        set: { app.tools.setBuiltIn(tool.name, enabled: $0) })
+                    ) {
+                        ListRow(tool.title, subtitle: tool.description) {
+                            ToolSourceIcon(icon: .symbol(ToolSourceCatalog.symbol(forTool: tool.name)))
+                        }
+                    }
                 }
             } header: {
                 Text("Tools")
@@ -125,11 +129,12 @@ struct ToolSourceScreen: View {
                 Section {
                     ForEach(source.tools, id: \.name) { pin in
                         let tool = pin.mcpTool
-                        ToolToggleRow(
-                            icon: .symbol(pin.symbol), title: pin.title, subtitle: pin.summary,
-                            isOn: Binding(
-                                get: { store.isEnabled(tool, on: server) },
-                                set: { store.setEnabled($0, tool: tool, on: server) }))
+                        Toggle(isOn: Binding(
+                            get: { store.isEnabled(tool, on: server) },
+                            set: { store.setEnabled($0, tool: tool, on: server) })
+                        ) {
+                            ListRow(pin.title, subtitle: pin.summary) { ToolSourceIcon(icon: .symbol(pin.symbol)) }
+                        }
                     }
                 } header: {
                     Text("Tools")
@@ -149,19 +154,24 @@ struct ToolSourceScreen: View {
         if !state.tools.isEmpty || search != nil {
             Section {
                 if let search {
-                    ToolToggleRow(
-                        icon: .symbol(ToolSourceCatalog.symbol(forTool: search.name)), title: search.title, subtitle: search.description,
-                        isOn: Binding(
-                            get: { app.tools.isBuiltInEnabled(search.name) },
-                            set: { app.tools.setBuiltIn(search.name, enabled: $0) }))
+                    Toggle(isOn: Binding(
+                        get: { app.tools.isBuiltInEnabled(search.name) },
+                        set: { app.tools.setBuiltIn(search.name, enabled: $0) })
+                    ) {
+                        ListRow(search.title, subtitle: search.description) {
+                            ToolSourceIcon(icon: .symbol(ToolSourceCatalog.symbol(forTool: search.name)))
+                        }
+                    }
                 }
                 ForEach(state.tools) { tool in
-                    ToolToggleRow(
-                        icon: .symbol(ToolSourceCatalog.symbol(forTool: tool.name)), title: tool.displayName,
-                        subtitle: subtitle(for: tool, on: server),
-                        isOn: Binding(
-                            get: { store.isEnabled(tool, on: server) },
-                            set: { store.setEnabled($0, tool: tool, on: server) }))
+                    Toggle(isOn: Binding(
+                        get: { store.isEnabled(tool, on: server) },
+                        set: { store.setEnabled($0, tool: tool, on: server) })
+                    ) {
+                        ListRow(tool.displayName, subtitle: subtitle(for: tool, on: server)) {
+                            ToolSourceIcon(icon: .symbol(ToolSourceCatalog.symbol(forTool: tool.name)))
+                        }
+                    }
                 }
             } header: {
                 Text("Tools")
