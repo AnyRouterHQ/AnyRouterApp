@@ -67,7 +67,9 @@ struct ReplyFooterRow: View {
     /// The model's full name, for VoiceOver: the short label drops the size and variant.
     private var modelAccessibilityLabel: String {
         let full = ResponseFormat.title(requestedName: message.modelName, requestedID: message.modelID, metadata: message.metadata)
-        return full.map { "Model, \($0)" } ?? "Details"
+        guard let full else { return "Details" }
+        guard let ttft = footer.ttft else { return "Model, \(full)" }
+        return "Model, \(full), first word after \(ttft)"
     }
 
     @ViewBuilder
@@ -75,7 +77,7 @@ struct ReplyFooterRow: View {
         if footer.hasDetails {
             Button { expanded.toggle() } label: {
                 HStack(spacing: 4) {
-                    Text(footer.modelLabel ?? "Details")
+                    Text(footer.modelLine ?? "Details")
                     Image(systemName: expanded ? "chevron.up" : "chevron.down").imageScale(.small)
                 }
                 .font(.caption)
@@ -91,8 +93,8 @@ struct ReplyFooterRow: View {
             .accessibilityLabel(modelAccessibilityLabel)
             .accessibilityHint(expanded ? "Hides cost, speed and tokens" : "Shows cost, speed and tokens")
             .accessibilityIdentifier("response-details")
-        } else if let label = footer.modelLabel {
-            Text(label)
+        } else if let line = footer.modelLine {
+            Text(line)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)

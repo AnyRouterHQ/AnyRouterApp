@@ -41,6 +41,14 @@ struct ReplyFooter: Equatable {
     var sources: [Source]
     /// Cost, speed and tokens are known and the setting is on, so the model name opens them.
     var hasDetails: Bool
+    /// Time to the first word, "0.4s", when the setting is on and the time was measured. It sits after the model name.
+    var ttft: String?
+
+    /// What the row says after the sources: "Sonnet 4.6 · 0.4s", or one of them. Nil when it has neither.
+    var modelLine: String? {
+        let parts = [modelLabel, ttft].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
 
     /// The favicon chain shows this many sites.
     static let maxFavicons = 3
@@ -71,7 +79,9 @@ struct ReplyFooter: Equatable {
         let name = displayName(requestedName: requestedName, requestedID: requestedID, metadata: metadata)
         let label = name.map(ModelShortLabel.make).flatMap { $0.isEmpty ? nil : $0 }
         let hasDetails = showsDetails && metadata.map { !ResponseFormat.expanded($0).isEmpty } == true
-        return ReplyFooter(actions: actions, modelLabel: label, sources: ReplySources.extract(from: steps), hasDetails: hasDetails)
+        let ttft = showsDetails ? metadata?.ttftMs.map(ResponseFormat.seconds) : nil
+        return ReplyFooter(
+            actions: actions, modelLabel: label, sources: ReplySources.extract(from: steps), hasDetails: hasDetails, ttft: ttft)
     }
 
     /// The model that wrote the reply: the one that served it (behind a router that is the routed model), else the one

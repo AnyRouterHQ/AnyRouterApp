@@ -32,14 +32,17 @@ struct ResponseFooterTests {
         #expect(value("Cost", in: metadata(cost: nil)) == nil)
     }
 
-    @Test func theDetailsOpenWithCostAndFirstTokenThenTotalSpeedAndTokens() {
+    @Test func theFirstTokenTimeIsOnTheRowNotInTheDetails() {
+        #expect(value("First token", in: metadata(ttft: 400)) == nil)
+    }
+
+    @Test func theDetailsOpenWithCostThenTotalSpeedAndTokens() {
         var full = metadata(cost: 0, ttft: 400, total: 3200, prompt: 12, completion: 80)
         full.servedModelID = "apple/foundation"
         full.provider = "On device"
         full.requestID = "req_1"
         let labels = ResponseFormat.expanded(full).map(\.label)
-        #expect(labels == ["Model", "Provider", "Cost", "First token", "Total", "Speed", "Tokens", "Request"])
-        #expect(value("First token", in: full) == "0.4s")
+        #expect(labels == ["Model", "Provider", "Cost", "Total", "Speed", "Tokens", "Request"])
         #expect(value("Total", in: full) == "3.2s")
         #expect(value("Tokens", in: full) == "12 in / 80 out")
     }

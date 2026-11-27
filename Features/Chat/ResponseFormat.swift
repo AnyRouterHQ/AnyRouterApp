@@ -36,7 +36,6 @@ enum ResponseFormat {
         add("Model", metadata.servedModelID)
         add("Provider", metadata.provider)
         add("Cost", metadata.costUSD.map(PriceFormat.cost))
-        add("First token", metadata.ttftMs.map(seconds))
         add("Total", metadata.totalMs.map(seconds))
         add("Speed", metadata.tokensPerSecond.map(speed))
         add("Tokens", tokens(prompt: metadata.promptTokens, completion: metadata.completionTokens))

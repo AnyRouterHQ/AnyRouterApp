@@ -79,6 +79,35 @@ struct ReplyFooterTests {
         #expect(f5.modelLabel == nil)
     }
 
+    // MARK: First token
+
+    private func fast() -> ResponseMetadata {
+        var value = ResponseMetadata()
+        value.ttftMs = 400
+        return value
+    }
+
+    @Test func theFirstTokenTimeFollowsTheModelName() throws {
+        let footer = try #require(make(name: "Claude Sonnet 4.6", metadata: fast()))
+        #expect(footer.ttft == "0.4s")
+        #expect(footer.modelLine == "Sonnet 4.6 · 0.4s")
+    }
+
+    @Test func withTheSettingOffTheRowHasOnlyTheName() throws {
+        let footer = try #require(make(details: false, name: "Claude Sonnet 4.6", metadata: fast()))
+        #expect(footer.ttft == nil)
+        #expect(footer.modelLine == "Sonnet 4.6")
+    }
+
+    @Test func aTimeWithoutANameStandsAlone() throws {
+        let footer = try #require(make(metadata: fast()))
+        #expect(footer.modelLine == "0.4s")
+    }
+
+    @Test func noNameAndNoTimeMeansNoLine() throws {
+        #expect(try #require(make()).modelLine == nil)
+    }
+
     // MARK: Details
 
     @Test func detailsOpenOnlyWhenTheSettingIsOnAndSomethingIsKnown() throws {
