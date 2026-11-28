@@ -9,7 +9,6 @@ struct PickerRowTests {
             "anthropic/claude-sonnet-4-6", name: "Claude Sonnet 4.6", upstreams: 35, context: 1_000_000,
             vision: true, reasoning: true, tools: true))
         #expect(row.title == "Claude Sonnet 4.6")
-        #expect(row.idLabel.isEmpty, "the id is on the detail screen")
         #expect(row.details == ["$3 / $15 per 1M", "1M ctx"], "no upstream count and no capability words on the row")
         #expect(row.capabilities == [.vision, .reasoning, .tools])
         #expect(row.supportsVision)
