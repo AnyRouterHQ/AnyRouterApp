@@ -128,7 +128,7 @@ struct ChatScreen: View {
         let model = ChatViewModel(thread: thread, context: context, registry: registry,
                                   settings: settings, models: models,
                                   toolHost: { [app] context in
-                                      app.tools.makeHost(approver: context.approver ?? app.toolApprovals, context: context)
+                                      app.tools.makeHost(approver: context.approver ?? app.toolApprovals, context: DemoData.addingApprovalTool(to: context))
                                   },
                                   approver: app.toolApprovals,
                                   isOnline: { [app] in app.network.isOnline },

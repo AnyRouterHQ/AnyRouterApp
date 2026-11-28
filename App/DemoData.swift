@@ -8,6 +8,8 @@ import UIKit
 /// `-ARDemoKeepSettings YES` keeps settings from the previous launch, to test persistence.
 /// `-ARDemoMemories YES` seeds a few memories for Settings > Memory.
 /// `-ARDemoAwaySeconds N` records a trip to the background N seconds before launch.
+/// `-ARDemoApproval YES`: the demo cloud engine asks for one external tool (`send_note`) in its first round and answers with
+/// the tool's result in the second, so a UI test can leave a run waiting for approval and relaunch the app.
 enum DemoData {
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: "ARDemoData") }
     private static var signedOut: Bool { UserDefaults.standard.bool(forKey: "ARDemoSignedOut") }
@@ -33,6 +35,15 @@ enum DemoData {
     /// Thread the shell selects at launch, or nil.
     static var initialThreadID: UUID? { isEnabled && longThreadMessages > 0 ? longThreadID : nil }
     private static var tools: Bool { UserDefaults.standard.bool(forKey: "ARDemoTools") }
+    private static var approval: Bool { isEnabled && UserDefaults.standard.bool(forKey: "ARDemoApproval") }
+
+    /// With `-ARDemoApproval YES` a chat's tools include `send_note`, a tool that asks every time.
+    static func addingApprovalTool(to context: ToolContext) -> ToolContext {
+        guard approval else { return context }
+        var withTool = context
+        withTool.memoryTools.append(DemoSendNoteTool())
+        return withTool
+    }
     private static var sources: Bool { UserDefaults.standard.bool(forKey: "ARDemoSources") }
     private static var parts: Bool { UserDefaults.standard.bool(forKey: "ARDemoParts") }
 
@@ -430,7 +441,12 @@ enum DemoData {
         let cloud = signedOut || onboarding ? [] : cloudModels + extraCloudModels
         registry.register(DemoEngine(source: .apple, models: [descriptor("apple/foundation", .apple, "Apple Intelligence")]))
         registry.register(DemoEngine(source: .gguf, models: onboarding ? [] : installedLocal))
-        registry.register(DemoEngine(source: .anyrouter, models: cloud, listDelay: .seconds(cloudDelay)))
+        let cloudEngine = DemoEngine(source: .anyrouter, models: cloud, listDelay: .seconds(cloudDelay))
+        if approval {
+            registry.register(DemoApprovalEngine(base: cloudEngine))
+        } else {
+            registry.register(cloudEngine)
+        }
         let account: any AccountService = DemoAccount(state: signedOut || onboarding ? .signedOut : .signedIn(label: "you@example.com"))
         return (settings, ModelStore(registry: registry, defaults: defaults), DemoHub(installed: !onboarding), account)
     }
@@ -665,6 +681,63 @@ struct DemoEngine: ChatEngine {
             continuation.onTermination = { _ in task.cancel() }
         }
     }
+}
+
+/// The demo cloud engine for `-ARDemoApproval YES`, on the app's loop so a run can wait for approval and be resumed: round 1
+/// proposes `send_note`, round 2 says what the call returned (the tool's result, or that it was not allowed).
+struct DemoApprovalEngine: ResumableEngine {
+    let base: DemoEngine
+
+    var source: ModelSource { base.source }
+
+    func availableModels() async throws -> [ModelDescriptor] { try await base.availableModels() }
+
+    func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams)
+        -> AsyncThrowingStream<ChatDelta, Error> {
+        base.stream(model: model, messages: messages, params: params)
+    }
+
+    func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams, tools: (any ToolHost)?)
+        -> AsyncThrowingStream<ChatDelta, Error> {
+        stream(model: model, messages: messages, params: params, tools: tools, resuming: nil)
+    }
+
+    func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams, tools: (any ToolHost)?, resuming: AgentResume?)
+        -> AsyncThrowingStream<ChatDelta, Error> {
+        guard let host = tools, host.specs.contains(where: { $0.name == DemoSendNoteTool.toolName }) else {
+            return base.stream(model: model, messages: messages, params: params)
+        }
+        return AgentLoop.stream(step: DemoApprovalStep(), host: host, maxToolRounds: 2, resume: resuming)
+    }
+}
+
+private struct DemoApprovalStep: StepFunction {
+    let budget: RunBudgetLogic.Budget? = nil
+
+    func tokens(_ rounds: [AgentRound], toolsOn: Bool) -> Int { 0 }
+
+    func step(_ rounds: [AgentRound], toolsOn: Bool) -> AsyncThrowingStream<StepEvent, Error> {
+        let events: [StepEvent] = rounds.isEmpty
+            ? [.proposed(ToolCall(id: "demo-note", name: DemoSendNoteTool.toolName, argumentsJSON: "{}")), .end(finishReason: "tool_calls")]
+            : [.text("Result: " + (rounds.last?.results.last?.text ?? "none")), .end(finishReason: "stop")]
+        return AsyncThrowingStream { continuation in
+            for event in events { continuation.yield(event) }
+            continuation.finish()
+        }
+    }
+}
+
+/// An external tool, so it asks every time.
+struct DemoSendNoteTool: BuiltInTool {
+    static let toolName = "send_note"
+    let name = DemoSendNoteTool.toolName
+    let title = "Send note"
+    let summary = "Sends a note."
+    let description = "Sends a note."
+    let inputSchemaJSON = #"{"type":"object"}"#
+    let sideEffect = ToolSideEffect.external
+
+    func run(_ arguments: JSONValue) async throws -> String { "The note was sent." }
 }
 
 extension DemoEngine {
