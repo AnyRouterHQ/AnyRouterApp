@@ -21,13 +21,18 @@ enum ToolRowLogic {
     static func title(for step: ToolStep) -> String {
         let state = status(of: step)
         let running = state == .running
-        let phrase = phrase(for: step.call, running: running)
+        let phrase = phrase(for: step.call, running: running) + cost(of: step)
         switch state {
         case .running, .awaitingApproval, .done: return phrase
         case .failed: return phrase + " failed"
         case .denied: return phrase + " not allowed"
         case .cancelled: return phrase + " cancelled"
         }
+    }
+
+    /// " · $0.0004" for a call that cost credits (`decide`), else nothing.
+    private static func cost(of step: ToolStep) -> String {
+        step.result?.costUSD.flatMap { $0 > 0 ? " \u{00B7} " + PriceFormat.cost($0) : nil } ?? ""
     }
 
     private static func phrase(for call: ToolCall, running: Bool) -> String {

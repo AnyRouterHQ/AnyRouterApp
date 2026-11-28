@@ -256,9 +256,9 @@ final class ToolRegistry {
         }
         // Memory is not a plugin the user switches on here: the chat adds its tools when memory is on for it.
         if context.forcedSourceIDs.isEmpty { builtIns += context.memoryTools }
-        // Like memory, `decide` is not switched on here: a cloud chat gets it with the Decisions service.
-        if context.forcedSourceIDs.isEmpty, context.modelSource == .anyrouter, let decisions {
-            builtIns.append(DecideTool(service: decisions))
+        // `decide` has its own switch under Tools > AnyRouter; outside a cloud chat it asks before the text leaves.
+        if context.forcedSourceIDs.isEmpty, isBuiltInEnabled(DecideTool.toolName), let decisions {
+            builtIns.append(DecideTool(service: decisions, onDevice: context.modelSource != .anyrouter))
         }
         return HostPlan(match: match, scrape: scrape, builtIns: builtIns, mcpTools: mcpTools)
     }

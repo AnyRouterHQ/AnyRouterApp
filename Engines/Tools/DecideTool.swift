@@ -1,8 +1,10 @@
 import Foundation
 
 /// `decide`: one yes or no, or multiple-choice, question about a text, answered by an AnyRouter decision model with
-/// its probabilities (PLAN D29). The Decisions screen uses the same `DecisionsService`. Offered to cloud models only.
-/// It reads: the text goes to AnyRouter, which already has the chat, and nothing changes. A reply shows it as AnyRouter's.
+/// its probabilities (PLAN D29). The Decisions screen uses the same `DecisionsService`. It spends AnyRouter credits; the
+/// cost shows on its row and in the reply. In a cloud chat it reads: AnyRouter already has the chat. In an Apple or
+/// local chat it is an external call that sends chat text to the cloud, so it asks every time, with the notice of
+/// "Ask a cloud model". It has its own switch under Tools > AnyRouter.
 struct DecideTool: BuiltInTool {
     static let toolName = "decide"
 
@@ -13,11 +15,25 @@ struct DecideTool: BuiltInTool {
     let description = "Ask a decision model one question about a text and get a calibrated answer: yes or no, or one of the options you give, with probabilities. Use it to classify or judge a text, not to look things up."
     let inputSchemaJSON = #"{"type":"object","properties":{"text":{"type":"string","description":"The text to judge."},"question":{"type":"string","description":"One question about the text."},"options":{"type":"array","items":{"type":"string"},"description":"Answers to choose from. Leave out for a yes or no question."}},"required":["text","question"]}"#
     let needsNetwork = true
-    let sideEffect = ToolSideEffect.read
+    let sideEffect: ToolSideEffect
     let sourceID = ToolSourceCatalog.anyRouter.id
 
-    func run(_ arguments: JSONValue) async throws -> String {
-        Self.render(try await service.run(Self.request(from: arguments)))
+    /// `onDevice`: the chat's model runs on this device, so the text would leave it.
+    init(service: any DecisionsService, onDevice: Bool = false) {
+        self.service = service
+        sideEffect = onDevice ? .external : .read
+    }
+
+    var approvalNote: String? {
+        sideEffect == .external
+            ? "This chat's text goes to AnyRouter so a decision model can answer, and it uses your AnyRouter credits." : nil
+    }
+
+    func run(_ arguments: JSONValue) async throws -> String { try await runCosted(arguments).text }
+
+    func runCosted(_ arguments: JSONValue) async throws -> (text: String, costUSD: Decimal?) {
+        let result = try await service.run(Self.request(from: arguments))
+        return (Self.render(result), result.cost.map { Decimal($0) })
     }
 
     static func request(from arguments: JSONValue) throws -> DecisionRequest {

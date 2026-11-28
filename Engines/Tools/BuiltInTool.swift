@@ -18,7 +18,11 @@ protocol BuiltInTool: Sendable {
     var undoesInsteadOfAsking: Bool { get }
     /// The source a reply shows for a call: this device, unless the tool sends its work to a service.
     var sourceID: String { get }
+    /// What the approval card says for a write or external call, in place of the general line.
+    var approvalNote: String? { get }
     func run(_ arguments: JSONValue) async throws -> String
+    /// The answer and what it cost; most tools cost nothing.
+    func runCosted(_ arguments: JSONValue) async throws -> (text: String, costUSD: Decimal?)
 }
 
 extension BuiltInTool {
@@ -26,6 +30,11 @@ extension BuiltInTool {
     var sideEffect: ToolSideEffect { .read }
     var undoesInsteadOfAsking: Bool { false }
     var sourceID: String { ToolSourceCatalog.device.id }
+    var approvalNote: String? { nil }
+
+    func runCosted(_ arguments: JSONValue) async throws -> (text: String, costUSD: Decimal?) {
+        (try await run(arguments), nil)
+    }
 
     var spec: ToolSpec {
         ToolSpec(name: name, title: title, description: description, inputSchemaJSON: inputSchemaJSON, sideEffect: sideEffect)

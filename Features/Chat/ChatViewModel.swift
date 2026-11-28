@@ -892,6 +892,7 @@ final class ChatViewModel {
                 assistant.metadata = Self.finalMetadata(
                     reported, tokens: tokens, model: model, ttftMs: ttftMs,
                     totalMs: Self.milliseconds(clock() - startedAt),
+                    toolCostUSD: assistant.toolSteps.compactMap { $0.result?.costUSD }.reduce(0, +),
                     nameOf: { id in knownModels.first { $0.wireID == id }?.displayName })
             }
             self?.finish(assistant, in: thread, failure: failure)
@@ -936,7 +937,7 @@ final class ChatViewModel {
     /// local and Apple models), plus token counts and the timings measured here.
     static func finalMetadata(
         _ reported: ResponseMetadata?, tokens: (prompt: Int, completion: Int)?, model: ModelDescriptor,
-        ttftMs: Int?, totalMs: Int, nameOf: (String) -> String?
+        ttftMs: Int?, totalMs: Int, toolCostUSD: Decimal = 0, nameOf: (String) -> String?
     ) -> ResponseMetadata {
         var metadata = reported ?? ResponseMetadata()
         if model.source != .anyrouter {
@@ -954,6 +955,8 @@ final class ChatViewModel {
         if metadata.completionTokens == nil { metadata.completionTokens = tokens?.completion }
         metadata.ttftMs = ttftMs
         metadata.totalMs = totalMs
+        // Calls that spend AnyRouter credits (`decide`) count in the reply's cost, on a device reply too.
+        if toolCostUSD > 0 { metadata.costUSD = (metadata.costUSD ?? 0) + toolCostUSD }
         return metadata
     }
 

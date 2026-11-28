@@ -76,8 +76,9 @@ struct AgentToolHost: ToolHost {
     private func approvalRequest(for call: ToolCall) -> ToolApprovalRequest? {
         if let tool = builtIns[call.name], !tool.sideEffect.isRead, !tool.undoesInsteadOfAsking {
             // A reason keeps "Always allow" off the card and the dialog.
-            let reason = tool.sideEffect == .write ? "This changes data in the app." : "This sends something outside the app."
-            return ToolApprovalRequest(serverName: "This device", spec: tool.spec, call: call, reason: reason)
+            let reason = tool.approvalNote ?? (tool.sideEffect == .write ? "This changes data in the app." : "This sends something outside the app.")
+            let receiver = tool.sourceID == ToolSourceCatalog.anyRouter.id ? "AnyRouter" : "This device"
+            return ToolApprovalRequest(serverName: receiver, spec: tool.spec, call: call, reason: reason)
         }
         guard let spec = allSpecs.first(where: { $0.name == call.name }), spec.isReadOnly,
             let arguments = MCPToolHost.arguments(from: call.argumentsJSON)
@@ -120,8 +121,10 @@ struct AgentToolHost: ToolHost {
             }
             let timeout = builtInTimeout
             do {
-                let text = try await withDeadline(timeout) { try await tool.run(arguments) }
-                return result(MCPToolHost.clip(text), error: false)
+                let answer = try await withDeadline(timeout) { try await tool.runCosted(arguments) }
+                var done = result(MCPToolHost.clip(answer.text), error: false)
+                done.costUSD = answer.costUSD
+                return done
             } catch is CancellationError {
                 return result("The tool call was cancelled.", error: true)
             } catch {

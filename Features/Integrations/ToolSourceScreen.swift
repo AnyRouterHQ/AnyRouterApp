@@ -164,6 +164,17 @@ struct ToolSourceScreen: View {
                         }
                     }
                 }
+                if server.auth == .anyRouterSignIn {
+                    Toggle(isOn: Binding(
+                        get: { app.tools.isBuiltInEnabled(DecideTool.toolName) },
+                        set: { app.tools.setBuiltIn(DecideTool.toolName, enabled: $0) })
+                    ) {
+                        ListRow("Decide", subtitle: "Ask a decision model about a text. Uses your AnyRouter credits; chats with a model on this device ask first.") {
+                            ToolSourceIcon(icon: .symbol(ToolSourceCatalog.symbol(forTool: DecideTool.toolName)))
+                        }
+                    }
+                    .accessibilityIdentifier("tools.decide")
+                }
                 ForEach(state.tools) { tool in
                     Toggle(isOn: Binding(
                         get: { store.isEnabled(tool, on: server) },
