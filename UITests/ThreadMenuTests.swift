@@ -26,7 +26,9 @@ final class ThreadMenuTests: XCTestCase {
         let archived = app.descendants(matching: .any)["search.archived"]
         XCTAssertTrue(archived.waitForExistence(timeout: 10), "View all ends with Archived chats")
         archived.tap()
-        XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5), "the chat is in Archived chats")
+        // A row is a button whose label is the title; match the label on any element.
+        let archivedRow = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", title)).firstMatch
+        XCTAssertTrue(archivedRow.waitForExistence(timeout: 5), "the chat is in Archived chats")
     }
 }
 

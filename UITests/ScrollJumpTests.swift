@@ -44,8 +44,11 @@ final class ScrollJumpTests: XCTestCase {
         input.tap()
         input.typeText("anchor check")
         app.buttons["Send"].tap()
+        sleep(1)
+        evidence(app, "anchor-1-after-send")
         XCTAssertTrue(app.buttons["Voice input"].waitForExistence(timeout: 30), "the reply finished")
         sleep(1)
+        evidence(app, "anchor-2-reply-ended")
 
         // The bubble is not a plain static text (verify-ui 46031167020): match any element that carries the words.
         // A selectable text view carries its words as the value, not the label.
@@ -75,5 +78,13 @@ final class ScrollJumpTests: XCTestCase {
 
         for _ in 0..<8 { swipe(app, towardsTheTop: false) }
         XCTAssertTrue(jump.waitForNonExistence(timeout: 5), "at the bottom again the button must go away without a tap")
+    }
+
+    /// A PNG in the verify-ui evidence (SCREENSHOT_DIR/scrolljump), so a failing anchor run shows where the question was.
+    private func evidence(_ app: XCUIApplication, _ name: String) {
+        guard let dir = ProcessInfo.processInfo.environment["SCREENSHOT_DIR"], !dir.isEmpty else { return }
+        let folder = URL(fileURLWithPath: dir).appendingPathComponent("scrolljump")
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try? app.screenshot().pngRepresentation.write(to: folder.appendingPathComponent("\(name).png"))
     }
 }
