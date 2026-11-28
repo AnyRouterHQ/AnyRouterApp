@@ -3,8 +3,7 @@ import SwiftUI
 
 /// Sidebar: a header row (logo, app name, search), then a plain list (Apps, pinned and recent chats) and a bottom bar
 /// with Settings and New chat. On iPhone it fills the drawer, on iPad the split-view column. Everything starts on one
-/// leading edge and trailing items end on one trailing edge, `margin` from the sides, as in a stock list. The bottom
-/// bar is the system's.
+/// leading edge and trailing items end on one trailing edge, `margin` from the sides, as in a stock list.
 struct ThreadSidebar: View {
     /// True when shown as a drawer over the chat (iPhone). Picking something then closes it.
     let isDrawer: Bool
@@ -13,6 +12,7 @@ struct ThreadSidebar: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     /// Row and hit-area heights grow with Dynamic Type instead of clipping the text.
     @ScaledMetric(relativeTo: .body) private var rowHeight = ARTheme.controlSize
+    @ScaledMetric(relativeTo: .body) private var controlSize = ARTheme.controlSize
     @ScaledMetric(relativeTo: .title3) private var logoSize: CGFloat = 22
     @Query(sort: \ThreadRecord.updatedAt, order: .reverse) private var threads: [ThreadRecord]
 
@@ -72,25 +72,16 @@ struct ThreadSidebar: View {
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         // A bar, not an inset, so the rows get the scroll edge effect under the header.
         .safeAreaBar(edge: .top, spacing: 8) { titleRow }
-        // Settings and New chat are system bottom-bar items: the system draws their glass, size and edge effect.
-        .toolbar {
-            ToolbarItem(placement: .bottomBar) {
-                Button("Settings", systemImage: "gearshape") { shell.presentSettings(closeSidebar: isDrawer) }
-                    .accessibilityIdentifier("sidebar.settings")
-            }
-            ToolbarSpacer(.flexible, placement: .bottomBar)
-            ToolbarItem(placement: .bottomBar) {
-                // The style sits inside the label: set on the button, the toolbar drew the plus alone (screenshots 46140428971).
-                Button { shell.newChat(closeSidebar: isDrawer) } label: {
-                    Label("New chat", systemImage: "plus").labelStyle(.titleAndIcon)
-                }
+        // Hand-made, in a bar: as system bottom-bar items the toolbar drew a bare "+" for New chat (screenshots
+        // 46140428971, 46145329030), and the operator keeps the gear and the "New chat" capsule.
+        .safeAreaBar(edge: .bottom, spacing: 0) { bottomBar }
                     .accessibilityIdentifier("sidebar.compose")
             }
         }
         .threadEditingDialogs($editing)
     }
 
-    /// The list's side margin: every row's text and the header line up on it.
+    /// The list's side margin: every row's text, the header and the bottom bar line up on it.
     fileprivate static let margin: CGFloat = 16
 
     private var titleRow: some View {
@@ -132,6 +123,39 @@ struct ThreadSidebar: View {
         .listRowInsets(EdgeInsets(top: 20, leading: Self.margin, bottom: 6, trailing: Self.margin))
         .listRowSeparator(.hidden)
         .selectionDisabled()
+    }
+
+    /// Settings and New chat: sibling glass in one container, both `ARTheme.controlSize` tall (design review P3).
+    private var bottomBar: some View {
+        GlassEffectContainer(spacing: 8) {
+            HStack {
+                Button { shell.presentSettings(closeSidebar: isDrawer) } label: {
+                    Image(systemName: "gearshape")
+                        .font(.body.weight(.medium))
+                        .frame(width: controlSize, height: controlSize)
+                        .glassEffect(.regular.interactive(), in: .circle)
+                        .contentShape(.circle)
+                }
+                .accessibilityLabel("Settings")
+                .accessibilityIdentifier("sidebar.settings")
+                Spacer()
+                Button { shell.newChat(closeSidebar: isDrawer) } label: {
+                    Label("New chat", systemImage: "plus")
+                        .font(.body.weight(.medium))
+                        // Never cut: at large text the capsule grows instead (the audit flagged "New chat" clipped).
+                        .fixedSize()
+                        .padding(.horizontal, 16)
+                        .frame(minHeight: controlSize)
+                        .glassEffect(.regular.interactive(), in: .capsule)
+                        .contentShape(.capsule)
+                }
+                .accessibilityIdentifier("sidebar.compose")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.primary)
+        }
+        .padding(.horizontal, Self.margin)
+        .padding(.vertical, 8)
     }
 
     private var appsRow: some View {
