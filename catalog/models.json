@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-11-26",
+  "updatedAt": "2026-11-28",
   "families": [
     {
       "id": "gemma-4",
@@ -510,6 +510,52 @@
           },
           "createdAt": "2026-11-27",
           "updatedAt": "2026-11-27"
+        }
+      ]
+    },
+    {
+      "id": "lfm-3-vl",
+      "name": "LFM 3 VL",
+      "publisher": "Liquid AI",
+      "line": "lfm-3-vl",
+      "logo": "liquid",
+      "summary": "Liquid AI's compact model that reads photos and documents as well as text. It thinks before it answers.",
+      "website": "https://huggingface.co/LiquidAI/LFM3-VL-2B",
+      "tags": [
+        "thinking",
+        "vision",
+        "multilingual",
+        "mobile"
+      ],
+      "badges": [
+        "new"
+      ],
+      "status": "current",
+      "order": 6,
+      "variants": [
+        {
+          "repo": "LiquidAI/LFM3-VL-2B-GGUF",
+          "engine": "gguf",
+          "file": "LFM3-VL-2B-QAD-Q4_0.gguf",
+          "params": "2B",
+          "quant": "Q4_0",
+          "sizeBytes": 1049615648,
+          "contextLength": 128000,
+          "license": "other",
+          "revision": "1add221a5ea6c047fcf1eaaf2d247939d7cf8849",
+          "sha256": "621c455376cb96a20891697deb9975c6fb47dd5ea98ed3ad1f3b7e8f24f0b1e6",
+          "vision": {
+            "mmprojFile": "mmproj-LFM3-VL-2B-Q8_0.gguf",
+            "mmprojSize": 203031872,
+            "imageSide": 512
+          },
+          "memory": {
+            "fullKVBytesPerToken": 12288,
+            "windowKVBytesPerToken": 10240,
+            "windowTokens": 256
+          },
+          "createdAt": "2026-11-28",
+          "updatedAt": "2026-11-28"
         }
       ]
     }
