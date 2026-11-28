@@ -6,6 +6,8 @@
       "symbol": "envelope.badge",
       "inputHint": "Paste an email",
       "acceptsImages": true,
+      "preferredModel": "anyrouter/decision",
+      "fallbackModel": "scira/amos-1-large",
       "samples": [
         {
           "title": "Needs a reply",
@@ -56,7 +58,8 @@
       "symbol": "receipt",
       "inputHint": "Snap a receipt or paste its text",
       "acceptsImages": true,
-      "defaultModel": "google/gemini-decision-1",
+      "preferredModel": "google/gemini-decision-1",
+      "fallbackModel": "anyrouter/decision",
       "samples": [
         {
           "title": "Coffee receipt",
@@ -106,7 +109,8 @@
       "inputHint": "Point the camera at a sign or add a photo",
       "acceptsImages": true,
       "photoFirst": true,
-      "defaultModel": "google/gemini-decision-1",
+      "preferredModel": "google/gemini-decision-1",
+      "fallbackModel": "anyrouter/decision",
       "samples": [
         {
           "title": "Speed sign",
@@ -193,6 +197,8 @@
       "symbol": "bolt.trianglebadge.exclamationmark",
       "inputHint": "Paste an alert or incident report",
       "acceptsImages": true,
+      "preferredModel": "anyrouter/decision",
+      "fallbackModel": "scira/amos-1-large",
       "samples": [
         {
           "title": "Checkout down",
@@ -238,6 +244,8 @@
       "symbol": "checkmark.seal",
       "inputHint": "Paste the policy, then the case",
       "acceptsImages": false,
+      "preferredModel": "anyrouter/decision",
+      "fallbackModel": "scira/amos-1-large",
       "samples": [
         {
           "title": "Travel policy",
@@ -273,6 +281,8 @@
       "symbol": "text.bubble",
       "inputHint": "Paste what you are about to send",
       "acceptsImages": false,
+      "preferredModel": "anyrouter/decision",
+      "fallbackModel": "scira/amos-1-large",
       "samples": [
         {
           "title": "Short reply",
@@ -314,6 +324,8 @@
       "symbol": "doc.on.clipboard",
       "inputHint": "Paste JSON, a token, a cron line, a stack trace, a color or text",
       "acceptsImages": false,
+      "preferredModel": "anyrouter/decision",
+      "fallbackModel": "scira/amos-1-large",
       "samples": [
         {
           "title": "JSON",

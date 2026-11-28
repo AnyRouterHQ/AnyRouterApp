@@ -21,7 +21,7 @@ struct ModelListRecoveryTests {
         #expect(chat.contains("anyrouter/anyrouter/auto"))
         #expect(chat.contains("anyrouter/openai/gpt-6.2-sol"))
         #expect(!chat.contains("anyrouter/cohere/rerank-v3.5"), "rerank models stay out of the chat list")
-        #expect(response.decisionModels().map(\.id) == ["anyrouter/decision", "scira/amos-1-large"])
+        #expect(response.decisionDescriptors(usable: true).map(\.wireID) == ["anyrouter/decision", "scira/amos-1-large"])
     }
 
     @Test func oneUnreadableEntryDoesNotDropTheCatalog() throws {

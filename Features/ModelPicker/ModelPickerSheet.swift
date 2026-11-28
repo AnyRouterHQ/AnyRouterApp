@@ -137,6 +137,8 @@ struct ModelPickerSheet: View {
 
     /// The model the chat uses now.
     let currentID: String?
+    /// What a model must do to be listed. The chat lists every chat model; a mini app narrows it.
+    let requirement: ModelRequirement
     /// Called with the pick; the chat applies it to the next message.
     let onSelect: (ModelDescriptor) -> Void
     /// A sheet closes with the × button; a popover (iPad) closes with a tap outside, so it has none.
@@ -166,16 +168,17 @@ struct ModelPickerSheet: View {
     private static let providerKeysURL = URL(string: "https://anyrouter.dev/dashboard/byok")!
     private static let creditsURL = URL(string: "https://anyrouter.dev/dashboard/credits")!
 
-    init(currentID: String?, showsClose: Bool = true, defaults: UserDefaults = PickerFilterStore.standardDefaults,
-         onSelect: @escaping (ModelDescriptor) -> Void) {
+    init(currentID: String?, requirement: ModelRequirement = .chat, showsClose: Bool = true,
+         defaults: UserDefaults = PickerFilterStore.standardDefaults, onSelect: @escaping (ModelDescriptor) -> Void) {
         self.currentID = currentID
+        self.requirement = requirement
         self.showsClose = showsClose
         self.onSelect = onSelect
         let store = PickerFilterStore(defaults: defaults)
         filterStore = store
         _cloudFilter = State(initialValue: store.cloud())
         _localFilter = State(initialValue: store.local())
-        _tab = State(initialValue: currentID?.hasPrefix("anyrouter/") == true ? .anyrouter : .local)
+        _tab = State(initialValue: !requirement.allowsLocal || currentID?.hasPrefix("anyrouter/") == true ? .anyrouter : .local)
         _detent = State(initialValue: DemoData.opensPickerAtMedium ? .medium : .large)
     }
 
@@ -216,7 +219,7 @@ struct ModelPickerSheet: View {
             .navigationDestination(isPresented: $showsFilters) {
                 ModelFilterForm(
                     tab: tab, cloud: $cloudFilter, local: $localFilter,
-                    providers: ModelFilter.providers(in: models.models))
+                    providers: ModelFilter.providers(in: listed))
             }
             .overlay { stateOverlay(shown) }
             .task(id: query) {
@@ -289,7 +292,7 @@ struct ModelPickerSheet: View {
     private var offlineSection: some View {
         Section {
             Label(OfflineLogic.pickerNote, systemImage: "wifi.slash")
-            if let suggestion = OfflineLogic.suggestedModel(in: models.models) {
+            if let suggestion = OfflineLogic.suggestedModel(in: listed) {
                 Button { choose(suggestion) } label: { Label("Use \(suggestion.shortName)", systemImage: "iphone") }
                     .accessibilityIdentifier("model-picker.offline-suggestion")
             }
@@ -302,12 +305,20 @@ struct ModelPickerSheet: View {
 
     private var signedIn: Bool { app.account.state.isSignedIn }
 
+    /// Every model that meets the requirement, usable or not. The tabs, filters and suggestions read this list.
+    private var listed: [ModelDescriptor] { models.listed(for: requirement) }
+
+    /// Why the cloud list behind this requirement did not load, or nil.
+    private var cloudFailure: String? {
+        requirement.kind == .chat ? models.loadFailures[.anyrouter] : models.decisionLoadFailure
+    }
+
     /// Apple, downloaded and catalog models split by what this device can use now.
     private var localAvailability: ModelAvailability {
-        let catalog = app.hub.catalog
+        let catalog = requirement.allowsLocal ? app.hub.catalog : []
         let entries = Dictionary(catalog.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return ModelAvailabilityLogic.partition(
-            ModelAvailabilityLogic.localCandidates(listed: models.models, catalog: catalog),
+            ModelAvailabilityLogic.localCandidates(listed: listed, catalog: catalog),
             signedIn: signedIn, summary: app.account.summary,
             fit: { entries[$0.id]?.fitDetail }, engineNote: { entries[$0.id]?.unavailableReason })
     }
@@ -333,6 +344,11 @@ struct ModelPickerSheet: View {
 
     @ViewBuilder
     private func localRows(_ list: [ModelDescriptor], unavailable: [PickerUnavailableModel]) -> some View {
+        if requirement.allowsLocal { downloadedSection(list) }
+        notAvailableRow(unavailable)
+    }
+
+    private func downloadedSection(_ list: [ModelDescriptor]) -> some View {
         Section("Downloaded") {
             ForEach(list) { model in
                 modelButton(model, fitBadge: fitBadge(for: model))
@@ -347,7 +363,6 @@ struct ModelPickerSheet: View {
             }
             .accessibilityIdentifier("model-picker.browse")
         }
-        notAvailableRow(unavailable)
     }
 
     /// One row at the end of a tab. It pushes the list of what cannot be used, each with its reason.
@@ -401,7 +416,7 @@ struct ModelPickerSheet: View {
 
     private var cloudAvailability: ModelAvailability {
         ModelAvailabilityLogic.partition(
-            models.models.filter { $0.source == .anyrouter }, signedIn: signedIn, summary: app.account.summary)
+            listed.filter { $0.source == .anyrouter }, signedIn: signedIn, summary: app.account.summary)
     }
 
     /// Not available, filtered like the list above it. A search also finds hidden models and AnyRouter BYOK.
@@ -419,7 +434,7 @@ struct ModelPickerSheet: View {
         CloudListLogic.arrange(
             models: usable, query: debouncedQuery, sort: sort, usageRank: models.usageRank,
             showUnusable: app.account.state.isSignedIn,
-            picks: TopPicks.compose(config: picksConfig, models: models.models, usageRank: models.usageRank),
+            picks: TopPicks.compose(config: picksConfig, models: listed, usageRank: models.usageRank),
             filter: cloudFilter, prefs: models.cloudPrefs, currentID: currentID,
             short: !showsAll && sort == .topUsage && !cloudFilter.isActive, signedIn: app.account.state.isSignedIn)
     }
@@ -434,7 +449,7 @@ struct ModelPickerSheet: View {
                 .accessibilityIdentifier("model-picker.sign-in")
             }
         }
-        if let failure = models.loadFailures[.anyrouter], !models.isLoading, !list.isEmpty {
+        if let failure = cloudFailure, !models.isLoading, !list.isEmpty {
             CloudListStaleNotice(message: failure) { Task { await models.refresh() } }
         }
         if let current = list.current {
@@ -476,12 +491,16 @@ struct ModelPickerSheet: View {
                 if debouncedQuery.isEmpty && !cloudFilter.isActive {
                     CloudListEmptyState(
                         reason: CloudEmptyReason.reason(
-                            models: models.models, failure: models.loadFailures[.anyrouter], isLoading: models.isLoading),
+                            models: listed, failure: cloudFailure, isLoading: models.isLoading),
                         retry: { Task { await models.refresh() } })
                 } else {
                     noMatches(clear: { cloudFilter = ModelFilter() }, isFiltered: cloudFilter.isActive)
                 }
             }
+        } else if !requirement.allowsLocal {
+            ContentUnavailableView(
+                "No local models", systemImage: "iphone.slash",
+                description: Text("Decisions run on AnyRouter decision models. None run on this device."))
         } else if shown.local.isEmpty, shown.unavailable.isEmpty, !debouncedQuery.isEmpty || localFilter.isActive {
             noMatches(clear: { localFilter = LocalFilter() }, isFiltered: localFilter.isActive)
         }
@@ -569,7 +588,8 @@ struct ModelPickerSheet: View {
         signInError = nil
         Task {
             do {
-                let outcome = try await CloudSignInLogic.signIn(mode: mode, then: model, account: app.account, models: models)
+                let outcome = try await CloudSignInLogic.signIn(
+                    mode: mode, then: model, account: app.account, models: models, requirement: requirement)
                 switch outcome {
                 case .selected(let picked):
                     signInModel = nil

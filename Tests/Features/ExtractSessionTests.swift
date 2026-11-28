@@ -41,7 +41,7 @@ struct ExtractSessionTests {
         let presets = PresetStore(
             fileURL: FileManager.default.temporaryDirectory.appending(path: "presets-\(UUID().uuidString).json"), builtIns: [])
         let chat = HeadlessChat(registry: registry, models: models, presets: presets)
-        let session = ExtractSession()
+        let session = ExtractSession(picks: MiniAppModelPicks(defaults: testDefaults()))
         session.models = models
         session.ask = { try await chat.ask($0, modelID: $1) }
         if let reader { session.deviceReader = reader }
@@ -163,19 +163,35 @@ struct ExtractSessionTests {
         #expect(engine.usedModels.values == ["apple/foundation"])
     }
 
-    @Test func theChosenModelAnswersAndAnUnknownOneFails() async throws {
+    /// The preset prefers the AnyRouter router; signed out it is not listed, so the fallback, Apple, answers.
+    @Test func signedOutThePresetFallsBackToAppleAndItAnswers() async throws {
         let (session, engine) = try await make(reply: [reply])
         session.applyDemo(stage: "document")
-        session.modelID = "apple/foundation"
+        #expect(session.preset.preferredModel == "anyrouter/auto" && session.preset.fallbackModel == "apple/foundation")
         #expect(session.resolvedModel?.id == "apple/foundation")
         await session.extract()
         #expect(engine.usedModels.values == ["apple/foundation"])
+    }
 
-        session.modelID = "gguf/missing/none"
-        #expect(session.resolvedModel?.id == "apple/foundation", "an id that is gone falls back to the default")
-        await session.extract()
-        #expect(session.errorMessage?.contains("gguf/missing/none") == true)
-        #expect(session.fields.isEmpty)
+    /// The picker's choice is remembered for Extract, and a pick that is gone falls back to the preset's models.
+    @Test func thePickIsRememberedAndAGoneOneFallsBack() async throws {
+        let defaults = testDefaults()
+        let registry = EngineRegistry()
+        registry.register(ScriptedEngine(models: [testModel(id: "apple/foundation")]))
+        registry.register(ScriptedEngine(source: .gguf, models: [testModel(id: "gguf/a/b.gguf", source: .gguf)]))
+        let models = ModelStore(registry: registry, defaults: testDefaults())
+        await models.refresh()
+        let session = ExtractSession(picks: MiniAppModelPicks(defaults: defaults))
+        session.models = models
+        session.choose(try #require(models.models.first { $0.source == .gguf }))
+        #expect(session.resolvedModel?.id == "gguf/a/b.gguf")
+        let again = ExtractSession(picks: MiniAppModelPicks(defaults: defaults))
+        again.models = models
+        #expect(again.resolvedModel?.id == "gguf/a/b.gguf")
+        defaults.set("gguf/missing/none", forKey: "miniApps.model.extract")
+        let gone = ExtractSession(picks: MiniAppModelPicks(defaults: defaults))
+        gone.models = models
+        #expect(gone.resolvedModel?.id == "apple/foundation")
     }
 
     @Test func aModelThatAnswersWithProseOnlySaysSo() async throws {

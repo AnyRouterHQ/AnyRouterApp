@@ -87,7 +87,8 @@ final class AppState {
             voice = DemoData.voiceHub()
             memory = MemoryMonitor.inert()
             warmUp = { _ in }
-            decisions = DecisionsStore(service: DemoDecisionsService())
+            demo.models.decisionSource = DemoDecisionsService()
+            decisions = DecisionsStore(service: DemoDecisionsService(), models: demo.models)
             return
         }
         let telemetry = dependencies.makeTelemetry()
@@ -171,7 +172,8 @@ final class AppState {
         if auth.isSignedIn { _ = integrations.accountChanged(signedIn: true) }
         let anyRouter = auth.makeEngine()
         registry.register(anyRouter)
-        decisions = DecisionsStore(service: AnyRouterDecisionsAdapter(engine: anyRouter))
+        modelStore.decisionSource = AnyRouterDecisionsAdapter(engine: anyRouter)
+        decisions = DecisionsStore(service: AnyRouterDecisionsAdapter(engine: anyRouter), models: modelStore)
         tools.decisions = AnyRouterDecisionsAdapter(engine: anyRouter)
         cloudOCR = { AnyRouterOCRReader(engine: anyRouter, filename: $0) }
         account = accountAdapter

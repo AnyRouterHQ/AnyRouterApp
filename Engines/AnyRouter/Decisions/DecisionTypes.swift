@@ -1,14 +1,5 @@
 import Foundation
 
-/// A model that answers typed questions about a text (`POST /api/v1/decisions`). Not a chat model.
-struct DecisionModel: Identifiable, Hashable, Codable, Sendable {
-    /// Wire id, e.g. `anyrouter/decision`.
-    var id: String
-    var name: String
-    /// From the model list's input modalities. `nil` when the list does not say.
-    var acceptsImages: Bool? = nil
-}
-
 /// A photo sent with a decision request: PNG, JPEG or WebP bytes. On the wire it is raw base64, never a `data:` URL.
 struct DecisionImage: Equatable, Codable, Sendable {
     var mediaType: String

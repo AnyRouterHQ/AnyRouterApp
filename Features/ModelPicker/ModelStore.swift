@@ -13,6 +13,12 @@ final class ModelStore {
     @ObservationIgnored let telemetry: any Telemetry
 
     private(set) var models: [ModelDescriptor] = []
+    /// AnyRouter's decision models, for the Decisions apps. Never in `models`, so the chat never offers one.
+    private(set) var decisionModels: [ModelDescriptor] = []
+    /// Why the decision models could not be loaded, from the latest try. The list loaded before stays.
+    private(set) var decisionLoadFailure: String?
+    /// Where decision models come from. Nil lists none.
+    @ObservationIgnored var decisionSource: (any DecisionsService)?
     private(set) var isLoading = false
     /// Why an engine's list could not be loaded, by source, from its latest answer. Cleared when it answers again.
     /// The models it listed before stay in `models`, so a failed refresh never empties a list that was fine.
@@ -96,7 +102,19 @@ final class ModelStore {
         }
         isLoading = false
         hasLoaded = true
+        await refreshDecisionModels()
         await refreshWeeklyUsage()
+    }
+
+    /// Lists the decision models again, so a sign-in makes them usable. A failure keeps the list it had.
+    func refreshDecisionModels() async {
+        guard let decisionSource else { return }
+        do {
+            decisionModels = try await decisionSource.decisionModels()
+            decisionLoadFailure = nil
+        } catch {
+            decisionLoadFailure = error.localizedDescription
+        }
     }
 
     /// Signed out or refused (401): the cached cloud list goes, and the next refresh lists what a signed-out person sees.
@@ -104,6 +122,7 @@ final class ModelStore {
         defaults.removeObject(forKey: Self.cloudListKey)
         listsBySource[.anyrouter] = nil
         models.removeAll { $0.source == .anyrouter }
+        decisionModels = []
     }
 
     /// A model listed twice keeps its best place.

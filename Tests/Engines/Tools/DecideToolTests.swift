@@ -17,7 +17,7 @@ struct DecideToolTests {
 
         var requests: [DecisionRequest] { lock.withLock { sent } }
 
-        func decisionModels() async throws -> [DecisionModel] { [] }
+        func decisionModels() async throws -> [ModelDescriptor] { [] }
 
         func run(_ request: DecisionRequest) async throws -> DecisionResult {
             lock.withLock { sent.append(request) }

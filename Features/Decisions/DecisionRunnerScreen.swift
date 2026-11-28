@@ -7,6 +7,7 @@ struct DecisionRunnerScreen: View {
     /// The one focus owner for every text input here, so Run can dismiss the keyboard.
     @FocusState private var focus: DecisionField?
     @State private var showsQuestions = false
+    @State private var showsModelPicker = false
 
     var body: some View {
         @Bindable var store = app.decisions
@@ -35,7 +36,7 @@ struct DecisionRunnerScreen: View {
         .navigationTitle(store.app?.title ?? "Custom decision")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) { modelMenu($store) }
+            ToolbarItem(placement: .topBarTrailing) { modelPill(store) }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showsRecent = true } label: { Label("Recent", systemImage: "clock.arrow.circlepath") }
                     .accessibilityIdentifier("decisions-recent")
@@ -51,6 +52,9 @@ struct DecisionRunnerScreen: View {
                 Text(reason).font(.footnote).foregroundStyle(.secondary)
             }
         }
+        .sheet(isPresented: $showsModelPicker) {
+            ModelPickerSheet(currentID: store.selectedModel?.id, requirement: store.requirement) { store.choose($0) }
+        }
         .onAppear { showsQuestions = store.app == nil }
         .task {
             if DemoData.addsDecisionPhoto, store.images.isEmpty, store.showsImageInput { await store.addImages([DemoData.decisionPhoto(for: store.app?.id)]) }
@@ -59,15 +63,16 @@ struct DecisionRunnerScreen: View {
 
     // MARK: Input
 
-    /// Photos, or the plain "can't read photos" line when the model is text only; the model menu is in the toolbar.
+    /// Photos, or the "can't read photos" line when the model is text only; it opens the picker.
     @ViewBuilder
     private func photoSection(_ store: DecisionsStore) -> some View {
         if store.showsImageInput || !store.images.isEmpty {
             DecisionPhotoSection(store: store)
         } else if store.app?.acceptsImages ?? true {
             Section {
-                Label("This model can't read photos. Choose another model.", systemImage: "photo.badge.exclamationmark")
-                    .foregroundStyle(.secondary)
+                Button { showsModelPicker = true } label: {
+                    Label("This model can't read photos. Choose another model.", systemImage: "photo.badge.exclamationmark")
+                }
             }
         }
     }
@@ -125,20 +130,13 @@ struct DecisionRunnerScreen: View {
 
     // MARK: Toolbar and Run
 
-    /// The model, one tap away. Also the action when a model cannot read photos.
-    private func modelMenu(_ store: Bindable<DecisionsStore>) -> some View {
-        Menu {
-            if store.wrappedValue.models.isEmpty {
-                Text(store.wrappedValue.modelsError ?? "Loading decision models")
-            } else {
-                Picker("Model", selection: store.modelID) {
-                    ForEach(store.wrappedValue.models) { Text($0.name).tag($0.id) }
-                }
-            }
-        } label: {
-            Label(store.wrappedValue.selectedModel?.name ?? "Model", systemImage: "cpu")
-        }
-        .accessibilityIdentifier("decisions-model")
+    /// The model as the chat header shows it, logo and short name. It opens the picker with decision models only.
+    private func modelPill(_ store: DecisionsStore) -> some View {
+        let model = store.selectedModel
+        return ModelTitle(
+            name: model?.shortName, isLoading: store.models.isLoading, brand: model.map(ModelBrand.resolve(_:)),
+            identifier: "decisions-model"
+        ) { showsModelPicker = true }
     }
 
     // MARK: Result
@@ -153,7 +151,7 @@ struct DecisionRunnerScreen: View {
         case .failed(let message, let canChangeModel):
             Section {
                 Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
-                if canChangeModel { modelMenu(Bindable(store)) }
+                if canChangeModel { Button("Choose another model") { showsModelPicker = true } }
             }
         case .finished(let result):
             Section("Result") {

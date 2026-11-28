@@ -22,14 +22,16 @@ enum CloudSignInLogic {
     }
 
     /// Signs in (or up), reloads the list with the new key, and finds the tapped model in it so it can be picked.
+    /// `requirement` is the picker's, so a decision model is found among the decision models.
     @MainActor
     static func signIn(
-        mode: AuthMode, then model: ModelDescriptor, account: any AccountService, models: ModelStore
+        mode: AuthMode, then model: ModelDescriptor, account: any AccountService, models: ModelStore,
+        requirement: ModelRequirement = .chat
     ) async throws -> CloudSignInOutcome {
         try await account.signIn(mode: mode)
         guard account.state.isSignedIn else { return .stillSignedOut }
         await models.refresh()
-        if let fresh = models.models.first(where: { $0.id == model.id && $0.isInstalled }) { return .selected(fresh) }
+        if let fresh = models.listed(for: requirement).first(where: { $0.id == model.id && $0.isInstalled }) { return .selected(fresh) }
         return .signedInOnly
     }
 }

@@ -137,13 +137,27 @@ struct ModelsResponse: Decodable {
             }
     }
 
-    /// Decision models, for the Decisions screen. Ids are the wire ids (`anyrouter/decision`).
-    func decisionModels() -> [DecisionModel] {
-        data.filter { $0.kind == .decision }.map {
-            DecisionModel(
-                id: $0.id, name: $0.name ?? $0.id,
-                acceptsImages: $0.architecture?.inputModalities.map { $0.contains("image") })
-        }
+/// Decision models, for the Decisions apps. The same cloud info as chat models, so the picker shows prices and
+    /// logos. Ids follow the chat rule (`anyrouter/anyrouter/decision`); a request sends the `wireID`.
+    func decisionDescriptors(usable: Bool) -> [ModelDescriptor] {
+        data
+            .filter { $0.kind == .decision }
+            .map { item in
+                let info = item.cloudInfo(signedIn: usable)
+                var capabilities: Set<String> = ["decision"]
+                if item.architecture?.inputModalities?.contains("image") == true { capabilities.insert("vision") }
+                return ModelDescriptor(
+                    id: "anyrouter/\(item.id)",
+                    source: .anyrouter,
+                    displayName: item.name ?? item.id,
+                    contextLength: item.contextLength,
+                    capabilities: capabilities,
+                    sizeBytes: nil,
+                    isInstalled: usable && info.availability == .usable,
+                    summary: item.description,
+                    cloud: info
+                )
+            }
     }
 
     /// Reads `data` entry by entry: an entry that does not read is counted and skipped.

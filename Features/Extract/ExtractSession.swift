@@ -24,17 +24,24 @@ final class ExtractSession {
     var errorMessage: String?
     private(set) var presetID = "receipt"
     private(set) var customFields: [FieldSpec] = []
-    /// nil: the app's default model.
-    var modelID: String?
     /// Read images on AnyRouter's servers. Off by default; only offered when signed in.
     var usesCloudReader = false
     private(set) var selectedFieldID: String?
+    /// The model the person picked for Extract (a wire id), remembered across launches.
+    private var pickedID: String?
+    private let picks: MiniAppModelPicks
+    static let pickKey = "extract"
 
     var models: ModelStore?
     var deviceReader: any ImageTextReading = VisionTextReader()
     /// The cloud reader for a file name, or nil when signed out.
     var cloudReader: (String?) -> (any ImageTextReading)? = { _ in nil }
     var ask: @MainActor (String, String?) async throws -> String = { _, _ in throw HeadlessError.noModel }
+
+    init(picks: MiniAppModelPicks = MiniAppModelPicks()) {
+        self.picks = picks
+        pickedID = picks.pick(for: Self.pickKey)
+    }
 
     // MARK: What is on screen
 
@@ -46,10 +53,18 @@ final class ExtractSession {
 
     var canExtract: Bool { phase == .idle && ExtractLogic.canExtract(text: text, fields: activeFields) }
 
-    /// The model Extract will ask: the one picked here, else the app's default.
+    /// The model Extract will ask: the person's pick, else the preset's preferred model, else its fallback, else any chat
+    /// model that can run now. Apple and local models count.
     var resolvedModel: ModelDescriptor? {
         guard let models else { return nil }
-        return modelID.flatMap { id in models.models.first { $0.id == id } } ?? models.selected
+        return MiniAppModelChoice.choose(
+            [pickedID, preset.preferredModel, preset.fallbackModel], from: models.listed(for: .chat))
+    }
+
+    /// The pick from the picker, remembered for Extract.
+    func choose(_ model: ModelDescriptor) {
+        pickedID = model.wireID
+        picks.remember(model, for: Self.pickKey)
     }
 
     /// Said under the text while the model would get less than all of it.
@@ -187,7 +202,7 @@ final class ExtractSession {
         phase = .extracting
         defer { phase = .idle }
         do {
-            fields = try await service.extract(text: text, fields: requested, modelID: modelID)
+            fields = try await service.extract(text: text, fields: requested, modelID: model.id)
         } catch {
             errorMessage = error.localizedDescription
         }

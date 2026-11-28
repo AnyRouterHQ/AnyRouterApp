@@ -55,11 +55,18 @@ struct ModelKindTests {
             CatalogSample.embedding, CatalogSample.rerank, #"{"id":"x/unnamed-decision","capabilities":["systemone"]}"#)
         let response = try JSONDecoder().decode(ModelsResponse.self, from: data)
         #expect(response.descriptors(usable: true).map(\.id) == ["anyrouter/anyrouter/byok", "anyrouter/agents-a1/agents-a1-free"])
-        #expect(response.decisionModels() == [
-            DecisionModel(id: "anyrouter/decision", name: "AnyRouter Decision", acceptsImages: false),
-            DecisionModel(id: "google/gemini-decision-1", name: "Gemini Decision 1", acceptsImages: true),
-            DecisionModel(id: "x/unnamed-decision", name: "x/unnamed-decision", acceptsImages: nil),
-        ])
+        let decisions = response.decisionDescriptors(usable: true)
+        #expect(decisions.map(\.wireID) == ["anyrouter/decision", "google/gemini-decision-1", "x/unnamed-decision"])
+        #expect(decisions.map(\.displayName) == ["AnyRouter Decision", "Gemini Decision 1", "x/unnamed-decision"])
+        // Only the model whose input takes images is offered when a photo is attached.
+        #expect(decisions.map(\.capabilities) == [["decision"], ["decision", "vision"], ["decision"]])
+        #expect(decisions.allSatisfy { $0.source == .anyrouter && $0.cloud != nil && $0.isInstalled })
+    }
+
+    /// Signed out a decision model is listed, but no mini app may pick it.
+    @Test func signedOutDecisionModelsAreListedButNotUsable() throws {
+        let response = try JSONDecoder().decode(ModelsResponse.self, from: CatalogSample.list(CatalogSample.decision))
+        #expect(response.decisionDescriptors(usable: false).map(\.isInstalled) == [false])
     }
 }
 
@@ -77,6 +84,6 @@ struct AnyRouterEngineKindTests {
         let data = CatalogSample.list(CatalogSample.chat, CatalogSample.decision)
         let api = StubbedAPI { _ in reply(data) }
         let engine = AnyRouterEngine(tokens: FakeTokens(nil), config: api.config, session: api.session)
-        #expect(try await engine.decisionModels().map(\.id) == ["anyrouter/decision"])
+        #expect(try await engine.decisionModels().map(\.wireID) == ["anyrouter/decision"])
     }
 }

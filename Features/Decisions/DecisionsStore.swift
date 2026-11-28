@@ -18,22 +18,27 @@ final class DecisionsStore {
     private(set) var appsError: String?
     /// The open app, or `nil` for the custom decision.
     private(set) var app: DecisionApp?
-    var models: [DecisionModel] = []
-    var modelID = DecisionsLogic.defaultModelID
     var state = ""
     /// The custom decision's questions. An app's questions are fixed and live in `app`.
     var questions: [QuestionDraft] = []
     private(set) var images: [DecisionImage] = []
     private(set) var imageError: String?
     private(set) var phase: Phase = .idle
-    private(set) var modelsError: String?
+    /// The person's pick for the open app: the saved one, or for this session the model of a restored run.
+    private var pickedID: String?
 
     private let service: any DecisionsService
+    /// Lists the decision models the picker and `selectedModel` choose from.
+    let models: ModelStore
+    private let picks: MiniAppModelPicks
     private var context: ModelContext?
 
-    init(service: any DecisionsService, context: ModelContext? = nil) {
+    init(service: any DecisionsService, models: ModelStore, picks: MiniAppModelPicks = MiniAppModelPicks(), context: ModelContext? = nil) {
         self.service = service
+        self.models = models
+        self.picks = picks
         self.context = context
+        pickedID = picks.pick(for: pickKey)
     }
 
     /// The screen hands over its context; runs are saved there.
@@ -58,7 +63,7 @@ final class DecisionsStore {
         images = []
         imageError = nil
         phase = .idle
-        modelID = DecisionAppsLogic.startingModelID(app: app, models: models, current: modelID)
+        pickedID = picks.pick(for: pickKey)
     }
 
     /// The custom decision with `text` as its state, from the composer.
@@ -76,7 +81,34 @@ final class DecisionsStore {
 
     // MARK: Form
 
-    var selectedModel: DecisionModel? { models.first { $0.id == modelID } }
+    /// Decision models only, and once a photo is attached only ones that read photos.
+    var requirement: ModelRequirement { .decision(needsVision: !images.isEmpty) }
+
+    /// The model Run uses: the person's pick, else the app's preferred model, else its fallback, else the free decision
+    /// model, else any that fits. Nil signed out or when none can read the attached photos.
+    var selectedModel: ModelDescriptor? {
+        MiniAppModelChoice.choose(
+            [pickedID, app?.preferredModel, app?.fallbackModel, DecisionsLogic.defaultModelID],
+            from: models.listed(for: requirement))
+    }
+
+    /// The pick from the picker, remembered for this app.
+    func choose(_ model: ModelDescriptor) {
+        pickedID = model.wireID
+        picks.remember(model, for: pickKey)
+    }
+
+    /// One saved pick per app, and one for the custom decision.
+    private var pickKey: String {
+        guard let app else { return "decisions.custom" }
+        return "decisions.\(app.id)"
+    }
+
+    /// The wire id the request sends, empty when no model fits (Run then says "Choose a model.").
+    private var modelID: String {
+        guard let selectedModel else { return "" }
+        return selectedModel.wireID
+    }
 
     var showsImageInput: Bool { DecisionAppsLogic.showsImageInput(app: app, model: selectedModel) }
 
@@ -90,14 +122,8 @@ final class DecisionsStore {
     var canRun: Bool { phase != .running && blocker == nil }
 
     func loadModels() async {
-        guard models.isEmpty else { return }
-        do {
-            models = try await service.decisionModels()
-            modelsError = nil
-            modelID = DecisionAppsLogic.startingModelID(app: app, models: models, current: modelID)
-        } catch {
-            modelsError = error.localizedDescription
-        }
+        guard models.decisionModels.isEmpty else { return }
+        await models.refreshDecisionModels()
     }
 
     // MARK: Questions
@@ -155,7 +181,7 @@ final class DecisionsStore {
     func restore(_ record: DecisionRunRecord) {
         guard let result = record.result else { return }
         app = apps.first { $0.id == record.appID }
-        modelID = record.modelID
+        pickedID = record.modelID
         state = record.state
         questions = record.questions
         images = []

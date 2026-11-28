@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct DecideCostTests {
     private final class Service: DecisionsService, @unchecked Sendable {
-        func decisionModels() async throws -> [DecisionModel] { [] }
+        func decisionModels() async throws -> [ModelDescriptor] { [] }
         func run(_ request: DecisionRequest) async throws -> DecisionResult {
             DecisionResult(model: request.model, answers: [], inputTokens: 10, outputTokens: 1, cost: 0.0004, refusal: nil, latency: 0.1)
         }

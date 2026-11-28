@@ -10,6 +10,9 @@ struct ModelTitle: View {
     /// "Instructions" when this chat has its own instructions (`InstructionsLogic.headerTag`), inside the pill.
     var tag: String? = nil
     var isLoading = false
+    /// The model's logo before its name. The mini apps show it; the chat header does not.
+    var brand: ModelBrand? = nil
+    var identifier = "chat.model-title"
     var action: () -> Void
 
     var body: some View {
@@ -32,23 +35,10 @@ struct ModelTitle: View {
                         .minimumScaleFactor(0.8)
                         .accessibilityIdentifier("chat.title")
                 }
-                Text(name ?? (isLoading ? "Loading…" : "Choose model"))
-                    .font(title == nil ? .headline : .caption)
-                    .foregroundStyle(title == nil ? .primary : .secondary)
-                    .lineLimit(1)
-                    // Shrinks a little first, so a long name stays readable at large text sizes, then cuts in the middle.
-                    .minimumScaleFactor(0.8)
-                    .truncationMode(.middle)
-                    // The chevron hangs off the name's trailing edge without taking part in the layout, so the name is
-                    // centred on the same axis as the title above it (operator: the subtitle looked indented).
-                    .overlay(alignment: .trailing) {
-                        Image(systemName: "chevron.right")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .fixedSize()
-                            .alignmentGuide(.trailing) { $0[.leading] - 4 }
-                            .accessibilityHidden(true)
-                    }
+                HStack(spacing: 6) {
+                    if let brand { PillLogo(brand: brand) }
+                    nameText
+                }
             }
             .foregroundStyle(.primary)
             // Room inside the shared glass the toolbar draws behind the title (sharedBackgroundVisibility in ChatScreen).
@@ -62,6 +52,34 @@ struct ModelTitle: View {
         .accessibilityLabel("Model")
         .accessibilityValue(name ?? "")
         .accessibilityHint(title.map { "In \($0). Choose a model" } ?? "Choose a model")
-        .accessibilityIdentifier("chat.model-title")
+        .accessibilityIdentifier(identifier)
     }
+
+    private var nameText: some View {
+        Text(name ?? (isLoading ? "Loading…" : "Choose model"))
+            .font(title == nil ? .headline : .caption)
+            .foregroundStyle(title == nil ? .primary : .secondary)
+            .lineLimit(1)
+            // Shrinks a little first, so a long name stays readable at large text sizes, then cuts in the middle.
+            .minimumScaleFactor(0.8)
+            .truncationMode(.middle)
+            // The chevron hangs off the name's trailing edge without taking part in the layout, so the name is
+            // centred on the same axis as the title above it (operator: the subtitle looked indented).
+            .overlay(alignment: .trailing) {
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                    .alignmentGuide(.trailing) { $0[.leading] - 4 }
+                    .accessibilityHidden(true)
+            }
+    }
+}
+
+/// The logo at the size of the headline next to it.
+private struct PillLogo: View {
+    let brand: ModelBrand
+    @ScaledMetric(relativeTo: .headline) private var size: CGFloat = 20
+
+    var body: some View { ModelLogo(brand: brand, size: size) }
 }

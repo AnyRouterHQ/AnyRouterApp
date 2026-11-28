@@ -661,9 +661,19 @@ enum DemoData {
 
 /// Canned decision models and answers so the Decisions apps work offline. Each answer fits its question's kind.
 struct DemoDecisionsService: DecisionsService {
-    func decisionModels() async throws -> [DecisionModel] {
-        [DecisionModel(id: "anyrouter/decision", name: "AnyRouter Decision", acceptsImages: false),
-         DecisionModel(id: "google/gemini-decision-1", name: "Gemini Decision 1", acceptsImages: true)]
+    func decisionModels() async throws -> [ModelDescriptor] {
+        [Self.model("anyrouter/decision", "AnyRouter Decision", vision: false, input: 0, output: 0),
+         Self.model("google/gemini-decision-1", "Gemini Decision 1", vision: true, input: Decimal(string: "0.3")!, output: 1)]
+    }
+
+    private static func model(_ id: String, _ name: String, vision: Bool, input: Decimal, output: Decimal) -> ModelDescriptor {
+        ModelDescriptor(
+            id: "anyrouter/\(id)", source: .anyrouter, displayName: name, contextLength: 131_072,
+            capabilities: vision ? ["decision", "vision"] : ["decision"], sizeBytes: nil, isInstalled: true,
+            cloud: CloudInfo(
+                pricing: CloudPricing(input: input, output: output, cacheRead: nil, billing: input == 0 ? .free : .credits),
+                availability: .usable, upstreamCount: 1, memberCount: nil, supportsVision: vision, supportsReasoning: false,
+                created: nil, logoURL: nil))
     }
 
     func run(_ request: DecisionRequest) async throws -> DecisionResult {

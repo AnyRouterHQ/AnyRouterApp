@@ -191,13 +191,6 @@ enum DecisionsLogic {
         return DecisionRequest(model: model, state: wireState(state, images: images), questions: wire, images: images)
     }
 
-    /// The default model when the list has it, else the first one.
-    static func initialModelID(in models: [DecisionModel], current: String) -> String {
-        if models.contains(where: { $0.id == current }) { return current }
-        if models.contains(where: { $0.id == defaultModelID }) { return defaultModelID }
-        return models.first?.id ?? current
-    }
-
     // MARK: Text
 
     static func percent(_ value: Double) -> String { "\(Int((min(1, max(0, value)) * 100).rounded()))%" }

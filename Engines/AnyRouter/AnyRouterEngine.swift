@@ -37,8 +37,9 @@ struct AnyRouterEngine: ResumableEngine, SubagentEngine {
     }
 
     /// Decision models from the same catalog call. They are not chat models, so they are not in `availableModels()`.
-    func decisionModels() async throws -> [DecisionModel] {
-        try await fetchCatalog().models.decisionModels()
+    func decisionModels() async throws -> [ModelDescriptor] {
+        let (models, usable) = try await fetchCatalog()
+        return models.decisionDescriptors(usable: usable)
     }
 
     private func fetchCatalog() async throws -> (models: ModelsResponse, usable: Bool) {

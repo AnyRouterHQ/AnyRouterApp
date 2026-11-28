@@ -27,6 +27,7 @@ struct ExtractScreen: View {
     @State private var showsScanner = false
     @State private var showsAddField = false
     @State private var newFieldName = ""
+    @State private var showsModelPicker = false
 
     private var isSignedIn: Bool {
         if case .signedIn = app.account.state { return true }
@@ -54,7 +55,7 @@ struct ExtractScreen: View {
         .navigationTitle("Extract")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) { modelMenu(selection: $model.modelID) }
+            ToolbarItem(placement: .topBarTrailing) { modelPill }
             if !session.fields.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) { ShareLink(item: ExtractLogic.exported(session.fields)) }
             }
@@ -69,6 +70,9 @@ struct ExtractScreen: View {
             }
         } accessory: {
             EmptyView()
+        }
+        .sheet(isPresented: $showsModelPicker) {
+            ModelPickerSheet(currentID: session.resolvedModel?.id) { session.choose($0) }
         }
         .photosPicker(isPresented: $showsPhotos, selection: $photoItems, maxSelectionCount: 5, matching: .images)
         .onChange(of: photoItems) { _, items in loadPhotos(items) }
@@ -205,16 +209,13 @@ struct ExtractScreen: View {
 
     // MARK: Controls
 
-    private func modelMenu(selection: Binding<String?>) -> some View {
-        Menu {
-            Picker("Model", selection: selection) {
-                Text("Default model").tag(String?.none)
-                ForEach(app.models.models.filter(\.isInstalled)) { ModelLabel(model: $0).tag(Optional($0.id)) }
-            }
-        } label: {
-            Label(session.resolvedModel?.shortName ?? "Model", systemImage: "cpu")
-        }
-        .accessibilityIdentifier("extract-model")
+    /// The model as the chat header shows it, logo and short name. It opens the chat's picker.
+    private var modelPill: some View {
+        let model = session.resolvedModel
+        return ModelTitle(
+            name: model?.shortName, isLoading: app.models.isLoading, brand: model.map(ModelBrand.resolve(_:)),
+            identifier: "extract-model"
+        ) { showsModelPicker = true }
     }
 
     // MARK: Text

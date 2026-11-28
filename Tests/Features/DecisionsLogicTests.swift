@@ -45,14 +45,6 @@ struct DecisionsLogicTests {
         #expect(DecisionsLogic.request(model: "m", state: "", questions: questions) == nil)
     }
 
-    @Test func theFreeDecisionModelIsPickedFirst() {
-        let models = [DecisionModel(id: "x/a", name: "A"), DecisionModel(id: "anyrouter/decision", name: "D")]
-        #expect(DecisionsLogic.initialModelID(in: models, current: "x/a") == "x/a")
-        #expect(DecisionsLogic.initialModelID(in: models, current: "gone") == "anyrouter/decision")
-        #expect(DecisionsLogic.initialModelID(in: [models[0]], current: "gone") == "x/a")
-        #expect(DecisionsLogic.initialModelID(in: [], current: "gone") == "gone")
-    }
-
     @Test func numbersReadAsPercentCostAndLatency() {
         #expect(DecisionsLogic.percent(0.92) == "92%")
         #expect(DecisionsLogic.percent(-1) == "0%")

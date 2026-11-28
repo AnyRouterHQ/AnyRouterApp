@@ -38,7 +38,9 @@ struct DecisionApp: Identifiable, Equatable, Codable, Sendable {
     var acceptsImages: Bool
     /// The photo row, camera first, sits above the text field: the photo is the input and text is optional.
     var photoFirst: Bool?
-    var defaultModel: String?
+    /// Wire ids of the model the app runs first and the one it falls back to (`MiniAppModelChoice`).
+    var preferredModel: String
+    var fallbackModel: String
     var samples: [Sample]
     var questions: [Question]
     /// A sentence with a `{questionId}` token for each answer.
@@ -128,15 +130,10 @@ enum DecisionAppsLogic {
             questions: app.questions.map(\.decisionQuestion), images: images)
     }
 
-    /// The photo input shows for an app that takes photos (every custom decision does) and a model that is not known to be text only.
-    static func showsImageInput(app: DecisionApp?, model: DecisionModel?) -> Bool {
-        (app?.acceptsImages ?? true) && model?.acceptsImages != false
-    }
-
-    /// An app's own model when the list has it, else the usual pick.
-    static func startingModelID(app: DecisionApp?, models: [DecisionModel], current: String) -> String {
-        if let preferred = app?.defaultModel, models.contains(where: { $0.id == preferred }) { return preferred }
-        return DecisionsLogic.initialModelID(in: models, current: current)
+    /// The photo input shows for an app that takes photos (every custom decision does) and a model that reads them. With
+    /// no model chosen yet it shows too, so the photo can be added first.
+    static func showsImageInput(app: DecisionApp?, model: ModelDescriptor?) -> Bool {
+        (app?.acceptsImages ?? true) && model?.capabilities.contains("vision") != false
     }
 
     // MARK: Result text

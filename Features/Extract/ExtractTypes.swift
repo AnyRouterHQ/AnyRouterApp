@@ -43,6 +43,9 @@ struct ExtractPreset: Identifiable, Hashable, Sendable {
     let id: String
     let title: String
     let fields: [FieldSpec]
+    /// Wire ids of the model to ask first and the one to fall back to (`MiniAppModelChoice`).
+    var preferredModel = "anyrouter/auto"
+    var fallbackModel = "apple/foundation"
 
     var isCustom: Bool { id == ExtractLogic.customID }
 }

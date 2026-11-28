@@ -7,7 +7,7 @@ struct DecisionAppsLogicTests {
     private func apps() throws -> [DecisionApp] { try DecisionAppsLogic.load() }
 
     private func app(_ questions: [DecisionApp.Question], line: String = "{a}") -> DecisionApp {
-        DecisionApp(id: "t", title: "T", symbol: "star", inputHint: "h", acceptsImages: true, defaultModel: nil,
+        DecisionApp(id: "t", title: "T", symbol: "star", inputHint: "h", acceptsImages: true, preferredModel: "x/first", fallbackModel: "x/second",
                     samples: [], questions: questions, resultLine: line)
     }
 
@@ -50,7 +50,7 @@ struct DecisionAppsLogicTests {
     @Test func theTrafficSignAppIsPhotoFirstWithTypedQuestions() throws {
         let sign = try trafficSign()
         #expect(DecisionAppsLogic.problem(with: sign) == nil)
-        #expect(sign.acceptsImages && sign.photoFirst == true && sign.defaultModel == "google/gemini-decision-1")
+        #expect(sign.acceptsImages && sign.photoFirst == true && sign.preferredModel == "google/gemini-decision-1")
         #expect(sign.questions.map(\.id) == ["kind", "sign", "speed", "cars"])
         #expect(sign.questions.map(\.type) == [.choice, .choice, .choice, .yesNo])
         for question in sign.questions where question.type != .yesNo {
@@ -149,13 +149,15 @@ struct DecisionAppsLogicTests {
 
     // MARK: Photos and models
 
-    @Test func photosShowForPhotoAppsAndModelsNotKnownToBeTextOnly() {
-        let see = DecisionModel(id: "a", name: "A", acceptsImages: true)
-        let text = DecisionModel(id: "b", name: "B", acceptsImages: false)
-        let unknown = DecisionModel(id: "c", name: "C")
+    /// A decision model reads photos only when the catalog says its input takes images; nothing chosen yet still lets a
+    /// photo be added first.
+    @Test func photosShowForPhotoAppsAndModelsThatReadThem() {
+        var see = testModel(id: "anyrouter/x/see", source: .anyrouter)
+        see.capabilities = ["decision", "vision"]
+        var text = testModel(id: "anyrouter/x/text", source: .anyrouter)
+        text.capabilities = ["decision"]
         var photoApp = app([yesNo()])
         #expect(DecisionAppsLogic.showsImageInput(app: photoApp, model: see))
-        #expect(DecisionAppsLogic.showsImageInput(app: photoApp, model: unknown))
         #expect(DecisionAppsLogic.showsImageInput(app: photoApp, model: nil))
         #expect(!DecisionAppsLogic.showsImageInput(app: photoApp, model: text))
         #expect(DecisionAppsLogic.showsImageInput(app: nil, model: see))
@@ -163,14 +165,11 @@ struct DecisionAppsLogicTests {
         #expect(!DecisionAppsLogic.showsImageInput(app: photoApp, model: see))
     }
 
-    @Test func anAppStartsOnItsOwnModelWhenListed() {
-        let models = [DecisionModel(id: "anyrouter/decision", name: "D"), DecisionModel(id: "x/see", name: "S")]
-        var withModel = app([yesNo()])
-        withModel.defaultModel = "x/see"
-        #expect(DecisionAppsLogic.startingModelID(app: withModel, models: models, current: "anyrouter/decision") == "x/see")
-        withModel.defaultModel = "x/gone"
-        #expect(DecisionAppsLogic.startingModelID(app: withModel, models: models, current: "x/see") == "x/see")
-        #expect(DecisionAppsLogic.startingModelID(app: nil, models: models, current: "gone") == "anyrouter/decision")
+    /// Every app names two different models, so one that is gone or cannot read a photo still leaves another to try.
+    @Test func everyAppHasAPreferredAndADifferentFallbackModel() throws {
+        for app in try apps() {
+            #expect(!app.preferredModel.isEmpty && !app.fallbackModel.isEmpty && app.preferredModel != app.fallbackModel, "\(app.id)")
+        }
     }
 
     @Test func theTilesAreTheAppsThenTheCustomDecision() throws {
