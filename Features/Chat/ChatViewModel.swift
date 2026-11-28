@@ -726,9 +726,13 @@ final class ChatViewModel {
         let offersSkills = model.source == .anyrouter && toolsEnabled && mentions.isEmpty && model.capabilities.contains("tools")
         let offered = offersSkills ? SkillLibraryLogic.active(try? SkillStore(context: context).enabledSkills()) : []
         let skills = offersSkills ? SkillLogic.index(offered, budget: PromptBudget.forModel(model).skills) : nil
+        // A device engine has no `read_skill`: one matching skill's steps go in front of this question instead (unit K1).
+        let deviceSkill = model.source != .anyrouter && toolsEnabled && mentions.isEmpty ? deviceSkillSteps(for: thread, model: model) : nil
+        let contextParts = [recallBlock, deviceSkill].compactMap { $0 }
+        let turnContext = contextParts.isEmpty ? nil : contextParts.joined(separator: "\n\n")
         let prompt = PromptAssembler.assemble(
             instructions: instructions, profile: profile, skills: skills, summary: live.summary,
-            turns: ComposerMention.applying(mentions, to: live.messages), context: recallBlock)
+            turns: ComposerMention.applying(mentions, to: live.messages), context: turnContext)
         let history = prompt.messages
         context.insert(assistant)
         assistant.thread = thread
@@ -813,7 +817,7 @@ final class ChatViewModel {
                         // The system message stays as it was: the summary goes with the first kept question.
                         sent = PromptAssembler.assemble(
                             instructions: instructions, profile: profile, skills: skills, summary: rebuilt.summary,
-                            turns: ComposerMention.applying(mentions, to: rebuilt.messages), context: recallBlock).messages
+                            turns: ComposerMention.applying(mentions, to: rebuilt.messages), context: turnContext).messages
                     } else {
                         self.compactionNote = String(localized: "Could not shorten the conversation. It was sent as it is.")
                     }
@@ -1170,6 +1174,13 @@ final class ChatViewModel {
             record.useCount += 1
         }
         return hits
+    }
+
+    /// The steps of the enabled skill that matches the question, if any fits the device budget.
+    private func deviceSkillSteps(for thread: ThreadRecord, model: ModelDescriptor) -> String? {
+        let question = thread.messages.filter { $0.role == .user }.max(by: { $0.createdAt < $1.createdAt })?.content
+        let skills = SkillLibraryLogic.active(try? SkillStore(context: context).enabledSkills())
+        return SkillPickLogic.pick(question, from: skills, budget: PromptBudget.forModel(model).skillSteps)
     }
 
     /// The chat loses focus: keep its summary in memory for search_chats and recall in other chats (agent design 2.3).

@@ -53,7 +53,7 @@ enum MemoryRecallLogic {
     /// With `semantic`, an item that shares no word still counts when it stands out by meaning, and the order mixes
     /// both: BM25 scaled to the best item, plus a third of how far it stands out.
     static func rank(_ question: String, _ candidates: [Candidate], semantic: [UUID: Double] = [:]) -> [Hit] {
-        let terms = Array(Set(words(question).filter { !stopWords.contains($0) }.map(fold)))
+        let terms = Array(contentTerms(question))
         let documents = candidates.map { words($0.text) }
         let folded = documents.map { $0.map(fold) }
         let averageLength = Double(documents.map(\.count).reduce(0, +)) / Double(max(documents.count, 1))
@@ -75,6 +75,11 @@ enum MemoryRecallLogic {
             guard hit.score > 0 || meaning >= MemoryEmbeddingLogic.standoutThreshold else { return nil }
             return Hit(candidate: hit.candidate, score: (best > 0 ? hit.score / best : 0) + meaning / 3)
         }.sorted { $0.score > $1.score }
+    }
+
+    /// The words that say what a text is about: no stop words, no case, tone marks or English plural.
+    static func contentTerms(_ text: String) -> Set<String> {
+        Set(words(text).filter { !stopWords.contains($0) }.map(fold))
     }
 
     /// The footer's words: "Used 1 memory", "Used 3 memories".

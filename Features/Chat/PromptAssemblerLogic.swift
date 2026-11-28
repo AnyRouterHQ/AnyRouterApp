@@ -12,11 +12,15 @@ struct PromptBudget: Equatable, Sendable {
     var memoryHits: Int
     /// The skills index: cloud models only, which have `read_skill`.
     var skills: Int = 0
+    /// The steps of the one skill a device engine gets for a matching question (no `read_skill` there). Cloud models: 0.
+    var skillSteps: Int = 0
 
     static func forModel(_ model: ModelDescriptor) -> PromptBudget {
         switch model.source {
-        case .apple: PromptBudget(profile: 120, memoryHits: 150)
-        case .gguf, .mlx: (model.contextLength ?? 0) > 4096 ? PromptBudget(profile: 200, memoryHits: 300) : PromptBudget(profile: 120, memoryHits: 150)
+        case .apple: PromptBudget(profile: 120, memoryHits: 150, skillSteps: 250)
+        case .gguf, .mlx:
+            (model.contextLength ?? 0) > 4096
+                ? PromptBudget(profile: 200, memoryHits: 300, skillSteps: 400) : PromptBudget(profile: 120, memoryHits: 150, skillSteps: 250)
         case .anyrouter: PromptBudget(profile: 500, memoryHits: 1500, skills: 1500)
         }
     }

@@ -337,6 +337,7 @@ Numbers are starting points in tokens. Each one is checked with the counter from
 | Tool specs | 4 tools, measured (about 350) | 4 tools (about 450) | 4 tools (about 450) | all enabled, measured |
 | Profile | 120 | 120 | 200 | 500 |
 | Skills index | 0 | 0 | 0 | 1,500 |
+| One matched skill's steps (device only, in this turn's context) | 250 | 250 | 400 | 0 (the index and `read_skill`) |
 | Compaction summary | 300 | 300 | 400 | 2,500 |
 | Memory hits | 150 (3 items) | 150 | 300 | 1,500 |
 | Notes | 0 | 0 | 0 | 500 |
@@ -419,7 +420,7 @@ On Apple, `LanguageModelError.contextSizeExceeded` (the older name is `Generatio
 
 Skills need the operator's go-ahead (open question 4). If yes:
 
-- K1, read only: SKILL.md files bundled in the app (name, description, body, optional reference files). Cloud models get the index (at most 1,500 tokens) and a `read_skill` tool. Apple and local get nothing.
+- K1, read only: SKILL.md files bundled in the app (name, description, body, optional reference files). Cloud models get the index (at most 1,500 tokens) and a `read_skill` tool. Apple and local get no index and no `read_skill`: before the send the app picks at most one enabled skill whose name and description share two content words with the question (the words of memory recall), and puts its steps in this turn's context when they fit the device skills budget in 3.3. The text says it is guidance and allows no tool.
 - K2, written by the agent: after a cloud run with at least 3 tool calls that ended well, the model may call `propose_skill`. The user sees an approval card with the full text. **Settings › Skills** lists, edits and deletes skills. Hermes asks skills to keep "lessons, not logs" (Verified). The approval card is the only path to save, because a skill is instructions that later runs obey.
 
 ## 5. Evals

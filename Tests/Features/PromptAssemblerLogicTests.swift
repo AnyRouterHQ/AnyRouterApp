@@ -44,10 +44,10 @@ struct PromptAssemblerLogicTests {
         func model(_ source: ModelSource, _ context: Int?) -> ModelDescriptor {
             ModelDescriptor(id: "m", source: source, displayName: "m", contextLength: context, capabilities: ["chat"], sizeBytes: nil, isInstalled: true)
         }
-        #expect(PromptBudget.forModel(model(.apple, 4096)) == PromptBudget(profile: 120, memoryHits: 150))
-        #expect(PromptBudget.forModel(model(.gguf, nil)) == PromptBudget(profile: 120, memoryHits: 150))
-        #expect(PromptBudget.forModel(model(.gguf, 4096)) == PromptBudget(profile: 120, memoryHits: 150))
-        #expect(PromptBudget.forModel(model(.mlx, 8192)) == PromptBudget(profile: 200, memoryHits: 300))
+        #expect(PromptBudget.forModel(model(.apple, 4096)) == PromptBudget(profile: 120, memoryHits: 150, skillSteps: 250))
+        #expect(PromptBudget.forModel(model(.gguf, nil)) == PromptBudget(profile: 120, memoryHits: 150, skillSteps: 250))
+        #expect(PromptBudget.forModel(model(.gguf, 4096)) == PromptBudget(profile: 120, memoryHits: 150, skillSteps: 250))
+        #expect(PromptBudget.forModel(model(.mlx, 8192)) == PromptBudget(profile: 200, memoryHits: 300, skillSteps: 400))
         #expect(PromptBudget.forModel(model(.anyrouter, 128_000)) == PromptBudget(profile: 500, memoryHits: 1500, skills: 1500))
     }
 }
