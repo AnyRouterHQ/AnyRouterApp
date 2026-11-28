@@ -72,15 +72,3 @@ enum SkillLogic {
             """
     }
 }
-
-/// `read_skill`: the full steps of one skill.
-struct ReadSkillTool: BuiltInTool {
-    let skills: [Skill]
-    let name = SkillLogic.readSkillName
-    let title = "Skills"
-    let summary = "Steps for common tasks"
-    let description = SkillLogic.readSkillDescription
-    let inputSchemaJSON = SkillLogic.readSkillSchema
-
-    func run(_ arguments: JSONValue) async throws -> String { try SkillLogic.read(arguments, from: skills) }
-}
