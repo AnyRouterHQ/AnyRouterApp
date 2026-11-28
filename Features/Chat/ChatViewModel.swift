@@ -989,8 +989,9 @@ final class ChatViewModel {
         toolContext.isOffline = !isOnline()
         toolContext.approver = approver
         guard let tools = toolHost(toolContext).map({ SubagentToolHost(base: $0) }), SubagentLogic.canResearch(tools.specs) else { return nil }
-        var params = settings.generationParams
-        params.systemPrompt = SubagentLogic.instructions
+        var childParams = settings.generationParams
+        childParams.systemPrompt = SubagentLogic.instructions
+        let params = childParams
         return SubagentRunner(
             makeStep: { messages, specs in subagents.childStep(model: model, messages: messages, params: params, specs: specs) },
             tools: tools,
