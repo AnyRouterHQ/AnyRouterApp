@@ -13,13 +13,15 @@ final class MemorySettingsTests: XCTestCase {
         app.launch()
         app.revealSidebar(whenVisible: button(app, "Settings"))
         button(app, "Settings").tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10), "Settings opened")
+        // A row below the fold is not in the tree until the list scrolls to it (verify-ui 46091124302 waited for it in place).
         let row = button(app, "Memory")
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
         var tries = 0
-        while !row.isHittable && tries < 8 {
+        while (!row.exists || !row.isHittable) && tries < 8 {
             app.swipeUp()
             tries += 1
         }
+        XCTAssertTrue(row.isHittable, "the Memory row is reachable")
         row.tap()
         XCTAssertTrue(app.navigationBars["Memory"].waitForExistence(timeout: 10))
         return app

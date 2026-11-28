@@ -473,7 +473,8 @@ enum DemoData {
         for index in 0..<longThreadMessages {
             let role: ChatMessage.Role = index.isMultiple(of: 2) ? .user : .assistant
             let text = role == .user ? "Question \(index / 2 + 1): how does this part work?" : longAnswer(number: index / 2 + 1)
-            let record = MessageRecord(role: role, content: text, createdAt: now.addingTimeInterval(60 + Double(index)))
+            // In the past, so a message sent now comes after them; the thread itself stays newest in the sidebar.
+            let record = MessageRecord(role: role, content: text, createdAt: now.addingTimeInterval(Double(index - longThreadMessages)))
             context.insert(record)
             record.thread = thread
         }

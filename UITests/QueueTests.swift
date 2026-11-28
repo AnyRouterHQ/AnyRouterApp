@@ -1,10 +1,12 @@
 import XCTest
 
 /// Queue mode: messages sent while a reply streams wait above the composer and go out one by one (demo data, slow stream).
+/// Each demo reply streams for 50 s: at 7.5 s (verify-ui 46091124302) the first reply ended while the test still typed, so
+/// the queue had already gone out when it was checked.
 @MainActor
 final class QueueTests: XCTestCase {
     private func launch() -> XCUIApplication {
-        let app = XCUIApplication.launchedOnDemoData(extra: ["-ARDemoStream", "150@20"])
+        let app = XCUIApplication.launchedOnDemoData(extra: ["-ARDemoStream", "1000@20"])
         XCTAssertTrue(app.element(UITestIDs.composerInput).waitForExistence(timeout: 15))
         return app
     }
@@ -32,7 +34,7 @@ final class QueueTests: XCTestCase {
 
         let second = message("second", in: app)
         let third = message("third", in: app)
-        XCTAssertTrue(app.element("chat.queue.row").waitForNonExistence(timeout: 90), "both queued messages were sent")
+        XCTAssertTrue(app.element("chat.queue.row").waitForNonExistence(timeout: 200), "both queued messages were sent")
         XCTAssertTrue(second.waitForExistence(timeout: 10))
         XCTAssertTrue(third.waitForExistence(timeout: 10))
         XCTAssertLessThan(second.frame.minY, third.frame.minY, "in the order they were typed")

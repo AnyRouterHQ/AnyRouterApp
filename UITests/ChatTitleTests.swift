@@ -24,7 +24,8 @@ final class ChatTitleTests: XCTestCase {
         XCTAssertEqual(field.value as? String, "Long thread", "the alert starts with the current title")
         field.tap()
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "Long thread".count) + "Weekend in Porto")
-        alert.buttons["Save"].tap()
+        // The alert's button carries its identifier twice in the tree (verify-ui 46091124302), so take the first.
+        alert.buttons["Save"].firstMatch.tap()
         XCTAssertTrue(alert.waitForNonExistence(timeout: 5), "Save closes the alert")
 
         let row = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Weekend in Porto")).firstMatch
