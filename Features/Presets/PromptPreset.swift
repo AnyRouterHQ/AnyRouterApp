@@ -48,6 +48,8 @@ enum PresetAction: String, Codable, CaseIterable, Sendable {
     case summarizeLink
     /// Switches to a model that runs on the device, or offers the smallest one that fits.
     case goOffline
+    /// Opens the photo picker and attaches the photo, for a model that sees it.
+    case askPhoto
 
     /// The line under the title in lists.
     var summary: String {
@@ -56,6 +58,7 @@ enum PresetAction: String, Codable, CaseIterable, Sendable {
         case .askClipboard: "Ask about the text you copied"
         case .summarizeLink: "Summarize the page behind a copied link"
         case .goOffline: "Answer without internet, with a model on this device"
+        case .askPhoto: "Pick a photo and ask about it"
         }
     }
 }
@@ -101,41 +104,5 @@ enum PresetLogic {
                     || item.title.localizedCaseInsensitiveContains(needle)
                     || item.prompt.localizedCaseInsensitiveContains(needle))
         }
-    }
-
-    /// Same day and seed give the same order.
-    static func shuffled(_ items: [PromptPreset], seed: UInt64) -> [PromptPreset] {
-        var rng = SplitMix64(seed: seed)
-        return items.shuffled(using: &rng)
-    }
-
-    static func daySeed(for date: Date, calendar: Calendar = Calendar(identifier: .gregorian)) -> UInt64 {
-        let parts = calendar.dateComponents([.year, .month, .day], from: date)
-        return UInt64((parts.year ?? 0) * 10_000 + (parts.month ?? 0) * 100 + (parts.day ?? 0))
-    }
-
-    /// Custom presets stay first, then the phone use cases, then the built-ins with pickers (the helpers, like "Reply to
-    /// this", must always be one tap away); the shuffle only reorders the rest.
-    static func featured(_ items: [PromptPreset], customIDs: Set<String>, category: PromptPreset.Category?,
-                         seed: UInt64, limit: Int) -> [PromptPreset] {
-        let filtered = filter(items, category: category)
-        let custom = filtered.filter { customIDs.contains($0.id) }
-        let builtIns = filtered.filter { !customIDs.contains($0.id) }
-        let useCases = builtIns.filter(\.onDevice)
-        let helpers = builtIns.filter { $0.hasOptions && !$0.onDevice }
-        let rest = shuffled(builtIns.filter { !$0.hasOptions && !$0.onDevice }, seed: seed)
-        return Array((custom + useCases + helpers + rest).prefix(limit))
-    }
-}
-
-struct SplitMix64: RandomNumberGenerator {
-    private var state: UInt64
-    init(seed: UInt64) { state = seed }
-    mutating func next() -> UInt64 {
-        state &+= 0x9E37_79B9_7F4A_7C15
-        var z = state
-        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
-        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
-        return z ^ (z >> 31)
     }
 }

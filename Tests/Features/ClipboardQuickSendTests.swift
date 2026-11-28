@@ -54,12 +54,14 @@ struct ClipboardQuickSendTests {
 
     // MARK: Chips
 
-    @Test func everyQuickActionIsABundledPreset() {
+    @Test func everyQuickActionAndStarterIsABundledPreset() {
         let ids = Set(bundled().all.map(\.id))
+        var named = ComposerSuggestionLogic.starterPresetIDs(tools: true, vision: true)
         for kind in [ClipboardKind.text, .link, .image] {
-            for id in ComposerSuggestionLogic.clipboardPresetIDs(kind) {
-                #expect(ids.contains(id), "\(kind): \(id) is not in presets.json")
-            }
+            named += ComposerSuggestionLogic.clipboardPresetIDs(kind, tools: true, vision: true)
+        }
+        for id in named {
+            #expect(ids.contains(id), "\(id) is not in presets.json")
         }
     }
 
@@ -69,13 +71,14 @@ struct ClipboardQuickSendTests {
         let registry = EngineRegistry()
         let vm = ChatViewModel(thread: nil, context: context, registry: registry, settings: AppSettings(defaults: testDefaults()),
                                models: ModelStore(registry: registry, defaults: testDefaults()))
-        let text = vm.suggestions(presets: store, clipboardKind: .text, isDictating: false, mentionPanelOpen: false)
+        // No model is chosen, so the row offers what works without tools or photos.
+        let text = vm.suggestions(presets: store, clipboardKind: .text, clipboardContent: .text, isDictating: false, mentionPanelOpen: false)
         #expect(text?.mode == .clipboard)
-        #expect(text?.items.map(\.id) == ["clipboard", "preset.fix-english", "preset.summarize", "preset.translate", "preset.reply-to-this", "more"])
-        let link = vm.suggestions(presets: store, clipboardKind: .link, isDictating: false, mentionPanelOpen: false)
-        #expect(link?.items.map(\.id) == ["clipboard", "preset.summarize-link", "preset.key-points", "more"])
-        let image = vm.suggestions(presets: store, clipboardKind: .image, isDictating: false, mentionPanelOpen: false)
-        #expect(image?.items.map(\.id) == ["clipboard", "preset.describe-image", "preset.read-photo", "more"])
+        #expect(text?.items.map(\.id) == ["clipboard", "preset.fix-english", "preset.explain-text", "preset.translate", "preset.summarize", "more"])
+        let link = vm.suggestions(presets: store, clipboardKind: .link, clipboardContent: .link, isDictating: false, mentionPanelOpen: false)
+        #expect(link?.mode == .starters, "a model without tools cannot open the link")
+        let image = vm.suggestions(presets: store, clipboardKind: .image, clipboardContent: .image, isDictating: false, mentionPanelOpen: false)
+        #expect(image?.items.map(\.id) == ["clipboard", "preset.read-photo", "more"])
     }
 
     // MARK: Prompt

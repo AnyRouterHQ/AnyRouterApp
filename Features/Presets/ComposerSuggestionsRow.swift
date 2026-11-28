@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The one row above the composer: on an empty chat, two-line starter cards; for a copy or a paste, one-line chips.
+/// The one row above the composer: on an empty chat, two-line cards; in a chat with messages or for a paste, one-line chips.
 /// Both are glass like the controls beside the field. The chips scroll; the More menu (and Hide) stay at the end of the
 /// row, in view. What shows, and in what order, is decided by `ComposerSuggestionLogic`.
 struct ComposerSuggestionsRow: View {
@@ -22,7 +22,7 @@ struct ComposerSuggestionsRow: View {
                         switch item {
                         case .clipboard(let kind): clipboardChip(kind)
                         case .preset(let preset):
-                            if suggestions.mode == .starters { starterCard(preset) } else { presetChip(preset) }
+                            if suggestions.cards { starterCard(preset) } else { presetChip(preset) }
                         case .more: EmptyView()
                         }
                     }
@@ -90,8 +90,8 @@ struct ComposerSuggestionsRow: View {
         .accessibilityIdentifier("composer.suggestion.preset.\(preset.id)")
     }
 
-    /// A starter on the empty chat: the title in bold over a line that reads on from it. A tap fills the composer; the
-    /// context menu sends it at once.
+    /// A card on the empty chat: the title in bold over a line that reads on from it. A starter's tap fills the composer
+    /// and its context menu sends it at once; a card for the clipboard acts on the copy.
     private func starterCard(_ preset: PromptPreset) -> some View {
         Button { onPreset(preset) } label: {
             VStack(alignment: .leading, spacing: 2) {
@@ -107,7 +107,7 @@ struct ComposerSuggestionsRow: View {
         .controlSize(.regular)
         .chipOutline(.rect(cornerRadius: cardRadius))
         .contextMenu {
-            if preset.action == nil {
+            if suggestions.mode == .starters, preset.action == nil {
                 Button("Send now", systemImage: "arrow.up.circle") { onSend(preset) }
                 Button("Edit in composer", systemImage: "square.and.pencil") { onPreset(preset) }
             }

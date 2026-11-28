@@ -7,10 +7,13 @@ final class FakePasteboard: PasteboardProbe, @unchecked Sendable {
     private let lock = NSLock()
     private var count = 1
     private var strings = true
+    private var webURL = false
     var changeCount: Int { lock.withLock { count } }
     var hasStrings: Bool { lock.withLock { strings } }
-    func copy() { lock.withLock { count += 1; strings = true } }
-    func clear() { lock.withLock { count += 1; strings = false } }
+    private var probablyLink: Bool { lock.withLock { webURL } }
+    func hasProbableWebURL() async -> Bool { probablyLink }
+    func copy(link: Bool = false) { lock.withLock { count += 1; strings = true; webURL = link } }
+    func clear() { lock.withLock { count += 1; strings = false; webURL = false } }
 }
 
 struct ClipboardLaunchLogicTests {
@@ -83,6 +86,55 @@ struct ClipboardLauncherTests {
         #expect(l.isOffered)
     }
 
+    /// The cards follow what is on the clipboard for every new chat, not once like the chip, until Hide or the next copy.
+    @Test func theClipboardsKindStaysUntilWavedOffOrReplaced() {
+        let board = FakePasteboard()
+        let l = launcher(board)
+        l.check(composerEmpty: true)
+        #expect(l.contentKind == .text && l.offeredKind == .text)
+        l.check(composerEmpty: true)
+        #expect(l.contentKind == .text, "still there on the next check, though the chip was offered once")
+        l.dismiss()
+        l.check(composerEmpty: true)
+        #expect(l.contentKind == .text && l.offeredKind == nil, "a used offer keeps the cards")
+        l.waveOff()
+        l.check(composerEmpty: true)
+        #expect(l.contentKind == nil && l.offeredKind == nil, "Hide holds for this copy")
+        board.copy()
+        l.check(composerEmpty: true)
+        #expect(l.contentKind == .text)
+        board.clear()
+        l.check(composerEmpty: true)
+        #expect(l.contentKind == nil)
+    }
+
+    @Test func theAppsOwnCopyIsNotActedOn() {
+        let board = FakePasteboard()
+        let l = launcher(board)
+        board.copy()
+        l.noteOwnCopy()
+        l.check(composerEmpty: true)
+        #expect(l.contentKind == nil)
+    }
+
+    /// Text that is probably a link becomes a link, found without reading it; a copy made meanwhile is left alone.
+    @Test func textThatIsProbablyALinkTurnsIntoALink() async {
+        let board = FakePasteboard()
+        board.copy(link: true)
+        let l = launcher(board)
+        let detection = l.check(composerEmpty: true)
+        await detection?.value
+        #expect(l.contentKind == .link && l.offeredKind == .link)
+        board.copy()
+        await l.check(composerEmpty: true)?.value
+        #expect(l.contentKind == .text, "plain text stays text")
+        board.copy(link: true)
+        let stale = l.check(composerEmpty: true)
+        board.copy(link: true)
+        await stale?.value
+        #expect(l.contentKind == .text, "the copy changed before the answer came back")
+    }
+
     @Test func theDemoPasteboardOffersTheRowOnEveryLaunch() {
         #expect(DemoPasteboard().hasStrings)
         let l = ClipboardLauncher(probe: DemoPasteboard(), defaults: testDefaults())
@@ -95,7 +147,7 @@ struct ClipboardLauncherTests {
         #expect(EmptyPasteboard().changeCount == 0)
         let l = ClipboardLauncher(probe: EmptyPasteboard(), defaults: testDefaults())
         l.check(composerEmpty: true)
-        #expect(!l.isOffered)
+        #expect(!l.isOffered && l.contentKind == nil)
     }
 }
 

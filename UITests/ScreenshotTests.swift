@@ -194,12 +194,15 @@ final class ScreenshotTests: XCTestCase {
         forEachAppearance { app, appearance in
             XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
             logClosedDrawer(app)
+            // Nothing is copied in a demo run, so the cards are the general starters; the demo model takes tools.
+            XCTAssertTrue(app.descendants(matching: .any)["composer.suggestion.preset.what-time"].waitForExistence(timeout: 5),
+                          "an empty clipboard offers starters that work right away")
             capture("empty-chat", appearance)
         }
     }
 
-    /// The row above the composer when text was copied (the "Copied text" chip and its quick actions), and after the chip
-    /// is tapped (text presets for what was pasted). `-ARDemoClipboard` makes the app offer the row; the runner puts the
+    /// The row above the composer when text was copied (the "Copied text" chip, then cards that act on the copy), and after
+    /// the chip is tapped (text presets for what was pasted). `-ARDemoClipboard` makes the app offer the row; the runner puts the
     /// text on the system pasteboard. Reading it in code may ask "Allow Paste" once.
     func testComposerSuggestions() {
         let sample = "Hi team, can you send me the revised budget by Friday? I need to review it before the meeting, thanks."
@@ -208,6 +211,12 @@ final class ScreenshotTests: XCTestCase {
             XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
             let paste = app.descendants(matching: .any)["composer.suggestion.clipboard"]
             XCTAssertTrue(paste.waitForExistence(timeout: 10), "the copy's chip leads the row")
+            XCTAssertTrue(app.descendants(matching: .any)["composer.suggestion.preset.explain-text"].exists,
+                          "copied text turns the cards into actions on it")
+            let hide = app.descendants(matching: .any)["composer.suggestion.hide"]
+            XCTAssertTrue(hide.isHittable, "Hide is in view at the end of the row")
+            XCTAssertGreaterThanOrEqual(hide.frame.width, 44, "Hide is at least 44 pt wide")
+            XCTAssertGreaterThanOrEqual(hide.frame.height, 44, "Hide is at least 44 pt tall")
             capture("composer-clipboard", appearance)
             paste.tap()
             let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow Paste"]

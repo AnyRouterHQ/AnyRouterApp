@@ -7,6 +7,15 @@ struct SystemPasteboard: PasteboardProbe {
     var hasStrings: Bool { UIPasteboard.general.hasStrings }
     var hasURLs: Bool { UIPasteboard.general.hasURLs }
     var hasImages: Bool { UIPasteboard.general.hasImages }
+
+    /// Pattern detection does not show the paste alert: it says a link is likely, never what the text is.
+    func hasProbableWebURL() async -> Bool {
+        await withCheckedContinuation { continuation in
+            UIPasteboard.general.detectPatterns(for: [.probableWebURL]) { result in
+                continuation.resume(returning: (try? result.get())?.contains(.probableWebURL) == true)
+            }
+        }
+    }
 }
 
 /// A pasteboard that is always empty, for demo runs and screenshots.
@@ -28,9 +37,13 @@ struct DemoPasteboard: PasteboardProbe {
 @MainActor @Observable
 final class ClipboardLauncher {
     private static let seenKey = "clipboard.lastOfferedChangeCount"
+    private static let wavedOffKey = "clipboard.wavedOffChangeCount"
 
     /// What the offered copy is, or nil when nothing is offered.
     private(set) var offeredKind: ClipboardKind?
+    /// What is on the clipboard now, or nil when it is empty, the app's own copy, or waved off. Unlike the offer it
+    /// stays for every new chat until the next copy.
+    private(set) var contentKind: ClipboardKind?
     var isOffered: Bool { offeredKind != nil }
     @ObservationIgnored private let probe: any PasteboardProbe
     @ObservationIgnored private let defaults: UserDefaults
@@ -41,23 +54,41 @@ final class ClipboardLauncher {
         self.defaults = defaults
     }
 
-    /// Call when the app becomes active and the composer shows. The same clipboard is offered once.
-    func check(composerEmpty: Bool) {
+    /// Call when the app becomes active and the composer shows. The same clipboard is offered once. Plain text that is
+    /// probably a link turns into a link when the returned task ends.
+    @discardableResult
+    func check(composerEmpty: Bool) -> Task<Void, Never>? {
         let count = probe.changeCount
-        let seen = defaults.object(forKey: Self.seenKey) as? Int
         let kind = ClipboardLaunchLogic.kind(hasStrings: probe.hasStrings, hasURLs: probe.hasURLs, hasImages: probe.hasImages)
-        guard let kind, ClipboardLaunchLogic.shouldOffer(
-            changeCount: count, lastSeen: seen, hasStrings: true, composerEmpty: composerEmpty) else { return }
-        defaults.set(count, forKey: Self.seenKey)
-        offeredKind = kind
+        contentKind = count == (defaults.object(forKey: Self.wavedOffKey) as? Int) ? nil : kind
+        if let kind, ClipboardLaunchLogic.shouldOffer(
+            changeCount: count, lastSeen: defaults.object(forKey: Self.seenKey) as? Int, hasStrings: true,
+            composerEmpty: composerEmpty) {
+            defaults.set(count, forKey: Self.seenKey)
+            offeredKind = kind
+        }
+        guard kind == .text else { return nil }
+        return Task { [probe] in
+            guard await probe.hasProbableWebURL(), probe.changeCount == count else { return }
+            if contentKind == .text { contentKind = .link }
+            if offeredKind == .text { offeredKind = .link }
+        }
     }
 
+    /// The offer was used or typed over: its chip goes. The cards stay for the next new chat.
     func dismiss() { offeredKind = nil }
+
+    /// Hide in the row: the offer and the cards for this copy go until the next copy.
+    func waveOff() {
+        defaults.set(probe.changeCount, forKey: Self.wavedOffKey)
+        offeredKind = nil
+        contentKind = nil
+    }
 
     /// The app itself copied something (a reply's Copy button): that text is not offered back.
     func noteOwnCopy() {
         defaults.set(probe.changeCount, forKey: Self.seenKey)
-        offeredKind = nil
+        waveOff()
     }
 
     /// Treats a pasteboard change while the app is in front as its own.

@@ -1,22 +1,20 @@
 import Foundation
 
 extension ChatViewModel {
-    /// The row above the composer for the chat as it is now. `clipboardKind`, `isDictating` and `mentionPanelOpen`
-    /// live outside the view model, so the composer passes them in.
-    func suggestions(presets: PresetStore, clipboardKind: ClipboardKind?, isDictating: Bool, mentionPanelOpen: Bool) -> ComposerSuggestions? {
+    /// The row above the composer for the chat as it is now. The clipboard, dictation and the @ list live outside the
+    /// view model, so the composer passes them in.
+    func suggestions(
+        presets: PresetStore, clipboardKind: ClipboardKind?, clipboardContent: ClipboardKind?, isDictating: Bool,
+        mentionPanelOpen: Bool
+    ) -> ComposerSuggestions? {
         let state = ComposerSuggestionState(
             chatHasMessages: !messages.isEmpty, inputIsEmpty: input.isEmpty, clipboardKind: clipboardKind,
-            pasteOffered: pasteOffered, isDictating: isDictating, mentionPanelOpen: mentionPanelOpen)
-        return ComposerSuggestionLogic.visible(
-            state, textPresets: presets.pasteOffered,
-            starters: PresetLogic.featured(presets.all, customIDs: presets.customIDs, category: nil,
-                                           seed: PresetLogic.daySeed(for: .now), limit: .max),
-            clipboardPresets: clipboardKind.map { kind in
-                ComposerSuggestionLogic.clipboardPresetIDs(kind).compactMap { id in presets.all.first { $0.id == id } }
-            } ?? [])
+            clipboardContent: clipboardContent, pasteOffered: pasteOffered, isDictating: isDictating,
+            mentionPanelOpen: mentionPanelOpen, supportsTools: supportsTools, supportsVision: model?.supportsVision == true)
+        return ComposerSuggestionLogic.visible(state, presets: presets.all, customIDs: presets.customIDs, textPresets: presets.pasteOffered)
     }
 
-    /// A phone use case that only needs the text on the clipboard. `readPhoto` and `goOffline` open a picker or a
+    /// A phone use case that only needs the text on the clipboard. `readPhoto`, `askPhoto` and `goOffline` open a picker or a
     /// dialog, so the composer runs them. The clipboard is read here, in the person's own tap.
     @discardableResult
     func run(_ action: PresetAction, clipboardText: () -> String) -> Task<Void, Never>? {
@@ -33,7 +31,7 @@ extension ChatViewModel {
                 return nil
             }
             return send()
-        case .readPhoto, .goOffline:
+        case .readPhoto, .goOffline, .askPhoto:
             return nil
         }
     }

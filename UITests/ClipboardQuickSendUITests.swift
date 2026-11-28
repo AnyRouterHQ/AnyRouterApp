@@ -4,7 +4,7 @@ import XCTest
 /// `-ARDemoClipboard YES` makes the demo app offer the copy; the runner puts the text on the system pasteboard.
 @MainActor
 final class ClipboardQuickSendUITests: XCTestCase {
-    func testSummarizeSendsTheCopyWithABadge() {
+    func testAQuickActionSendsTheCopyWithABadge() {
         UIPasteboard.general.string = "Hi team, the budget review moved to Friday. Please send the revised numbers by Thursday noon."
         let app = XCUIApplication()
         app.launchArguments = ["-ARDemoData", "YES", "-ARDemoClipboard", "YES"]
@@ -13,9 +13,10 @@ final class ClipboardQuickSendUITests: XCTestCase {
         let chip = app.descendants(matching: .any)["composer.suggestion.clipboard"]
         XCTAssertTrue(chip.waitForExistence(timeout: 15), "the copy's chip leads the row")
         XCTAssertTrue(chip.label.contains("Copied text"))
-        let summarize = app.descendants(matching: .any)["composer.suggestion.preset.summarize"]
-        XCTAssertTrue(summarize.waitForExistence(timeout: 5), "Summarize is a quick action for text")
-        summarize.tap()
+        // The first card, in view on every device: the cards act on the copy.
+        let fix = app.descendants(matching: .any)["composer.suggestion.preset.fix-english"]
+        XCTAssertTrue(fix.waitForExistence(timeout: 5), "Fix my English is a quick action for text")
+        fix.tap()
 
         // Reading the pasteboard in code asks once per tap unless the person allowed it in Settings.
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow Paste"]

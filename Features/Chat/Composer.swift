@@ -108,7 +108,7 @@ struct Composer: View {
                     onPreset: { pick($0, mode: suggestions.mode) },
                     onSend: { model.sendNow($0) },
                     onEditPresets: { shell.presentSettings(closeSidebar: false, destination: .presets) },
-                    onDismiss: { model.dismissPasteOffer(); app.clipboard.dismiss() })
+                    onDismiss: { model.dismissPasteOffer(); app.clipboard.waveOff() })
                     .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
             }
             if !model.mentions.isEmpty {
@@ -233,10 +233,11 @@ struct Composer: View {
         }
     }
 
-    /// A preset was chosen in the row, the More menu or the presets sheet. A phone use case runs its action; any other
-    /// preset fills the composer the way its mode says.
+    /// A preset was chosen in the row, the More menu or the presets sheet. One of the copy's own actions sends the copy; a
+    /// phone use case runs its action; any other preset fills the composer the way its mode says.
     private func pick(_ preset: PromptPreset, mode: ComposerSuggestionMode) {
-        if mode == .clipboard, let kind = app.clipboard.offeredKind {
+        if mode == .clipboard, let kind = app.clipboard.contentKind ?? app.clipboard.offeredKind,
+           ComposerSuggestionLogic.actsOnClipboard(preset, kind: kind, tools: model.supportsTools, vision: model.model?.supportsVision == true) {
             quickSend(preset, kind: kind)
             return
         }
@@ -244,12 +245,16 @@ struct Composer: View {
         // Reading the clipboard here is the person's own tap. The row itself never reads the text.
         let clipboard = { UIPasteboard.general.string ?? "" }
         guard let action = preset.action else {
-            model.choose(preset, mode: mode, clipboardText: clipboard)
+            // Not one of the copy's actions: it fills the composer like a starter instead of sending the copy.
+            model.choose(preset, mode: mode == .clipboard ? .starters : mode, clipboardText: clipboard)
             return
         }
         switch action {
         case .readPhoto:
             readsText = true
+            showsPhotos = true
+        case .askPhoto:
+            readsText = false
             showsPhotos = true
         case .goOffline:
             goOffline()
@@ -301,7 +306,8 @@ struct Composer: View {
     /// The chips above the field, or nil. Decided by `ComposerSuggestionLogic`.
     private var suggestions: ComposerSuggestions? {
         guard let presets else { return nil }
-        return model.suggestions(presets: presets, clipboardKind: app.clipboard.offeredKind, isDictating: app.dictation.isActive,
+        return model.suggestions(presets: presets, clipboardKind: app.clipboard.offeredKind, clipboardContent: app.clipboard.contentKind,
+                                 isDictating: app.dictation.isActive,
                                  mentionPanelOpen: mentionQuery != nil || showsPluginList)
     }
 

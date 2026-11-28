@@ -35,22 +35,6 @@ struct PresetTests {
         #expect(PresetLogic.filter(items, category: .learn, query: "prompt 3").isEmpty)
     }
 
-    @Test func dailyShuffleIsDeterministicAndSaltChangesIt() {
-        let items = sample(12)
-        let day = Date(timeIntervalSince1970: 1_800_000_000)
-        let seed = PresetLogic.daySeed(for: day)
-        #expect(PresetLogic.shuffled(items, seed: seed) == PresetLogic.shuffled(items, seed: seed))
-        #expect(PresetLogic.shuffled(items, seed: seed) != PresetLogic.shuffled(items, seed: seed &+ 1))
-        #expect(PresetLogic.daySeed(for: day) != PresetLogic.daySeed(for: day.addingTimeInterval(86_400 * 2)))
-    }
-
-    @Test func customPresetsStayFirstInFeatured() {
-        let items = sample(10)
-        let featured = PresetLogic.featured(items, customIDs: ["p7"], category: nil, seed: 3, limit: 4)
-        #expect(featured.first?.id == "p7")
-        #expect(featured.count == 4)
-    }
-
     @Test func anUnreadablePresetsFileIsKeptNotOverwritten() throws {
         let url = tempURL()
         let garbage = Data("{ not json".utf8)

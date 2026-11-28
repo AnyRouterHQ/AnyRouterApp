@@ -19,14 +19,6 @@ struct UseCaseTests {
         #expect(useCases.filter { $0.action == nil }.allSatisfy { !$0.prompt.isEmpty }, "reply and fix English are real prompts")
     }
 
-    @Test func useCasesLeadTheStartersAfterYourOwnPresets() throws {
-        let items = try bundled()
-        let row = PresetLogic.featured(items, customIDs: [], category: nil, seed: 7, limit: 4)
-        #expect(row.map(\.id) == ["reply-to-this", "fix-english", "read-photo", "ask-clipboard"])
-        let mine = PromptPreset(id: "mine", title: "Mine", prompt: "x", category: .write, symbol: "sparkles")
-        #expect(PresetLogic.featured([mine] + items, customIDs: ["mine"], category: nil, seed: 7, limit: 2).map(\.id) == ["mine", "reply-to-this"])
-    }
-
     @Test func aPresetFileWithoutTheNewKeysStillDecodesAndTheKeysRoundTrip() throws {
         let old = Data(##"{"id":"a","title":"A","prompt":"P","category":"write","symbol":"sparkles"}"##.utf8)
         let decoded = try JSONDecoder().decode(PromptPreset.self, from: old)

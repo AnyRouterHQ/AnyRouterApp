@@ -10,11 +10,14 @@ protocol PasteboardProbe: Sendable {
     var hasURLs: Bool { get }
     /// Whether an image is there. Does not read it.
     var hasImages: Bool { get }
+    /// Whether the text is probably a web link. Does not read it.
+    func hasProbableWebURL() async -> Bool
 }
 
 extension PasteboardProbe {
     var hasURLs: Bool { false }
     var hasImages: Bool { false }
+    func hasProbableWebURL() async -> Bool { false }
 }
 
 /// What was copied, known without reading it: it picks the chip's symbol and the quick actions offered.

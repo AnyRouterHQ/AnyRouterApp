@@ -1,5 +1,46 @@
 [
   {
+    "id": "what-time",
+    "detail": "where you are and in other cities",
+    "title": "What time is it?",
+    "prompt": "What time is it right now?",
+    "category": "explore",
+    "symbol": "clock"
+  },
+  {
+    "id": "plan-day",
+    "detail": "around what you have on today",
+    "title": "Plan my day",
+    "prompt": "Help me plan my day. Ask me what I have on and how much energy I have, then give me a simple schedule with breaks.",
+    "category": "plan",
+    "symbol": "sun.max"
+  },
+  {
+    "id": "write-message",
+    "detail": "for anyone, in your own tone",
+    "title": "Write a message",
+    "prompt": "Help me write a message. Ask me who it is for and what I want to say, then write a short draft I can send.",
+    "category": "write",
+    "symbol": "square.and.pencil"
+  },
+  {
+    "id": "ask-photo",
+    "detail": "pick one and ask anything",
+    "title": "Ask about a photo",
+    "prompt": "",
+    "category": "explore",
+    "symbol": "photo.on.rectangle",
+    "action": "askPhoto"
+  },
+  {
+    "id": "what-can-you-do",
+    "detail": "with examples to try",
+    "title": "What can you do?",
+    "prompt": "What can you do in this app? Answer in a few short lines, each with an example I can try right away.",
+    "category": "explore",
+    "symbol": "questionmark.bubble"
+  },
+  {
     "id": "spanish-week",
     "detail": "30 minutes a day for a week",
     "title": "Weekly Spanish plan",
@@ -203,6 +244,14 @@
     "offerOnPaste": true
   },
   {
+    "id": "explain-text",
+    "detail": "explained in plain words",
+    "title": "What is this text?",
+    "prompt": "Explain the text below in plain words: what it is, what it means, and anything I should do about it.\n\nText:\n",
+    "category": "learn",
+    "symbol": "text.magnifyingglass"
+  },
+  {
     "id": "weekly-plan",
     "detail": "around your goals and energy",
     "title": "Plan my week",
@@ -273,6 +322,14 @@
     "prompt": "Open the page at the link below and list its key points, most important first, one line each.\n\nLink:\n",
     "category": "learn",
     "symbol": "list.bullet"
+  },
+  {
+    "id": "about-link",
+    "detail": "in a few lines",
+    "title": "What is this link about?",
+    "prompt": "Open the page at the link below and tell me in a few lines what it is about and who it is for.\n\nLink:\n",
+    "category": "learn",
+    "symbol": "link"
   },
   {
     "id": "describe-image",

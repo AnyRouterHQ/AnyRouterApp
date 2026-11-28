@@ -82,15 +82,6 @@ struct PresetOptionsTests {
         #expect(PresetOptionsLogic.summary(try reply()) == "Choose tone and language")
     }
 
-    @Test func presetsWithPickersStayInTheRowWhateverTheShuffle() throws {
-        let preset = try reply()
-        let others = (0..<12).map { PromptPreset(id: "p\($0)", title: "T", prompt: "P", category: .write, symbol: "sparkles") }
-        for seed in 0..<6 {
-            let row = PresetLogic.featured(others + [preset], customIDs: ["p3"], category: nil, seed: UInt64(seed), limit: 4)
-            #expect(row.map(\.id).prefix(2) == ["p3", "reply-to-this"])
-        }
-    }
-
     @Test func aPresetFileWithoutOptionsStillDecodes() throws {
         let json = Data(##"[{"id":"a","title":"A","prompt":"P","category":"write","symbol":"sparkles"}]"##.utf8)
         let items = try JSONDecoder().decode([PromptPreset].self, from: json)
