@@ -164,6 +164,27 @@ struct CatalogServiceRemoteTests {
         #expect(try await s.entries().map(\.repo).contains("org/remote"))
     }
 
+    @Test func eachAnswerOf200Or304NotesWhenTheCatalogWasChecked() async throws {
+        let dir = makeTempDirectory()
+        let first = service(http: GateRecordingHTTP { _ in .init(body: remoteDoc, headers: ["ETag": "\"v1\""]) }, settings: custom(), dir: dir)
+        #expect(await first.lastChecked() == nil)
+        let before = Date()
+        _ = try await first.refreshRemote()
+        let afterOK = try #require(await first.lastChecked())
+        #expect(afterOK >= before)
+
+        let notModified = service(http: GateRecordingHTTP { _ in .init(status: 304) }, settings: custom(), dir: dir)
+        #expect(await notModified.lastChecked() == nil)
+        _ = try await notModified.refreshRemote()
+        #expect(try #require(await notModified.lastChecked()) >= before)
+    }
+
+    @Test func aFailedFetchDoesNotCountAsChecked() async throws {
+        let bad = service(http: GateRecordingHTTP { _ in .init(status: 500) }, settings: custom())
+        await #expect(throws: LocalModelError.http(status: 500)) { try await bad.refreshRemote() }
+        #expect(await bad.lastChecked() == nil)
+    }
+
     @Test func aCatalogWithoutAnETagForgetsTheOldOne() async throws {
         let dir = makeTempDirectory()
         _ = try await service(http: GateRecordingHTTP { _ in .init(body: remoteDoc, headers: ["ETag": "\"v1\""]) },

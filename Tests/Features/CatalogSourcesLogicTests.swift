@@ -57,6 +57,21 @@ struct CatalogSourcesLogicTests {
         #expect(CatalogSourcesLogic.subtitle(list[2]) == "MLX · 1 model")
     }
 
+    @Test func onlyTheSharedCatalogShowsWhenItWasLastChecked() {
+        let list = sources(mixed)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let us = Locale(identifier: "en_US")
+        let fiveMinutesAgo = now.addingTimeInterval(-300)
+        #expect(CatalogSourcesLogic.subtitle(list[0], checkedAt: fiveMinutesAgo, now: now, locale: us)
+            == "Model catalog · 2 models · Checked 5 minutes ago")
+        #expect(CatalogSourcesLogic.subtitle(list[0], checkedAt: nil, now: now, locale: us) == "Model catalog · 2 models",
+                "no line before the first answer")
+        #expect(CatalogSourcesLogic.subtitle(list[1], checkedAt: fiveMinutesAgo, now: now, locale: us) == "GGUF · 2 models",
+                "a Hugging Face repo is never fetched, so it has no checked time")
+        #expect(CatalogSourcesLogic.subtitle(list[0], checkedAt: now.addingTimeInterval(60), now: now, locale: us)
+            == "Model catalog · 2 models · Checked now", "a clock skew never says in the future")
+    }
+
     @Test func aSourceWithAnInstalledModelCannotBeRemovedBecauseTheFilesWouldBecomeUnreachable() {
         let list = sources(mixed)
         #expect(CatalogSourcesLogic.canRemove(list[1], state: { _ in .notInstalled }))

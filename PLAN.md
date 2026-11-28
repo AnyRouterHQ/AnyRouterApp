@@ -198,7 +198,6 @@ Ids are stable. Delete a line when the task is done.
 - S6 `ReasoningTracker` state machine and `.strip` history policy with tests for tags split across chunks.
 - S7 `ContextPolicy`: grow `n_ctx` or the MLX window up to a ceiling, else trim or fail, with a one-line notice; replaces the fixed MLX `maxKVSize`.
 - S8 MLX MTP drafters (Gemma 4, Qwen 3.5) as catalog `companions`, token-parity check, "Speculative: on/off (reason)" row. S9 MLX TurboQuant KV behind an Experimental row, off by default, after S7.
-- G7 "Checked <time>" line on the shared catalog row in Catalog Sources (`CatalogService.refreshRemote` notes each 200 or 304; `CatalogSourcesLogic.subtitle` test).
 - Later: GGUF speculative decoding (MTP, DFlash) and TurboQuant KV need an xcframework with `common/` (D14); EAGLE-3 drafters are too large for phones.
 
 **Agent and tools**

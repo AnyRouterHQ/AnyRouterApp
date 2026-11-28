@@ -8,6 +8,7 @@ actor CatalogService {
     private let api: HuggingFaceAPI
     private let cacheDirectory: URL
     private let settings: @Sendable () -> CatalogSettings
+    private var checked: [URL: Date] = [:]
 
     init(
         bundled: @escaping @Sendable () throws -> CatalogDocument = { try BundledCatalog.load() },
@@ -30,6 +31,9 @@ actor CatalogService {
         return merged.filter { $0.origin == .user || $0.isAvailableOnThisPlatform }
     }
 
+    /// When the catalog now in use last answered with a 200 or a 304 in this run. Nil before the first answer.
+    func lastChecked() -> Date? { checked[settings().effectiveCatalogURL] }
+
     /// Fetches the catalog (the user's URL, else the development or production file) and caches it. Sends the stored
     /// ETag, so an unchanged file costs one small 304. Returns true when a new copy was stored.
     /// The document is decoded before it is cached, so a bad response never replaces a good copy.
@@ -46,9 +50,13 @@ actor CatalogService {
             request.setValue(etag, forHTTPHeaderField: "If-None-Match")
         }
         let (data, response) = try await api.http.fetch(request)
-        if response.statusCode == 304 { return false }
+        if response.statusCode == 304 {
+            checked[url] = Date()
+            return false
+        }
         guard (200..<300).contains(response.statusCode) else { throw LocalModelError.http(status: response.statusCode) }
         _ = try CatalogDocument.decode(data)
+        checked[url] = Date()
         try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         try data.write(to: cached, options: .atomic)
         if let etag = response.value(forHTTPHeaderField: "ETag") {

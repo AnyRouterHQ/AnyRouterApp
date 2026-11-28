@@ -28,7 +28,7 @@ struct CatalogSourcesScreen: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(source.title)
-                            Text(CatalogSourcesLogic.subtitle(source)).font(.subheadline).foregroundStyle(.secondary)
+                            Text(CatalogSourcesLogic.subtitle(source, checkedAt: hub.catalogCheckedAt)).font(.subheadline).foregroundStyle(.secondary)
                         }
                     }
                     .swipeActions {

@@ -140,6 +140,8 @@ protocol ModelHubService: AnyObject {
     /// One line for Local Models when this install has the standard memory limit (the increased limit is not signed in),
     /// else nil. Sideloaded builds re-signed with a free Apple ID lose it.
     var memoryLimitNote: String? { get }
+    /// When the shared catalog last answered in this run, or nil before it has.
+    var catalogCheckedAt: Date? { get }
 
     /// Fetches the shared catalog (cached with an ETag) and reloads. Never throws: a failed fetch keeps the cached list.
     func refreshCatalog() async
@@ -180,6 +182,9 @@ extension ModelHubService {
 
     /// Hubs with no add-ons have nothing to add.
     func addPhotoSupport(to modelID: String) {}
+
+    /// Hubs with no network have never checked.
+    var catalogCheckedAt: Date? { nil }
 
     /// Hubs with no disk have nothing stored.
     var storageItems: [StorageInventoryLogic.Item] { [] }

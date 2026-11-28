@@ -58,11 +58,19 @@ enum CatalogSourcesLogic {
         return result
     }
 
-    /// "Model catalog · 24 models", "GGUF · 3 models".
-    static func subtitle(_ source: LocalCatalogSource) -> String {
+    /// "Model catalog · 24 models · Checked 5 minutes ago", "GGUF · 3 models". Only the shared catalog is fetched,
+    /// so only it shows when it was last checked.
+    static func subtitle(_ source: LocalCatalogSource, checkedAt: Date? = nil, now: Date = .now, locale: Locale = .current) -> String {
         let count = source.models.count
         let models = "\(count) \(count == 1 ? "model" : "models")"
-        return [source.format ?? source.typeName, models].joined(separator: " · ")
+        var parts = [source.format ?? source.typeName, models]
+        if source.kind == .sharedCatalog, let checkedAt {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.locale = locale
+            formatter.dateTimeStyle = .named
+            parts.append("Checked " + formatter.localizedString(for: min(checkedAt, now), relativeTo: now))
+        }
+        return parts.joined(separator: " · ")
     }
 
     /// A source can be removed only when none of its models is installed: removing it would hide the files from the app.

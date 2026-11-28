@@ -14,6 +14,7 @@ final class LocalModelHub: ModelHubService {
     private(set) var remoteCatalogURL: String = ""
     private(set) var usesDevelopmentCatalog = false
     private(set) var memoryLimitNote: String?
+    private(set) var catalogCheckedAt: Date?
     private(set) var storageItems: [StorageInventoryLogic.Item] = []
     private(set) var offCatalogModels: [LocalModelEntry] = []
 
@@ -61,6 +62,7 @@ final class LocalModelHub: ModelHubService {
         let settings = CatalogSettings.load(from: defaults)
         remoteCatalogURL = settings.remoteCatalogURL?.absoluteString ?? ""
         usesDevelopmentCatalog = settings.useDevelopmentCatalog
+        catalogCheckedAt = await service.lastChecked()
         do {
             let entries = try await service.entries()
             let userIDs = Set(settings.userModels.map(\.id))
