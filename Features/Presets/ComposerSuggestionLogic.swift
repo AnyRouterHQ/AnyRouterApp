@@ -65,8 +65,9 @@ enum ComposerSuggestionLogic {
     /// - a fresh paste in the composer: the text presets, to apply to that text;
     /// - nothing while the composer has text;
     /// - a chat with messages: the waiting copy's chip and its quick actions as chips, else nothing;
-    /// - an empty chat: the waiting copy's chip, then cards for what is on the clipboard (`clipboardPresetIDs`), or the
-    ///   person's own presets and the general starters (`starterPresetIDs`) when nothing useful is there.
+    /// - an empty chat: cards for what is on the clipboard (`clipboardPresetIDs`), or the person's own presets and the
+    ///   general starters (`starterPresetIDs`) when nothing useful is there. No copy chip: the first card already says
+    ///   what it does with the copy, and the row keeps to cards and More.
     ///
     /// `presets` are the visible ones (the person's first, `customIDs`), `textPresets` the ones offered on a paste.
     static func visible(
@@ -77,18 +78,17 @@ enum ComposerSuggestionLogic {
             return row(.pasted, cards: false, leading: [], presets: textPresets)
         }
         guard state.inputIsEmpty else { return nil }
-        let chip = state.clipboardKind.map { [ComposerSuggestion.clipboard($0)] } ?? []
         if state.chatHasMessages {
             guard let kind = state.clipboardKind else { return nil }
-            return row(.clipboard, cards: false, leading: chip, presets: pick(quickActions(kind, state), from: presets))
+            return row(.clipboard, cards: false, leading: [.clipboard(kind)], presets: pick(quickActions(kind, state), from: presets))
         }
         let onClipboard = (state.clipboardContent ?? state.clipboardKind).map { quickActions($0, state) } ?? []
         if !onClipboard.isEmpty {
-            return row(.clipboard, cards: true, leading: chip, presets: pick(onClipboard, from: presets))
+            return row(.clipboard, cards: true, leading: [], presets: pick(onClipboard, from: presets))
         }
         let starters = presets.filter { customIDs.contains($0.id) }
             + pick(starterPresetIDs(tools: state.supportsTools, vision: state.supportsVision), from: presets)
-        return row(.starters, cards: true, leading: chip, presets: starters)
+        return row(.starters, cards: true, leading: [], presets: starters)
     }
 
     /// The quick actions for what was copied, by preset id, in order. A link needs tools to open the page, a picture a

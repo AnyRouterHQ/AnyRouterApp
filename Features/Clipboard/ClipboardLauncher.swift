@@ -37,12 +37,12 @@ struct DemoPasteboard: PasteboardProbe {
 @MainActor @Observable
 final class ClipboardLauncher {
     private static let seenKey = "clipboard.lastOfferedChangeCount"
-    private static let wavedOffKey = "clipboard.wavedOffChangeCount"
+    private static let ownCopyKey = "clipboard.ownCopyChangeCount"
 
     /// What the offered copy is, or nil when nothing is offered.
     private(set) var offeredKind: ClipboardKind?
-    /// What is on the clipboard now, or nil when it is empty, the app's own copy, or waved off. Unlike the offer it
-    /// stays for every new chat until the next copy.
+    /// What is on the clipboard now, or nil when it is empty or the app's own copy. Unlike the offer it stays for every
+    /// new chat until the next copy.
     private(set) var contentKind: ClipboardKind?
     var isOffered: Bool { offeredKind != nil }
     @ObservationIgnored private let probe: any PasteboardProbe
@@ -60,7 +60,7 @@ final class ClipboardLauncher {
     func check(composerEmpty: Bool) -> Task<Void, Never>? {
         let count = probe.changeCount
         let kind = ClipboardLaunchLogic.kind(hasStrings: probe.hasStrings, hasURLs: probe.hasURLs, hasImages: probe.hasImages)
-        contentKind = count == (defaults.object(forKey: Self.wavedOffKey) as? Int) ? nil : kind
+        contentKind = count == (defaults.object(forKey: Self.ownCopyKey) as? Int) ? nil : kind
         if let kind, ClipboardLaunchLogic.shouldOffer(
             changeCount: count, lastSeen: defaults.object(forKey: Self.seenKey) as? Int, hasStrings: true,
             composerEmpty: composerEmpty) {
@@ -78,17 +78,13 @@ final class ClipboardLauncher {
     /// The offer was used or typed over: its chip goes. The cards stay for the next new chat.
     func dismiss() { offeredKind = nil }
 
-    /// Hide in the row: the offer and the cards for this copy go until the next copy.
-    func waveOff() {
-        defaults.set(probe.changeCount, forKey: Self.wavedOffKey)
-        offeredKind = nil
-        contentKind = nil
-    }
-
-    /// The app itself copied something (a reply's Copy button): that text is not offered back.
+    /// The app itself copied something (a reply's Copy button): that text is not offered back, and the cards do not
+    /// act on it, until the next copy.
     func noteOwnCopy() {
         defaults.set(probe.changeCount, forKey: Self.seenKey)
-        waveOff()
+        defaults.set(probe.changeCount, forKey: Self.ownCopyKey)
+        offeredKind = nil
+        contentKind = nil
     }
 
     /// Treats a pasteboard change while the app is in front as its own.

@@ -564,8 +564,6 @@ final class ChatViewModel {
         }
     }
 
-    func dismissPasteOffer() { pasteOffered = false }
-
     /// A preset tapped in the clipboard row, with the text read from the clipboard. A preset with pickers opens its
     /// choices with the text as the message; any other preset goes out at once.
     @discardableResult

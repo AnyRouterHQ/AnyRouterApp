@@ -65,7 +65,7 @@ struct ClipboardQuickSendTests {
         }
     }
 
-    @Test func theRowLeadsWithTheCopyThenItsQuickActionsThenMore() throws {
+    @Test func anEmptyChatOffersTheCopysQuickActionsThenMore() throws {
         let store = bundled()
         let context = ModelContext(try ModelContainer.anyRouter(inMemory: true))
         let registry = EngineRegistry()
@@ -74,11 +74,11 @@ struct ClipboardQuickSendTests {
         // No model is chosen, so the row offers what works without tools or photos.
         let text = vm.suggestions(presets: store, clipboardKind: .text, clipboardContent: .text, isDictating: false, mentionPanelOpen: false)
         #expect(text?.mode == .clipboard)
-        #expect(text?.items.map(\.id) == ["clipboard", "preset.fix-english", "preset.explain-text", "preset.translate", "preset.summarize", "more"])
+        #expect(text?.items.map(\.id) == ["preset.fix-english", "preset.explain-text", "preset.translate", "preset.summarize", "more"])
         let link = vm.suggestions(presets: store, clipboardKind: .link, clipboardContent: .link, isDictating: false, mentionPanelOpen: false)
         #expect(link?.mode == .starters, "a model without tools cannot open the link")
         let image = vm.suggestions(presets: store, clipboardKind: .image, clipboardContent: .image, isDictating: false, mentionPanelOpen: false)
-        #expect(image?.items.map(\.id) == ["clipboard", "preset.read-photo", "more"])
+        #expect(image?.items.map(\.id) == ["preset.read-photo", "more"])
     }
 
     // MARK: Prompt

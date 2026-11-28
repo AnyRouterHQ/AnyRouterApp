@@ -78,13 +78,6 @@ struct PasteOfferChatTests {
         #expect(!vm.pasteOffered)
     }
 
-    @Test func theCloseButtonHidesTheOffer() async throws {
-        let vm = try await chat()
-        type(vm, paragraph)
-        vm.dismissPasteOffer()
-        #expect(!vm.pasteOffered)
-    }
-
     @Test func anInboundRequestFillsTheComposerWithoutOfferingPresets() async throws {
         let vm = try await chat()
         let old = vm.input

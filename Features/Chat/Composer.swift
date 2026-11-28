@@ -111,8 +111,7 @@ struct Composer: View {
                         onClipboard: { pasteClipboard($0) },
                         onPreset: { pick($0, mode: suggestions.mode) },
                         onSend: { model.sendNow($0) },
-                        onEditPresets: { shell.presentSettings(closeSidebar: false, destination: .presets) },
-                        onDismiss: { model.dismissPasteOffer(); app.clipboard.waveOff() })
+                        onEditPresets: { shell.presentSettings(closeSidebar: false, destination: .presets) })
                         .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
                 }
                 if !model.mentions.isEmpty {

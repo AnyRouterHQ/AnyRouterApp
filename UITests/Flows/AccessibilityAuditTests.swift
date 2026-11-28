@@ -90,10 +90,10 @@ final class AccessibilityAuditTests: XCTestCase {
             XCTAssertTrue(app.descendants(matching: .any)["composer.suggestions"].waitForExistence(timeout: 10))
             audit(app, "home", appearance)
         }
-        // A copy waiting: the one-line chips (the copy's own chip and its quick actions) take the cards' place.
+        // A copy waiting: the cards turn into the copy's quick actions.
         UIPasteboard.general.string = "Can you send me the revised budget by Friday?"
         eachAppearance(["-ARDemoClipboard", "YES"]) { app, appearance in
-            XCTAssertTrue(app.descendants(matching: .any)["composer.suggestion.clipboard"].waitForExistence(timeout: 15))
+            XCTAssertTrue(app.descendants(matching: .any)["composer.suggestion.preset.fix-english"].waitForExistence(timeout: 15))
             audit(app, "home-clipboard", appearance)
         }
     }

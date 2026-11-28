@@ -70,10 +70,11 @@ struct ComposerSuggestionTests {
         #expect(ids(shown) == ["preset.fix-english", "preset.explain-text", "preset.translate", "preset.summarize", "more"])
     }
 
-    @Test func aFreshCopyLeadsWithItsChip() {
+    /// On an empty chat the cards say what they do with the copy, so a fresh copy adds no chip of its own.
+    @Test func aFreshCopyOnAnEmptyChatIsOnlyCards() {
         let shown = show(state(clipboard: .text, content: .text))
-        #expect(ids(shown) == ["clipboard", "preset.fix-english", "preset.explain-text", "preset.translate", "preset.summarize", "more"])
-        #expect(ids(show(state(clipboard: .image))) == ["clipboard", "preset.describe-image", "preset.read-photo", "more"],
+        #expect(ids(shown) == ["preset.fix-english", "preset.explain-text", "preset.translate", "preset.summarize", "more"])
+        #expect(ids(show(state(clipboard: .image))) == ["preset.describe-image", "preset.read-photo", "more"],
                 "the offer alone picks the cards too")
     }
 
@@ -82,7 +83,7 @@ struct ComposerSuggestionTests {
         #expect(ids(show(state(content: .link))) == ["preset.summarize-link", "preset.about-link", "more"])
         let noTools = show(state(clipboard: .link, content: .link, tools: false))
         #expect(noTools?.mode == .starters)
-        #expect(ids(noTools) == ["clipboard", "preset.plan-day", "preset.write-message", "preset.ask-photo", "preset.explain-simply", "more"])
+        #expect(ids(noTools) == ["preset.plan-day", "preset.write-message", "preset.ask-photo", "preset.explain-simply", "more"])
     }
 
     /// Reading the text in a picture runs on the device, so it is offered for any model.
@@ -138,7 +139,8 @@ struct ComposerSuggestionTests {
     }
 
     @Test func noPresetsMeansNoMoreMenuAndNoEmptyRow() {
-        #expect(ids(show(state(clipboard: .text), presets: [])) == ["clipboard"], "the copy's chip still works without presets")
+        #expect(ids(show(state(messages: true, clipboard: .text), presets: [])) == ["clipboard"], "the copy's chip still works without presets")
+        #expect(show(state(clipboard: .text), presets: []) == nil)
         #expect(show(state(), presets: []) == nil)
         #expect(show(state(empty: false, pasted: true), text: []) == nil)
     }

@@ -87,7 +87,7 @@ struct ClipboardLauncherTests {
     }
 
     /// The cards follow what is on the clipboard for every new chat, not once like the chip, until Hide or the next copy.
-    @Test func theClipboardsKindStaysUntilWavedOffOrReplaced() {
+    @Test func theClipboardsKindStaysUntilReplaced() {
         let board = FakePasteboard()
         let l = launcher(board)
         l.check(composerEmpty: true)
@@ -97,9 +97,6 @@ struct ClipboardLauncherTests {
         l.dismiss()
         l.check(composerEmpty: true)
         #expect(l.contentKind == .text && l.offeredKind == nil, "a used offer keeps the cards")
-        l.waveOff()
-        l.check(composerEmpty: true)
-        #expect(l.contentKind == nil && l.offeredKind == nil, "Hide holds for this copy")
         board.copy()
         l.check(composerEmpty: true)
         #expect(l.contentKind == .text)

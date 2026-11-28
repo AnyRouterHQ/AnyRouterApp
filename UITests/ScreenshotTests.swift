@@ -209,21 +209,26 @@ final class ScreenshotTests: XCTestCase {
         UIPasteboard.general.string = sample
         forEachAppearance(extra: ["-ARDemoClipboard", "YES"]) { app, appearance in
             XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
-            let paste = app.descendants(matching: .any)["composer.suggestion.clipboard"]
-            XCTAssertTrue(paste.waitForExistence(timeout: 10), "the copy's chip leads the row")
-            XCTAssertTrue(app.descendants(matching: .any)["composer.suggestion.preset.explain-text"].exists,
-                          "copied text turns the cards into actions on it")
-            let hide = app.descendants(matching: .any)["composer.suggestion.hide"]
-            XCTAssertTrue(hide.isHittable, "Hide is in view at the end of the row")
-            XCTAssertGreaterThanOrEqual(hide.frame.width, 44, "Hide is at least 44 pt wide")
-            XCTAssertGreaterThanOrEqual(hide.frame.height, 44, "Hide is at least 44 pt tall")
+            let fix = app.descendants(matching: .any)["composer.suggestion.preset.fix-english"]
+            XCTAssertTrue(fix.waitForExistence(timeout: 10), "copied text turns the cards into actions on it")
+            XCTAssertFalse(app.descendants(matching: .any)["composer.suggestion.clipboard"].exists,
+                           "on an empty chat the cards carry the copy; no chip of its own")
+            XCTAssertFalse(app.descendants(matching: .any)["composer.suggestion.hide"].exists, "More is the one trailing control")
+            let more = app.descendants(matching: .any)["composer.suggestion.more"]
+            XCTAssertTrue(more.isHittable, "More floats in view at the end of the row")
+            XCTAssertGreaterThanOrEqual(more.frame.width, 44, "More is at least 44 pt wide")
             capture("composer-clipboard", appearance)
-            paste.tap()
+            // Paste from the field's edit menu: the row turns into the text presets for what was pasted.
+            let input = app.descendants(matching: .any)["composer.input"]
+            input.tap()
+            input.press(forDuration: 1.2)
+            let pasteItem = app.menuItems["Paste"]
+            XCTAssertTrue(pasteItem.waitForExistence(timeout: 5), "the field's edit menu offers Paste")
+            pasteItem.tap()
             let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow Paste"]
             if allow.waitForExistence(timeout: 3) { allow.tap() }
             XCTAssertTrue(app.descendants(matching: .any)["composer.suggestions"].waitForExistence(timeout: 5))
             sleep(1)
-            XCTAssertFalse(paste.exists, "the copy's chip is gone after a paste")
             capture("composer-after-paste", appearance)
         }
     }

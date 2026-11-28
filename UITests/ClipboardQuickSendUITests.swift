@@ -10,12 +10,9 @@ final class ClipboardQuickSendUITests: XCTestCase {
         app.launchArguments = ["-ARDemoData", "YES", "-ARDemoClipboard", "YES"]
         app.launch()
 
-        let chip = app.descendants(matching: .any)["composer.suggestion.clipboard"]
-        XCTAssertTrue(chip.waitForExistence(timeout: 15), "the copy's chip leads the row")
-        XCTAssertTrue(chip.label.contains("Copied text"))
         // The first card, in view on every device: the cards act on the copy.
         let fix = app.descendants(matching: .any)["composer.suggestion.preset.fix-english"]
-        XCTAssertTrue(fix.waitForExistence(timeout: 5), "Fix my English is a quick action for text")
+        XCTAssertTrue(fix.waitForExistence(timeout: 15), "Fix my English is a quick action for copied text")
         fix.tap()
 
         // Reading the pasteboard in code asks once per tap unless the person allowed it in Settings.
@@ -24,6 +21,6 @@ final class ClipboardQuickSendUITests: XCTestCase {
 
         XCTAssertTrue(app.descendants(matching: .any)["message.clipboard-badge"].waitForExistence(timeout: 10),
                       "the sent message says it came from the clipboard")
-        XCTAssertFalse(chip.exists, "the offer is used up")
+        XCTAssertFalse(fix.exists, "the offer is used up once the chat has a message")
     }
 }
