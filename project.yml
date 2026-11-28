@@ -80,17 +80,6 @@ targets:
           UIImageName: LaunchLogo
           UIColorName: LaunchBackground
           UIImageRespectsSafeAreaInsets: true
-    entitlements:
-      path: App/AnyRouter.entitlements
-      properties:
-        com.apple.developer.kernel.increased-memory-limit: true
-        # llama.cpp maps a model file whole. Without this the app's address space is capped (about 7.4 GiB on a phone
-        # with more than 3 GiB of RAM, from the kernel source), which a 6.9 GB file nearly fills. Paid teams only:
-        # a free Apple ID drops it, and Settings › Diagnostics shows whether this install has it.
-        com.apple.developer.kernel.extended-virtual-addressing: true
-        # Shares from the extension wait here for the app. A build signed without this capability has no inbox.
-        com.apple.security.application-groups:
-          - group.oneni.anyr.app
     dependencies:
       - package: MarkdownUI
         product: MarkdownUI
@@ -119,6 +108,14 @@ targets:
         # it compiles when the SDK is 27 (the ios27-build workflow), so the iOS 26 SDK builds stay as they are.
         "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos27*]": $(inherited) APPLE_PCC_SDK
         "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator27*]": $(inherited) APPLE_PCC_SDK
+        # The app's entitlements are committed files, chosen by AR_PCC_ENTITLEMENT in Config/Base.xcconfig (off by default):
+        # - increased-memory-limit and extended-virtual-addressing: llama.cpp maps a model file whole; without the second
+        #   the address space is capped (about 7.4 GiB on a phone with more than 3 GiB of RAM). Paid teams only: a free
+        #   Apple ID drops both, and Settings › Diagnostics shows whether this install has them.
+        # - the App Group: shares from the extension wait there for the app.
+        # - AnyRouter-PCC.entitlements adds com.apple.developer.private-cloud-compute, which Apple grants per account.
+        #   A key the App ID lacks breaks signing, so it stays off until the account has it (docs/testflight.md).
+        CODE_SIGN_ENTITLEMENTS: $(AR_ENTITLEMENTS_$(AR_PCC_ENTITLEMENT))
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO

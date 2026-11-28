@@ -41,4 +41,17 @@ for f in $(git grep -l -E 'Color\(red:|Color\(hex|UIColor\(red:|\.foregroundColo
     fail=1
   fi
 done
+# The app's two entitlement files differ by the Private Cloud Compute key only; Config/Base.xcconfig picks one.
+if ! python3 -I - <<'PY'
+import plistlib
+base = plistlib.load(open("App/AnyRouter.entitlements", "rb"))
+pcc = plistlib.load(open("App/AnyRouter-PCC.entitlements", "rb"))
+same = all(pcc.get(key) == value for key, value in base.items())
+extra = {key: value for key, value in pcc.items() if key not in base}
+raise SystemExit(0 if same and extra == {"com.apple.developer.private-cloud-compute": True} else 1)
+PY
+then
+  echo "::error file=App/AnyRouter-PCC.entitlements::must be App/AnyRouter.entitlements plus com.apple.developer.private-cloud-compute"
+  fail=1
+fi
 exit $fail

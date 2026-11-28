@@ -13,4 +13,11 @@ DEVELOPMENT_TEAM =
 // Empty means no remote crash reporting and no network. Set it in Local.xcconfig or from CI.
 SENTRY_DSN =
 
+// Apple Intelligence on Private Cloud Compute needs com.apple.developer.private-cloud-compute, which Apple grants to an
+// account on request. Off by default: a key the App ID lacks breaks signing. Set YES in Local.xcconfig (or pass
+// AR_PCC_ENTITLEMENT=YES to xcodebuild) once the App ID has it. See docs/testflight.md.
+AR_PCC_ENTITLEMENT = NO
+AR_ENTITLEMENTS_NO = App/AnyRouter.entitlements
+AR_ENTITLEMENTS_YES = App/AnyRouter-PCC.entitlements
+
 #include? "Local.xcconfig"
