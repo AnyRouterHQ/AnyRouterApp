@@ -39,7 +39,7 @@ final class MenuToggleTests: XCTestCase {
         XCTAssertTrue(plus.waitForExistence(timeout: 20))
         let before = blankRows(app)
         plus.tap()
-        let tools = app.buttons["Tools"]
+        let tools = app.buttons["composer.tools"]
         XCTAssertTrue(tools.waitForExistence(timeout: 5), "the + menu has Tools")
         tools.tap()
         expectNoBlankRows(app, before: before, "+ menu › Tools")
@@ -55,7 +55,8 @@ final class MenuToggleTests: XCTestCase {
         models.tap()
         let bar = app.navigationBars["Local Models"]
         XCTAssertTrue(bar.waitForExistence(timeout: 10))
-        let browse = app.buttons["local.browse"]
+        // A NavigationLink row in a List: XCUITest does not always type it as a button.
+        let browse = app.descendants(matching: .any)["local.browse"]
         var tries = 0
         while !browse.isHittable && tries < 8 {
             let start = bar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).withOffset(CGVector(dx: 0, dy: 450))
