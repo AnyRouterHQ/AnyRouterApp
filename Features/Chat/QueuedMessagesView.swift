@@ -45,7 +45,7 @@ struct QueuedMessagesView: View {
             // One visible action per row; Send now and Edit are in the long-press menu (Apple's rule: one primary action).
             iconButton("Remove", "xmark", id: "chat.queue.remove") { model.removeQueued(item.id) }
         }
-        .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 16))
+        .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: ARTheme.radiusLarge))
         .contextMenu {
             Button("Send Now", systemImage: "arrow.up.circle") { model.sendQueuedNow(item.id) }
                 .accessibilityIdentifier("chat.queue.sendNow")

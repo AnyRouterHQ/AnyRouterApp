@@ -11,7 +11,6 @@ struct ComposerSuggestionsRow: View {
     var onSend: (PromptPreset) -> Void
     var onEditPresets: () -> Void
     var onDismiss: () -> Void
-    @ScaledMetric(relativeTo: .subheadline) private var cardRadius: CGFloat = 18
     @ScaledMetric(relativeTo: .subheadline) private var moreSide: CGFloat = 44
 
     var body: some View {
@@ -28,9 +27,6 @@ struct ComposerSuggestionsRow: View {
                     }
                 }
             }
-            // Room for the glass edge now that the row clips, without changing the row's height.
-            .contentMargins(.vertical, 4, for: .scrollContent)
-            .padding(.vertical, -4)
             // From the screen's leading edge, with the first chip on the page margin (the edge of the + button), so a card
             // cut where the row meets More says the row scrolls. No fade mask: placed after the negative padding, its frame
             // was the inset slot, so it cut the cards' shadows into a hard grey band (screenshots 46075429647).
@@ -54,7 +50,6 @@ struct ComposerSuggestionsRow: View {
                         .contentShape(.circle)
                 }
                 .buttonStyle(.plain)
-                .chipOutline(.circle)
                 .accessibilityIdentifier("composer.suggestion.hide")
             }
         }
@@ -70,7 +65,6 @@ struct ComposerSuggestionsRow: View {
         .buttonStyle(.glass)
         .buttonBorderShape(.capsule)
         .controlSize(.regular)
-        .chipOutline(.capsule)
         .frame(minHeight: 44)
         .accessibilityHint("Puts it in the message to edit")
         .accessibilityIdentifier("composer.suggestion.clipboard")
@@ -85,7 +79,6 @@ struct ComposerSuggestionsRow: View {
         .buttonStyle(.glass)
         .buttonBorderShape(.capsule)
         .controlSize(.regular)
-        .chipOutline(.capsule)
         .frame(minHeight: 44)
         .accessibilityIdentifier("composer.suggestion.preset.\(preset.id)")
     }
@@ -103,9 +96,8 @@ struct ComposerSuggestionsRow: View {
             .padding(.vertical, 4)
         }
         .buttonStyle(.glass)
-        .buttonBorderShape(.roundedRectangle(radius: cardRadius))
+        .buttonBorderShape(.roundedRectangle(radius: ARTheme.radiusLarge))
         .controlSize(.regular)
-        .chipOutline(.rect(cornerRadius: cardRadius))
         .contextMenu {
             if suggestions.mode == .starters, preset.action == nil {
                 Button("Send now", systemImage: "arrow.up.circle") { onSend(preset) }
@@ -144,7 +136,6 @@ struct ComposerSuggestionsRow: View {
                 .glassEffect(.regular.interactive(), in: .circle)
                 .contentShape(.circle)
         }
-        .chipOutline(.circle)
         .accessibilityIdentifier("composer.suggestion.more")
     }
 
@@ -162,12 +153,5 @@ struct ComposerSuggestionsRow: View {
                 Button(preset.title, systemImage: preset.symbol) { onPreset(preset) }
             }
         }
-    }
-}
-
-private extension View {
-    /// A hairline around a chip. Clear glass on a white screen has no edge of its own in light mode.
-    func chipOutline(_ shape: some InsettableShape) -> some View {
-        overlay(shape.strokeBorder(Color(.separator), lineWidth: 0.5).allowsHitTesting(false))
     }
 }

@@ -9,7 +9,6 @@ struct MentionSuggestions: View {
     let onPick: (MentionItem) -> Void
 
     @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 44
-    @ScaledMetric(relativeTo: .body) private var radius: CGFloat = 26
     private let visibleRows = 5
 
     var body: some View {
@@ -54,7 +53,7 @@ struct MentionSuggestions: View {
             }
         }
         // A floating panel over the chat, so it takes glass directly, like the composer field.
-        .glassEffect(.regular, in: .rect(cornerRadius: radius))
+        .glassEffect(.regular, in: .rect(cornerRadius: ARTheme.radiusXL))
         .accessibilityIdentifier("mention.panel")
     }
 }
