@@ -297,6 +297,9 @@ private struct ChatContent: View {
     }
 
     private func settle(_ proxy: ScrollViewProxy, _ event: ScrollFollow.Event, _ lastQuestionID: UUID?) {
+        // A send puts the keyboard down, so the question and its reply get the whole view and the end of a short reply
+        // (or a failed one) is not left under the keyboard with the jump arrow over it (manager, 2026-11-28).
+        if case .messagesChanged(isStreaming: _, lastIsQuestion: true) = event { composerFocused = false }
         switch ScrollFollow.settle(after: event, lastQuestionID: lastQuestionID) {
         case .question(let id):
             following = false
