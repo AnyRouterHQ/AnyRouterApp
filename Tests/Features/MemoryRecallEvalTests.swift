@@ -130,6 +130,23 @@ struct MemoryRecallEvalTests {
             }
         }
         Self.report("memory eval variants: " + variants.joined(separator: "; "))
+        // The L1 memory set's trap prompts: a question that shares a word with a memory but is not about it.
+        let traps: [(question: String, forbid: Int)] = [
+            ("How do I train a neural network for image classification?", 15),
+            ("Why is the dog in the Hachiko story so famous?", 0),
+            ("Đà Lạt có bao nhiêu độ cao so với mực nước biển?", 11),
+        ]
+        var trapLines: [String] = []
+        for threshold in [2.5, 3.0] {
+            let hits = traps.filter { trap in
+                let kept = standout(trap.question).filter { $0.value >= threshold }
+                let best = kept.max { $0.value < $1.value }.map { [$0.key: $0.value] } ?? [:]
+                return MemoryRecallLogic.rank(trap.question, Self.candidates, semantic: best).prefix(3)
+                    .contains { $0.candidate.id == Self.candidates[trap.forbid].id }
+            }.count
+            trapLines.append("z\(threshold) one: \(hits)/3 trap prompts hit")
+        }
+        Self.report("memory eval traps (hybrid): " + trapLines.joined(separator: "; "))
         let lexical = Self.measure { _ in [:] }
         Self.report("memory eval: bm25 recall@3 \(lexical.found)/\(lexical.wanted) wrong \(lexical.wrong), hybrid recall@3 \(hybrid.found)/\(hybrid.wanted) wrong \(hybrid.wrong), assets yes, model \(vectors.first?.1.model ?? "none")")
         #expect(hybrid.found >= lexical.found, "meaning must not lose what words found")
