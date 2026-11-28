@@ -47,7 +47,7 @@ Milestone 1 is a TestFlight internal build on the operator's own iPhone and iPad
 | D30 | Chat titles: the first reply asks for a 2 to 6 word title, on Apple on-device when ready, else the chat's own model, never a cloud model for a device chat. A user-set title is never replaced. |
 | D31 | A failed reply stays in the chat with its failure stored on it (`MessageRecord.failureData`, one of twelve `ReplyFailure` kinds plus the raw text). It shows one plain sentence on a failed `TraceRow`, the raw text with Copy, and one action (Retry, Sign in, Choose another model, Shorten chat, Open Local Models). `ReplyFailureLogic` classifies engine errors once. The composer banner is only for what happens before a send. |
 
-MiniCPM 5 stays out of `models.json`: the 1B Q4_K_M loaded on b12811 but answered "2" to "What is 2+2?". No more smoke runs on it until a new GGUF or llama.cpp version.
+MiniCPM 5 stays out of `models.json`. The 1B Q4_K_M loaded on b12811 but answered "2" to "What is 2+2?" (model-smoke 46135283474). The 2B Q4_K_M passed (46133774784: answer "4", load + first token 93.89 s, 0.9 tok/s on the Simulator CPU, 1.5 GB) and waits in `dev-models.json` for the manager's call. No more smoke runs on either until a new GGUF or llama.cpp version.
 
 ## Contract (Core/)
 
