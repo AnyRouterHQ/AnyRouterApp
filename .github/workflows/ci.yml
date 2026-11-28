@@ -101,8 +101,8 @@ jobs:
       - name: Measurement reports
         if: always()
         run: |
-          # Tests that measure (the memory eval) write lines starting "memory eval"; they show here and in the summary.
-          grep -hE "memory eval" test.log | sort -u | cut -c1-400 | head -20 | tee -a "$GITHUB_STEP_SUMMARY" || true
+          # Tests that measure (the memory eval, the agent eval) write lines starting "memory eval" or "agent eval"; they show here and in the summary.
+          grep -hoE "(memory|agent) eval.*" test.log | sort -u | cut -c1-400 | head -20 | tee -a "$GITHUB_STEP_SUMMARY" || true
 
       - name: Last test output
         if: failure()

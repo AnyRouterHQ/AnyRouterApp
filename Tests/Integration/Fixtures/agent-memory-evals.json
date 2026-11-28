@@ -1,0 +1,122 @@
+{
+  "note": "The memory set of the live agent eval (agent design 5.2): 10 prompts over the 30 memories of MemoryRecallEvalTests.memories (want and forbid are indexes into that list). recall: the request must hold the wanted memories. trap: the prompt shares a word with a memory but is not about it, so the request must not hold the forbidden memory (BM25 has no score floor, so these measure wrong recalls). save: an explicit 'remember that' that RememberLogic must keep as saved (text compared ignoring case, accents and end punctuation), and thenAsk must recall it afterwards. Run by AgentMemoryEvalSmokeTests and AgentMemoryEvalSupportTests.",
+  "cases": [
+    {
+      "id": "recall-mochi-treats",
+      "kind": "recall",
+      "language": "en",
+      "prompt": "What treats can I give Mochi?",
+      "want": [
+        0,
+        1
+      ],
+      "forbid": [],
+      "saved": null,
+      "thenAsk": null
+    },
+    {
+      "id": "recall-allergy-vi",
+      "kind": "recall",
+      "language": "vi",
+      "prompt": "Gợi ý món ăn cho tôi, nhớ là tôi dị ứng",
+      "want": [
+        10
+      ],
+      "forbid": [],
+      "saved": null,
+      "thenAsk": null
+    },
+    {
+      "id": "recall-dalat-mother",
+      "kind": "recall",
+      "language": "en",
+      "prompt": "Plan a weekend trip to Đà Lạt to see my mother",
+      "want": [
+        11
+      ],
+      "forbid": [],
+      "saved": null,
+      "thenAsk": null
+    },
+    {
+      "id": "recall-anniversary",
+      "kind": "recall",
+      "language": "en",
+      "prompt": "Gift ideas for our wedding anniversary",
+      "want": [
+        18
+      ],
+      "forbid": [],
+      "saved": null,
+      "thenAsk": null
+    },
+    {
+      "id": "recall-bakery",
+      "kind": "recall",
+      "language": "en",
+      "prompt": "Ideas for my bakery's new menu",
+      "want": [
+        17
+      ],
+      "forbid": [],
+      "saved": null,
+      "thenAsk": null
+    },
+    {
+      "id": "trap-train",
+      "kind": "trap",
+      "language": "en",
+      "prompt": "How do I train a neural network for image classification?",
+      "want": [],
+      "forbid": [
+        15
+      ],
+      "saved": null,
+      "thenAsk": null
+    },
+    {
+      "id": "trap-dog",
+      "kind": "trap",
+      "language": "en",
+      "prompt": "Why is the dog in the Hachiko story so famous?",
+      "want": [],
+      "forbid": [
+        0
+      ],
+      "saved": null,
+      "thenAsk": null
+    },
+    {
+      "id": "trap-dalat-vi",
+      "kind": "trap",
+      "language": "vi",
+      "prompt": "Đà Lạt có bao nhiêu độ cao so với mực nước biển?",
+      "want": [],
+      "forbid": [
+        11
+      ],
+      "saved": null,
+      "thenAsk": null
+    },
+    {
+      "id": "save-phone",
+      "kind": "save",
+      "language": "en",
+      "prompt": "Remember that my new phone is a Pixel 9.",
+      "want": [],
+      "forbid": [],
+      "saved": "My new phone is a Pixel 9",
+      "thenAsk": "What phone do I use?"
+    },
+    {
+      "id": "save-onion-vi",
+      "kind": "save",
+      "language": "vi",
+      "prompt": "Hãy nhớ rằng tôi không ăn hành.",
+      "want": [],
+      "forbid": [],
+      "saved": "Tôi không ăn hành",
+      "thenAsk": "Tôi có ăn hành được không?"
+    }
+  ]
+}

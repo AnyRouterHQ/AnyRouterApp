@@ -304,6 +304,7 @@ jobs:
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
             -derivedDataPath DerivedData \
             -only-testing:AnyRouterTests/AgentToolEvalSmokeTests \
+            -only-testing:AnyRouterTests/AgentMemoryEvalSmokeTests \
             CODE_SIGNING_ALLOWED=NO | tee agent-eval.log | tail -n 100
 
       - name: Agent eval report
