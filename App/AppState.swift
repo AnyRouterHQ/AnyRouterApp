@@ -63,8 +63,6 @@ final class AppState {
     let telemetry: any Telemetry
     /// Saved crash, hang and metric payloads (Settings, Diagnostics).
     let diagnostics = DiagnosticsStore()
-    /// The sign-in key, for features that call AnyRouter outside the chat engine (Settings > Skills sync).
-    let tokenStore: any TokenStoring
     @ObservationIgnored private var metricKit: MetricKitReporter?
 
     init(dependencies: LaunchDependencies = LaunchDependencies()) {
@@ -73,7 +71,6 @@ final class AppState {
         let launchSignpost = Perf.signposter.beginInterval("launch.appstate")
         defer { Perf.signposter.endInterval("launch.appstate", launchSignpost) }
         let tokenStore = dependencies.tokenStore
-        self.tokenStore = tokenStore
         // Files that were picked but never sent are not kept across launches.
         if !DemoData.isEnabled { Task.detached { AttachmentStore.shared.purgePending() } }
         let integrations = IntegrationsStore(anyRouterToken: { tokenStore.token() })
