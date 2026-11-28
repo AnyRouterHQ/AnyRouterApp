@@ -102,6 +102,8 @@ final class MessageRecord {
     var memoryUpdatesData: Data?
     /// The memories recalled for this reply's question, as JSON (`MemoryHit`). Optional so existing stores migrate.
     var memoryHitsData: Data?
+    /// Skills the model proposed in this reply, as JSON (`SkillProposal`). Optional so existing stores migrate.
+    var skillProposalsData: Data?
 
     static let clipboardOrigin = "clipboard"
     var fromClipboard: Bool { origin == Self.clipboardOrigin }
@@ -150,6 +152,11 @@ final class MessageRecord {
     var memoryHits: [MemoryHit] {
         get { memoryHitsData.flatMap { try? JSONDecoder().decode([MemoryHit].self, from: $0) } ?? [] }
         set { memoryHitsData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
+    }
+
+    var skillProposals: [SkillProposal] {
+        get { skillProposalsData.flatMap { try? JSONDecoder().decode([SkillProposal].self, from: $0) } ?? [] }
+        set { skillProposalsData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
     }
 
     var memoryUpdates: [MemoryUpdate] {

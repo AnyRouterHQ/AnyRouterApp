@@ -1,7 +1,7 @@
 import Foundation
 
 /// The text of one skill before it is stored: a name, one line saying what it is for, and the steps.
-struct SkillDraft: Equatable, Sendable {
+struct SkillDraft: Codable, Equatable, Sendable {
     var name: String
     var description: String
     var body: String

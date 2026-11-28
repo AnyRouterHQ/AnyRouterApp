@@ -747,7 +747,10 @@ final class ChatViewModel {
             if model.source == .anyrouter, settings.useMemory, !thread.memoryOff {
                 toolContext.memoryTools = ChatMemoryTools(context: context, thread: thread, reply: assistant, settings: settings).tools
             }
-            if offersSkills { toolContext.memoryTools.append(ReadSkillTool(skills: offered)) }
+            if offersSkills {
+                toolContext.memoryTools.append(ReadSkillTool(skills: offered))
+                toolContext.memoryTools.append(ProposeSkillTool(store: SkillProposalStore(context: context, reply: assistant)))
+            }
             host = toolHost(toolContext)
             if skipsToolsOffline(toolContext) { offlineToolNote = OfflineLogic.toolNote }
         }
