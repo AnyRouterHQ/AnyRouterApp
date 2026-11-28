@@ -215,6 +215,7 @@ Ids are stable. Delete a line when the task is done.
 - LA9 Taint rule in `ExfiltrationGuard` (after a sensitive read, outbound tools ask for the rest of the turn), spotlighting of tool output, one-time notice when a sensitive result goes to a cloud model.
 - LA10 Tool selector by group; `AppleDynamicTool.maxTools` 8 to 4; result budget from `tokenCount(for:)` on 26.4 and later. The 4-tool cap and its order are in.
 - LA12 `AskAnyRouterIntent` returning an answer to Shortcuts (read tools only). LA13 `run_shortcut` for user-registered shortcuts, asks every time. LA14 Tool calling for MLX through the `mlx-swift-lm` processor, GGUF once `common/` exists. LA15 Later: Siri AI tool intent (iOS 27.3, internal TestFlight only). LA16 Later: Core Spotlight index of chat titles, off by default.
+- [x] U5 Agent v2 prefix probe: `PrefixStabilityTests` records every request of scripted cloud and local chats; known breakers wait on U6, U7 and U8; the turn after a tool run has no unit yet (28f46aa).
 - T7 Local GGUF and MLX tool calling beyond Qwen, Llama 3 and Gemma: chat-template tool rendering and parsing per family. Until then `WebGrounding` covers search.
 - Open from the loop: `decide` runs without asking and has no switch; Deny on resume and local resume are untested; "Remember this" on the user's own bubble; editing a stored skill.
 
