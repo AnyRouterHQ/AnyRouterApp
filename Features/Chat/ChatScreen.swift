@@ -304,8 +304,10 @@ private struct ChatContent: View {
             // adds the question and the empty reply together, so the event is a change of messages, not "last is a question".
             if case .messagesChanged = event { composerFocused = false }
             // The question's row is not laid out in the update that added it, so scrolling to it there found no target and
-            // the view stayed where it was (verify-ui 46150715558, anchor PNGs). Scroll once that layout is done.
-            Task { withAnimation(.snappy) { proxy.scrollTo(id, anchor: .top) } }
+            // the view stayed where it was (verify-ui 46150715558, anchor PNGs). Scroll once that layout is done, without an
+            // animation: the keyboard going down at the same moment cut an animated scroll short on iPhone and iPad mini
+            // (verify-ui 46154947700: the question stopped at 641 pt; the iPad Pro, with no keyboard, settled).
+            Task { proxy.scrollTo(id, anchor: .top) }
         case .bottom:
             following = true
             proxy.scrollTo("bottom", anchor: .bottom)
