@@ -122,7 +122,14 @@ struct MessageRow: View {
                 case .toolStep(let calls): ToolChainView(steps: calls, answerStarted: answerStarted)
                 case .subagent(let subagent): SubagentCard(subagent: subagent)
                 // Read Aloud and Copy Reply in the selection menu of the reply's text.
-                case .text(let text): MarkdownReply(text: text).environment(\.replyMenuActions, replyMenu)
+                case .text(let text):
+                    MarkdownReply(text: text).environment(\.replyMenuActions, replyMenu)
+                        .accessibilityActions {
+                            if !isStreamingThis {
+                                Button("Copy reply") { UIPasteboard.general.string = message.content }
+                                if showsRegenerate { Button("Regenerate", action: onRegenerate) }
+                            }
+                        }
                 case .file(let attachment), .image(let attachment):
                     MessageAttachments(attachments: [attachment], alignment: .leading)
                 }
@@ -168,16 +175,24 @@ struct MessageRow: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onChange(of: isStreamingThis) { wasStreaming, isStreaming in
+            guard let text = AccessibilityLogic.replyFinishedAnnouncement(
+                wasStreaming: wasStreaming, isStreaming: isStreaming, hasContent: !message.content.isEmpty,
+                failed: message.failure != nil) else { return }
+            AccessibilityNotification.Announcement(text).post()
+        }
     }
 }
 
-/// The SF Symbols "typing" animation, shown before the first token arrives. The system skips it for Reduce Motion.
+/// The SF Symbols "typing" animation, shown before the first token arrives. Still under Reduce Motion.
 struct TypingDots: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         Image(systemName: "ellipsis")
             .font(.title2)
             .foregroundStyle(.secondary)
-            .symbolEffect(.variableColor.iterative.reversing, options: .repeating)
+            .symbolEffect(.variableColor.iterative.reversing, options: .repeating, isActive: !reduceMotion)
             .accessibilityLabel("Thinking")
     }
 }

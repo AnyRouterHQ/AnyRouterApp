@@ -109,7 +109,7 @@ private struct ToolDetailText: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary).accessibilityAddTraits(.isHeader)
             Text(text)
                 .font(.system(.caption, design: .monospaced))
                 .lineLimit(showsAll ? nil : 6)

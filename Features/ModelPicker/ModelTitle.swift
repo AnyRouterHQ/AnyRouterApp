@@ -50,7 +50,7 @@ struct ModelTitle: View {
         .hoverEffect(.highlight)
         // VoiceOver reads label then value: "Model, <name>"; the chat's title is in the hint.
         .accessibilityLabel("Model")
-        .accessibilityValue(name ?? "")
+        .accessibilityValue(AccessibilityLogic.modelPillValue(name: name, isLoading: isLoading))
         .accessibilityHint(title.map { "In \($0). Choose a model" } ?? "Choose a model")
         .accessibilityIdentifier(identifier)
     }

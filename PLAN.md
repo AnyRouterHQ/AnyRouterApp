@@ -221,7 +221,7 @@ Ids are stable. Delete a line when the task is done.
 - U3 Streaming path: flush streamed text at most 20 to 30 Hz (a 20 Hz `TextCoalescer` exists), write the record on finish and every 2 s as a checkpoint, stop reading content in the list body (M3).
 - U4 Row identity: an equatable `MessageRowModel`, actions through the environment, one cached theme, an ordered array kept in the view model.
 - U9 Picker and Hub lists: lazy containers, sections cached in `ModelStore`, a 150 ms search debounce, per-card progress observation (M4).
-- U14 Accessibility: copy and regenerate as accessibility actions, model pill value, header traits, Reduce Motion for `TypingDots`, a reply-finished announcement, zero audit issues on the main screens. U23 Status and error text at 4.5:1 contrast (`.secondary` is for captions). U25 Dynamic Type audit at the largest accessibility size on home, chat, picker and Settings.
+- U14 Accessibility: zero audit issues on the main screens. U23 Status and error text at 4.5:1 contrast (`.secondary` is for captions). U25 Dynamic Type audit at the largest accessibility size on home, chat, picker and Settings.
 - U15 Thread search with a predicate fetch and debounce, once a measurement shows a need. U17 Deep links and an opt-in Spotlight index. U18 Chunked SSE read, only if M3 on the real SSE path shows it.
 - U24 The Hub "Pause" button takes the app tint (orange is for the tight-fit status only).
 - Accessibility audit, still open: preset chips clip at AccessibilityXL; picker rows truncate names at AccessibilityXL; the response-details row clips. Re-audit the rest with `gh workflow run verify-ui.yml`.
