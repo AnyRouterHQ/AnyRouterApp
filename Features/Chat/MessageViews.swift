@@ -114,6 +114,8 @@ struct MessageRow: View {
             }
             // What the question saved to memory leads the reply's trace.
             ForEach(message.memoryUpdates) { update in MemoryUpdateRow(update: update, message: message) }
+            // A skill the model proposed waits here for Save or Discard.
+            ForEach(message.skillProposals) { proposal in SkillProposalRow(proposal: proposal, message: message) }
             ForEach(parts) { part in
                 switch part {
                 case .reasoning(let trace, let isStreaming): ReasoningRow(trace: trace, isStreaming: isStreaming)
