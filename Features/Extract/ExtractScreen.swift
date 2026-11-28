@@ -59,7 +59,17 @@ struct ExtractScreen: View {
                 ToolbarItem(placement: .topBarTrailing) { ShareLink(item: ExtractLogic.exported(session.fields)) }
             }
         }
-        .safeAreaInset(edge: .bottom) { extractButton }
+        .bottomActionBar(id: "extract-run", isEnabled: session.canExtract) {
+            Task { await session.extract() }
+        } label: {
+            if session.phase == .extracting {
+                ProgressView()
+            } else {
+                Label("Extract", systemImage: "text.viewfinder")
+            }
+        } accessory: {
+            EmptyView()
+        }
         .photosPicker(isPresented: $showsPhotos, selection: $photoItems, maxSelectionCount: 5, matching: .images)
         .onChange(of: photoItems) { _, items in loadPhotos(items) }
         .fileImporter(isPresented: $showsFiles, allowedContentTypes: [.pdf, .image]) { result in
@@ -205,28 +215,6 @@ struct ExtractScreen: View {
             Label(session.resolvedModel?.shortName ?? "Model", systemImage: "cpu")
         }
         .accessibilityIdentifier("extract-model")
-    }
-
-    private var extractButton: some View {
-        Button {
-            Task { await session.extract() }
-        } label: {
-            Group {
-                if session.phase == .extracting {
-                    ProgressView()
-                } else {
-                    Label("Extract", systemImage: "text.viewfinder")
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .prominentLabel()
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .disabled(!session.canExtract)
-        .padding(.horizontal)
-        .padding(.bottom, 8)
-        .accessibilityIdentifier("extract-run")
     }
 
     // MARK: Text

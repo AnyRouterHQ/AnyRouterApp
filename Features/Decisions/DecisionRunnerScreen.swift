@@ -41,7 +41,16 @@ struct DecisionRunnerScreen: View {
                     .accessibilityIdentifier("decisions-recent")
             }
         }
-        .safeAreaInset(edge: .bottom) { runBar(store) }
+        .bottomActionBar(id: "decisions-run", isEnabled: store.canRun) {
+            focus = nil
+            Task { await store.run() }
+        } label: {
+            Text(store.phase == .running ? "Running" : "Run")
+        } accessory: {
+            if let reason = store.blocker, store.phase != .running {
+                Text(reason).font(.footnote).foregroundStyle(.secondary)
+            }
+        }
         .onAppear { showsQuestions = store.app == nil }
         .task {
             if DemoData.addsDecisionPhoto, store.images.isEmpty, store.showsImageInput { await store.addImages([DemoData.decisionPhoto(for: store.app?.id)]) }
@@ -130,28 +139,6 @@ struct DecisionRunnerScreen: View {
             Label(store.wrappedValue.selectedModel?.name ?? "Model", systemImage: "cpu")
         }
         .accessibilityIdentifier("decisions-model")
-    }
-
-    private func runBar(_ store: DecisionsStore) -> some View {
-        VStack(spacing: 8) {
-            if let reason = store.blocker, store.phase != .running {
-                Text(reason).font(.footnote).foregroundStyle(.secondary)
-            }
-            Button {
-                focus = nil
-                Task { await store.run() }
-            } label: {
-                Text(store.phase == .running ? "Running" : "Run").prominentLabel().frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(!store.canRun)
-            .accessibilityIdentifier("decisions-run")
-        }
-        .padding(.horizontal)
-        .padding(.bottom, 8)
-        .padding(.top, 8)
-        .background(.bar)
     }
 
     // MARK: Result
