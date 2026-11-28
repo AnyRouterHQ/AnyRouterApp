@@ -56,10 +56,8 @@ struct ThreadSidebar: View {
                 header("Recents") {
                     Button { shell.presentSearch() } label: {
                         HStack(spacing: 4) { Text("View all"); Image(systemName: "chevron.right").imageScale(.small) }
-                            .frame(minWidth: 44, minHeight: rowHeight, alignment: .trailing)
+                            .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
                             .contentShape(.rect)
-                            // The 44 pt target reaches into the gaps above and below, so the title row stays short.
-                            .padding(.vertical, -12)
                     }
                     .accessibilityIdentifier("sidebar.viewall")
                 }
@@ -109,14 +107,17 @@ struct ThreadSidebar: View {
     private func header<Trailing: View>(
         _ title: LocalizedStringKey, @ViewBuilder trailing: () -> Trailing = { EmptyView() }
     ) -> some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack {
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
-            trailing().font(.subheadline)
         }
+        // An overlay centred on the title, same font, so its text sits on the title's baseline while its 44 pt target
+        // reaches into the gaps above and below without making the title row taller. A negative padding kept the row
+        // short but shrank the target itself to about 20 pt (accessibility audit: View all hit area).
+        .overlay(alignment: .trailing) { trailing().font(.subheadline) }
         .listRowInsets(EdgeInsets(top: 20, leading: Self.margin, bottom: 6, trailing: Self.margin))
         .listRowSeparator(.hidden)
         .selectionDisabled()
