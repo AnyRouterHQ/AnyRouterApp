@@ -4,7 +4,9 @@ import Foundation
 /// which items stand out from the rest by meaning. Lexical BM25 stays; meaning only adds items words cannot find.
 enum MemoryEmbeddingLogic {
     /// How far above the other items, in standard deviations, an item's similarity must be to count by meaning alone.
-    static let standoutThreshold = 1.5
+    /// Measured with the relevance floor on (CI 46119393019, English sentence model on the Simulator): 1.5 gave 11/13 with
+    /// 12 wrong; 3.0 with one item at most gives 10/13 with 0 wrong and no L1 trap, against BM25's 9/13.
+    static let standoutThreshold = 3.0
     /// Fewer items than this give no spread to stand out from.
     static let minimumForStandout = 3
 
@@ -39,6 +41,12 @@ enum MemoryEmbeddingLogic {
         let spread = (values.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(values.count)).squareRoot()
         guard spread > 0 else { return [:] }
         return similarities.mapValues { ($0 - mean) / spread }
+    }
+
+    /// At most one item counts by meaning alone: the one that stands out most, and only past the threshold.
+    static func strongest(_ standout: [UUID: Double]) -> [UUID: Double] {
+        guard let best = standout.max(by: { $0.value < $1.value }), best.value >= standoutThreshold else { return [:] }
+        return [best.key: best.value]
     }
 
     static func data(_ vector: [Float]) -> Data { vector.withUnsafeBufferPointer { Data(buffer: $0) } }

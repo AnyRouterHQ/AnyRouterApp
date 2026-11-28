@@ -1168,14 +1168,13 @@ final class ChatViewModel {
                 && record.sourceMessageID != question.id
                 && MemoryProfileLogic.allows(record.scope, source: model.source, deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats)
         }
-        // Vectors are kept on each item for the device check of Apple's contextual model, but recall stays BM25: on the
-        // Simulator's English sentence model, items found by meaning alone took recall at 3 from 11/13 to 12/13 and wrong
-        // recalls from 3 to 12; no stricter rule beat BM25 at 3 wrong (CI 46104645176). A wrong memory is worse than a
-        // missed one.
-        _ = MemoryStore(context: context).semanticScores(for: question.content, among: records, embedder: embedder)
+        // At most one memory counts by meaning alone, only when it stands out 3 deviations above the rest (M7, measured in
+        // CI 46119393019: 10/13 with no wrong recall and no trap, against BM25's 9/13).
+        let semantic = MemoryEmbeddingLogic.strongest(
+            MemoryStore(context: context).semanticScores(for: question.content, among: records, embedder: embedder))
         let hits = MemoryRecallLogic.recall(
             question.content, from: records.map { MemoryRecallLogic.Candidate(id: $0.id, text: $0.text) },
-            budget: PromptBudget.forModel(model).memoryHits)
+            budget: PromptBudget.forModel(model).memoryHits, semantic: semantic)
         let used = Set(hits.map(\.candidate.id))
         let now = Date()
         for record in records where used.contains(record.id) {
