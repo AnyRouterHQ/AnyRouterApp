@@ -1,7 +1,7 @@
 [
   {
     "id": "what-time",
-    "detail": "where you are and in other cities",
+    "detail": "right now, where you are",
     "title": "What time is it?",
     "prompt": "What time is it right now?",
     "category": "explore",
@@ -9,7 +9,7 @@
   },
   {
     "id": "plan-day",
-    "detail": "around what you have on today",
+    "detail": "around your plans",
     "title": "Plan my day",
     "prompt": "Help me plan my day. Ask me what I have on and how much energy I have, then give me a simple schedule with breaks.",
     "category": "plan",
@@ -17,7 +17,7 @@
   },
   {
     "id": "write-message",
-    "detail": "for anyone, in your own tone",
+    "detail": "in your own tone",
     "title": "Write a message",
     "prompt": "Help me write a message. Ask me who it is for and what I want to say, then write a short draft I can send.",
     "category": "write",
@@ -25,7 +25,7 @@
   },
   {
     "id": "ask-photo",
-    "detail": "pick one and ask anything",
+    "detail": "pick one, ask anything",
     "title": "Ask about a photo",
     "prompt": "",
     "category": "explore",
@@ -245,7 +245,7 @@
   },
   {
     "id": "explain-text",
-    "detail": "explained in plain words",
+    "detail": "in plain words",
     "title": "What is this text?",
     "prompt": "Explain the text below in plain words: what it is, what it means, and anything I should do about it.\n\nText:\n",
     "category": "learn",
