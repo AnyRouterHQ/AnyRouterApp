@@ -707,6 +707,7 @@ The OCR endpoint takes an `sk-ar-` key; the app's sign-in token is one (`OAuthCl
 
 - [x] AP1 (10946a7, 1b61f52, 13c6429, 74d6609) Decisions as apps: six bundled apps (`catalog/decision-apps.json`), one runner screen, Yes/No, Choice and Score builders (Score starts with 10 levels), the answer as one sentence plus probability bars, four custom samples, photos and a live camera, Recent as its own sheet. Skipped: the side-by-side model compare (one model per run keeps the screen simple).
 - [x] AP1c (44b69a1) Traffic sign app (operator): photo first (`photoFirst`: photo row above the text, Camera first in Add), four typed questions (kind, which sign, speed limit shown, applies to cars), a result line that only repeats the answers; demo photo is a drawn stop sign
+- [x] AP1d Scam check removed from the bundled apps (operator); tests now lead with Email triage
 - [ ] AP1b Each decision app as a Shortcuts action (later, not built)
 - [x] AP2 (3f75094) Paste mode: `PasteLogic` detectors with tests, decision-model classification of plain text
 - [x] AP3 Extract: source picker (photo, PDF, VisionKit document camera), on-device text, presets, fields with source highlight, any chat model (a644405, 543e787, e436d12)

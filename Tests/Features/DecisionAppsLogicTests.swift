@@ -29,9 +29,9 @@ struct DecisionAppsLogicTests {
 
     @Test func theBundledCatalogHasTheStarterAppsAndPasteInOrder() throws {
         #expect(try apps().map(\.id) == [
-            "scam-check", "email-triage", "receipt-sort", "traffic-sign", "incident-triage", "policy-check", "tone-check", "paste",
+            "email-triage", "receipt-sort", "traffic-sign", "incident-triage", "policy-check", "tone-check", "paste",
         ])
-        #expect(try Set(apps().map(\.id)).count == 8)
+        #expect(try Set(apps().map(\.id)).count == 7)
         #expect(try apps().allSatisfy { !$0.samples.isEmpty })
     }
 
@@ -175,10 +175,10 @@ struct DecisionAppsLogicTests {
 
     @Test func theTilesAreTheAppsThenTheCustomDecision() throws {
         let tiles = DecisionAppsLogic.tiles(for: try apps())
-        #expect(tiles.count == 9 && tiles.last?.target == .custom && tiles.last?.title == "Custom decision")
-        #expect(tiles.first == AppTile(id: "scam-check", title: "Scam check", subtitle: "Paste a message or add a screenshot",
-                                       symbol: "exclamationmark.shield", target: .decision("scam-check")))
-        #expect(Set(tiles.map(\.id)).count == 9)
+        #expect(tiles.count == 8 && tiles.last?.target == .custom && tiles.last?.title == "Custom decision")
+        #expect(tiles.first == AppTile(id: "email-triage", title: "Email triage", subtitle: "Paste an email",
+                                       symbol: "envelope.badge", target: .decision("email-triage")))
+        #expect(Set(tiles.map(\.id)).count == 8)
         #expect(DecisionAppsLogic.tiles(for: []).map(\.target) == [.custom])
     }
 
@@ -199,15 +199,15 @@ struct DecisionAppsLogicTests {
     // MARK: Result text
 
     @Test func theResultLineFillsEachToken() throws {
-        let scam = try #require(try apps().first)
-        let line = DecisionAppsLogic.resultLine(scam, result: result([
-            answer("scam", verdict("Yes")),
-            answer("kind", verdict("phishing")),
-            answer("risk", verdict("3", score: 3, max: 4, note: "high")),
+        let triage = try #require(try apps().first)
+        let line = DecisionAppsLogic.resultLine(triage, result: result([
+            answer("reply", verdict("Yes")),
+            answer("urgency", verdict("3", score: 3, max: 4, note: "today")),
+            answer("category", verdict("action")),
         ]))
-        #expect(line == "This looks like a scam. Closest type: phishing. Risk: high.")
-        let no = DecisionAppsLogic.resultLine(scam, result: result([answer("scam", verdict("No"))]))
-        #expect(no == "This does not look like a scam. Closest type: unclear. Risk: unclear.")
+        #expect(line == "It needs a reply. Urgency: today. Category: action.")
+        let no = DecisionAppsLogic.resultLine(triage, result: result([answer("reply", verdict("No"))]))
+        #expect(no == "It does not need a reply. Urgency: unclear. Category: unclear.")
     }
 
     @Test func answersReadAsWordsWhateverTheirShape() {

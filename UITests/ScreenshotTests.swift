@@ -615,7 +615,7 @@ final class ScreenshotTests: XCTestCase {
         showSidebar(app)
         tapRow(app.buttons["sidebar-apps"])
         XCTAssertTrue(app.navigationBars["Apps"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["apps-tile-scam-check"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["apps-tile-email-triage"].waitForExistence(timeout: 5))
     }
 
     /// The model row's logo once filled the whole Decisions sheet: a picker dropped the logo's frame (ab9181a).

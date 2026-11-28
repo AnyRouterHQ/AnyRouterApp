@@ -1,57 +1,6 @@
 {
   "apps": [
     {
-      "id": "scam-check",
-      "title": "Scam check",
-      "symbol": "exclamationmark.shield",
-      "inputHint": "Paste a message or add a screenshot",
-      "acceptsImages": true,
-      "samples": [
-        {
-          "title": "Delivery text",
-          "text": "Your parcel is held at the depot. Pay a small fee within 24 hours at http://track-parcel-fee.example/pay or it will be returned."
-        },
-        {
-          "title": "Real receipt",
-          "text": "Thanks for your order. It ships Tuesday and the invoice is attached. Reply here if you have questions about the delivery."
-        }
-      ],
-      "questions": [
-        {
-          "id": "scam",
-          "type": "yesNo",
-          "prompt": "Is this message a scam?",
-          "yes": "This looks like a scam",
-          "no": "This does not look like a scam"
-        },
-        {
-          "id": "kind",
-          "type": "choice",
-          "prompt": "Which kind of scam is it closest to?",
-          "items": [
-            "phishing",
-            "fake delivery",
-            "investment",
-            "impersonation",
-            "none"
-          ]
-        },
-        {
-          "id": "risk",
-          "type": "score",
-          "prompt": "How risky is it to act on this message?",
-          "items": [
-            "none",
-            "low",
-            "medium",
-            "high",
-            "severe"
-          ]
-        }
-      ],
-      "resultLine": "{scam}. Closest type: {kind}. Risk: {risk}."
-    },
-    {
       "id": "email-triage",
       "title": "Email triage",
       "symbol": "envelope.badge",

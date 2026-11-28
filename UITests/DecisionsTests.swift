@@ -16,7 +16,7 @@ final class DecisionsTests: XCTestCase {
         app.launchArguments = ["-ARDemoData", "YES"]
         app.launch()
         openApps(app)
-        XCTAssertTrue(app.buttons["apps-tile-scam-check"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["apps-tile-email-triage"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["apps-tile-custom"].exists)
     }
 
