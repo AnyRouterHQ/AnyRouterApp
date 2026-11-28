@@ -425,19 +425,21 @@ struct Composer: View {
         .accessibilityLabel("Add")
     }
 
-    /// The round button at the end of the field. A circle of about 36 pt in a 44 pt hit area, the system's prominent glass: voice while empty, send with
-    /// text or an attachment, stop while a reply streams.
+    /// The round button at the end of the field. A tinted circle of about 36 pt in a 44 pt hit area, a fill on the field's
+    /// glass rather than a second glass layer: voice while empty, send with text or an attachment, stop while a reply
+    /// streams. While a reply streams with text queued, Queue is the one prominent button and Stop sits beside it plain.
     private var trailingButton: some View {
         let action = ComposerAction.current(isStreaming: model.isStreaming, hasInput: !model.input.isEmpty,
                                             hasAttachments: !model.pending.isEmpty, isDictating: app.dictation.isActive)
         return HStack(spacing: 0) {
-            if action == .queue { actionButton(.stop, id: "composer.stop") }
-            actionButton(action, id: "composer.action")
+            if action == .queue { actionButton(.stop, id: "composer.stop", prominent: false) }
+            actionButton(action, id: "composer.action", prominent: true)
         }
     }
 
-    private func actionButton(_ action: ComposerAction, id: String) -> some View {
-        Button { perform(action) } label: {
+    @ViewBuilder
+    private func actionButton(_ action: ComposerAction, id: String, prominent: Bool) -> some View {
+        let button = Button { perform(action) } label: {
             Label { Text(action.title) } icon: {
                 Image(systemName: action.symbol)
                     .contentTransition(.symbolEffect(.replace))
@@ -445,16 +447,24 @@ struct Composer: View {
             }
             .labelStyle(.iconOnly)
             .font(.callout.weight(.semibold))
-            .prominentLabel()
+            .foregroundStyle(prominent ? Color.accentForeground : .primary)
         }
-        .buttonStyle(.glassProminent)
-        .buttonBorderShape(.circle)
-        .controlSize(.regular)
-        .frame(minWidth: buttonSize, minHeight: buttonSize)
-        .contentShape(.circle)
-        .disabled((action == .send && !model.canSend) || (action == .queue && !model.canQueue))
-        .accessibilityLabel(action.title)
-        .accessibilityIdentifier(id)
+        if prominent {
+            actionChrome(button.buttonStyle(.borderedProminent), action: action, id: id)
+        } else {
+            actionChrome(button.buttonStyle(.bordered), action: action, id: id)
+        }
+    }
+
+    private func actionChrome(_ button: some View, action: ComposerAction, id: String) -> some View {
+        button
+            .buttonBorderShape(.circle)
+            .controlSize(.regular)
+            .frame(minWidth: buttonSize, minHeight: buttonSize)
+            .contentShape(.circle)
+            .disabled((action == .send && !model.canSend) || (action == .queue && !model.canQueue))
+            .accessibilityLabel(action.title)
+            .accessibilityIdentifier(id)
     }
 
     private func perform(_ action: ComposerAction) {
