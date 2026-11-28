@@ -589,7 +589,8 @@ final class ScreenshotTests: XCTestCase {
     /// The model row's logo once filled the whole Decisions sheet: a picker dropped the logo's frame (ab9181a).
     private func assertNoGiantImages(_ app: XCUIApplication, _ screen: String, maxHeight: CGFloat = 60) {
         for image in app.images.allElementsBoundByIndex where image.exists {
-            XCTAssertLessThan(image.frame.height, maxHeight, "an image in \(screen) is \(image.frame.height) pt tall")
+            XCTAssertLessThan(image.frame.height, maxHeight,
+                              "an image in \(screen) is \(image.frame.height) pt tall: id '\(image.identifier)', label '\(image.label)', frame \(image.frame)")
         }
     }
 
