@@ -52,8 +52,8 @@ struct ChatScreen: View {
                                    minHeight: sizeClass == .regular ? 520 : nil, idealHeight: sizeClass == .regular ? 640 : nil)
                     }
             }
-            // The system draws its shared glass behind the title, so the model pill reads as one control (design review P2).
-            .sharedBackgroundVisibility(.visible)
+            // The title draws its own glass pill (ModelTitle); no shared toolbar glass on top of it.
+            .sharedBackgroundVisibility(.hidden)
             // One group, so iOS 26 draws New chat and More in a single shared glass capsule.
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "square.and.pencil") }

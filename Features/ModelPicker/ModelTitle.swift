@@ -41,13 +41,14 @@ struct ModelTitle: View {
                 }
             }
             .foregroundStyle(.primary)
-            // Room inside the shared glass the toolbar draws behind the title (sharedBackgroundVisibility in ChatScreen).
+            // Room inside the glass pill.
             .padding(.horizontal, 12)
             .frame(minHeight: 44)
             .contentShape(.rect)
         }
-        .buttonStyle(.plain)
-        .hoverEffect(.highlight)
+        // The title is the model control, so it is a glass pill like the buttons beside it (design review P2: the toolbar's
+        // shared background drew nothing behind a principal item, screenshots 46140428971).
+        .buttonStyle(.glass)
         // VoiceOver reads label then value: "Model, <name>"; the chat's title is in the hint.
         .accessibilityLabel("Model")
         .accessibilityValue(AccessibilityLogic.modelPillValue(name: name, isLoading: isLoading))
