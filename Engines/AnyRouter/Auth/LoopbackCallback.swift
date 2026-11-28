@@ -12,9 +12,13 @@ final class LoopbackCallback {
     private let expectedState: String
     private var listener: NWListener?
     private var port: UInt16 = 0
+    private let connectionTimeout: Duration
+    private var connections: [ObjectIdentifier: NWConnection] = [:]
+    var openConnectionCount: Int { connections.count }
 
-    init(expectedState: String) {
+    init(expectedState: String, connectionTimeout: Duration = .seconds(10)) {
         self.expectedState = expectedState
+        self.connectionTimeout = connectionTimeout
     }
 
     func start() async throws -> UInt16 {
@@ -68,11 +72,31 @@ final class LoopbackCallback {
     func stop() {
         listener?.cancel()
         listener = nil
+        for connection in connections.values { connection.cancel() }
+        connections.removeAll()
     }
 
     private func accept(_ connection: NWConnection) {
+        // A connection that arrives after stop() is never tracked, so close it at once.
+        guard listener != nil else {
+            connection.cancel()
+            return
+        }
+        let id = ObjectIdentifier(connection)
+        connections[id] = connection
+        connection.stateUpdateHandler = { [weak self] state in
+            if case .cancelled = state {
+                MainActor.assumeIsolated { _ = self?.connections.removeValue(forKey: id) }
+            }
+        }
         connection.start(queue: .main)
         receive(connection, buffer: Data())
+        // Any app on the phone can open this port and send nothing.
+        let timeout = connectionTimeout
+        Task { [weak self] in
+            try? await Task.sleep(for: timeout)
+            self?.connections[id]?.cancel()
+        }
     }
 
     private func receive(_ connection: NWConnection, buffer: Data) {
