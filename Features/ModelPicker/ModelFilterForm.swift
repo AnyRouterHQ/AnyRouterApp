@@ -36,6 +36,7 @@ struct ModelFilterForm: View {
     private var cloudSections: some View {
         Section("Show") {
             Toggle("Free only", isOn: $cloud.freeOnly).accessibilityIdentifier("filter-free-only")
+            Toggle("Hide models that need your key", isOn: $cloud.hideNeedsKey)
         }
         Section("Capabilities") {
             Toggle("Vision", isOn: $cloud.vision)

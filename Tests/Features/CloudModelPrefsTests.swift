@@ -12,7 +12,7 @@ struct CloudModelPrefsTests {
     private func arrange(_ prefs: CloudModelPrefs, query: String = "", picks: [ModelDescriptor] = []) -> CloudList {
         CloudListLogic.arrange(
             models: models, query: query, sort: .name, usageRank: [:], showUnusable: true, picks: picks,
-            filter: ModelFilter(), prefs: prefs)
+            filter: ModelFilter(hideNeedsKey: false), prefs: prefs)
     }
 
     // MARK: Marks
