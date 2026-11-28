@@ -56,6 +56,12 @@ enum CompactionLogic {
 
     /// The room a model has for one chat, in tokens. A local model is held to what the device can run (`FitPlanner`),
     /// not to the length it was trained for. Nil when the model does not say.
+    /// MLX's KV cache size for a model: its compaction window, so the two are one number and nothing rotates out before
+    /// the chat compacts. 4,096 when the model says nothing.
+    static func mlxKVSize(for model: ModelDescriptor) -> Int {
+        window(for: model) ?? 4096
+    }
+
     static func window(for model: ModelDescriptor) -> Int? {
         guard let length = model.contextLength, length > 0 else { return nil }
         switch model.source {

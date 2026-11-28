@@ -6,9 +6,6 @@ import MLXLMCommon
 final class MLXEngine: ChatEngine {
     let source: ModelSource = .mlx
 
-    /// Rolling KV cache size. Bounds memory on a phone; older tokens are dropped from attention beyond it.
-    static let maxKVSize = 4096
-
     private let storage: LocalModelStorage
     private let catalog: CatalogService
     private let residency: LocalResidency
@@ -65,7 +62,9 @@ final class MLXEngine: ChatEngine {
                         ModelContainer.self, at: directory.path, id: model.id,
                         installedAt: storage.readManifest(entryID: model.id)?.completedAt, source: .mlx
                     ) { try await loadModelContainer(from: directory, using: TransformersTokenizerLoader()) }
-                    try await Self.generate(container, conversation: conversation, params: params, into: continuation)
+                    try await Self.generate(
+                        container, conversation: conversation, params: params, kvSize: CompactionLogic.mlxKVSize(for: model),
+                        into: continuation)
                     continuation.finish()
                 } catch is CancellationError {
                     continuation.finish()
@@ -79,11 +78,12 @@ final class MLXEngine: ChatEngine {
     }
 
     private static func generate(
-        _ container: ModelContainer, conversation: MLXConversation, params: GenerationParams,
+        _ container: ModelContainer, conversation: MLXConversation, params: GenerationParams, kvSize: Int,
         into continuation: AsyncThrowingStream<ChatDelta, Error>.Continuation
     ) async throws {
         let parameters = GenerateParameters(
-            maxTokens: params.maxTokens, maxKVSize: maxKVSize,
+            // The rolling KV cache is the chat's window (agent v2 U4): older tokens never rotate out before a compaction.
+            maxTokens: params.maxTokens, maxKVSize: kvSize,
             temperature: Float(params.temperature), topP: Float(params.topP))
         let history = conversation.history.map { turn in
             Chat.Message(role: turn.role == "assistant" ? .assistant : .user, content: turn.content)

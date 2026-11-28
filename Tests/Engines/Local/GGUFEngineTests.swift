@@ -28,6 +28,28 @@ struct LocalModelDescriptorsTests {
         #expect(result.first?.sizeBytes == 4, "size is what is on disk")
     }
 
+    /// Agent v2 U4: an MLX model's compaction window and its KV cache are one number, the planned context, so the cache
+    /// never rotates the oldest tokens (the system prompt first) out before the chat compacts.
+    @Test func anMLXModelsWindowIsItsKVCacheSize() throws {
+        let storage = LocalModelStorage(root: makeTempDirectory())
+        let entry = CatalogEntry(
+            repo: "org/Planned-4bit", format: .mlx, title: "Planned", sizeBytes: 2_000_000_000, contextLength: 131_072,
+            memory: CatalogMemory(fullKVBytesPerToken: 114_688))
+        try install(entry, in: storage, path: "model.safetensors")
+        let roomy = DeviceMemory(budgetBytes: 6_000_000_000, physicalBytes: 8_000_000_000)
+        let tight = DeviceMemory(budgetBytes: 3_400_000_000, physicalBytes: 6_000_000_000)
+        for memory in [roomy, tight] {
+            let model = try #require(LocalModelDescriptors.installed(format: .mlx, storage: storage, catalog: [entry], memory: memory).first)
+            let planned = FitPlanner.estimate(try #require(entry.memoryProfile), memory: memory).context
+            #expect(model.contextLength == planned)
+            #expect(CompactionLogic.window(for: model) == CompactionLogic.mlxKVSize(for: model))
+            #expect(CompactionLogic.mlxKVSize(for: model) == planned)
+        }
+        let unknown = ModelDescriptor(id: "mlx/x", source: .mlx, displayName: "x", contextLength: nil, capabilities: ["chat"],
+                                      sizeBytes: nil, isInstalled: true)
+        #expect(CompactionLogic.mlxKVSize(for: unknown) == 4096)
+    }
+
     @Test func aModelUnknownToTheCatalogIsNamedAfterItsRepo() throws {
         let storage = LocalModelStorage(root: makeTempDirectory())
         let entry = sampleMLX(repo: "someone/Custom-4bit")

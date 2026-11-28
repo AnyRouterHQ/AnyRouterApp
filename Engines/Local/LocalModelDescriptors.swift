@@ -32,8 +32,14 @@ enum LocalModelDescriptors {
                 // Photos need the projector on disk and room for it in memory.
                 let hasProjector = storage.projectorURL(forEntryID: manifest.entryID, addOn: entry.photoAddOn) != nil
                 let roomForIt = entry.memoryProfile.map { FitPlanner.imageInput($0, memory: memory) != .wontFit } ?? false
-                return entry.descriptor(
+                var model = entry.descriptor(
                     isInstalled: true, sizeBytes: onDisk, imageInput: entry.vision != nil && hasProjector && roomForIt)
+                // MLX keeps a KV cache of exactly this window (`CompactionLogic.mlxKVSize`): the planned context, so the
+                // chat compacts before the cache would rotate its oldest tokens, the system prompt included, out.
+                if format == .mlx, let profile = entry.memoryProfile {
+                    model.contextLength = FitPlanner.estimate(profile, memory: memory).context
+                }
+                return model
             }
             let name = manifest.repo.split(separator: "/").last.map(String.init) ?? manifest.repo
             return ModelDescriptor(
