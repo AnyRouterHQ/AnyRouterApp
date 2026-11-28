@@ -11,6 +11,11 @@ struct ComposerSuggestionsRow: View {
     var onSend: (PromptPreset) -> Void
     var onEditPresets: () -> Void
     @ScaledMetric(relativeTo: .subheadline) private var moreSide: CGFloat = 44
+    // One label height and one symbol box for every chip: symbols differ in height and glass sizes itself to its label,
+    // so without these the pills come out at different heights. Scaled so they still follow Dynamic Type.
+    @ScaledMetric(relativeTo: .subheadline) private var chipLabelHeight: CGFloat = 24
+    @ScaledMetric(relativeTo: .subheadline) private var chipSymbolSide: CGFloat = 20
+    @ScaledMetric(relativeTo: .subheadline) private var cardLabelHeight: CGFloat = 40
 
     var body: some View {
         let hasMore = suggestions.items.contains(.more)
@@ -50,9 +55,7 @@ struct ComposerSuggestionsRow: View {
     /// What was copied, by kind, in the same glass as the presets. Tapping it puts the copy in the composer.
     private func clipboardChip(_ kind: ClipboardKind) -> some View {
         Button { onClipboard(kind) } label: {
-            Label(kind.title, systemImage: kind.symbol)
-                .font(.subheadline)
-                .lineLimit(1)
+            chipLabel(kind.title, kind.symbol)
         }
         .buttonStyle(.glass)
         .buttonBorderShape(.capsule)
@@ -62,11 +65,23 @@ struct ComposerSuggestionsRow: View {
         .accessibilityIdentifier("composer.suggestion.clipboard")
     }
 
+    /// Single line, one symbol box, one minimum height: the same size whatever the label or symbol.
+    private func chipLabel(_ title: String, _ symbol: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: symbol)
+                .frame(width: chipSymbolSide, height: chipSymbolSide)
+            Text(title)
+        }
+        .font(.subheadline)
+        .lineLimit(1)
+        .truncationMode(.tail)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(minHeight: chipLabelHeight)
+    }
+
     private func presetChip(_ preset: PromptPreset) -> some View {
         Button { onPreset(preset) } label: {
-            Label(preset.title, systemImage: preset.symbol)
-                .font(.subheadline)
-                .lineLimit(1)
+            chipLabel(preset.title, preset.symbol)
         }
         .buttonStyle(.glass)
         .buttonBorderShape(.capsule)
@@ -85,7 +100,9 @@ struct ComposerSuggestionsRow: View {
                 Text(preset.cardDetail).font(.subheadline)
             }
             .lineLimit(1)
-            .padding(.vertical, 4)
+            .truncationMode(.tail)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(minHeight: cardLabelHeight)
         }
         .buttonStyle(.glass)
         .buttonBorderShape(.roundedRectangle(radius: ARTheme.radiusLarge))
