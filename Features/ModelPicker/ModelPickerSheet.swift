@@ -246,10 +246,12 @@ struct ModelPickerSheet: View {
                     ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
                 }
                 ToolbarItem(placement: .primaryAction) {
+                    // The plain glyph: the toolbar's glass is already the circle, and the circled symbol read larger than the
+                    // close x beside it (operator: icons of one size). The badge counts the active filters.
                     Button { showsFilters = true } label: {
-                        Label("Filter", systemImage: filterActive
-                            ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                        Label("Filter", systemImage: "line.3.horizontal.decrease")
                     }
+                    .badge(activeFilterCount)
                     .accessibilityValue(filterActive ? "\(activeFilterCount) active" : "none")
                     .accessibilityIdentifier("model-filter")
                 }
