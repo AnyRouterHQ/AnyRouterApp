@@ -48,8 +48,13 @@ final class LlamaModel: @unchecked Sendable {
         let fileBytes = ((try? FileManager.default.attributesOfItem(atPath: path)[.size]) as? NSNumber)?.int64Value ?? 0
         let info = try? GGUFHeader.read(fileAt: URL(fileURLWithPath: path))
         let profile = info?.profile(fileBytes: fileBytes) ?? .estimated(fileBytes: fileBytes, trainedContext: 0)
-        let memory = DeviceMemory.current()
+        // Measured after the backend started: llama.cpp maps the whole file in one piece, so what one mapping can take decides.
+        let memory = DeviceMemory.current(mappable: true)
         let estimate = FitPlanner.estimate(profile, memory: memory)
+        // Refused here, before llama.cpp opens the file, with the reason. mappableBytes is nil on the Simulator.
+        if estimate.cannotMap, let mappable = memory.mappableBytes {
+            throw GGUFMappingError(name: name, fileBytes: fileBytes, mappableBytes: mappable)
+        }
         var planned = estimate.context
         #if targetEnvironment(simulator)
         // The Simulator is not limited like a phone, and has no Metal GPU family llama.cpp can use.

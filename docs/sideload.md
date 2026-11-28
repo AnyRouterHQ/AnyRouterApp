@@ -44,6 +44,16 @@ Steps:
 
 Send back the step 2 values, the Model load record, and any line under Times iOS ended the app.
 
+### Reading a failed load
+
+The failed reply and the newest **Model load** record end with the cause, in this order:
+
+1. "This install can open files up to X at once": the app refused before llama.cpp opened the file, because the file (6.9 GB for Inkling) is bigger than **Largest file it can open** in Diagnostics. Compare the two numbers. If Extended address space is **No**, the signing tool dropped `com.apple.developer.kernel.extended-virtual-addressing`. Install the `AnyRouter-debug-adhoc` IPA with a tool that keeps entitlements, or use TestFlight. Local Models shows the same reason as Not Available before the download, when the number was measured on that phone.
+2. "llama.cpp said: ..." with the last 20 warning and error lines under it. The first line to read is "error loading model": it names the cause (mmap failed, out of memory, unknown architecture, a missing tensor, a bad or truncated file). A file that was truncated cannot reach this point: every download is checked against its size and the SHA256 pinned in the catalog before it is installed.
+3. "Ended after <step>" on the record, with no failure line: iOS ended the app for memory during the load. Check **Times iOS ended the app** and **Memory limit**. A standard limit (about 3.5 GB) cannot load Inkling in memory; it needs the streamed tier, which needs the address space of the first case.
+
+Read these Diagnostics values on the phone before sending a load record back: Installed RAM, Memory limit, Increased memory limit, Extended address space, Largest file it can open, and the Large models line for Inkling.
+
 ## Extensions in the IPA
 
 The IPA carries the Control Center and Lock Screen controls as an embedded extension (`dev.anyrouter.app.controls`, in `AnyRouter.app/PlugIns`). Sideloadly and AltStore re-sign every embedded extension with your Apple ID. Each extension takes one more App ID from the free-account limit, so install it once and renew it, rather than reinstalling. The controls need no App Group: their intents open the app and run there. Add them from Control Center (Edit, Add a Control, AnyRouter) or the Lock Screen.

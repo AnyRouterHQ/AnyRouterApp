@@ -1,5 +1,17 @@
 import Foundation
 
+/// The file is bigger than the address space this install can map in one piece (a sideloaded build loses the extended
+/// address space entitlement). Thrown before llama.cpp opens the file, so the reply says why instead of "failed to load".
+struct GGUFMappingError: Error, LocalizedError, Equatable {
+    var name: String
+    var fileBytes: Int64
+    var mappableBytes: Int64
+
+    var errorDescription: String? {
+        "Could not load \(name) (\(FitFormat.gigabytes(fileBytes))). " + FitText.addressSpaceReason(mappableBytes: mappableBytes)
+    }
+}
+
 enum GGUFError: Error, LocalizedError, Equatable {
     case modelNotInstalled(String)
     /// `reason` is what llama.cpp logged while loading, nil when it said nothing.
