@@ -22,7 +22,7 @@ struct MemoryDiagnostics: Equatable, Sendable {
     var extendedAddressingSigned: Bool? = nil
     /// The largest file the app can open in one piece right now. Nil where it is not measured (the Simulator).
     var mappableBytes: Int64? = nil
-    /// What the fit check says here for each experimental catalog model, the big ones worth checking on a phone.
+    /// What the fit check says here for each installed local model and each experimental one, with the rule that decided.
     var modelChecks: [ModelCheck] = []
 
     struct ModelCheck: Equatable, Sendable {

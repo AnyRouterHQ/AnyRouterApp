@@ -4,17 +4,24 @@ enum SettingsLogic {
     /// Taps on the version row that copy diagnostics.
     static let diagnosticsTapCount = 7
 
-    /// Diagnostics: what the fit check decided for a model on this device, and why when it does not load.
-    static func fitVerdict(_ estimate: FitEstimate) -> String {
+    /// Diagnostics: what the fit check guesses for a model on this device. When it doubts the model, the line names the
+    /// rule that decided and that rule's numbers, so one screenshot shows which guess is wrong. It blocks nothing: the
+    /// model stays pickable and llama.cpp tries.
+    static func fitVerdict(_ estimate: FitEstimate, memory: DeviceMemory) -> String {
         let tokens = estimate.context.formatted(.number.grouping(.automatic))
         switch estimate.verdict {
         case .runsWell: return "Runs in memory · \(tokens) tokens"
         case .tight: return "Runs in memory, tight · \(tokens) tokens"
         case .streamed: return "Streams from storage · \(tokens) tokens"
         case .wontFit:
-            if estimate.cannotMap { return "Not available · the file is bigger than this install can open at once" }
-            if let streamsOn = estimate.streamsOn { return "Not available · needs \(streamsOn.rawValue) GB of RAM" }
-            return "Not available · needs ~\(FitFormat.gigabytes(estimate.totalBytes)), the budget is ~\(FitFormat.gigabytes(estimate.deviceBudgetBytes))"
+            if estimate.cannotMap, let mappable = memory.mappableBytes {
+                return "May not load · address-space probe: the file is \(FitFormat.gigabytes(estimate.fileBytes)), one mapping can take \(FitFormat.gigabytes(mappable))"
+            }
+            if let streamsOn = estimate.streamsOn {
+                let has = DeviceClass.nearest(physicalBytes: memory.physicalBytes)
+                return "May not load · streaming rule: needs a \(streamsOn.rawValue) GB class, this device has \(FitFormat.gigabytes(memory.physicalBytes)) installed (\(has.rawValue) GB class)"
+            }
+            return "May not load · budget rule: needs ~\(FitFormat.gigabytes(estimate.totalBytes)), the budget is ~\(FitFormat.gigabytes(estimate.deviceBudgetBytes))"
         }
     }
 

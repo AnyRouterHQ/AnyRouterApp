@@ -57,17 +57,23 @@ struct SettingsLogicTests {
         fileBytes: 6_881_463_904, fullKVBytesPerToken: 16_384, windowKVBytesPerToken: 81_920, windowTokens: 1024,
         trainedContext: 1_048_576, activeFraction: 0.119, lazyBytes: 260_527_104)
 
-    @Test func theFitVerdictNamesHowAModelRunsAndWhyItDoesNot() {
-        func verdict(_ memory: DeviceMemory) -> String { SettingsLogic.fitVerdict(FitPlanner.estimate(inkling, memory: memory)) }
+    /// "Inkling still says not available": the operator's one Diagnostics screenshot must show which guess fired and
+    /// with which numbers (the address-space probe, the streaming class, or the budget), never a bare "not available".
+    @Test func theFitVerdictNamesTheRuleThatDoubtsAModelAndItsNumbers() {
+        func verdict(_ memory: DeviceMemory) -> String {
+            SettingsLogic.fitVerdict(FitPlanner.estimate(inkling, memory: memory), memory: memory)
+        }
         #expect(verdict(DeviceClass.gb16.memory(.increased)) == "Runs in memory · 8,192 tokens")
         #expect(verdict(DeviceClass.gb12.memory(.increased)) == "Runs in memory, tight · 8,192 tokens")
         #expect(verdict(DeviceClass.gb12.memory(.standard)) == "Streams from storage · 8,192 tokens")
-        #expect(verdict(DeviceClass.gb8.memory(.standard)) == "Not available · needs 12 GB of RAM")
+        #expect(verdict(DeviceClass.gb8.memory(.standard))
+            == "May not load · streaming rule: needs a 12 GB class, this device has 8.0 GB installed (8 GB class)")
         var cramped = DeviceClass.gb12.memory(.standard)
         cramped.mappableBytes = 4_000_000_000
-        #expect(verdict(cramped) == "Not available · the file is bigger than this install can open at once")
+        #expect(verdict(cramped) == "May not load · address-space probe: the file is 6.9 GB, one mapping can take 4.0 GB")
         let dense = ModelMemoryProfile(fileBytes: 9_000_000_000, fullKVBytesPerToken: 100_000, trainedContext: 8192, activeFraction: nil)
-        #expect(SettingsLogic.fitVerdict(FitPlanner.estimate(dense, memory: DeviceClass.gb8.memory(.standard)))
-            .hasPrefix("Not available · needs ~"))
+        let small = DeviceClass.gb8.memory(.standard)
+        #expect(SettingsLogic.fitVerdict(FitPlanner.estimate(dense, memory: small), memory: small)
+            .hasPrefix("May not load · budget rule: needs ~"))
     }
 }

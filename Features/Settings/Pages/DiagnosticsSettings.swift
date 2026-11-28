@@ -46,7 +46,9 @@ struct DiagnosticsSettings: View {
                         LabeledContent(check.name) { Text(check.verdict) }
                     }
                 } header: {
-                    Text("Large models on this device")
+                    Text("Fit check for local models")
+                } footer: {
+                    Text("A guess that blocks nothing: every model stays available. Where it doubts one, the line names the rule (address-space probe, streaming class or budget) and its numbers.")
                 }
             }
             Section {

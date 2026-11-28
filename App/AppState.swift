@@ -141,17 +141,21 @@ final class AppState {
                 let snapshot = MemorySnapshot.read()
                 let signed = MemoryEntitlement.kernelEntitlementsForThisApp()
                 let memory = DeviceMemory.current(mappable: true)
-                // The big experimental models (Inkling 2 Mini) are the ones whose fit on a phone is worth reading here.
-                let experimental = ((try? BundledCatalog.load())?.models ?? []).filter { $0.badges.contains(.experimental) }
+                // Every installed local model, and the experimental ones (Inkling 2 Mini) even before a download: the line
+                // names the fit rule that doubts a model, so a screenshot shows which guess is wrong.
+                let installed = Set(LocalModelStorage().installedManifests().map(\.entryID))
+                let checked = ((try? BundledCatalog.load())?.models ?? [])
+                    .filter { installed.contains($0.id) || $0.badges.contains(.experimental) }
                 return MemoryDiagnostics(
                     footprintBytes: snapshot.footprintBytes, availableBytes: snapshot.availableBytes,
                     physicalBytes: snapshot.physicalBytes, budgetBytes: snapshot.deviceMemory.budgetBytes,
                     limitBytes: snapshot.processLimitBytes, entitlementSigned: signed?.increasedMemory,
                     extendedAddressingSigned: signed?.extendedAddressing, mappableBytes: memory.mappableBytes,
-                    modelChecks: experimental.compactMap { entry in
+                    modelChecks: checked.compactMap { entry in
                         entry.memoryProfile.map {
                             MemoryDiagnostics.ModelCheck(
-                                name: entry.title, verdict: SettingsLogic.fitVerdict(FitPlanner.estimate($0, memory: memory)))
+                                name: entry.title + (installed.contains(entry.id) ? " · installed" : ""),
+                                verdict: SettingsLogic.fitVerdict(FitPlanner.estimate($0, memory: memory), memory: memory))
                         }
                     })
             })
