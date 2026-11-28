@@ -24,7 +24,7 @@ final class MentionFlowTests: XCTestCase {
         XCTAssertGreaterThan(mentionRows(app).count, 0, "the panel lists plugins")
 
         input.typeText("ex")
-        let exa = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS[c] 'Exa'", UITestIDs.mentionPrefix)).firstMatch
+        let exa = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS[c] %@", UITestIDs.mentionPrefix, "Exa")).firstMatch
         XCTAssertTrue(exa.waitForExistence(timeout: 5), "typing ex narrows the list to Exa")
         exa.tap()
 

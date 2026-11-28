@@ -13,7 +13,7 @@ final class MenuToggleTests: XCTestCase {
 
     /// Buttons, switches and menu items on screen with no words: what a blank menu row looks like to XCUITest.
     private func blankRows(_ app: XCUIApplication) -> Int {
-        let blank = NSPredicate(format: "label == '' AND identifier == ''")
+        let blank = NSPredicate(format: "label == %@ AND identifier == %@", "", "")
         return [XCUIElement.ElementType.button, .switch, .menuItem].reduce(0) { total, type in
             total + app.descendants(matching: type).matching(blank).allElementsBoundByIndex.filter(\.isHittable).count
         }

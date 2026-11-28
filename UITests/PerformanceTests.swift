@@ -86,7 +86,7 @@ final class PerformanceTests: XCTestCase {
         // measured: about 3 s of tapping and typing plus the stream. The idle control has the same length.
         measure(metrics: metrics, options: options(iterations: 3)) {
             // isHittable is not a key path XCUITest predicates accept (bakeoff perf 46065091039 failed on it), so filter here.
-            app.buttons.matching(NSPredicate(format: "label == 'New chat'")).allElementsBoundByIndex.first { $0.isHittable }?.tap()
+            app.buttons.matching(NSPredicate(format: "label == %@", "New chat")).allElementsBoundByIndex.first { $0.isHittable }?.tap()
             send("Write something long", in: app)
             XCTAssertTrue(app.buttons["Regenerate"].waitForExistence(timeout: 90), "reply did not finish")
         }
@@ -122,7 +122,7 @@ final class PerformanceTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 20))
         sleep(2)
-        let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'model-row.'"))
+        let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "model-row."))
         // Whole block measured, closing the sheet included: manual start/stop breaks XCTCPUMetric on the Simulator.
         measure(metrics: [XCTClockMetric(), XCTCPUMetric(application: app)], options: options()) {
             app.buttons["Model"].tap()

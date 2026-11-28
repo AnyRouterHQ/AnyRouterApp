@@ -37,7 +37,7 @@ final class SettingsModelsTests: XCTestCase {
         XCTAssertTrue(link.label.contains("Not available on this"), "the row names the device")
         link.tap()
         XCTAssertTrue(app.navigationBars["Not Available"].waitForExistence(timeout: 10))
-        let reason = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Needs about'")).firstMatch
+        let reason = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Needs about")).firstMatch
         XCTAssertTrue(reason.waitForExistence(timeout: 5), "each row says how much memory it needs")
     }
 
@@ -57,7 +57,7 @@ final class SettingsModelsTests: XCTestCase {
             tries += 1
         }
         XCTAssertTrue(whisper.exists)
-        let detail = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'MB' AND label CONTAINS 'MIT'")).firstMatch
+        let detail = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@", "MB", "MIT")).firstMatch
         XCTAssertTrue(detail.exists, "size and licence are shown")
     }
 
@@ -105,7 +105,7 @@ final class SettingsModelsTests: XCTestCase {
         XCTAssertTrue(preview.exists)
         XCTAssertTrue(preview.label.contains("model, cost and speed"), "details are on by default")
         toggle.tap()
-        let off = NSPredicate(format: "label CONTAINS 'nothing under it'")
+        let off = NSPredicate(format: "label CONTAINS %@", "nothing under it")
         expectation(for: off, evaluatedWith: preview)
         waitForExpectations(timeout: 5)
     }

@@ -30,7 +30,7 @@ extension XCUIApplication {
     }
 
     func waitForKeyboard(present: Bool, timeout: TimeInterval = 5) -> Bool {
-        let predicate = NSPredicate(format: "count \(present ? ">" : "==") 0")
+        let predicate = present ? NSPredicate(format: "count > 0") : NSPredicate(format: "count == 0")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: keyboards)
         return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
     }

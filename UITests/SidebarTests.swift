@@ -78,7 +78,7 @@ final class SidebarTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(viewAll.frame.width, 44, "View all has a 44 pt target")
         viewAll.tap()
         XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Dinner with chickpeas'")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Dinner with chickpeas")).firstMatch.waitForExistence(timeout: 5))
     }
 
     /// The drawer reads as a compact list: 44 pt title-only chat rows, no tall gap before a section title, and a New chat button

@@ -3,7 +3,7 @@ import XCTest
 extension XCUIApplication {
     /// The system's sidebar button in a regular-width window (its label changes with the state, so match the word).
     var sidebarToggle: XCUIElement {
-        buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
+        buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "sidebar")).firstMatch
     }
 
     /// Whether the thread list is on screen. iPhone: the chat slides right by the drawer width, so the Menu button sits in

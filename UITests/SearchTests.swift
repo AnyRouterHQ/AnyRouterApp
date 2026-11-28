@@ -27,13 +27,13 @@ final class SearchTests: XCTestCase {
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "the keyboard is up")
 
         field.typeText("lisbon")
-        let result = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Trip ideas for Lisbon'")).firstMatch
+        let result = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Trip ideas for Lisbon")).firstMatch
         XCTAssertTrue(result.waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Rust or Go'")).firstMatch.exists, "non-matches are gone")
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Rust or Go")).firstMatch.exists, "non-matches are gone")
         result.tap()
 
         XCTAssertFalse(app.searchFields.firstMatch.waitForExistence(timeout: 2), "the search screen closes")
-        let chat = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] 'relaxed 3 day plan'")).firstMatch
+        let chat = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", "relaxed 3 day plan")).firstMatch
         XCTAssertTrue(chat.waitForExistence(timeout: 10), "the chat shows the picked conversation")
     }
 
@@ -49,6 +49,6 @@ final class SearchTests: XCTestCase {
         let app = launch()
         let field = openSearch(app)
         field.typeText("qqqzzz")
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'No Results'")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "No Results")).firstMatch.waitForExistence(timeout: 5))
     }
 }

@@ -28,7 +28,7 @@ final class ProdE2ETests: XCTestCase {
         let tabs = app.segmentedControls.firstMatch
         XCTAssertTrue(tabs.waitForExistence(timeout: 10))
         tabs.buttons["AnyRouter"].tap()
-        let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'model-row.anyrouter/'"))
+        let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "model-row.anyrouter/"))
         let auto = app.buttons["model-row.anyrouter/anyrouter/auto"]
         XCTAssertTrue(auto.waitForExistence(timeout: 30), "the AnyRouter model list loaded")
         XCTAssertGreaterThan(rows.count, 0)
@@ -39,7 +39,7 @@ final class ProdE2ETests: XCTestCase {
         input.tap()
         input.typeText("What is 2+2? Answer with one number.")
         app.buttons[UITestIDs.composerAction].tap()
-        let answer = app.textViews.matching(NSPredicate(format: "value CONTAINS '4' AND NOT value CONTAINS 'What is'")).firstMatch
+        let answer = app.textViews.matching(NSPredicate(format: "value CONTAINS %@ AND NOT value CONTAINS %@", "4", "What is")).firstMatch
         XCTAssertTrue(answer.waitForExistence(timeout: 90), "a streamed answer containing 4 appeared")
     }
 

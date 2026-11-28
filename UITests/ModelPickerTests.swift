@@ -80,9 +80,9 @@ final class ModelPickerTests: XCTestCase {
         let notAvailable = app.buttons["model-picker.not-available"]
         XCTAssertTrue(notAvailable.waitForExistence(timeout: 5))
         notAvailable.tap()
-        let download = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Download first'")).firstMatch
+        let download = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Download first")).firstMatch
         XCTAssertTrue(download.waitForExistence(timeout: 5), "a model not on the device says Download first")
-        let tooBig = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Doesn't fit this'")).firstMatch
+        let tooBig = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Doesn't fit this")).firstMatch
         XCTAssertTrue(tooBig.exists, "a model that is too big says so")
     }
 
@@ -103,7 +103,7 @@ final class ModelPickerTests: XCTestCase {
         XCTAssertEqual(free.value as? String, "1", "Free only is on")
         app.buttons["Done"].tap()
 
-        let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'model-row.'"))
+        let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "model-row."))
         XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5))
         XCTAssertGreaterThan(rows.count, 0)
         for index in 0..<rows.count {

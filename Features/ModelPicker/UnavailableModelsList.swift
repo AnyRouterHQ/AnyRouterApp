@@ -12,13 +12,18 @@ struct UnavailableModelsList: View {
         List {
             Section {
                 ForEach(items) { item in
-                    if let fix = item.reason.fix {
-                        Button { onFix(item, fix) } label: { UnavailableModelRow(item: item, device: device) }
-                            .buttonStyle(.plain)
-                            .accessibilityHint(fix.title)
-                    } else {
-                        UnavailableModelRow(item: item, device: device)
+                    // The id goes on the outermost element: inside a Button, the row's own id is folded into the button
+                    // and lost, so UI tests and VoiceOver tools could not find a fixable row (verify-ui 46150715558).
+                    Group {
+                        if let fix = item.reason.fix {
+                            Button { onFix(item, fix) } label: { UnavailableModelRow(item: item, device: device) }
+                                .buttonStyle(.plain)
+                                .accessibilityHint(fix.title)
+                        } else {
+                            UnavailableModelRow(item: item, device: device)
+                        }
                     }
+                    .accessibilityIdentifier("unavailable-row.\(item.model.id)")
                 }
             } footer: {
                 Text("Tap a model to fix what is in the way, where there is a fix.")
@@ -47,6 +52,5 @@ private struct UnavailableModelRow: View {
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("unavailable-row.\(item.model.id)")
     }
 }
