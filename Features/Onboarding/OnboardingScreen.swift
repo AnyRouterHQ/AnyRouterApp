@@ -62,7 +62,9 @@ struct OnboardingScreen: View {
         Label {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
-                Text(detail).font(.subheadline).foregroundStyle(.secondary)
+                // Two lines reserved on every row, so the three rows share one height: a two-line row between one-line
+                // rows left a 1 px black seam under its separator in dark mode (screenshots 46091121132).
+                Text(detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(2, reservesSpace: true)
             }
             // Every separator starts under the text, as in a stock list; left to the default, the one under
             // "Local models" ran to the edge (screenshots 46075429647).
