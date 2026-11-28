@@ -57,6 +57,9 @@ struct LocalToolEngine: ResumableEngine {
 /// as the model's own text and a user message with the results. With tools off there is no tool text and no format,
 /// so a call the model still writes is shown, not run.
 struct LocalToolStep: StepFunction {
+    /// The tail of the last round, when the tools stay listed but no more calls are run.
+    static let answerNow = "Answer now without tools."
+
     let base: any ChatEngine
     let model: ModelDescriptor
     let messages: [ChatMessage]
@@ -121,12 +124,19 @@ struct LocalToolStep: StepFunction {
         var roundParams = params
         // The turn's photos stay images in every round: a round's results arrive as a user message without them.
         roundParams.imagesFrom = params.imagesFrom ?? messages.last(where: { $0.role == .user })?.id
-        if toolsOn {
-            roundParams.systemPrompt = [params.systemPrompt, format.instructions(for: specs)].compactMap { $0 }.joined(separator: "\n\n")
-        }
-        let sent = messages + rounds.flatMap { round in
+        // The tool text stays in every round, the last one too, so the start of the prompt never changes inside a run
+        // and a kept cache stays valid (agent v2 U9). The last round is told at its tail to answer.
+        roundParams.systemPrompt = [params.systemPrompt, format.instructions(for: specs)].compactMap { $0 }.joined(separator: "\n\n")
+        var sent = messages + rounds.flatMap { round in
             [ChatMessage(role: .assistant, content: round.text),
              ChatMessage(role: .user, content: format.resultMessage(round.results.map { ($0.name, ToolRunScope.modelText(for: $0)) }))]
+        }
+        if !toolsOn {
+            if let last = sent.indices.last, sent[last].role == .user {
+                sent[last].content += "\n\n" + Self.answerNow
+            } else {
+                sent.append(ChatMessage(role: .user, content: Self.answerNow))
+            }
         }
         return (sent, roundParams)
     }

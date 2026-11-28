@@ -378,7 +378,11 @@ struct LocalToolEngineTests {
         let (engine, rounds) = engine(Array(repeating: call, count: 10))
         let deltas = try await collect(engine.stream(model: qwen, messages: [], params: GenerationParams(), tools: AnswerHost()))
         #expect(rounds.messages.count == LocalToolEngine.maxRounds)
-        #expect(rounds.systemPrompts.last.flatMap { $0 } == nil, "no tool text on the last round")
+        // Agent v2 U9: the tool text stays on the last round too, so the prompt's start is the same in every round.
+        #expect(Set(rounds.systemPrompts).count == 1, "one system prompt for the whole run")
+        #expect(rounds.systemPrompts.last.flatMap { $0 }?.contains("<tools>") == true)
+        #expect(rounds.messages.last?.last?.content.hasSuffix(LocalToolStep.answerNow) == true, "the last round is told to answer")
+        #expect(rounds.messages.dropLast().allSatisfy { $0.last?.content.hasSuffix(LocalToolStep.answerNow) != true })
         #expect(deltas.compactMap { if case .toolCall(let call) = $0 { call } else { nil } }.count == LocalToolEngine.maxRounds - 1)
         #expect(text(deltas).contains("<tool_call>"), "a call on the last round is shown, not run")
     }
