@@ -7,7 +7,7 @@ protocol TokenStoring: Sendable {
 }
 
 /// AnyRouter cloud models over the OpenAI-compatible API.
-struct AnyRouterEngine: ChatEngine {
+struct AnyRouterEngine: ResumableEngine {
     var source: ModelSource { .anyrouter }
 
     let tokens: any TokenStoring
@@ -80,8 +80,15 @@ struct AnyRouterEngine: ChatEngine {
         params: GenerationParams,
         tools host: (any ToolHost)?
     ) -> AsyncThrowingStream<ChatDelta, Error> {
+        stream(model: model, messages: messages, params: params, tools: host, resuming: nil)
+    }
+
+    /// The same loop, going on from a run that stopped for approval when `resuming` is set (agent design 1.3).
+    func stream(
+        model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams, tools host: (any ToolHost)?, resuming: AgentResume?
+    ) -> AsyncThrowingStream<ChatDelta, Error> {
         let step = AnyRouterStep(engine: self, model: model, messages: messages, params: params, specs: host?.specs ?? [])
-        return AgentLoop.stream(step: step, host: host, maxToolRounds: Self.maxToolSteps)
+        return AgentLoop.stream(step: step, host: host, maxToolRounds: Self.maxToolSteps, resume: resuming)
     }
 
     /// One request: text and reasoning go out as they arrive; the proposed calls, usage, metadata and finish reason

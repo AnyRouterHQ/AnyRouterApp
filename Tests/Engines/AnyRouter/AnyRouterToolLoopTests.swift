@@ -143,6 +143,32 @@ struct AnyRouterToolLoopTests {
         #expect(messages[2]["content"] as? String == "result of web_search")
     }
 
+    /// G4 (agent design E6, cloud half): after a relaunch the waiting call runs once and the next request carries its result.
+    @Test func aResumedRunRunsOnlyTheWaitingCallAndSendsItsResult() async throws {
+        let seen = Seen()
+        let api = StubbedAPI { request in
+            seen.add(request)
+            return sse([text("Sent."), finishStop, usage(5, 1), "[DONE]"])
+        }
+        let host = ScriptedHost()
+        let call = ToolCall(id: "call_a", name: "web_search", argumentsJSON: #"{"q":"swift"}"#)
+        let engine = AnyRouterEngine(tokens: FakeTokens("k"), config: api.config, session: api.session)
+        let resume = AgentResume(rounds: [], pending: AgentRound(text: "", calls: [call], results: []))
+        var deltas: [ChatDelta] = []
+        for try await delta in engine.stream(
+            model: model, messages: [ChatMessage(role: .user, content: "hi")], params: GenerationParams(), tools: host, resuming: resume) {
+            deltas.append(delta)
+        }
+        #expect(host.calls == [call])
+        #expect(deltas.first == .toolCall(call))
+        let bodies = seen.bodies
+        #expect(bodies.count == 1, "no request before the call runs")
+        let messages = try #require(bodies.first?["messages"] as? [[String: Any]])
+        #expect(messages.map { $0["role"] as? String } == ["user", "assistant", "tool"])
+        #expect(messages.last?["tool_call_id"] as? String == "call_a")
+        #expect(messages.last?["content"] as? String == "result of web_search")
+    }
+
     @Test func textBeforeTheCallIsKeptAndSeveralCallsRunInOrder() async throws {
         let seen = Seen()
         let counter = Counter()

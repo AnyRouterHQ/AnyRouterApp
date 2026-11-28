@@ -8,6 +8,20 @@ struct AgentRound: Equatable, Sendable {
     var results: [ToolResult]
 }
 
+/// Where a run stopped, to go on from (agent design 1.3): the rounds that finished, and the round whose calls were
+/// running. The loop starts at `act` with the first call of `pending` that has no result.
+struct AgentResume: Equatable, Sendable {
+    var rounds: [AgentRound]
+    var pending: AgentRound
+}
+
+/// An engine that runs on `AgentLoop` and can go on from a saved run.
+protocol ResumableEngine: ChatEngine {
+    /// Same as `stream(model:messages:params:tools:)`, from `resuming` when it is set.
+    func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams, tools: (any ToolHost)?, resuming: AgentResume?)
+        -> AsyncThrowingStream<ChatDelta, Error>
+}
+
 /// What one model round streams (agent design 1.4).
 enum StepEvent: Equatable, Sendable {
     /// Text to show.
@@ -41,12 +55,17 @@ enum AgentLoop {
     /// What the model reads when it repeats a call that already failed (agent design E5). The call does not run again.
     static let repeatedFailureText = "This exact call already failed, so it was not run again. Answer with what you have."
 
-    static func stream(step: some StepFunction, host: (any ToolHost)?, maxToolRounds: Int) -> AsyncThrowingStream<ChatDelta, Error> {
+    /// With `resume` the run goes on from where it stopped instead of asking the model first.
+    static func stream(
+        step: some StepFunction, host: (any ToolHost)?, maxToolRounds: Int, resume: AgentResume? = nil
+    ) -> AsyncThrowingStream<ChatDelta, Error> {
         AsyncThrowingStream { continuation in
             let scope = ToolRunScope()
             let task = Task {
                 do {
-                    try await run(step: step, host: host, maxToolRounds: maxToolRounds, scope: scope) { _ = continuation.yield($0) }
+                    try await run(step: step, host: host, maxToolRounds: maxToolRounds, resume: resume, scope: scope) {
+                        _ = continuation.yield($0)
+                    }
                     continuation.finish()
                 } catch is CancellationError {
                     continuation.finish()
@@ -62,19 +81,19 @@ enum AgentLoop {
     }
 
     private static func run(
-        step: some StepFunction, host: (any ToolHost)?, maxToolRounds: Int, scope: ToolRunScope,
+        step: some StepFunction, host: (any ToolHost)?, maxToolRounds: Int, resume: AgentResume?, scope: ToolRunScope,
         emit: @escaping @Sendable (ChatDelta) -> Void
     ) async throws {
-        var rounds: [AgentRound] = []
-        var sent: [AgentRound] = []
-        var proposed = AgentRound(text: "", calls: [], results: [])
+        var rounds: [AgentRound] = resume?.rounds ?? []
+        var sent = rounds
+        var proposed = resume?.pending ?? AgentRound(text: "", calls: [], results: [])
         var maxRounds = host == nil ? 0 : maxToolRounds
         var stubbed = 0
         var failed: Set<[String]> = []
         var usage: (prompt: Int, completion: Int)?
         var metadata: ResponseMetadata?
         var finishReason: String?
-        var node = AgentNode.assemble
+        var node = resume == nil ? AgentNode.assemble : .act
         while node != .finish {
             switch node {
             case .assemble:
@@ -107,13 +126,15 @@ enum AgentLoop {
                 try Task.checkCancellation()
                 if let wrote { proposed.text = wrote }
                 node = AgentGraph.next(node, on: proposed.calls.isEmpty ? .noCalls : .calls, round: rounds.count, maxRounds: maxRounds)
+                if node == .act { await host?.willRun(proposed.text, calls: proposed.calls) }
             case .act:
                 guard let host else {
                     node = .finish
                     break
                 }
                 var round = proposed
-                for call in round.calls {
+                // A resumed round already holds the results of the calls that ran before the app closed.
+                for call in round.calls.dropFirst(round.results.count) {
                     try Task.checkCancellation()
                     let key = [call.name, call.argumentsJSON]
                     if failed.contains(key) {
@@ -152,6 +173,49 @@ enum AgentLoop {
         if let metadata { emit(.metadata(metadata)) }
         if let usage { emit(.usage(prompt: usage.prompt, completion: usage.completion)) }
         emit(.done(finishReason: finishReason))
+    }
+
+    /// A run whose engine keeps its own loop (Apple's) goes on as a new turn (agent design 1.3, Apple row): the calls
+    /// that have no result run through the host, then the engine is asked again with the earlier text and every result
+    /// as text, since its framework loop cannot be entered again.
+    static func continuing(
+        engine: any ChatEngine, model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams,
+        host: (any ToolHost)?, text: String, done: [ToolResult], calls: [ToolCall]
+    ) -> AsyncThrowingStream<ChatDelta, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                var results = done
+                if let host {
+                    for call in calls {
+                        continuation.yield(.toolCall(call))
+                        let result = await host.execute(call)
+                        continuation.yield(.toolResult(result))
+                        results.append(result)
+                    }
+                }
+                do {
+                    try Task.checkCancellation()
+                    var turn = messages
+                    if !text.isEmpty { turn.append(ChatMessage(role: .assistant, content: text)) }
+                    turn.append(ChatMessage(role: .user, content: continuationText(results)))
+                    for try await delta in engine.stream(model: model, messages: turn, params: params, tools: host) {
+                        continuation.yield(delta)
+                    }
+                    continuation.finish()
+                } catch is CancellationError {
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// The tool results of a run that goes on as a new turn, as the user message of that turn.
+    static func continuationText(_ results: [ToolResult]) -> String {
+        let lines = results.map { "\($0.name): \(ToolRunScope.modelText(for: $0))" }
+        return (["Your tool calls answered:"] + lines + ["Go on with your answer."]).joined(separator: "\n")
     }
 
     /// The rounds as the next request carries them. A device run clears old results until they fit; a cloud run

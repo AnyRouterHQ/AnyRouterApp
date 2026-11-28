@@ -70,10 +70,14 @@ protocol ToolHost: Sendable {
     /// The id of the source a tool comes from (the app's own tools, a public service, AnyRouter, a custom server), so
     /// a reply can show that source's icon. Nil when the host cannot say.
     func sourceID(forTool name: String) -> String?
+    /// The loop is about to run `calls`, every call of one round, which the model asked for with `text`. A host that saves
+    /// its run keeps them, so a relaunch can rebuild the round (agent design 1.3); other hosts do nothing.
+    func willRun(_ text: String, calls: [ToolCall]) async
 }
 
 extension ToolHost {
     func sourceID(forTool name: String) -> String? { nil }
+    func willRun(_ text: String, calls: [ToolCall]) async {}
 }
 
 /// One call and its outcome, as shown in a message and kept with the assistant reply.

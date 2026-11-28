@@ -191,3 +191,65 @@ struct AgentLoopTests {
         #expect(step.requests[4].rounds.flatMap(\.results).allSatisfy { $0.text.count == 6_000 }, "results are not cut")
     }
 }
+
+/// A host that keeps the rounds the loop announces before running them, and the calls it ran.
+private final class RoundHost: ToolHost, @unchecked Sendable {
+    let specs = [ToolSpec(name: "look", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: true)]
+    private let lock = NSLock()
+    private var announced: [AgentSavedRound] = []
+    private var ran: [String] = []
+
+    var rounds: [AgentSavedRound] { lock.withLock { announced } }
+    var calls: [String] { lock.withLock { ran } }
+
+    func willRun(_ text: String, calls: [ToolCall]) async {
+        lock.withLock { announced.append(AgentSavedRound(text: text, calls: calls)) }
+    }
+
+    func execute(_ call: ToolCall) async -> ToolResult {
+        lock.withLock { ran.append(call.id) }
+        return ToolResult(callID: call.id, name: call.name, text: "saw \(call.id)", isError: false)
+    }
+}
+
+/// G4: a run that stopped for approval goes on from where it stopped (agent design 1.3).
+struct AgentLoopResumeTests {
+    @Test func everyRoundIsAnnouncedWithAllItsCallsBeforeTheFirstRuns() async {
+        let step = ScriptedStep([
+            [.text("Shown. "), .wrote("Shown. <call/>"), .proposed(call("c1")), .proposed(call("c2")), .end(finishReason: "tool_calls")],
+            [.text("Done."), .end(finishReason: "stop")],
+        ])
+        let host = RoundHost()
+        _ = await collect(AgentLoop.stream(step: step, host: host, maxToolRounds: 4))
+        #expect(host.rounds == [AgentSavedRound(text: "Shown. <call/>", calls: [call("c1"), call("c2")])], "the text the next request carries")
+        #expect(host.calls == ["c1", "c2"])
+    }
+
+    @Test func aResumedRunGoesOnFromTheFirstCallWithoutAResult() async {
+        let one = ToolResult(callID: "c1", name: "look", text: "one", isError: false)
+        let two = ToolResult(callID: "c2", name: "look", text: "two", isError: false)
+        let first = AgentRound(text: "Look first.", calls: [call("c1")], results: [one])
+        let pending = AgentRound(text: "Now two more.", calls: [call("c2"), call("c3")], results: [two])
+        let step = ScriptedStep([[.text("All done."), .end(finishReason: "stop")]])
+        let host = RoundHost()
+        let run = await collect(AgentLoop.stream(
+            step: step, host: host, maxToolRounds: 4, resume: AgentResume(rounds: [first], pending: pending)))
+        #expect(host.calls == ["c3"], "c2 ran before the app closed")
+        #expect(host.rounds.isEmpty, "the stopped round was saved before the app closed")
+        let three = ToolResult(callID: "c3", name: "look", text: "saw c3", isError: false)
+        #expect(run.deltas == [.toolCall(call("c3")), .toolResult(three), .text("All done."), .done(finishReason: "stop")])
+        #expect(step.requests.count == 1, "no model round before the waiting call runs")
+        #expect(step.requests.first?.rounds == [first, AgentRound(text: pending.text, calls: pending.calls, results: [two, three])])
+    }
+
+    @Test func anAppleRunGoesOnAsANewTurnWithTheResultsAsText() async {
+        let engine = ScriptedEngine(chunks: ["Sent."])
+        let earlier = ToolResult(callID: "c0", name: "look", text: "zero", isError: false)
+        let run = await collect(AgentLoop.continuing(
+            engine: engine, model: testModel(), messages: [ChatMessage(role: .user, content: "send it")], params: GenerationParams(),
+            host: RoundHost(), text: "Sending.", done: [earlier], calls: [call("c1")]))
+        let result = ToolResult(callID: "c1", name: "look", text: "saw c1", isError: false)
+        #expect(run.deltas == [.toolCall(call("c1")), .toolResult(result), .text("Sent."), .done(finishReason: "stop")])
+        #expect(engine.messagesSeen.lastTexts == ["Your tool calls answered:\nlook: zero\nlook: saw c1\nGo on with your answer."])
+    }
+}

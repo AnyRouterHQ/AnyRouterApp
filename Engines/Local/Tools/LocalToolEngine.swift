@@ -3,7 +3,7 @@ import Foundation
 /// Gives a local engine (llama.cpp or MLX) tools. The engines only generate text, so this wraps one and runs it on the
 /// app's tool loop (`AgentLoop`) one generation at a time (`LocalToolStep`), up to `maxRounds` generations.
 /// A model counts as tool-capable only when `isEnabled` says so and its family has a `LocalToolFormat`.
-struct LocalToolEngine: ChatEngine {
+struct LocalToolEngine: ResumableEngine {
     /// Most generations one reply may take. The last one is asked to answer without tools.
     static let maxRounds = 4
 
@@ -37,12 +37,18 @@ struct LocalToolEngine: ChatEngine {
 
     func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams, tools: (any ToolHost)?)
         -> AsyncThrowingStream<ChatDelta, Error> {
+        stream(model: model, messages: messages, params: params, tools: tools, resuming: nil)
+    }
+
+    /// The same loop, going on from a run that stopped for approval when `resuming` is set (agent design 1.3).
+    func stream(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams, tools: (any ToolHost)?, resuming: AgentResume?)
+        -> AsyncThrowingStream<ChatDelta, Error> {
         guard let host = tools, !host.specs.isEmpty, isEnabled(), let format = LocalToolFormat.detect(for: model) else {
             return base.stream(model: model, messages: messages, params: params)
         }
         let step = LocalToolStep(
             base: base, model: model, messages: messages, params: params, specs: host.specs, format: format, makeID: makeID)
-        return AgentLoop.stream(step: step, host: host, maxToolRounds: Self.maxRounds - 1)
+        return AgentLoop.stream(step: step, host: host, maxToolRounds: Self.maxRounds - 1, resume: resuming)
     }
 }
 

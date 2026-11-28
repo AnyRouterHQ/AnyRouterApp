@@ -47,6 +47,22 @@ enum AgentRunLogic {
         return decided
     }
 
+    /// The rounds to go on from: each saved round with the results its steps hold. A round's results are those of its
+    /// leading calls that have one; the loop runs the rest. The last saved round is the one the run stopped in. Nil when
+    /// no round was saved (Apple's framework loop saves none).
+    static func resume(_ state: AgentRunState, steps: [ToolStep]) -> AgentResume? {
+        guard let last = state.rounds.last else { return nil }
+        var results: [String: ToolResult] = [:]
+        for step in steps {
+            if let result = step.result { results[step.id] = result }
+        }
+        func round(_ saved: AgentSavedRound) -> AgentRound {
+            let answered = saved.calls.prefix(while: { results[$0.id] != nil }).compactMap { results[$0.id] }
+            return AgentRound(text: saved.text, calls: saved.calls, results: answered)
+        }
+        return AgentResume(rounds: state.rounds.dropLast().map(round), pending: round(last))
+    }
+
     /// `step` added at the end, unless a step with its id is there already: a resumed run announces its waiting call
     /// again, and an answer can be noted before its call's row arrives.
     static func adding(_ step: ToolStep, to steps: [ToolStep]) -> [ToolStep] {

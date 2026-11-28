@@ -117,6 +117,19 @@ struct AgentResumeRuleTests {
         #expect(early == [ToolStep(call: first.call, result: nil, approval: .deny)], "the answer came before the row")
     }
 
+    @Test func theRoundsToResumeFromHoldTheResultsOfTheirLeadingCalls() {
+        #expect(AgentRunLogic.resume(AgentRunState(), steps: []) == nil, "an Apple run saves no rounds")
+        let a = ToolCall(id: "a", name: "look", argumentsJSON: "{}")
+        let b = ToolCall(id: "b", name: "send", argumentsJSON: "{}")
+        let c = ToolCall(id: "c", name: "look", argumentsJSON: "{}")
+        let resultA = ToolResult(callID: "a", name: "look", text: "A", isError: false)
+        let state = AgentRunState(rounds: [AgentSavedRound(text: "First.", calls: [a]), AgentSavedRound(text: "Then.", calls: [b, c])])
+        let steps = [ToolStep(call: a, result: resultA), ToolStep(call: b, result: nil)]
+        #expect(AgentRunLogic.resume(state, steps: steps) == AgentResume(
+            rounds: [AgentRound(text: "First.", calls: [a], results: [resultA])],
+            pending: AgentRound(text: "Then.", calls: [b, c], results: [])), "c had not started, b waits")
+    }
+
     @Test func aStepSavedBeforeApprovalsExistedStillReads() throws {
         let old = Data(#"{"call":{"id":"c1","name":"web_search","argumentsJSON":"{}"},"sourceID":"device"}"#.utf8)
         let decoded = try JSONDecoder().decode(ToolStep.self, from: old)
