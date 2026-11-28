@@ -306,7 +306,7 @@ Units from `docs/research/agent-design.md` § 6, in this order. Each is one push
 - [x] K1 (92b36ae, 02b7a86; green in CI 46090800331) Bundled skills, index and `read_skill` for cloud models. Open: the capped index for device engines
 - [ ] K2 `propose_skill` with the approval card, Settings › Skills; the user's AnyRouter hub skills and SKILL.md URL imports
 - [ ] L1 Live suite in `model-smoke.yml` and the on-device list; LA11 tool-calling prompts are part of it. Scripted half done (2067517, green in CI 46090800331): MemoryRecallEvalTests, recall at 3 measured 0.85 on its fixture with a port of the scorer (CI asserts at least 0.8), under 0.9, so M7 is indicated; the misses need meaning ("dinner" for "vegetarian")
-- [ ] M7 Embeddings behind consent, only if recall at 3 is under 0.9
+- [x] M7 (510061d; green in CI 46099511896 at d25ccb9) On-device first: Apple NaturalLanguage embeddings (contextual, Latin script, English sentence fallback) added to BM25 as a hybrid; no text leaves the phone, no consent. MemoryRecallEvalTests runs BM25 and hybrid on the 30-memory fixture; the hybrid case skips where the Simulator has no assets. Open: the numbers are not readable from the CI log (Swift Testing issue comments are not printed), and an AnyRouter embedding model as an opt-in for cloud-scoped memories
 - [ ] S1 Sub-agents per D25 unit 5, after G3
 
 ## Backlog (after milestone 1; pick one, tick it, add a PR number)
