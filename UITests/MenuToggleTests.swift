@@ -6,7 +6,7 @@ import XCTest
 final class MenuToggleTests: XCTestCase {
     private func launch() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-ARDemoData", "YES", "-ARDemoLongThread", "4"]
+        app.launchArguments = ["-ARDemoData", "YES"]
         app.launch()
         return app
     }
