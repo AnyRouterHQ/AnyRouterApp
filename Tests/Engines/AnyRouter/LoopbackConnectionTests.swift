@@ -20,7 +20,7 @@ struct LoopbackConnectionTests {
     }
 
     @Test func idleConnectionIsClosedAfterTheTimeout() async throws {
-        let loopback = LoopbackCallback(expectedState: "s", connectionTimeout: .milliseconds(300))
+        let loopback = LoopbackCallback(expectedState: "s", connectionTimeout: .milliseconds(1500))
         let port = try await loopback.start()
         defer { loopback.stop() }
         let client = connect(to: port)

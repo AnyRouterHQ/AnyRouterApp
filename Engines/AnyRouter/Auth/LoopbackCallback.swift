@@ -93,9 +93,9 @@ final class LoopbackCallback {
         receive(connection, buffer: Data())
         // Any app on the phone can open this port and send nothing.
         let timeout = connectionTimeout
-        Task { [weak self] in
+        Task { [weak connection] in
             try? await Task.sleep(for: timeout)
-            self?.connections[id]?.cancel()
+            connection?.cancel()
         }
     }
 
