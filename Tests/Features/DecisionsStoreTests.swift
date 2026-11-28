@@ -342,8 +342,9 @@ struct DecisionsStoreTests {
         #expect(service.requests.first?.questions.map(\.id) == ["business", "category", "deductible"])
     }
 
-    @Test func theCustomDecisionNeedsAQuestionBeforeRun() {
+    @Test func theCustomDecisionNeedsAQuestionBeforeRun() async {
         let store = newStore()
+        await store.loadModels()
         store.state = "text"
         #expect(store.blocker == "Add a question.")
         store.addQuestion()
