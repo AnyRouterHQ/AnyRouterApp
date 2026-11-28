@@ -75,9 +75,6 @@ struct ThreadSidebar: View {
         // Hand-made, in a bar: as system bottom-bar items the toolbar drew a bare "+" for New chat (screenshots
         // 46140428971, 46145329030), and the operator keeps the gear and the "New chat" capsule.
         .safeAreaBar(edge: .bottom, spacing: 0) { bottomBar }
-                    .accessibilityIdentifier("sidebar.compose")
-            }
-        }
         .threadEditingDialogs($editing)
     }
 
