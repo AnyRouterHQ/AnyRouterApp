@@ -5,6 +5,9 @@ import Metal
 struct LlamaResult: Sendable {
     var promptTokens: Int
     var completionTokens: Int
+    /// Prompt tokens this request actually ran through the model (agent v2 U1). Every request prefills its whole prompt
+    /// today, so it equals `promptTokens`; a kept context (U11) will make it smaller, and the ratio is the measure.
+    var decodedTokens: Int
     /// "stop" when the model ended its answer, "length" when the token or context limit ended it.
     var finishReason: String
 }
@@ -268,6 +271,7 @@ final class LlamaModel: @unchecked Sendable {
             // Prefill in n_batch sized chunks; only the last token produces logits.
             var tokens = promptTokens
             var offset = 0
+            var decoded = 0
             while offset < tokens.count {
                 if isCancelled() { throw CancellationError() }
                 let count = min(batchSize, tokens.count - offset)
@@ -277,7 +281,9 @@ final class LlamaModel: @unchecked Sendable {
                 }
                 guard status == 0 else { throw GGUFError.decodeFailed(status) }
                 offset += count
+                decoded += count
             }
+            return decoded
         }
     }
 
@@ -292,7 +298,9 @@ final class LlamaModel: @unchecked Sendable {
             promptSize: prompt.tokenCount, batch: 1024, contextCap: prompt.contextCap, params: params, sampling: sampling,
             isCancelled: isCancelled, onStep: onStep, emit: emit
         ) { context, batchSize in
+            // mtmd evaluates every chunk, text and photos, so the whole prompt is decoded.
             try prompt.evaluate(context: context, batchSize: batchSize)
+            return prompt.tokenCount
         }
     }
 
@@ -301,7 +309,7 @@ final class LlamaModel: @unchecked Sendable {
     private func generate(
         promptSize: Int, batch: Int, contextCap: Int?, params: GenerationParams, sampling: CatalogSampling?,
         isCancelled: () -> Bool, onStep: ((ModelLoadTrace.Step, String?) -> Void)?, emit: (String) -> Void,
-        prefill: (OpaquePointer, Int) throws -> Void
+        prefill: (OpaquePointer, Int) throws -> Int
     ) throws -> LlamaResult {
         guard promptSize < contextSize else {
             throw GGUFError.promptTooLong(tokens: promptSize, limit: contextSize)
@@ -333,7 +341,7 @@ final class LlamaModel: @unchecked Sendable {
         let sampler = Self.makeSampler(params, topK: sampling?.topK ?? 40, minP: sampling?.minP ?? 0)
         defer { llama_sampler_free(sampler) }
 
-        try prefill(context, Int(contextParams.n_batch))
+        let decoded = try prefill(context, Int(contextParams.n_batch))
 
         var generated = 0
         var reason = "length"
@@ -374,7 +382,7 @@ final class LlamaModel: @unchecked Sendable {
             let rate = generated > 1 && seconds > 0 ? String(format: ", %.2f tokens/s", Double(generated - 1) / seconds) : ""
             onStep(.finished, "\(generated) tokens\(rate)")
         }
-        return LlamaResult(promptTokens: promptSize, completionTokens: generated, finishReason: reason)
+        return LlamaResult(promptTokens: promptSize, completionTokens: generated, decodedTokens: decoded, finishReason: reason)
     }
 
     /// `topK` 0 and `minP` 0 leave those filters out.

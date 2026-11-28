@@ -106,7 +106,11 @@ final class MLXEngine: ChatEngine {
         }
         // The consumer left: the stream above ended early, so do not report a normal finish.
         if Task.isCancelled { throw CancellationError() }
-        if let usage { continuation.yield(.usage(prompt: usage.prompt, completion: usage.completion)) }
+        if let usage {
+            continuation.yield(.usage(prompt: usage.prompt, completion: usage.completion))
+            // A new ChatSession per reply runs the whole prompt, so all of it is decoded (agent v2 U1; U14 keeps one).
+            continuation.yield(.metadata(ResponseMetadata(decodedTokens: usage.prompt)))
+        }
         continuation.yield(.done(finishReason: finishReason))
     }
 }

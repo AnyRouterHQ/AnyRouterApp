@@ -116,6 +116,15 @@ struct ResponseMetadataTests {
         #expect(ResponseMetadata.combining(nil, second) == second)
         #expect(ResponseMetadata.combining(first, nil) == first)
     }
+
+    /// Agent v2 U1: a local tool run's rounds add up what the engine actually decoded, the numerator of decoded/prompt.
+    @Test func decodedTokensAddUpOverTheRoundsOfALocalRun() {
+        let first = ResponseMetadata(promptTokens: 900, decodedTokens: 900)
+        let second = ResponseMetadata(promptTokens: 1_200, decodedTokens: 300)
+        #expect(ResponseMetadata.combining(first, second)?.decodedTokens == 1_200)
+        #expect(ResponseMetadata.combining(ResponseMetadata(promptTokens: 5), second)?.decodedTokens == 300)
+        #expect(ResponseMetadata.combining(ResponseMetadata(), ResponseMetadata())?.decodedTokens == nil)
+    }
 }
 
 struct ResponseFormatTests {

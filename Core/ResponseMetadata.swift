@@ -24,6 +24,9 @@ struct ResponseMetadata: Hashable, Codable, Sendable {
     /// What a subagent of this reply spent, apart from the reply's own tokens, so the speed counts only the reply's.
     var subagentPromptTokens: Int?
     var subagentCompletionTokens: Int?
+    /// Prompt tokens a local engine actually ran through the model (agent v2 U1). Equal to `promptTokens` while every
+    /// request prefills its whole prompt; a kept context makes it smaller, and decoded over prompt is the measure.
+    var decodedTokens: Int?
 
     /// The reply's own generated tokens per second, after the first token arrived, without the time spent in tools.
     var tokensPerSecond: Double? {
@@ -52,6 +55,7 @@ struct ResponseMetadata: Hashable, Codable, Sendable {
         result.promptTokens = add(result.promptTokens, next.promptTokens)
         result.completionTokens = add(result.completionTokens, next.completionTokens)
         result.cachedTokens = add(result.cachedTokens, next.cachedTokens)
+        result.decodedTokens = add(result.decodedTokens, next.decodedTokens)
         result.upstreamLatencyMs = add(result.upstreamLatencyMs, next.upstreamLatencyMs)
         result.requestID = next.requestID ?? result.requestID
         result.servedModelID = next.servedModelID ?? result.servedModelID

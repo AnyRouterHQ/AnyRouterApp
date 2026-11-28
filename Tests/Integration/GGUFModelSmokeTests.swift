@@ -174,6 +174,37 @@ final class GGUFModelSmokeTests: XCTestCase {
     }
 
     /// The eval prompt for a device run too: a photo of one flat color, asked for its name.
+    /// Agent v2 U1: decoded over prompt for each turn of a 3-turn chat. Every request prefills its whole prompt today, so
+    /// each turn reads 1.00; this is the baseline a kept context (U11) must bring to 0.35 or less on turns 2 and 3.
+    func testDecodedOverPromptForEachTurnOfAChat() async throws {
+        let ctx = try await Self.makeContext()
+        var params = GenerationParams()
+        params.temperature = 0
+        params.maxTokens = 32
+        var messages: [ChatMessage] = []
+        var ratios: [String] = []
+        for question in ["Name a fruit.", "Name a color.", "Name an animal."] {
+            messages.append(ChatMessage(role: .user, content: question))
+            var reply = ""
+            var prompt = 0
+            var decoded: Int?
+            for try await delta in ctx.engine.stream(model: ctx.model, messages: messages, params: params) {
+                switch delta {
+                case .text(let piece): reply += piece
+                case .usage(let tokens, _): prompt = tokens
+                case .metadata(let metadata): decoded = metadata.decodedTokens
+                default: break
+                }
+            }
+            let count = try XCTUnwrap(decoded, "the engine reports what it decoded")
+            XCTAssertGreaterThan(prompt, 0)
+            XCTAssertLessThanOrEqual(count, prompt)
+            ratios.append(String(format: "%.2f", Double(count) / Double(prompt)) + " (\(count)/\(prompt))")
+            messages.append(ChatMessage(role: .assistant, content: reply))
+        }
+        SmokeReport.record("GGUF decoded/prompt per turn", ratios.joined(separator: ", "))
+    }
+
     func testNamesTheColorOfAPhoto() async throws {
         try XCTSkipUnless(SmokeEnv.mmprojFile != nil, "this model has no image projector")
         let ctx = try await Self.makeContext(withProjector: true)
