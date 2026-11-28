@@ -78,10 +78,13 @@ final class ChatViewModel {
     @ObservationIgnored var embedder: OnDeviceEmbedder?
     /// The run of the reply being written, saved at its step boundaries.
     @ObservationIgnored private var run: AgentRunRecord?
+    /// Asks the user before a tool runs. The chat wraps it so a run that waits is saved (agent design 1.3).
+    @ObservationIgnored private let approver: (any ToolApproving)?
 
     init(thread: ThreadRecord?, context: ModelContext, registry: EngineRegistry,
          settings: AppSettings, models: ModelStore,
          toolHost: @escaping @MainActor (ToolContext) -> (any ToolHost)? = { _ in nil },
+         approver: (any ToolApproving)? = nil,
          isOnline: @escaping @MainActor () -> Bool = { true },
          skipsToolsOffline: @escaping @MainActor (ToolContext) -> Bool = { _ in false },
          webSearch: PreSearcher = .none,
@@ -91,6 +94,7 @@ final class ChatViewModel {
         self.save = save
         self.now = now
         self.toolHost = toolHost
+        self.approver = approver
         self.isOnline = isOnline
         self.skipsToolsOffline = skipsToolsOffline
         self.webSearch = webSearch
@@ -106,6 +110,7 @@ final class ChatViewModel {
         self.memoryOff = thread?.memoryOff ?? false
         self.chatInstructions = thread?.instructions
         refreshContextFraction()
+        resumeWaitingRun()
     }
 
     var supportsThinking: Bool { model?.supportsThinking ?? false }
@@ -690,9 +695,11 @@ final class ChatViewModel {
         return ToolContext(attachments: all, userTexts: texts, modelSource: modelSource)
     }
 
-    /// `memory` is what the user's message saved; its rows lead the reply.
+    /// `memory` is what the user's message saved; its rows lead the reply. `resuming` is a run that waited for the user
+    /// when the app closed: it goes on in its own reply instead of a new one.
     private func startStream(
-        model: ModelDescriptor, thread: ThreadRecord, mentions: [MentionItem] = [], memory: [MemoryUpdate] = []
+        model: ModelDescriptor, thread: ThreadRecord, mentions: [MentionItem] = [], memory: [MemoryUpdate] = [],
+        resuming: (reply: MessageRecord, run: AgentRunRecord)? = nil
     ) -> Task<Void, Never> {
         phase = .streaming
         errorMessage = nil
@@ -701,12 +708,13 @@ final class ChatViewModel {
         loadingModelName = (model.source == .gguf || model.source == .mlx) ? model.shortName : nil
         thread.modelID = model.id
         preferredModelID = model.id
-        let assistant = MessageRecord(role: .assistant, content: "", modelName: model.shortName, modelID: model.id)
+        let assistant = resuming?.reply ?? MessageRecord(role: .assistant, content: "", modelName: model.shortName, modelID: model.id)
         // Read before the reply can be deleted with its chat: a deleted record must not be read.
         let replyID = assistant.id
         LiveReplies.shared.begin(replyID)
-        // What goes out is the summary of the folded part of the chat and the messages after it.
-        let live = CompactionLogic.context(messages: Self.turns(of: thread), compaction: thread.compactions.last)
+        // What goes out is the summary of the folded part of the chat and the messages after it; a resumed reply is not
+        // part of its own request.
+        let live = CompactionLogic.context(messages: Self.turns(of: thread).filter { $0.id != replyID }, compaction: thread.compactions.last)
         // The plugins and files the user named with @, and the memories that match the question, are in this request only;
         // the saved message stays as typed.
         let recalled = memoryRecall(for: thread, model: model)
@@ -725,18 +733,20 @@ final class ChatViewModel {
         context.insert(assistant)
         assistant.thread = thread
         // The run is saved at its step boundaries (agent design 1.3, unit G2) and deleted when it ends.
-        let run = AgentRunRecord(threadID: thread.id, messageID: replyID, modelID: model.id)
+        let run = resuming?.run ?? AgentRunRecord(threadID: thread.id, messageID: replyID, modelID: model.id)
         context.insert(run)
         self.run = run
-        assistant.memoryUpdates = memory
-        assistant.memoryHits = recalled.map { MemoryHit(memoryID: $0.candidate.id, text: $0.candidate.text) }
+        if resuming == nil {
+            assistant.memoryUpdates = memory
+            assistant.memoryHits = recalled.map { MemoryHit(memoryID: $0.candidate.id, text: $0.candidate.text) }
+        }
         // Saved with the reply before anything streams, and cleared by `finish`: if the app is closed mid-reply, the marker
         // is what the chat finds after the next launch (agent design 1.3, unit G1). The chat ignores it while it streams.
         assistant.failure = ReplyFailure(kind: .interrupted, detail: String(localized: "The app closed while this reply was being written."))
         try? save(context)
         var params = settings.generationParams
         params.systemPrompt = prompt.systemPrompt
-        let autoPlan = automaticPlan(thread: thread, model: model, used: prompt.total, placeholder: assistant.id)
+        let autoPlan = resuming == nil ? automaticPlan(thread: thread, model: model, used: prompt.total, placeholder: assistant.id) : nil
         compactionNote = nil
         var host: (any ToolHost)?
         offlineToolNote = nil
@@ -751,14 +761,18 @@ final class ChatViewModel {
                 toolContext.memoryTools.append(ReadSkillTool(skills: offered))
                 toolContext.memoryTools.append(ProposeSkillTool(store: SkillProposalStore(context: context, reply: assistant)))
             }
-            host = toolHost(toolContext)
+            toolContext.approver = approver.map { recordingApprover($0, run: run, reply: assistant) }
+            let runID = run.id
+            host = toolHost(toolContext).map { base in
+                RunRecordingHost(base: base) { [weak self] text, calls in self?.noteRound(text, calls, runID: runID) }
+            }
             if skipsToolsOffline(toolContext) { offlineToolNote = OfflineLogic.toolNote }
         }
         let engine = registry.engine(for: model)
         let tools = host?.specs.isEmpty == false ? host : nil
         // A model without a tool loop gets a search run for it when its question needs the web.
         var grounding: (query: String, context: ToolContext)?
-        if toolsEnabled, tools == nil, WebGrounding.appliesTo(model.source), webSearch.isOn(model.source),
+        if toolsEnabled, resuming == nil, tools == nil, WebGrounding.appliesTo(model.source), webSearch.isOn(model.source),
             let question = thread.orderedMessages.last(where: { $0.role == .user })?.content,
             WebGrounding.needsFreshInfo(question) {
             var searchContext = Self.toolContext(for: thread, modelSource: model.source)
@@ -780,7 +794,7 @@ final class ChatViewModel {
         // Without a search the engine is asked now, as it always was; with one it is asked once the results are in.
         // A chat that is filling the window is shortened first, so the engine is asked once the summary is in.
         let earlyStream = groundingPlan == nil && autoPlan == nil
-            ? engine.stream(model: model, messages: history, params: params, tools: tools) : nil
+            ? Self.opening(engine, model: model, messages: history, params: params, tools: tools, resuming: resuming?.run, reply: assistant) : nil
         let task = Task { [weak self] in
             let stream: AsyncThrowingStream<ChatDelta, Error>
             if let earlyStream {
@@ -827,7 +841,7 @@ final class ChatViewModel {
                 thoughts.end(at: clock())
                 assistant.reasoning = thoughts.trace
             }
-            var checkpoint = AgentRunLogic.Checkpoint(node: .generate, round: 0)
+            var checkpoint = AgentRunLogic.Checkpoint(node: .generate, round: run.round)
             do {
                 for try await delta in stream {
                     // A chunk that was already buffered when the user pressed stop is dropped.
@@ -856,7 +870,8 @@ final class ChatViewModel {
                         if let text = pending.add(split.text, now: clock()) { assistant.content += text }
                     case .toolCall(let call):
                         endThoughts()
-                        assistant.toolSteps.append(ToolStep(call: call, result: nil, sourceID: tools?.sourceID(forTool: call.name)))
+                        let step = ToolStep(call: call, result: nil, sourceID: tools?.sourceID(forTool: call.name))
+                        assistant.toolSteps = AgentRunLogic.adding(step, to: assistant.toolSteps)
                     case .toolResult(let result): Self.fill(result, in: assistant)
                     case .usage(let prompt, let completion): tokens = (prompt, completion)
                     case .metadata(let metadata): reported = metadata
@@ -899,6 +914,75 @@ final class ChatViewModel {
         }
         self.task = task
         return task
+    }
+
+    /// The reply's stream: a new run, or one that goes on from where it stopped (agent design 1.3). The app's loop goes on
+    /// from its saved rounds; Apple's framework loop cannot be entered again, so it goes on as a new turn.
+    private static func opening(
+        _ engine: any ChatEngine, model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams,
+        tools: (any ToolHost)?, resuming run: AgentRunRecord?, reply: MessageRecord
+    ) -> AsyncThrowingStream<ChatDelta, Error> {
+        guard let run else { return engine.stream(model: model, messages: messages, params: params, tools: tools) }
+        let steps = reply.toolSteps
+        if let resumable = engine as? any ResumableEngine, let resume = AgentRunLogic.resume(run.state, steps: steps) {
+            return resumable.stream(model: model, messages: messages, params: params, tools: tools, resuming: resume)
+        }
+        return AgentLoop.continuing(
+            engine: engine, model: model, messages: messages, params: params, host: tools, text: reply.content,
+            done: steps.compactMap(\.result), calls: steps.filter { $0.result == nil }.map(\.call))
+    }
+
+    /// A run that waited for the user when the app closed goes on (agent design 1.3). The loop asks again for the waiting
+    /// call, so its card comes back on its step, and Allow or Deny continues the run from `act`.
+    private func resumeWaitingRun() {
+        guard let thread,
+            let run = (try? context.fetch(FetchDescriptor<AgentRunRecord>()))?
+                .first(where: { $0.threadID == thread.id && $0.status == .awaitingApproval }),
+            let reply = thread.messages.first(where: { $0.id == run.messageID }),
+            !LiveReplies.shared.ids.contains(reply.id),
+            let model = models.models.first(where: { $0.id == run.modelID })
+        else { return }
+        _ = startStream(model: model, thread: thread, resuming: (reply, run))
+    }
+
+    /// The approver for one run: the run is saved as waiting while the card is up, and the answer lands on the call's
+    /// step. An approved call that runs again after a relaunch is not asked again.
+    private func recordingApprover(_ base: any ToolApproving, run: AgentRunRecord, reply: MessageRecord) -> RunRecordingApprover {
+        let runID = run.id
+        return RunRecordingApprover(
+            base: base, decided: AgentRunLogic.decided(reply.toolSteps),
+            asking: { [weak self] request in self?.noteAsking(request, runID: runID) },
+            answered: { [weak self] request, decision in self?.noteAnswer(request, decision, runID: runID) })
+    }
+
+    /// The run of this reply, while it is still the one being written.
+    private func liveRun(_ id: UUID) -> AgentRunRecord? {
+        guard let run, run.id == id, !Self.isGone(run) else { return nil }
+        return run
+    }
+
+    private func noteRound(_ text: String, _ calls: [ToolCall], runID: UUID) {
+        guard let run = liveRun(runID) else { return }
+        run.state.rounds.append(AgentSavedRound(text: text, calls: calls))
+        try? save(context)
+    }
+
+    private func noteAsking(_ request: ToolApprovalRequest, runID: UUID) {
+        guard let run = liveRun(runID) else { return }
+        run.status = .awaitingApproval
+        run.node = .approve
+        run.state.sideEffects[request.call.id] = request.spec.sideEffect
+        run.updatedAt = Date()
+        try? save(context)
+    }
+
+    private func noteAnswer(_ request: ToolApprovalRequest, _ decision: ToolDecision, runID: UUID) {
+        guard let run = liveRun(runID), let reply = thread?.messages.first(where: { $0.id == run.messageID }) else { return }
+        reply.toolSteps = AgentRunLogic.approving(request.call, decision, in: reply.toolSteps)
+        run.status = .running
+        run.node = .act
+        run.updatedAt = Date()
+        try? save(context)
     }
 
     /// The chat as a model reads it: each reply that used tools ends with its tool digest (agent design 3.4).

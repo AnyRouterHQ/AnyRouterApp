@@ -13,4 +13,7 @@ struct ToolContext: Sendable {
     var forcedSourceIDs: Set<String> = []
     /// The chat's memory tools (`memory`, `search_chats`): set by the chat for a cloud model while memory is on.
     var memoryTools: [any BuiltInTool] = []
+    /// What the tools ask before a call that needs approval: set by the chat, which saves the run while the user decides.
+    /// Nil leaves the app's own approver.
+    var approver: (any ToolApproving)?
 }
