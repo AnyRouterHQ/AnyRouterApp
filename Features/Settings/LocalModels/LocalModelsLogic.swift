@@ -39,14 +39,6 @@ enum LocalModelsLogic {
         return Array(picks) + tries
     }
 
-    /// "GGUF · 4B · Q4_K_M · 2.5 GB": what the file is, without the memory estimate that the reason already gives.
-    static func fileLine(_ entry: LocalModelEntry) -> String {
-        var parts = [HubListOptions.engineName(entry.descriptor.source)]
-        parts += [entry.parameters, entry.quantization].compactMap { $0 }
-        if let size = HubLogic.sizeText(entry.descriptor.sizeBytes) { parts.append(size) }
-        return parts.joined(separator: " · ")
-    }
-
     /// One sentence for the Delete All Models confirmation.
     static func deleteAllMessage(_ storage: Storage, device: String) -> String {
         let noun = storage.modelCount == 1 ? "model" : "models"

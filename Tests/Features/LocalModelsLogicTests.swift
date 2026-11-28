@@ -83,12 +83,6 @@ struct LocalModelsLogicTests {
 
     // MARK: Row text
 
-    @Test func fileLineShowsFormatSizeAndQuantizationButNotTheMemoryEstimate() {
-        let full = entry("a", size: 2_500_000_000, detail: wontFit(), params: "4B", quant: "Q4_K_M")
-        #expect(LocalModelsLogic.fileLine(full) == "GGUF · 4B · Q4_K_M · 2.5 GB")
-        #expect(LocalModelsLogic.fileLine(entry("b", size: nil, source: .mlx)) == "MLX")
-    }
-
     @Test func appleStatusIsReadyOrSaysWhyNot() {
         var apple = testModel(id: "apple/foundation", source: .apple)
         #expect(LocalModelsLogic.appleStatus(apple) == "Available · Built in")
