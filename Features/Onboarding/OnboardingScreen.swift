@@ -41,6 +41,7 @@ struct OnboardingScreen: View {
                             }
                         }
                         .frame(maxWidth: .infinity)
+                        .prominentLabel()
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
