@@ -31,7 +31,9 @@ final class SkillsSettingsTests: XCTestCase {
         let app = openSkills()
         let bundled = app.descendants(matching: .any).matching(identifier: "settings.skills.bundled")
         XCTAssertTrue(bundled.firstMatch.waitForExistence(timeout: 5), "the built-in skills show")
-        XCTAssertEqual(bundled.count, 3, "three skills ship with the app")
+        // Each row answers to its identifier on a few nested elements (verify-ui 46121182428 counted 9), so count the names.
+        let names = Set(bundled.allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty })
+        XCTAssertEqual(names.count, 3, "three skills ship with the app: \(names)")
         XCTAssertTrue(app.descendants(matching: .any)["settings.skills.empty"].exists, "no skills of the user's own yet")
 
         let importButton = app.buttons["settings.skills.import"]

@@ -20,7 +20,7 @@ final class AskCloudTests: XCTestCase {
         XCTAssertTrue(app.buttons["reply-failure.shortenChat"].exists, "Shorten chat stays the first fix")
         ask.tap()
 
-        let confirm = app.buttons["reply.askCloud.confirm"]
+        let confirm = app.buttons["reply.askCloud.confirm"].firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 5), "a notice comes first")
         let notice = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "AnyRouter")).firstMatch
         XCTAssertTrue(notice.exists, "the notice says where the chat goes")
