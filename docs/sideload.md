@@ -27,7 +27,7 @@ Inkling 2 Mini (1-bit) is a 6.9 GB file. How it runs depends on what the signing
 
 | Signing | Memory limit | Address space | What the fit check plans for Inkling |
 |---|---|---|---|
-| Free Apple ID (Sideloadly, AltStore, SideStore) | Standard, about 3.5 GB (read on an iPhone 18 Pro). Some tools keep the increased limit, SideStore drops it. | Standard, about 7.4 GiB (computed from the kernel source, not measured) | Streamed from storage: CPU only, 4,096-token context. Not Available if the file is bigger than the largest file it can open. |
+| Free Apple ID (Sideloadly, AltStore, SideStore) | Standard, about 3.5 GB (read on an iPhone 18 Pro). Some tools keep the increased limit, SideStore drops it. | Standard, about 7.4 GiB (computed from the kernel source, not measured) | Streamed from storage: CPU only, 8,192-token context. Not Available if the file is bigger than the largest file it can open. |
 | Paid team: Xcode, or a re-signer that keeps the entitlements of the `AnyRouter-debug-adhoc` IPA | Increased, about 8 GB | Extended | In memory, 8,192-token context, very little room to spare |
 | TestFlight | Increased | Extended | Same as a paid team |
 

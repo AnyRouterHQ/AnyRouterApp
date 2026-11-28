@@ -150,9 +150,9 @@ struct FitPlannerTests {
     }
 
     @Test func aMixtureOfExpertsFileThatLeavesOnlyAShortContextStreamsInsteadForALongerOne() {
-        // 8 GB: the whole file fits, but with only 2,048 tokens. Streaming the active experts allows the preferred 4,096.
+        // 8 GB: the whole file fits, but with only 2,048 tokens. Streaming the active experts holds the full 8,192.
         let estimate = FitPlanner.estimate(moe, memory: memory(8))
-        #expect(estimate.verdict == .streamed(maxContext: 4096, maxReply: 512))
+        #expect(estimate.verdict == .streamed(maxContext: 8192, maxReply: 512))
         #expect(estimate.streamsFromStorage)
     }
 
@@ -166,7 +166,7 @@ struct FitPlannerTests {
     @Test func aMixtureOfExpertsFileLargerThanMemoryRunsFromMmapOnItsActiveExperts() {
         for gigabytes in [3.0, 4.5, 6] {
             let estimate = FitPlanner.estimate(moe, memory: memory(gigabytes))
-            #expect(estimate.verdict == .streamed(maxContext: 4096, maxReply: 512), "\(gigabytes) GB")
+            #expect(estimate.verdict == .streamed(maxContext: 8192, maxReply: 512), "\(gigabytes) GB")
             #expect(estimate.streamsFromStorage)
             #expect(estimate.totalBytes > estimate.deviceBudgetBytes, "the file alone does not fit; only the active experts are resident")
         }

@@ -61,7 +61,7 @@ struct SettingsLogicTests {
         func verdict(_ memory: DeviceMemory) -> String { SettingsLogic.fitVerdict(FitPlanner.estimate(inkling, memory: memory)) }
         #expect(verdict(DeviceClass.gb16.memory(.increased)) == "Runs in memory · 8,192 tokens")
         #expect(verdict(DeviceClass.gb12.memory(.increased)) == "Runs in memory, tight · 8,192 tokens")
-        #expect(verdict(DeviceClass.gb12.memory(.standard)) == "Streams from storage · 4,096 tokens")
+        #expect(verdict(DeviceClass.gb12.memory(.standard)) == "Streams from storage · 8,192 tokens")
         #expect(verdict(DeviceClass.gb8.memory(.standard)) == "Not available · needs 12 GB of RAM")
         var cramped = DeviceClass.gb12.memory(.standard)
         cramped.mappableBytes = 4_000_000_000

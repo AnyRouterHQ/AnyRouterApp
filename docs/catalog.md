@@ -87,7 +87,7 @@ A mixture-of-experts file too big for the app's memory limit can still run from 
 resident, the rest is read from storage through the page cache. `FitPlanner` calls this `.streamed`. It needs a device
 whose RAM holds the whole file plus about 4 GB for iOS and other apps (`FitPlanner.streamingSystemBytes`), so a 6.9 GB
 file needs a 12 GB iPhone; below that, Local Models > Not Available says "Needs an iPhone with 12 GB of memory." A streamed
-model loads with a 4,096-token context, mmap on, no mlock, and every layer on the CPU (Metal would map the whole file into
+model loads with the largest context the measured budget holds (up to 8,192 tokens, the chat window), mmap on, no mlock, and every layer on the CPU (Metal would map the whole file into
 GPU buffers that count against the app). Replies are slow: give the size a `sampling.maxOutputTokens` cap.
 
 ## Photos

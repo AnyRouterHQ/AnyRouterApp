@@ -24,15 +24,32 @@ struct StreamedFitTests {
         }
     }
 
-    @Test func fromTwelveGigabytesInklingStreamsWithAFourThousandTokenContext() {
+    @Test func fromTwelveGigabytesInklingStreamsWithTheFullContextTheChatWindowAssumes() {
         let cases: [(DeviceClass, MemoryLimitKind)] = [(.gb12, .standard), (.gb16, .standard)]
         for (deviceClass, kind) in cases {
             let estimate = FitPlanner.estimate(inkling, memory: deviceClass.memory(kind))
-            #expect(estimate.verdict == .streamed(maxContext: 4096, maxReply: 512), "\(deviceClass.rawValue) GB \(kind)")
+            #expect(estimate.verdict == .streamed(maxContext: 8192, maxReply: 512), "\(deviceClass.rawValue) GB \(kind)")
             #expect(estimate.streamsFromStorage)
             #expect(estimate.streamsOn == nil)
-            #expect(FitPlanner.pickContext(inkling, memory: deviceClass.memory(kind)) == 4096)
+            #expect(FitPlanner.pickContext(inkling, memory: deviceClass.memory(kind)) == 8192)
         }
+    }
+
+    @Test func aRealTwelveGigabytePhoneReadingStreamsInklingInsteadOfRefusingIt() {
+        // What the system reports on an iPhone 18 Pro with the standard limit: RAM a little under 12 GB, 3.5 GB limit
+        // minus the app's own use, and an address space that holds the 6.4 GiB file (7.4 GiB largest mapping).
+        let memory = DeviceMemory(budgetBytes: 3_200_000_000, physicalBytes: 11_500_000_000, mappableBytes: 7_946_000_000)
+        let estimate = FitPlanner.estimate(inkling, memory: memory)
+        #expect(estimate.verdict == .streamed(maxContext: 8192, maxReply: 512))
+        #expect(!estimate.cannotMap)
+    }
+
+    @Test func theStreamedContextIsTheWindowTheChatCompactsAgainst() {
+        let model = ModelDescriptor(
+            id: "inkling", source: .gguf, displayName: "Inkling", contextLength: 1_048_576, capabilities: ["chat"],
+            sizeBytes: nil, isInstalled: true)
+        let planned = FitPlanner.pickContext(inkling, memory: DeviceClass.gb12.memory(.standard))
+        #expect(planned == CompactionLogic.window(for: model), "a smaller loaded context would trim the prompt before compaction runs")
     }
 
     @Test func aTwelveGigabytePhoneWithTheIncreasedLimitHoldsTheFileInMemory() {

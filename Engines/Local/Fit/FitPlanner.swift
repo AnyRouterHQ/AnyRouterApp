@@ -150,11 +150,12 @@ enum FitPlanner {
         let inMemory = largestContext(profile, resident: profile.residentBytes, limit: budget, cap: cap)
         // A mixture-of-experts model can also run from mmap: only the experts in use are resident, the rest is paged in
         // from storage (slower). It wins when the whole file would leave less than the preferred context. Its context
-        // stays at the preferred size: every prompt token also reads experts from storage.
+        // is the largest the measured budget holds, up to the same cap as an in-memory model: the chat window
+        // (`CompactionLogic.window`) is that cap, so a smaller streamed context would overflow before a chat compacts.
         if profile.activeFraction != nil, (inMemory ?? 0) < preferred {
             let needed = streamingClass(profile)
             let capable = needed.map { DeviceClass.nearest(physicalBytes: memory.physicalBytes).rawValue >= $0.rawValue } ?? false
-            if capable, let streamed = largestContext(profile, resident: profile.activeBytes, limit: budget, cap: preferred),
+            if capable, let streamed = largestContext(profile, resident: profile.activeBytes, limit: budget, cap: cap),
                streamed > (inMemory ?? 0) {
                 return make(.streamed(maxContext: streamed, maxReply: maxReply(forContext: streamed)), context: streamed)
             }
