@@ -151,18 +151,18 @@ struct FamilyLogicTests {
 
     @Test func theRecommendedSizeGrowsWithTheDevicesMemory() throws {
         // A sideloaded install has the standard limit.
-        #expect(try recommended(.gb4, .standard) == ["gemma-4": "none", "qwen-3-5": "none", "inkling-2": "none", "lfm-3-vl": "none", "lfm-3": "none"])
-        #expect(try recommended(.gb6, .standard) == ["gemma-4": "none", "qwen-3-5": "0.8B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf"])
-        #expect(try recommended(.gb8, .standard) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf"])
-        #expect(try recommended(.gb12, .standard) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf"])
-        #expect(try recommended(.gb16, .standard) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf"])
+        #expect(try recommended(.gb4, .standard) == ["gemma-4": "none", "qwen-3-5": "none", "inkling-2": "none", "lfm-3-vl": "none", "lfm-3": "none", "minicpm-5": "none"])
+        #expect(try recommended(.gb6, .standard) == ["gemma-4": "none", "qwen-3-5": "0.8B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf", "minicpm-5": "none"])
+        #expect(try recommended(.gb8, .standard) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf", "minicpm-5": "2B/gguf"])
+        #expect(try recommended(.gb12, .standard) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf", "minicpm-5": "2B/gguf"])
+        #expect(try recommended(.gb16, .standard) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf", "minicpm-5": "2B/gguf"])
         // Inkling 2 Mini (experimental, 26B 1-bit) runs well only on 16 GB with the increased limit; elsewhere it streams or is tight.
         // TestFlight and App Store builds have the increased limit.
-        #expect(try recommended(.gb4, .increased) == ["gemma-4": "none", "qwen-3-5": "0.8B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf"])
-        #expect(try recommended(.gb6, .increased) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf"])
-        #expect(try recommended(.gb8, .increased) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf"])
-        #expect(try recommended(.gb12, .increased) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf"])
-        #expect(try recommended(.gb16, .increased) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf", "inkling-2": "26B/gguf", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf"])
+        #expect(try recommended(.gb4, .increased) == ["gemma-4": "none", "qwen-3-5": "0.8B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf", "minicpm-5": "none"])
+        #expect(try recommended(.gb6, .increased) == ["gemma-4": "E2B/gguf", "qwen-3-5": "2B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf", "minicpm-5": "2B/gguf"])
+        #expect(try recommended(.gb8, .increased) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf", "minicpm-5": "2B/gguf"])
+        #expect(try recommended(.gb12, .increased) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf", "inkling-2": "none", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf", "minicpm-5": "2B/gguf"])
+        #expect(try recommended(.gb16, .increased) == ["gemma-4": "E4B/gguf", "qwen-3-5": "4B/gguf", "inkling-2": "26B/gguf", "lfm-3-vl": "2B/gguf", "lfm-3": "1.7B/gguf", "minicpm-5": "2B/gguf"])
     }
 
     // MARK: Short list
@@ -187,9 +187,9 @@ struct FamilyLogicTests {
             }
         }
         #expect(try lead(.gb4, .increased) == ["LFM 3 VL/2B/gguf", "LFM 3/1.7B/gguf", "Qwen 3.5/0.8B/gguf"])
-        #expect(try lead(.gb6, .increased) == ["Gemma 4/E2B/gguf", "Qwen 3.5/2B/gguf", "LFM 3 VL/2B/gguf", "LFM 3/1.7B/gguf"])
-        #expect(try lead(.gb8, .increased) == ["Gemma 4/E4B/gguf", "Qwen 3.5/4B/gguf", "LFM 3 VL/2B/gguf", "LFM 3/1.7B/gguf"])
-        #expect(try lead(.gb12, .standard) == ["Gemma 4/E2B/gguf", "Qwen 3.5/2B/gguf", "LFM 3 VL/2B/gguf", "LFM 3/1.7B/gguf"])
+        #expect(try lead(.gb6, .increased) == ["Gemma 4/E2B/gguf", "MiniCPM 5/2B/gguf", "Qwen 3.5/2B/gguf", "LFM 3 VL/2B/gguf", "LFM 3/1.7B/gguf"])
+        #expect(try lead(.gb8, .increased) == ["Gemma 4/E4B/gguf", "Qwen 3.5/4B/gguf", "MiniCPM 5/2B/gguf", "LFM 3 VL/2B/gguf", "LFM 3/1.7B/gguf"])
+        #expect(try lead(.gb12, .standard) == ["Gemma 4/E2B/gguf", "MiniCPM 5/2B/gguf", "Qwen 3.5/2B/gguf", "LFM 3 VL/2B/gguf", "LFM 3/1.7B/gguf"])
         #expect(try lead(.gb4, .standard).isEmpty)
     }
 

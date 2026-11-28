@@ -570,6 +570,46 @@
           "updatedAt": "2026-11-28"
         }
       ]
+    },
+    {
+      "id": "minicpm-5",
+      "name": "MiniCPM 5",
+      "publisher": "OpenBMB",
+      "line": "minicpm",
+      "logo": "minicpm",
+      "summary": "OpenBMB's small models for English and Chinese chat, code, math and step-by-step problems. They think before they answer.",
+      "website": "https://huggingface.co/openbmb/MiniCPM5-2B",
+      "tags": [
+        "thinking",
+        "code",
+        "multilingual",
+        "mobile"
+      ],
+      "badges": [
+        "new"
+      ],
+      "status": "current",
+      "order": 8,
+      "variants": [
+        {
+          "repo": "openbmb/MiniCPM5-2B-GGUF",
+          "engine": "gguf",
+          "file": "MiniCPM5-2B-Q4_K_M.gguf",
+          "params": "2B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 1561318368,
+          "contextLength": 131072,
+          "license": "apache-2.0",
+          "revision": "8ad02b786ab81e33d465e1c80562640c55ab2877",
+          "sha256": "ec2d5801640099e97d8d7e8003ad4d81f336e757811f03a26173dddf386602fd",
+          "memory": {
+            "fullKVBytesPerToken": 43008,
+            "lazyWeightBytes": 150405120
+          },
+          "createdAt": "2026-11-28",
+          "updatedAt": "2026-11-28"
+        }
+      ]
     }
   ]
 }
