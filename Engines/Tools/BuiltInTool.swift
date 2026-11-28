@@ -16,6 +16,8 @@ protocol BuiltInTool: Sendable {
     var sideEffect: ToolSideEffect { get }
     /// A write that runs without asking because the reply shows what it changed with Undo.
     var undoesInsteadOfAsking: Bool { get }
+    /// The source a reply shows for a call: this device, unless the tool sends its work to a service.
+    var sourceID: String { get }
     func run(_ arguments: JSONValue) async throws -> String
 }
 
@@ -23,6 +25,7 @@ extension BuiltInTool {
     var needsNetwork: Bool { false }
     var sideEffect: ToolSideEffect { .read }
     var undoesInsteadOfAsking: Bool { false }
+    var sourceID: String { ToolSourceCatalog.device.id }
 
     var spec: ToolSpec {
         ToolSpec(name: name, title: title, description: description, inputSchemaJSON: inputSchemaJSON, sideEffect: sideEffect)

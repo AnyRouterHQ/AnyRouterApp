@@ -172,6 +172,7 @@ final class AppState {
         let anyRouter = auth.makeEngine()
         registry.register(anyRouter)
         decisions = DecisionsStore(service: AnyRouterDecisionsAdapter(engine: anyRouter))
+        tools.decisions = AnyRouterDecisionsAdapter(engine: anyRouter)
         cloudOCR = { AnyRouterOCRReader(engine: anyRouter, filename: $0) }
         account = accountAdapter
         let hubSignpost = Perf.signposter.beginInterval("launch.hub")

@@ -31,6 +31,8 @@ final class ToolRegistry {
     private let builtIns: [any BuiltInTool]
     /// Where the chat's photos are stored, for `ocr_image`.
     private let attachmentStore: AttachmentStore
+    /// The Decisions service behind the `decide` tool. Set once the AnyRouter engine exists.
+    @ObservationIgnored var decisions: (any DecisionsService)?
     @ObservationIgnored private let defaults: UserDefaults
     private(set) var disabledBuiltIns: Set<String>
     /// What the user chose per source. A source with no entry follows its default.
@@ -254,6 +256,10 @@ final class ToolRegistry {
         }
         // Memory is not a plugin the user switches on here: the chat adds its tools when memory is on for it.
         if context.forcedSourceIDs.isEmpty { builtIns += context.memoryTools }
+        // Like memory, `decide` is not switched on here: a cloud chat gets it with the Decisions service.
+        if context.forcedSourceIDs.isEmpty, context.modelSource == .anyrouter, let decisions {
+            builtIns.append(DecideTool(service: decisions))
+        }
         return HostPlan(match: match, scrape: scrape, builtIns: builtIns, mcpTools: mcpTools)
     }
 

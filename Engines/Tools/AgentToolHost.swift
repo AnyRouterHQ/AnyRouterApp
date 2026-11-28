@@ -54,7 +54,7 @@ struct AgentToolHost: ToolHost {
     }
 
     func sourceID(forTool name: String) -> String? {
-        if builtIns[name] != nil { return ToolSourceCatalog.device.id }
+        if let tool = builtIns[name] { return tool.sourceID }
         if search != nil, name == WebSearchBinding.name { return ToolSourceCatalog.anyRouter.id }
         return mcp?.sourceID(forTool: name)
     }
@@ -92,7 +92,7 @@ struct AgentToolHost: ToolHost {
         } else {
             return nil
         }
-        let onDevice = builtIns[call.name] != nil && !(call.name == FetchURLTool.toolName && fetch != nil)
+        let onDevice = builtIns[call.name]?.sourceID == ToolSourceCatalog.device.id && !(call.name == FetchURLTool.toolName && fetch != nil)
         return ToolApprovalRequest(
             serverName: onDevice ? "This device" : (mcp?.serverName(for: call.name) ?? "AnyRouter"), spec: spec, call: call, reason: reason, urls: urls)
     }
