@@ -13,13 +13,16 @@ final class VoiceDownloadTests: XCTestCase {
         app.descendants(matching: .any)[id]
     }
 
-    private func scrollUntilHittable(_ element: XCUIElement, in app: XCUIApplication) {
+    /// Drags inside the page under `bar`: on iPad Settings is a form sheet, and a swipe at the app's center lands
+    /// beside it, so nothing scrolled (verify-ui 46083174976 failed here on both iPads).
+    private func scrollUntilHittable(_ element: XCUIElement, under bar: XCUIElement) {
         var tries = 0
         while !element.isHittable && tries < 8 {
-            app.swipeUp()
+            let start = bar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).withOffset(CGVector(dx: 0, dy: 450))
+            start.press(forDuration: 0.01, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -300)))
             tries += 1
         }
-        XCTAssertTrue(element.isHittable)
+        XCTAssertTrue(element.isHittable, "\(element.identifier) is reachable on the page")
     }
 
     func testDownloadContinuesInTheBackgroundAndTheChatStaysUsable() throws {
@@ -57,7 +60,7 @@ final class VoiceDownloadTests: XCTestCase {
         models.tap()
         let link = app.buttons["local.voice"]
         XCTAssertTrue(link.waitForExistence(timeout: 10))
-        scrollUntilHittable(link, in: app)
+        scrollUntilHittable(link, under: app.navigationBars["Local Models"])
         link.tap()
         XCTAssertTrue(app.navigationBars["Voice"].waitForExistence(timeout: 10))
         let progress = app.progressIndicators.matching(NSPredicate(format: "label BEGINSWITH %@", "Downloading")).firstMatch
