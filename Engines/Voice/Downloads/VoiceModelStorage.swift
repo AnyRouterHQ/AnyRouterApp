@@ -59,6 +59,23 @@ struct VoiceModelStorage: Sendable {
         try? FileManager.default.removeItem(at: downloadingURL(id))
     }
 
+    /// A failed download keeps its record while it has verified files: the marker stays and holds the message, so the
+    /// launch clean-up leaves the files for Try Again (or Delete), and `restore` shows it failed instead of starting it.
+    /// With nothing kept there is nothing to save, and the record goes.
+    func keepFailure(_ id: String, message: String) {
+        guard FileManager.default.fileExists(atPath: base.partialDirectory(forEntryID: id).path) else {
+            clearDownloading(id)
+            return
+        }
+        try? Data(message.utf8).write(to: downloadingURL(id))
+    }
+
+    /// The message a failed download left in its record, nil while it is a plain "downloading" marker or there is none.
+    func failure(_ id: String) -> String? {
+        guard let data = try? Data(contentsOf: downloadingURL(id)), !data.isEmpty else { return nil }
+        return String(decoding: data, as: UTF8.self)
+    }
+
     func isInstalled(_ id: String) -> Bool {
         FileManager.default.fileExists(atPath: manifestURL(id).path)
     }

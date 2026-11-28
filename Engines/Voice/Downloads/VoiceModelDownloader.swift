@@ -98,9 +98,12 @@ final class VoiceModelDownloader {
         return Task { await run(model) }
     }
 
-    /// Takes up the downloads that were running when the app went away: the models with a `.downloading` marker.
+    /// Takes up the downloads that were running when the app went away: the models with a `.downloading` marker. One that
+    /// had failed stays failed, its verified files kept for Try Again.
     func restore(_ models: [VoiceModel]) {
-        for model in models where !model.isSystem && storage.isDownloading(model.id) { start(model) }
+        for model in models where !model.isSystem && storage.isDownloading(model.id) {
+            if let failure = storage.failure(model.id) { states[model.id] = .failed(failure) } else { start(model) }
+        }
     }
 
     /// Stops the download and throws away what was fetched.
@@ -246,7 +249,7 @@ final class VoiceModelDownloader {
         guard jobs[id] != nil || states[id]?.isActive == true else { return }
         jobs[id] = nil
         apply(.fail(message), to: id)
-        storage.clearDownloading(id)
+        storage.keepFailure(id, message: message)
         Task { [transport] in await transport.cancel(modelID: id) }
         onFinished?(id, .failed)
         ends.removeValue(forKey: id)?.resume()

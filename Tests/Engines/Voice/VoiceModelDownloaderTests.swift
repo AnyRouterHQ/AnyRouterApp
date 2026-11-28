@@ -58,8 +58,11 @@ struct VoiceModelDownloaderTests {
         }
         #expect(message.contains("two.bin"))
         #expect(!downloader.storage.isInstalled(model.id))
-        #expect(!downloader.storage.isDownloading(model.id), "a failed download is not taken up again by itself")
+        #expect(downloader.storage.failure(model.id)?.contains("two.bin") == true, "the record keeps the verified file")
         #expect(transport.enqueued.count == 2)
+        downloader.restore([model])
+        #expect(transport.enqueued.count == 2, "a failed download is not taken up again by itself after a relaunch")
+        #expect(downloader.state(for: model) == .failed(message))
         transport.serve(second, world)
         await downloader.start(model)?.value
         #expect(downloader.state(for: model) == .installed)

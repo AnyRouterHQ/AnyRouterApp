@@ -45,6 +45,31 @@ struct VoiceStorageFolderTests {
         #expect(storage.removeLeftovers(running: ["live"]).isEmpty, "a second run finds nothing")
     }
 
+    /// A failed download keeps its record and its verified files, so the clean-up never costs the user the download
+    /// again. Once the record goes (Cancel, Delete), the clean-up removes what is left.
+    @Test func aFailedDownloadKeepsItsFilesUntilItsRecordGoes() throws {
+        let storage = makeStorage()
+        try storage.prepareRoot()
+        try storage.markDownloading("kokoro")
+        try leavePartial(storage, id: "kokoro")
+        storage.keepFailure("kokoro", message: "The network connection was lost.")
+        #expect(storage.failure("kokoro") == "The network connection was lost.")
+        #expect(storage.folders().first?.hasJob == true, "it shows under Unfinished downloads")
+        #expect(storage.removeLeftovers(running: []).isEmpty, "the clean-up keeps a failed download's files")
+
+        storage.clearDownloading("kokoro")
+        #expect(storage.removeLeftovers(running: []) == ["kokoro"], "without its record it is a leftover")
+    }
+
+    @Test func aFailureWithNothingVerifiedKeepsNoRecord() throws {
+        let storage = makeStorage()
+        try storage.markDownloading("tiny")
+        storage.keepFailure("tiny", message: "Not enough space.")
+        #expect(!storage.isDownloading("tiny") && storage.failure("tiny") == nil)
+        try storage.markDownloading("tiny")
+        #expect(storage.failure("tiny") == nil, "a new attempt is a plain downloading marker again")
+    }
+
     @Test func aFolderTheCatalogDoesNotNameIsDeletedByName() throws {
         let storage = makeStorage()
         try leavePartial(storage, id: "gone")
