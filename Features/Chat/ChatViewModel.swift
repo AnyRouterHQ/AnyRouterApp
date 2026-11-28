@@ -711,9 +711,11 @@ final class ChatViewModel {
         let instructions = InstructionsLogic.effective(chat: chatInstructions, global: settings.systemPrompt)
         let profile = memoryProfile(for: thread, model: model)
         let recallBlock = MemoryRecallLogic.block(recalled)
-        // Cloud models with tools get the skills index and `read_skill` (agent design 4, unit K1).
+        // Cloud models with tools get the skills index and `read_skill` (agent design 4, units K1 and K2): the bundled skills
+        // and the ones the user owns and switched on.
         let offersSkills = model.source == .anyrouter && toolsEnabled && mentions.isEmpty && model.capabilities.contains("tools")
-        let skills = offersSkills ? SkillLogic.index(SkillLogic.bundled, budget: PromptBudget.forModel(model).skills) : nil
+        let offered = offersSkills ? SkillLibraryLogic.active(try? SkillStore(context: context).enabledSkills()) : []
+        let skills = offersSkills ? SkillLogic.index(offered, budget: PromptBudget.forModel(model).skills) : nil
         let prompt = PromptAssembler.assemble(
             instructions: instructions, profile: profile, skills: skills, summary: live.summary,
             turns: ComposerMention.applying(mentions, to: live.messages), context: recallBlock)
@@ -743,7 +745,7 @@ final class ChatViewModel {
             if model.source == .anyrouter, settings.useMemory, !thread.memoryOff {
                 toolContext.memoryTools = ChatMemoryTools(context: context, thread: thread, reply: assistant, settings: settings).tools
             }
-            if offersSkills { toolContext.memoryTools.append(ReadSkillTool(skills: SkillLogic.bundled)) }
+            if offersSkills { toolContext.memoryTools.append(ReadSkillTool(skills: offered)) }
             host = toolHost(toolContext)
             if skipsToolsOffline(toolContext) { offlineToolNote = OfflineLogic.toolNote }
         }
