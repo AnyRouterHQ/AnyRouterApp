@@ -46,7 +46,6 @@ struct ReplyFailureLogicTests {
     }
 
     @Test func onDeviceModelsTellMemoryFromALoadFailure() {
-        #expect(kind(GGUFError.wontFit(name: "m", neededBytes: 9, availableBytes: 1)) == .localOutOfMemory)
         #expect(kind(GGUFError.imagesWontFit(name: "m", neededBytes: 9, availableBytes: 1)) == .localOutOfMemory)
         #expect(kind(GGUFError.contextFailed) == .localOutOfMemory)
         #expect(kind(GGUFError.loadFailed(name: "m", reason: nil)) == .localLoadFailed)

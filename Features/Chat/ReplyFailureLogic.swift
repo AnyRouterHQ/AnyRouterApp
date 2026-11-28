@@ -162,7 +162,7 @@ enum ReplyFailureLogic {
 
     private static func kind(of error: GGUFError) -> ReplyFailure.Kind {
         switch error {
-        case .wontFit, .imagesWontFit, .contextFailed: .localOutOfMemory
+        case .imagesWontFit, .contextFailed: .localOutOfMemory
         case .loadFailed, .modelNotInstalled, .projectorLoadFailed: .localLoadFailed
         case .promptTooLong: .contextTooLong
         case .imagesNotSupported: .modelUnavailable

@@ -48,32 +48,22 @@ final class LlamaModel: @unchecked Sendable {
         let fileBytes = ((try? FileManager.default.attributesOfItem(atPath: path)[.size]) as? NSNumber)?.int64Value ?? 0
         let info = try? GGUFHeader.read(fileAt: URL(fileURLWithPath: path))
         let profile = info?.profile(fileBytes: fileBytes) ?? .estimated(fileBytes: fileBytes, trainedContext: 0)
-        // Measured after the backend started: llama.cpp maps the whole file in one piece, so what one mapping can take decides.
-        let memory = DeviceMemory.current(mappable: true)
-        let estimate = FitPlanner.estimate(profile, memory: memory)
-        // Refused here, before llama.cpp opens the file, with the reason. mappableBytes is nil on the Simulator.
-        if estimate.cannotMap, let mappable = memory.mappableBytes {
-            throw GGUFMappingError(name: name, fileBytes: fileBytes, mappableBytes: mappable)
-        }
-        var planned = estimate.context
-        #if targetEnvironment(simulator)
-        // The Simulator is not limited like a phone, and has no Metal GPU family llama.cpp can use.
-        if estimate.verdict == .wontFit { planned = min(max(profile.trainedContext, FitPlanner.minContext), 4096) }
-        #else
-        if estimate.verdict == .wontFit {
-            throw GGUFError.wontFit(name: name, neededBytes: estimate.totalBytes, availableBytes: estimate.deviceBudgetBytes)
-        }
-        #endif
+        // The estimate plans the load; it never refuses one. It is a guess and the phone is the evidence: the operator ran
+        // a model it called too big. llama.cpp tries, and a failure names its own cause (LlamaLoadLog: "mmap failed: …").
+        // The address-space probe is not used here: Diagnostics shows it.
+        let planning = LlamaLoadPlan.make(FitPlanner.estimate(profile, memory: DeviceMemory.current()), profile: profile)
+        let planned = planning.context
+        let streams = planning.streamsFromStorage
         var params = llama_model_default_params()
         // Weights are mapped from the file, not copied: pages are loaded on demand and can be dropped under pressure.
         // That is what lets a mixture-of-experts file larger than RAM run. Never mlock: the system must be able to evict.
         params.load_mode = LLAMA_LOAD_MODE_MMAP
         #if targetEnvironment(simulator)
         params.n_gpu_layers = 0
-        let plan = "Simulator, CPU only"
+        let plan = streams ? "Simulator, CPU only (streamed on a phone)" : "Simulator, CPU only"
         #else
         let plan: String
-        if estimate.streamsFromStorage {
+        if streams {
             // A streamed model runs on the CPU alone, so only the experts in use are resident. Zero GPU layers is not
             // enough: with the Metal device in the list, llama.cpp still sends long prompts' matrix work to the GPU,
             // which copies weights into memory the system charges to the app. No GPU device (single-device mode with
@@ -106,7 +96,7 @@ final class LlamaModel: @unchecked Sendable {
         self.profile = profile
         self.trainedContext = Int(llama_model_n_ctx_train(model))
         self.contextSize = planned
-        self.loadPlan = "\(plan), \(planned)-token context"
+        self.loadPlan = "\(plan), \(planned)-token context" + (planning.doubted ? ", loaded although the fit estimate doubted it" : "")
         self.bosText = Self.specialPiece(llama_vocab_bos(vocab), vocab: vocab)
         self.eosText = Self.specialPiece(llama_vocab_eos(vocab), vocab: vocab)
         let template = llama_model_chat_template(model, nil).map { String(cString: $0) }
