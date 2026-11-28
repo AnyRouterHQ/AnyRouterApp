@@ -6,8 +6,8 @@ import XCTest
 final class AskCloudTests: XCTestCase {
     func testATooLongDeviceReplyOffersACloudModelBehindANotice() {
         let app = XCUIApplication()
-        // The 4-message demo thread opens on Apple's model; every reply fails as too long for the window.
-        app.launchArguments = ["-ARDemoData", "YES", "-ARDemoLongThread", "4", "-ARDemoFail", "contextTooLong"]
+        // The 4-message demo thread opens on Apple's model; every reply fails because the model cannot load.
+        app.launchArguments = ["-ARDemoData", "YES", "-ARDemoLongThread", "4", "-ARDemoFail", "localLoadFailed"]
         app.launch()
         let input = app.element(UITestIDs.composerInput)
         XCTAssertTrue(input.waitForExistence(timeout: 20))
@@ -16,8 +16,8 @@ final class AskCloudTests: XCTestCase {
         app.buttons["Send"].tap()
 
         let ask = app.buttons["reply-failure.askCloudModel"]
-        XCTAssertTrue(ask.waitForExistence(timeout: 30), "a device reply that did not fit offers a cloud model")
-        XCTAssertTrue(app.buttons["reply-failure.shortenChat"].exists, "Shorten chat stays the first fix")
+        XCTAssertTrue(ask.waitForExistence(timeout: 30), "a device model that cannot load leads with a cloud model")
+        XCTAssertFalse(app.buttons["reply-failure.openSettings"].exists, "Open Local Models waits under More")
         ask.tap()
 
         let confirm = app.buttons["reply.askCloud.confirm"].firstMatch
@@ -28,6 +28,6 @@ final class AskCloudTests: XCTestCase {
 
         // The cloud reply fails too in this demo, but it is not a device reply, so it offers no cloud model.
         XCTAssertTrue(ask.waitForNonExistence(timeout: 30), "the question went to a cloud model")
-        XCTAssertTrue(app.buttons["reply-failure"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["reply-failure"].waitForExistence(timeout: 10))
     }
 }

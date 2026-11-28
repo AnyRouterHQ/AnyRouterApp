@@ -19,13 +19,13 @@ final class ReplyFailureTests: XCTestCase {
         input.typeText(question)
         app.buttons["Send"].tap()
 
-        let failure = app.buttons["reply-failure"]
+        let failure = app.staticTexts["reply-failure"]
         XCTAssertTrue(failure.waitForExistence(timeout: 10), "the failed reply shows in the chat")
         XCTAssertTrue(failure.label.contains("busy"), "one plain sentence, not the raw error: \(failure.label)")
         XCTAssertTrue(app.buttons["reply-failure.retry"].exists)
         let detail = app.descendants(matching: .any)["reply-failure.detail"]
         XCTAssertFalse(detail.exists, "the raw text waits behind the row")
-        failure.tap()
+        app.buttons["Details"].firstMatch.tap()
         XCTAssertTrue(detail.waitForExistence(timeout: 5))
         XCTAssertTrue(detail.label.contains("Rate limit exceeded"), "the raw text: \(detail.label)")
         XCTAssertTrue(app.buttons["reply-failure.copy"].exists)
@@ -36,11 +36,11 @@ final class ReplyFailureTests: XCTestCase {
         let row = app.collectionViews.staticTexts[question]
         app.revealSidebar(whenVisible: row)
         row.tap()
-        XCTAssertTrue(app.buttons["reply-failure"].waitForExistence(timeout: 10), "the failure is still there after a relaunch")
+        XCTAssertTrue(app.staticTexts["reply-failure"].waitForExistence(timeout: 10), "the failure is still there after a relaunch")
         app.buttons["reply-failure.retry"].tap()
         // Reply text is a selectable text view, found by its value (ReplyTextSupport in JourneySupport).
         XCTAssertTrue(app.replyText("This is a demo reply.").waitForExistence(timeout: 10), "Retry got an answer")
-        XCTAssertFalse(app.buttons["reply-failure"].exists, "Retry replaced the failed reply")
+        XCTAssertFalse(app.staticTexts["reply-failure"].exists, "Retry replaced the failed reply")
         XCTAssertEqual(app.replyTexts("This is a demo reply.").count, 1, "one reply, not a second one under the failure")
     }
 }

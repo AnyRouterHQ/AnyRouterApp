@@ -501,14 +501,45 @@ final class ScreenshotTests: XCTestCase {
             field.tap()
             field.typeText("Plan a weekend in Porto")
             app.buttons["Send"].tap()
-            let failure = app.buttons["reply-failure"]
+            let failure = app.staticTexts["reply-failure"]
             XCTAssertTrue(failure.waitForExistence(timeout: 10))
             app.swipeDown()
             capture("failed-reply", appearance)
-            failure.tap()
+            app.buttons["Details"].firstMatch.tap()
             XCTAssertTrue(app.descendants(matching: .any)["reply-failure.detail"].waitForExistence(timeout: 5))
             capture("failed-reply-details", appearance)
         }
+    }
+
+    /// A failed reply: the sentence, one action, More, then the raw text behind Details.
+    private func captureReplyFailure(_ name: String, extra: [String]) {
+        forEachAppearance(extra: extra) { app, appearance in
+            let input = app.element(UITestIDs.composerInput)
+            XCTAssertTrue(input.waitForExistence(timeout: 20))
+            input.tap()
+            input.typeText("Plan a weekend in Porto")
+            app.buttons["Send"].tap()
+            XCTAssertTrue(app.staticTexts["reply-failure"].waitForExistence(timeout: 30))
+            capture(name, appearance)
+            app.buttons["Details"].firstMatch.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["reply-failure.detail"].waitForExistence(timeout: 5))
+            capture("\(name)-details", appearance)
+        }
+    }
+
+    /// The model on this device could not load: Ask a cloud model leads.
+    func testReplyFailureLocal() {
+        captureReplyFailure("reply-failure-local", extra: ["-ARDemoLongThread", "4", "-ARDemoFail", "localLoadFailed"])
+    }
+
+    /// The model is busy: Retry.
+    func testReplyFailureBusy() {
+        captureReplyFailure("reply-failure-busy", extra: ["-ARDemoFail", "rateLimited"])
+    }
+
+    /// No connection: Retry.
+    func testReplyFailureOffline() {
+        captureReplyFailure("reply-failure-offline", extra: ["-ARDemoFail", "offline"])
     }
 
     /// A reply streams and two messages wait above the composer.
