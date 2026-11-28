@@ -124,9 +124,10 @@ struct LocalModelStorage: Sendable {
     /// The projector file of an installed model, or nil when none is on disk. It is listed in the model's own manifest
     /// when it came with the download, or it is the model's photo add-on, installed under its own id.
     func projectorURL(forEntryID id: String, addOn: CatalogEntry?) -> URL? {
-        var candidates = (readManifest(entryID: id)?.files ?? [])
-            .filter { VisionInput.isProjector(path: $0.path) }
-            .map { fileURL(forEntryID: id, path: $0.path) }
+        var candidates: [URL] = []
+        if let manifest = readManifest(entryID: id) {
+            candidates = manifest.files.filter { VisionInput.isProjector(path: $0.path) }.map { fileURL(forEntryID: id, path: $0.path) }
+        }
         if let addOn, let file = addOn.file, isInstalled(entryID: addOn.id) {
             candidates.append(fileURL(forEntryID: addOn.id, path: file))
         }
