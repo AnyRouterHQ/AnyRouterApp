@@ -1,0 +1,78 @@
+name: iOS 27 SDK build
+
+# Compiles the app with Xcode 27 (iOS 27 SDK) for a device, unsigned, no tests. Only an iOS 27 SDK build compiles the
+# Apple Intelligence on Private Cloud Compute code (APPLE_PCC_SDK in project.yml), so this keeps it from rotting while
+# CI, the Device IPA and TestFlight stay on Xcode 26. Compile only: the PCC logic is unit-tested in CI through a stub.
+# Moving the shipped builds to Xcode 27 waits for the Private Cloud Compute entitlement (PLAN.md, docs/testflight.md).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+
+concurrency:
+  group: ios27-build-${{ github.ref }}
+  # Like CI: a running build finishes and only the newest waiting push queues behind it.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  device-build-ios27:
+    # The runner-images "xcode-27" label: macOS 27 with Xcode 27.x and the iOS 27 SDKs.
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 27
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -v beta | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then echo "No Xcode 27 on this runner"; ls /Applications | grep -i xcode; exit 1; fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos
+
+      - name: Cache SwiftPM and DerivedData
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            SourcePackages
+            DerivedDataIOS27
+          key: spm-dd-ios27-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            spm-dd-ios27-${{ runner.os }}-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build for a device with the iOS 27 SDK (unsigned, no tests)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project AnyRouter.xcodeproj -scheme AnyRouter \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath DerivedDataIOS27 \
+            -clonedSourcePackagesDirPath SourcePackages \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tee ios27-build.log | tail -n 100
+
+      - name: Build errors
+        if: failure()
+        run: |
+          {
+            echo "## iOS 27 SDK build failed"
+            echo ""
+            echo '```'
+            grep -E "error:" ios27-build.log | sed -E 's|^.*/AnyRouterApp/||' | sort -u | cut -c1-300 | head -40 || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
