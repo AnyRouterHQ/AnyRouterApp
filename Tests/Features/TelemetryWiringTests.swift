@@ -83,4 +83,33 @@ struct TelemetryWiringTests {
         settings.shareDiagnostics = false
         #expect(!AppSettings(defaults: defaults).shareDiagnostics, "the choice survives a relaunch")
     }
+
+    @Test func aFreshInstallWithADSNSendsNothingUntilTheUserSaysShare() {
+        let defaults = testDefaults()
+        let settings = AppSettings(defaults: defaults)
+        let sink = DSNInstallSink()
+        let telemetry = DiagnosticsConfig.makeTelemetry(
+            dsn: "https://k@h.example.io/1", shareEnabled: { AppSettings.sharesDiagnostics(defaults: defaults) },
+            makeSink: { _ in sink })
+
+        settings.noteSuccessfulChat(configured: true)
+        #expect(settings.isAskingDiagnostics, "the question is raised, not answered for the user")
+        telemetry.track(.appOpen)
+        #expect(sink.events.isEmpty, "unanswered means nothing leaves the device")
+
+        settings.answerDiagnostics(share: false)
+        telemetry.track(.appOpen)
+        #expect(sink.events.isEmpty, "Not now keeps it off")
+
+        settings.answerDiagnostics(share: true)
+        telemetry.track(.downloadOK)
+        #expect(sink.events == [.downloadOK], "only an explicit Share forwards events")
+    }
+}
+
+private final class DSNInstallSink: TelemetrySink, @unchecked Sendable {
+    private let lock = NSLock()
+    private var raw: [TelemetryEvent] = []
+    var events: [TelemetryEvent] { lock.withLock { raw } }
+    func record(_ event: TelemetryEvent) { lock.withLock { raw.append(event) } }
 }

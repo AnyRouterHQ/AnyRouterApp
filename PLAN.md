@@ -225,7 +225,7 @@ Ids are stable. Delete a line when the task is done.
 - U15 Thread search with a predicate fetch and debounce, once a measurement shows a need. U17 Deep links and an opt-in Spotlight index. U18 Chunked SSE read, only if M3 on the real SSE path shows it.
 - U24 The Hub "Pause" button takes the app tint (orange is for the tight-fit status only).
 - Accessibility audit, still open: preset chips clip at AccessibilityXL; picker rows truncate names at AccessibilityXL; the response-details row clips. Re-audit the rest with `gh workflow run verify-ui.yml`.
-- Review findings left: diagnostics sharing defaults on whenever a DSN is built in (default it off and ask once); `fatalError` when the store fails to open and no versioned schema exists; `Records.swift` decodes JSON on every access; per-byte reads in the AnyRouter SSE loop, `MCPClient.read` and `FetchURLTool`; loopback connections are not tracked or timed out; the picker refreshes only on sign-in; `device-ipa.yml` builds a second device IPA after every main CI run (macOS minutes cost 10x).
+- Review findings left: `fatalError` when the store fails to open and no versioned schema exists; `Records.swift` decodes JSON on every access; per-byte reads in the AnyRouter SSE loop, `MCPClient.read` and `FetchURLTool`; loopback connections are not tracked or timed out; the picker refreshes only on sign-in; `device-ipa.yml` builds a second device IPA after every main CI run (macOS minutes cost 10x).
 
 **Voice**
 - V6b Later: Moonshine TTS voices for Vietnamese. V7 Later: Moonshine streaming STT; VieNeu-TTS through llama.cpp.
