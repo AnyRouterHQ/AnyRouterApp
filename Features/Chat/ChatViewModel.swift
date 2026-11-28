@@ -76,6 +76,8 @@ final class ChatViewModel {
     @ObservationIgnored private var retriedAfterCompaction = false
     /// On-device sentence vectors for recall by meaning. The chat screen sets it; without it recall is BM25 alone.
     @ObservationIgnored var embedder: OnDeviceEmbedder?
+    /// Settings › Integrations › AnyRouter › Subagents. Read at each send, so the switch applies to the next reply.
+    @ObservationIgnored var subagentsEnabled: @MainActor () -> Bool = { true }
     /// Apple's on-device model for finding what the user says about themselves after a reply (unit M6). The chat screen sets
     /// it; without it nothing is extracted.
     @ObservationIgnored var extractor: (any MemoryExtracting)?
@@ -777,7 +779,7 @@ final class ChatViewModel {
             toolContext.approver = approver.map { recordingApprover($0, run: run, reply: assistant) }
             let runID = run.id
             // Cloud models may hand a research task to a subagent on the same model (PLAN D28 S1).
-            let subagent = model.source == .anyrouter && mentions.isEmpty ? subagentRunner(engine, model: model, thread: thread, runID: runID) : nil
+            let subagent = model.source == .anyrouter && mentions.isEmpty && subagentsEnabled() ? subagentRunner(engine, model: model, thread: thread, runID: runID) : nil
             host = toolHost(toolContext).map { base in
                 RunRecordingHost(
                     base: subagent.map { SubagentHost(base: base, runner: $0) as any ToolHost } ?? base,

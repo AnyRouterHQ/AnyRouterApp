@@ -174,6 +174,15 @@ struct ToolSourceScreen: View {
                         }
                     }
                     .accessibilityIdentifier("tools.decide")
+                    Toggle(isOn: Binding(
+                        get: { app.tools.isBuiltInEnabled(SubagentLogic.toolName) },
+                        set: { app.tools.setBuiltIn(SubagentLogic.toolName, enabled: $0) })
+                    ) {
+                        ListRow("Subagents", subtitle: "Let a cloud model hand a research task to a helper on the same model. Its tokens count in the reply.") {
+                            ToolSourceIcon(icon: .symbol("person.2"))
+                        }
+                    }
+                    .accessibilityIdentifier("tools.subagents")
                 }
                 ForEach(state.tools) { tool in
                     Toggle(isOn: Binding(

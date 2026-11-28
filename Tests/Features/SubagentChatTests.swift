@@ -78,7 +78,7 @@ private func toolModel(_ id: String, _ source: ModelSource) -> ModelDescriptor {
 }
 
 @MainActor
-private func chat(_ engine: DelegatingEngine, search: Bool = true) async throws -> ChatViewModel {
+private func chat(_ engine: DelegatingEngine, search: Bool = true, subagents: Bool = true) async throws -> ChatViewModel {
     let registry = EngineRegistry()
     registry.register(engine)
     let models = ModelStore(registry: registry, defaults: testDefaults())
@@ -88,6 +88,7 @@ private func chat(_ engine: DelegatingEngine, search: Bool = true) async throws 
     let vm = ChatViewModel(
         thread: nil, context: context, registry: registry, settings: AppSettings(defaults: testDefaults()), models: models,
         toolHost: { toolContext in AgentToolHost(builtIns: toolContext.memoryTools + web, search: nil, mcp: nil) })
+    if !subagents { vm.subagentsEnabled = { false } }
     vm.input = "How do Swift actors work?"
     await vm.send()?.value
     return vm
@@ -152,6 +153,15 @@ struct SubagentChatTests {
         #expect(offered.contains(WebSearchBinding.name))
         #expect(!offered.contains(SubagentLogic.toolName))
         #expect(engine.childRequests.isEmpty)
+    }
+
+    /// The Subagents switch off in Settings: the cloud model works alone, with its web tools still there.
+    @Test func theSettingsSwitchOffKeepsTheSubagentAway() async throws {
+        let engine = DelegatingEngine(model: toolModel("anyrouter/test", .anyrouter), parent: ScriptedRounds([[.text("Hi."), .end(finishReason: "stop")]]))
+        _ = try await chat(engine, subagents: false)
+        let offered = try #require(engine.parentTools.first)
+        #expect(offered.contains(WebSearchBinding.name))
+        #expect(!offered.contains(SubagentLogic.toolName))
     }
 
     /// Without web search or the page reader (off, or offline) a subagent could not research, so it is not offered.
