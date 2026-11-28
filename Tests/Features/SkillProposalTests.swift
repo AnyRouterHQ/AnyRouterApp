@@ -6,7 +6,7 @@ import Testing
 /// `propose_skill`: the model proposes, the user decides, and nothing reaches the skill library without Save.
 @MainActor
 struct SkillProposalTests {
-    private struct Rig {
+    @MainActor private struct Rig {
         let context: ModelContext
         let reply: MessageRecord
         var proposals: SkillProposalStore { SkillProposalStore(context: context, reply: reply) }
