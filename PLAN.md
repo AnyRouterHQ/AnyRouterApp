@@ -293,19 +293,19 @@ Units from `docs/research/agent-design.md` § 6, in this order. Each is one push
 - [x] M3 (3f15b73, d622e53, 9642e43; green in CI 46080437151; UI test MemoryRowTests not run yet) "Remember that" classifier (English, Vietnamese), "Remember" on selected reply text, "Memory updated" row with Undo and Edit. Open: "Remember this" on the user's own bubble
 - [x] M4 (7d50cd0, aa1010b; green in CI 46080437151) Pre-send lexical recall, top 3, "Used N memories" in the footer with Forget
 - [x] M5 (8577f63; green in CI 46080437151) Cloud `memory` (search, add, remove with Undo) and `search_chats` tools with scope rules
-- [ ] M6 Chat summaries; Apple extraction after the reply
+- [x] M6 (461bc01; green in CI 46090800331) Chat summaries when a chat loses focus (compaction summary, else Apple per D30; GGUF/MLX never asked). Open: Apple extraction after the reply
 - [x] A2 (e7afaa8; green in CI 46080437151) `PromptAssembler` with sections and budgets; the context meter reads its report
-- [ ] A3 In-run result caps, stubs for old results, tool digest for the next turn
-- [ ] A4 Structured cloud summary; compact once and retry on Apple's context error
+- [x] A3 (433776a, 058a386; green in CI 46090800331) In-run result caps and stubs in the local loop (E4), tool digest for the next turn. Moved to G3: E5 repeated failing call, cloud clearing in 8,000-token steps, the 40-token digest cap on device models
+- [x] A4 (25a641e, e5ed9da; green in CI 46090800331) Structured cloud summary; compact once and retry on Apple's context error
 - [x] G1 (3ad8787) `interrupted` marker on a reply, set at insert and cleared when it finishes (builds on lane A's stored failure)
-- [ ] G2 `AgentRunRecord`, saved at step boundaries
+- [x] G2 (c6bcfb5; green in CI 46090800331) `AgentRunRecord`, saved at start, tool call and tool result, deleted when the run ends; launch marks unfinished runs interrupted. G1 two-window iPad case fixed with `LiveReplies` (717c2fa, unit test only)
 - [ ] G3 One app loop for AnyRouter and local models (`StepFunction`); LA1 side-effect classes drive its approvals; `decide` as a tool
 - [ ] G4 Approval interrupt saved and resumed
 - [ ] G5 `notes` tool and recitation, cloud only
-- [ ] X1 "Ask a cloud model" on device replies, with the notice
-- [ ] K1 Bundled skills, index and `read_skill`; capped index for device engines when it fits
+- [x] X1 (316740b; green in CI 46090800331) "Ask a cloud model" on a device reply that failed (too long, out of memory, not loaded, unavailable), with the notice. Open: the UI test from a contextTooLong reply
+- [x] K1 (92b36ae, 02b7a86; green in CI 46090800331) Bundled skills, index and `read_skill` for cloud models. Open: the capped index for device engines
 - [ ] K2 `propose_skill` with the approval card, Settings › Skills; the user's AnyRouter hub skills and SKILL.md URL imports
-- [ ] L1 Live suite in `model-smoke.yml` and the on-device list; LA11 tool-calling prompts are part of it
+- [ ] L1 Live suite in `model-smoke.yml` and the on-device list; LA11 tool-calling prompts are part of it. Scripted half done (2067517, green in CI 46090800331): MemoryRecallEvalTests, recall at 3 measured 0.85 on its fixture with a port of the scorer (CI asserts at least 0.8), under 0.9, so M7 is indicated; the misses need meaning ("dinner" for "vegetarian")
 - [ ] M7 Embeddings behind consent, only if recall at 3 is under 0.9
 - [ ] S1 Sub-agents per D25 unit 5, after G3
 
