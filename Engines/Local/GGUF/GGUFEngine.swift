@@ -109,7 +109,7 @@ final class GGUFEngine: ChatEngine {
                     let sampling = (try? await catalog.entries())?.first(where: { $0.id == model.id })?.sampling
                     let tuned = sampling.map { $0.applied(to: params) } ?? params
                     let result: LlamaResult
-                    if let images = await imageInput(model: model, messages: messages) {
+                    if let images = await imageInput(model: model, messages: messages, from: params.imagesFrom) {
                         result = try Self.runWithImages(
                             llama, messages: messages, params: tuned, sampling: sampling, input: images, store: attachments,
                             trace: steps
@@ -141,18 +141,18 @@ final class GGUFEngine: ChatEngine {
         var side: Int
     }
 
-    /// Set when the last user message has photos and a projector is on disk, in the download or as the photo add-on.
-    /// Otherwise the photos go in as the text read from them.
-    private func imageInput(model: ModelDescriptor, messages: [ChatMessage]) async -> ImageInput? {
-        guard Self.hasImages(messages) else { return nil }
+    /// Set when this request's photo message (`VisionInput.imageMessageIndex`) has photos and a projector is on disk, in
+    /// the download or as the photo add-on. Otherwise the photos go in as the text read from them.
+    private func imageInput(model: ModelDescriptor, messages: [ChatMessage], from id: UUID?) async -> ImageInput? {
+        guard Self.hasImages(messages, from: id) else { return nil }
         let entry = (try? await catalog.entries())?.first { $0.id == model.id }
         guard let projector = storage.projectorURL(forEntryID: model.id, addOn: entry?.photoAddOn) else { return nil }
         return ImageInput(projectorPath: projector.path, side: VisionInput.imageSide(for: entry?.vision))
     }
 
-    /// Whether the last user message carries a photo.
-    static func hasImages(_ messages: [ChatMessage]) -> Bool {
-        messages.last(where: { $0.role == .user })?.attachments.contains { $0.kind == .image } ?? false
+    /// Whether this request's photo message (the one `id` names, else the last user message) carries a photo.
+    static func hasImages(_ messages: [ChatMessage], from id: UUID? = nil) -> Bool {
+        VisionInput.imageMessageIndex(in: messages, from: id) != nil
     }
 
     /// Reads each photo from the store and scales it to the longest side the model reads.
@@ -172,7 +172,7 @@ final class GGUFEngine: ChatEngine {
         let contextSize = llama.contextSize
         let reserve = min(params.maxTokens ?? 1024, contextSize / 2)
         // The photos take their own share of the context: count them on top of the text.
-        let built = VisionInput.prompt(from: messages, systemPrompt: params.systemPrompt)
+        let built = VisionInput.prompt(from: messages, systemPrompt: params.systemPrompt, imagesFrom: params.imagesFrom)
         let photoTokens = built.images.count * VisionInput.tokensPerImage
         let budget = contextSize - reserve
         let fitted = try PromptBuilder.trimmed(built.messages) {

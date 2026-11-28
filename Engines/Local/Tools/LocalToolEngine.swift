@@ -119,6 +119,8 @@ struct LocalToolStep: StepFunction {
     /// The messages and parameters of the round after `rounds`.
     private func request(_ rounds: [AgentRound], toolsOn: Bool) -> (messages: [ChatMessage], params: GenerationParams) {
         var roundParams = params
+        // The turn's photos stay images in every round: a round's results arrive as a user message without them.
+        roundParams.imagesFrom = params.imagesFrom ?? messages.last(where: { $0.role == .user })?.id
         if toolsOn {
             roundParams.systemPrompt = [params.systemPrompt, format.instructions(for: specs)].compactMap { $0 }.joined(separator: "\n\n")
         }

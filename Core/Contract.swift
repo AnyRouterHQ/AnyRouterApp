@@ -43,6 +43,9 @@ struct GenerationParams: Codable, Sendable {
     var topP: Double = 0.95
     var maxTokens: Int? = nil
     var systemPrompt: String? = nil
+    /// The user message whose photos a vision model reads as images; nil means the last user message. A local tool run
+    /// sets it to the turn's own message, because each tool round adds a user message with the results and no photos.
+    var imagesFrom: UUID? = nil
 }
 
 enum ChatDelta: Sendable, Equatable {

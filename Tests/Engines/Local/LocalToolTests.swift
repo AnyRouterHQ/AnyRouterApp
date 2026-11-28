@@ -221,6 +221,7 @@ private final class Rounds: @unchecked Sendable {
     private var replies: [String]
     private(set) var messages: [[ChatMessage]] = []
     private(set) var systemPrompts: [String?] = []
+    private(set) var params: [GenerationParams] = []
 
     init(_ replies: [String]) { self.replies = replies }
 
@@ -228,6 +229,7 @@ private final class Rounds: @unchecked Sendable {
         lock.withLock {
             self.messages.append(messages)
             systemPrompts.append(params.systemPrompt)
+            self.params.append(params)
             return replies.isEmpty ? "done" : replies.removeFirst()
         }
     }
@@ -322,6 +324,25 @@ struct LocalToolEngineTests {
             #expect(used <= window - RunBudgetLogic.reserve(window: window))
         }
         #expect(rounds.messages.last?.last?.content.contains("[Cut to fit the model's window.]") == true)
+    }
+
+    /// Agent v2 U2: a photo question that calls a tool. Round 2 adds a user message with the results and no photo; the
+    /// photo must still reach the model as an image with its marker, not as the text read from it.
+    @Test func thePhotoStaysAnImageInEveryRoundOfAToolRun() async throws {
+        let (engine, rounds) = engine([call, "A red bike."])
+        let photo = ChatAttachment(
+            id: UUID(), kind: .image, filename: "bike.jpg", utType: "public.jpeg", byteCount: 1, relativePath: "t/bike.jpg")
+        let question = ChatMessage(role: .user, content: "what is this?", attachments: [photo])
+        _ = try await collect(engine.stream(model: qwen, messages: [question], params: GenerationParams(), tools: AnswerHost()))
+        #expect(rounds.messages.count == 2)
+        for (sent, params) in zip(rounds.messages, rounds.params) {
+            #expect(params.imagesFrom == question.id)
+            #expect(GGUFEngine.hasImages(sent, from: params.imagesFrom))
+            let built = VisionInput.prompt(from: sent, systemPrompt: params.systemPrompt, imagesFrom: params.imagesFrom)
+            #expect(built.images.map(\.filename) == ["bike.jpg"])
+            #expect(built.messages.contains { $0.content.hasPrefix(VisionInput.defaultMarker) })
+        }
+        #expect(!GGUFEngine.hasImages(rounds.messages[1]), "by the last user message alone, round 2 would have lost the photo")
     }
 
     @Test func aCallIsRunThroughTheHostAndTheAnswerComesAfterIt() async throws {

@@ -27,6 +27,20 @@ struct VisionInputTests {
         #expect(built.messages[1].content == "\(VisionInput.defaultMarker)\n\(VisionInput.defaultMarker)\nwhat is this?")
     }
 
+    /// The photo message is the one a tool run names, else the last user message; one without photos sends none.
+    @Test func thePhotoMessageIsTheNamedOneElseTheLastUserMessage() {
+        let asked = message(.user, "what is this?", images: [photo("bike.jpg")])
+        let results = message(.user, "Results: found")
+        let messages = [asked, message(.assistant, "<tool_call>"), results]
+        #expect(VisionInput.imageMessageIndex(in: messages, from: asked.id) == 0)
+        #expect(VisionInput.imageMessageIndex(in: messages, from: nil) == nil, "the results message has no photo")
+        #expect(VisionInput.imageMessageIndex(in: messages, from: UUID()) == nil, "an unknown id falls back to the last user message")
+        #expect(VisionInput.imageMessageIndex(in: [asked], from: nil) == 0)
+        let built = VisionInput.prompt(from: messages, systemPrompt: nil, imagesFrom: asked.id)
+        #expect(built.images.map(\.filename) == ["bike.jpg"])
+        #expect(built.messages[0].content == "\(VisionInput.defaultMarker)\nwhat is this?")
+    }
+
     @Test func aPhotoWithoutTextStillGetsItsMarker() {
         let built = VisionInput.prompt(from: [message(.user, "", images: [photo()])], systemPrompt: nil)
         #expect(built.messages.map(\.content) == [VisionInput.defaultMarker])

@@ -21,15 +21,24 @@ enum VisionInput {
         min(max(vision?.imageSide ?? defaultImageSide, 224), 4096)
     }
 
-    /// The prompt for a model that sees photos. Only the photos of the last user message go in as images, each as a
-    /// marker in its text, newest `maxImages` of them; photos of earlier turns stay as the text read from them.
+    /// Where the photos of this request are: the message `id` names (a tool run's turn), else the last user message.
+    /// Nil when that message has none.
+    static func imageMessageIndex(in messages: [ChatMessage], from id: UUID?) -> Int? {
+        let named = id.flatMap { id in messages.firstIndex { $0.id == id } }
+        guard let index = named ?? messages.lastIndex(where: { $0.role == .user }),
+              messages[index].attachments.contains(where: { $0.kind == .image })
+        else { return nil }
+        return index
+    }
+
+    /// The prompt for a model that sees photos. Only the photos of one user message go in as images (`imagesFrom`, else
+    /// the last user message), each as a marker in its text, newest `maxImages` of them; photos of other turns stay as
+    /// the text read from them.
     static func prompt(
-        from messages: [ChatMessage], systemPrompt: String?, marker: String = defaultMarker
+        from messages: [ChatMessage], systemPrompt: String?, imagesFrom: UUID? = nil, marker: String = defaultMarker
     ) -> (messages: [PromptMessage], images: [ChatAttachment]) {
         var prompt = PromptBuilder.promptMessages(from: messages, systemPrompt: systemPrompt)
-        guard let lastUser = messages.lastIndex(where: { $0.role == .user }),
-              messages[lastUser].attachments.contains(where: { $0.kind == .image })
-        else { return (prompt, []) }
+        guard let lastUser = imageMessageIndex(in: messages, from: imagesFrom) else { return (prompt, []) }
         let message = messages[lastUser]
         let all = message.attachments.filter { $0.kind == .image }
         let sent = Array(all.suffix(maxImages))
