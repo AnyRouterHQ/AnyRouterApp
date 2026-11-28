@@ -18,7 +18,8 @@ final class AgentEvalDeviceTests: XCTestCase {
             throw XCTSkip("Apple Foundation Models is unavailable on this host (\(note)). Run it on a device with Apple Intelligence.")
         }
         let engine = AppleFoundationEngine()
-        let model = try XCTUnwrap(try await engine.availableModels().first)
+        let available = try await engine.availableModels()
+        let model = try XCTUnwrap(available.first)
         let result = try await AgentToolEvalRunner.runSet(
             try AgentEvalFixtures.toolCases(), engine: engine, model: model, rounds: nil, label: "Apple Foundation Models", section: "toolsApple")
         XCTAssertFalse(result.cases.isEmpty, "no case ran inside the time cap")
