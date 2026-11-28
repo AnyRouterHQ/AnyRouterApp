@@ -401,9 +401,11 @@ struct Composer: View {
             MemoryMenu()
         } label: {
             // A floating control beside the field, so it takes glass like the field: one 48 pt circle, the field's height.
+            // Title 2 semibold draws the + about as tall and as heavy as the voice button's glyph; title 3 medium read
+            // small and thin next to it (screenshots 46107915397).
             Label("Add", systemImage: "plus")
                 .labelStyle(.iconOnly)
-                .font(.title3.weight(.medium))
+                .font(.title2.weight(.semibold))
                 .foregroundStyle(.primary)
                 .frame(width: plusSize, height: plusSize)
                 .glassEffect(.regular.interactive(), in: .circle)
