@@ -25,7 +25,7 @@ struct ModelFilterTests {
         #expect(!names(ModelFilter()).contains("Locked"))
         #expect(names(ModelFilter(hideNeedsKey: false)).contains("Locked"))
         #expect(!ModelFilter().isActive)
-        #expect(ModelFilter(hideNeedsKey: false).isActive)
+        #expect(!ModelFilter(hideNeedsKey: false).isActive, "no control sets it, so it never shows as an active filter")
     }
 
     @Test func aSearchStillFindsModelsThatNeedAKey() {
@@ -76,7 +76,7 @@ struct ModelFilterTests {
     @Test func activeCountIgnoresTheDefaults() {
         #expect(ModelFilter().activeCount == 0)
         #expect(ModelFilter(freeOnly: true, vision: true, tools: true, reasoning: true, longContext: true,
-                            maxInputPrice: .upTo1, providers: ["a"], hideNeedsKey: false).activeCount == 8)
+                            maxInputPrice: .upTo1, providers: ["a"], hideNeedsKey: false).activeCount == 7)
     }
 
     @Test func theProviderListCountsModelsAndSortsByName() {

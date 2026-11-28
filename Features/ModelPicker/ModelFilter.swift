@@ -34,12 +34,13 @@ struct ModelFilter: Equatable, Codable, Sendable {
     var maxInputPrice: MaxPrice = .any
     /// Provider prefixes of the wire id ("openai", "anthropic"). Empty means all.
     var providers: Set<String> = []
-    /// On by default. A search still finds models that need a key.
+    /// Always on in the picker, which lists models that need a key under Not available (01be7d1); no control sets it
+    /// any more. Kept for `CloudListLogic`'s other callers.
     var hideNeedsKey = true
 
     /// How many settings differ from the default. Shown on the filter button.
     var activeCount: Int {
-        [freeOnly, vision, tools, reasoning, longContext, maxInputPrice != .any, !providers.isEmpty, !hideNeedsKey]
+        [freeOnly, vision, tools, reasoning, longContext, maxInputPrice != .any, !providers.isEmpty]
             .filter { $0 }.count
     }
 
