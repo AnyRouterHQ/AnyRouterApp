@@ -164,6 +164,7 @@ struct ModelPickerSheet: View {
 
     private let picksConfig = TopPicksConfig.bundled()
     private static let providerKeysURL = URL(string: "https://anyrouter.dev/dashboard/byok")!
+    private static let creditsURL = URL(string: "https://anyrouter.dev/dashboard/credits")!
 
     init(currentID: String?, showsClose: Bool = true, defaults: UserDefaults = PickerFilterStore.standardDefaults,
          onSelect: @escaping (ModelDescriptor) -> Void) {
@@ -182,12 +183,18 @@ struct ModelPickerSheet: View {
     private struct Shown {
         var local: [ModelDescriptor] = []
         var cloud = CloudList(topPicks: [], rest: [])
+        /// Models of this tab that cannot be picked now, with the reason, for the "Not available" row.
+        var unavailable: [PickerUnavailableModel] = []
     }
 
     private var shown: Shown {
         switch tab {
-        case .local: Shown(local: localModels)
-        case .anyrouter: Shown(cloud: cloudList)
+        case .local:
+            let split = localAvailability
+            return Shown(local: localModels(split.available), unavailable: localUnavailable(split.unavailable))
+        case .anyrouter:
+            let split = cloudAvailability
+            return Shown(cloud: cloudList(split.available), unavailable: cloudUnavailable(split.unavailable))
         }
     }
 
@@ -197,8 +204,8 @@ struct ModelPickerSheet: View {
             List {
                 if app.network.isOffline { offlineSection }
                 switch tab {
-                case .local: localRows(shown.local)
-                case .anyrouter: cloudRows(shown.cloud)
+                case .local: localRows(shown.local, unavailable: shown.unavailable)
+                case .anyrouter: cloudRows(shown.cloud, unavailable: shown.unavailable)
                 }
             }
             .navigationDestination(item: $detailModel) { model in
@@ -293,15 +300,29 @@ struct ModelPickerSheet: View {
 
     // MARK: - Local tab
 
-    private var localModels: [ModelDescriptor] {
+    private var signedIn: Bool { app.account.state.isSignedIn }
+
+    /// Apple, downloaded and catalog models split by what this device can use now.
+    private var localAvailability: ModelAvailability {
+        let catalog = app.hub.catalog
+        let entries = Dictionary(catalog.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return ModelAvailabilityLogic.partition(
+            ModelAvailabilityLogic.localCandidates(listed: models.models, catalog: catalog),
+            signedIn: signedIn, summary: app.account.summary,
+            fit: { entries[$0.id]?.fitDetail }, engineNote: { entries[$0.id]?.unavailableReason })
+    }
+
+    private func localUnavailable(_ items: [PickerUnavailableModel]) -> [PickerUnavailableModel] {
         let needle = debouncedQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        let local = models.models.filter { model in
-            switch model.source {
-            case .apple: return true
-            case .gguf, .mlx: return model.isInstalled
-            case .anyrouter: return false
-            }
+        return items.filter { item in
+            (needle.isEmpty || ModelPickerLogic.matches(item.model, needle))
+                && localFilter.matches(item.model, fit: fitVerdict(for: item.model))
         }
+    }
+
+    private func localModels(_ usable: [ModelDescriptor]) -> [ModelDescriptor] {
+        let needle = debouncedQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let local = usable
         let searched = needle.isEmpty ? local : local.filter { ModelPickerLogic.matches($0, needle) }
         let matched = searched.filter { localFilter.matches($0, fit: fitVerdict(for: $0)) }
         return matched.sorted { lhs, rhs in
@@ -311,7 +332,7 @@ struct ModelPickerSheet: View {
     }
 
     @ViewBuilder
-    private func localRows(_ list: [ModelDescriptor]) -> some View {
+    private func localRows(_ list: [ModelDescriptor], unavailable: [PickerUnavailableModel]) -> some View {
         Section("Downloaded") {
             ForEach(list) { model in
                 modelButton(model, fitBadge: fitBadge(for: model))
@@ -325,6 +346,40 @@ struct ModelPickerSheet: View {
                 Label("Browse models", systemImage: "square.stack.3d.up")
             }
             .accessibilityIdentifier("model-picker.browse")
+        }
+        notAvailableRow(unavailable)
+    }
+
+    /// One row at the end of a tab. It pushes the list of what cannot be used, each with its reason.
+    @ViewBuilder
+    private func notAvailableRow(_ items: [PickerUnavailableModel]) -> some View {
+        if !items.isEmpty {
+            Section {
+                NavigationLink {
+                    UnavailableModelsList(items: items, device: DeviceName.current, onFix: fix)
+                } label: {
+                    LabeledContent("Not available") { Text(items.count, format: .number) }
+                }
+                .accessibilityIdentifier("model-picker.not-available")
+            } footer: {
+                Text("Models you cannot use now, and why.")
+            }
+        }
+    }
+
+    /// The tap on a row of the Not available list: the one thing that gets the model going.
+    private func fix(_ item: PickerUnavailableModel, _ fix: ModelUnavailableReason.Fix) {
+        switch fix {
+        case .signIn:
+            signInError = nil
+            signInModel = item.model
+        case .getCredits:
+            openURL(Self.creditsURL)
+        case .addKey:
+            keyExplainer = item.model
+        case .browse:
+            dismiss()
+            shell.open(.hub, closeSidebar: true)
         }
     }
 
@@ -344,9 +399,25 @@ struct ModelPickerSheet: View {
 
     // MARK: - AnyRouter tab
 
-    private var cloudList: CloudList {
+    private var cloudAvailability: ModelAvailability {
+        ModelAvailabilityLogic.partition(
+            models.models.filter { $0.source == .anyrouter }, signedIn: signedIn, summary: app.account.summary)
+    }
+
+    /// Not available, filtered like the list above it. A search also finds hidden models and AnyRouter BYOK.
+    private func cloudUnavailable(_ items: [PickerUnavailableModel]) -> [PickerUnavailableModel] {
+        let needle = debouncedQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let searching = !needle.isEmpty
+        return items.filter { item in
+            if searching { return ModelPickerLogic.matches(item.model, needle) && cloudFilter.matches(item.model) }
+            return item.model.id != ModelDescriptor.byokRouterID && cloudFilter.matches(item.model)
+                && !models.cloudPrefs.isHidden(item.model)
+        }
+    }
+
+    private func cloudList(_ usable: [ModelDescriptor]) -> CloudList {
         CloudListLogic.arrange(
-            models: models.models, query: debouncedQuery, sort: sort, usageRank: models.usageRank,
+            models: usable, query: debouncedQuery, sort: sort, usageRank: models.usageRank,
             showUnusable: app.account.state.isSignedIn,
             picks: TopPicks.compose(config: picksConfig, models: models.models, usageRank: models.usageRank),
             filter: cloudFilter, prefs: models.cloudPrefs, currentID: currentID,
@@ -354,7 +425,15 @@ struct ModelPickerSheet: View {
     }
 
     @ViewBuilder
-    private func cloudRows(_ list: CloudList) -> some View {
+    private func cloudRows(_ list: CloudList, unavailable: [PickerUnavailableModel]) -> some View {
+        if !signedIn, let target = unavailable.first(where: { $0.model.id == ModelDescriptor.autoRouterID })?.model ?? unavailable.first?.model {
+            Section {
+                Button { signInError = nil; signInModel = target } label: {
+                    Label("Sign in to use AnyRouter models", systemImage: "person.crop.circle")
+                }
+                .accessibilityIdentifier("model-picker.sign-in")
+            }
+        }
         if let failure = models.loadFailures[.anyrouter], !models.isLoading, !list.isEmpty {
             CloudListStaleNotice(message: failure) { Task { await models.refresh() } }
         }
@@ -386,13 +465,14 @@ struct ModelPickerSheet: View {
                 Text("\(list.moreCount) more. Search to find any model.")
             }
         }
+        notAvailableRow(unavailable)
     }
 
     @ViewBuilder
     private func stateOverlay(_ shown: Shown) -> some View {
         if tab == .anyrouter {
             // The list is public, so it shows signed out too. Only an empty list needs saying why.
-            if shown.cloud.isEmpty {
+            if shown.cloud.isEmpty && shown.unavailable.isEmpty {
                 if debouncedQuery.isEmpty && !cloudFilter.isActive {
                     CloudListEmptyState(
                         reason: CloudEmptyReason.reason(
@@ -402,7 +482,7 @@ struct ModelPickerSheet: View {
                     noMatches(clear: { cloudFilter = ModelFilter() }, isFiltered: cloudFilter.isActive)
                 }
             }
-        } else if shown.local.isEmpty, !debouncedQuery.isEmpty || localFilter.isActive {
+        } else if shown.local.isEmpty, shown.unavailable.isEmpty, !debouncedQuery.isEmpty || localFilter.isActive {
             noMatches(clear: { localFilter = LocalFilter() }, isFiltered: localFilter.isActive)
         }
     }

@@ -1,6 +1,6 @@
 import XCTest
 
-/// Two model picker states no other flow reaches: signed out, the AnyRouter tab says there are no cloud models, and a router's
+/// Two model picker states no other flow reaches: signed out, the AnyRouter tab lists nothing usable and puts every model under Not available, and a router's
 /// detail page opens the list of models it routes to (its content comes from the network, so only the sheet is checked).
 @MainActor
 final class ModelPickerPagesTests: XCTestCase {
@@ -13,11 +13,20 @@ final class ModelPickerPagesTests: XCTestCase {
         return tabs
     }
 
-    func testSignedOutTheAnyRouterTabHasNoCloudModels() {
+    func testSignedOutEveryCloudModelIsUnderNotAvailableWithASignInReason() {
         let app = XCUIApplication.launchedOnDemoData(extra: ["-ARDemoSignedOut", "YES"])
         let tabs = openPicker(app)
         tabs.buttons["AnyRouter"].tap()
-        XCTAssertTrue(app.labelled(containing: "No cloud models").waitForExistence(timeout: 10), "an empty AnyRouter list says so")
+        XCTAssertTrue(app.buttons["model-picker.sign-in"].waitForExistence(timeout: 10), "the tab offers sign in")
+        XCTAssertFalse(app.buttons["model-row.anyrouter/openai/gpt-5"].exists, "nothing is usable signed out")
+        let notAvailable = app.buttons["model-picker.not-available"]
+        XCTAssertTrue(notAvailable.waitForExistence(timeout: 5))
+        notAvailable.tap()
+        let row = app.buttons["unavailable-row.anyrouter/openai/gpt-5"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "GPT-5 is listed as not available")
+        XCTAssertTrue(row.label.contains("Sign in to use"), "with the reason: \(row.label)")
+        row.tap()
+        XCTAssertTrue(app.buttons["cloud-signin.sign-in"].waitForExistence(timeout: 5), "tapping offers the sign-in sheet")
     }
 
     func testARouterDetailOpensTheModelsItRoutesTo() {

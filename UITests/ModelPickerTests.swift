@@ -54,6 +54,38 @@ final class ModelPickerTests: XCTestCase {
         XCTAssertTrue(app.buttons["model-row.apple/foundation"].exists)
     }
 
+    func testNotAvailableListsWhatCannotBeUsedWithReasons() {
+        let app = launch()
+        XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
+        app.buttons["Model"].tap()
+        let tabs = app.segmentedControls.firstMatch
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+        tabs.buttons["AnyRouter"].tap()
+        XCTAssertFalse(app.buttons["model-row.anyrouter/x-ai/grok-4"].exists, "a model that needs a key is not in the list")
+        app.buttons["model-picker.not-available"].tap()
+        let key = app.buttons["unavailable-row.anyrouter/x-ai/grok-4"]
+        XCTAssertTrue(key.waitForExistence(timeout: 5))
+        XCTAssertTrue(key.label.contains("Add your own key (BYOK) for xAI"), "reason: \(key.label)")
+        key.tap()
+        XCTAssertTrue(app.alerts["Needs your provider key"].waitForExistence(timeout: 5), "tapping offers to add the key")
+    }
+
+    func testLocalNotAvailableSaysDownloadFirstAndDoesNotFit() {
+        let app = launch()
+        XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
+        app.buttons["Model"].tap()
+        let tabs = app.segmentedControls.firstMatch
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+        tabs.buttons["Local"].tap()
+        let notAvailable = app.buttons["model-picker.not-available"]
+        XCTAssertTrue(notAvailable.waitForExistence(timeout: 5))
+        notAvailable.tap()
+        let download = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Download first'")).firstMatch
+        XCTAssertTrue(download.waitForExistence(timeout: 5), "a model not on the device says Download first")
+        let tooBig = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Doesn't fit this'")).firstMatch
+        XCTAssertTrue(tooBig.exists, "a model that is too big says so")
+    }
+
     func testFreeOnlyFilterLeavesOnlyFreeRows() {
         let app = launch()
         XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))

@@ -613,6 +613,35 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// Both tabs with the Not available list open, signed in and signed out, light and dark.
+    private func availabilityShots(signedOut: Bool) {
+        let name = signedOut ? "signed-out" : "signed-in"
+        forEachAppearance(extra: signedOut ? ["-ARDemoSignedOut", "YES"] : []) { app, appearance in
+            XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
+            app.buttons["Model"].tap()
+            let tabs = app.segmentedControls.firstMatch
+            XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+            for tab in ["Local", "AnyRouter"] {
+                let segment = tabs.buttons[tab]
+                for _ in 0..<3 where !segment.isSelected {
+                    segment.tap()
+                    sleep(1)
+                }
+                let row = app.buttons["model-picker.not-available"]
+                XCTAssertTrue(row.waitForExistence(timeout: 10), "\(tab) has a Not available row")
+                row.tap()
+                XCTAssertTrue(app.otherElements["model-picker.not-available-list"].waitForExistence(timeout: 5)
+                    || app.collectionViews["model-picker.not-available-list"].waitForExistence(timeout: 5))
+                capture("model-picker-availability-\(name)-\(tab.lowercased())", appearance)
+                app.navigationBars.buttons.firstMatch.tap()
+            }
+        }
+    }
+
+    func testModelPickerAvailabilitySignedIn() { availabilityShots(signedOut: false) }
+
+    func testModelPickerAvailabilitySignedOut() { availabilityShots(signedOut: true) }
+
     func testHub() {
         forEachAppearance { app, appearance in
             // The sidebar has no hub entry any more: Settings > Models > Local Models.

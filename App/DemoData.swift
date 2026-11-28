@@ -478,7 +478,10 @@ enum DemoData {
            let appearance = AppSettings.Appearance(rawValue: raw) {
             settings.appearance = appearance
         }
-        let cloud = signedOut || onboarding ? [] : cloudModels + extraCloudModels
+        // Signed out the catalog is still public, but nothing in it can be used yet.
+        let cloud = onboarding ? [] : signedOut
+            ? (cloudModels + [keyCloudModel]).map { var model = $0; model.isInstalled = false; return model }
+            : cloudModels + [keyCloudModel] + extraCloudModels
         registry.register(DemoEngine(source: .apple, models: [descriptor("apple/foundation", .apple, "Apple Intelligence")]))
         registry.register(DemoEngine(source: .gguf, models: onboarding ? [] : installedLocal))
         let cloudEngine = DemoEngine(source: .anyrouter, models: cloud, listDelay: .seconds(cloudDelay))
@@ -513,6 +516,14 @@ enum DemoData {
                 billing: input == 0 && output == 0 ? .free : .credits),
             availability: .usable, upstreamCount: upstreams, memberCount: members,
             supportsVision: vision, supportsReasoning: reasoning, created: nil, logoURL: nil)
+        return model
+    }
+
+    /// A model that runs on the person's own provider key, so the picker has a "Add your own key" row to show.
+    private static var keyCloudModel: ModelDescriptor {
+        var model = cloudDescriptor("x-ai/grok-4", "Grok 4", input: 3, output: 15, context: 256_000, upstreams: 3)
+        model.cloud?.availability = .needsKey
+        model.isInstalled = false
         return model
     }
 
