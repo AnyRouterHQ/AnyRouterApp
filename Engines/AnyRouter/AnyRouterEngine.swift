@@ -72,74 +72,21 @@ struct AnyRouterEngine: ChatEngine {
     /// Most tool rounds one reply may take. After that the model is told to answer without tools.
     static let maxToolSteps = 8
 
-    /// Streams a reply. With a `ToolHost` the model may call its tools: each round streams text, then the
-    /// engine runs the requested calls and sends their results back, until the model answers in plain text.
+    /// Streams a reply through the app's tool loop (`AgentLoop`): each round is one request. With a `ToolHost` the
+    /// loop runs the calls the model asks for and sends their results back, until the model answers in plain text.
     func stream(
         model: ModelDescriptor,
         messages: [ChatMessage],
         params: GenerationParams,
         tools host: (any ToolHost)?
     ) -> AsyncThrowingStream<ChatDelta, Error> {
-        AsyncThrowingStream { continuation in
-            let task = Task {
-                do {
-                    let specs = host?.specs ?? []
-                    var transcript: [[String: Any]] = []
-                    var usage: (prompt: Int, completion: Int)?
-                    var metadata: ResponseMetadata?
-                    var finishReason: String?
-                    var toolRounds = 0
-                    while true {
-                        try Task.checkCancellation()
-                        guard let key = tokens.token() else { throw AnyRouterError.signedOut }
-                        let forceAnswer = toolRounds >= Self.maxToolSteps
-                        let request = try makeChatRequest(
-                            key: key, model: model, messages: messages, params: params,
-                            tools: specs, toolChoiceNone: forceAnswer, extraMessages: transcript
-                        )
-                        let round = try await streamRound(request) { _ = continuation.yield($0) }
-                        if let used = round.usage {
-                            usage = (prompt: (usage?.prompt ?? 0) + used.prompt, completion: (usage?.completion ?? 0) + used.completion)
-                        }
-                        metadata = ResponseMetadata.combining(metadata, round.metadata)
-                        finishReason = round.finishReason
-                        guard let host, !round.toolCalls.isEmpty, !forceAnswer else { break }
-
-                        transcript.append(Self.assistantMessage(text: round.text, calls: round.toolCalls))
-                        for call in round.toolCalls {
-                            try Task.checkCancellation()
-                            continuation.yield(.toolCall(call))
-                            let result = await host.execute(call)
-                            try Task.checkCancellation()
-                            continuation.yield(.toolResult(result))
-                            transcript.append(["role": "tool", "tool_call_id": call.id, "content": result.text])
-                        }
-                        toolRounds += 1
-                    }
-                    if let metadata { continuation.yield(.metadata(metadata)) }
-                    if let usage { continuation.yield(.usage(prompt: usage.prompt, completion: usage.completion)) }
-                    continuation.yield(.done(finishReason: finishReason))
-                    continuation.finish()
-                } catch is CancellationError {
-                    continuation.finish()
-                } catch {
-                    continuation.finish(throwing: error)
-                }
-            }
-            continuation.onTermination = { _ in task.cancel() }
-        }
+        let step = AnyRouterStep(engine: self, model: model, messages: messages, params: params, specs: host?.specs ?? [])
+        return AgentLoop.stream(step: step, host: host, maxToolRounds: Self.maxToolSteps)
     }
 
-    /// One request/response of the loop. Text goes out as it arrives; tool calls are collected.
-    private struct Round {
-        var text = ""
-        var toolCalls: [ToolCall] = []
-        var finishReason: String?
-        var usage: (prompt: Int, completion: Int)?
-        var metadata: ResponseMetadata?
-    }
-
-    private func streamRound(_ request: URLRequest, emit: (ChatDelta) -> Void) async throws -> Round {
+    /// One request: text and reasoning go out as they arrive; the proposed calls, usage, metadata and finish reason
+    /// at the end.
+    fileprivate func streamRound(_ request: URLRequest, emit: (StepEvent) -> Void) async throws {
         let (bytes, response) = try await session.bytes(for: request)
         let status = AnyRouterError.status(of: response)
         guard (200..<300).contains(status) else {
@@ -158,20 +105,20 @@ struct AnyRouterEngine: ChatEngine {
 
         var parser = SSEParser()
         var decoder = ChatChunkDecoder()
-        var round = Round()
+        var usage: (prompt: Int, completion: Int)?
+        var metadata: ResponseMetadata?
         func handle(_ payloads: [String]) throws {
             for payload in payloads {
                 for delta in try decoder.decode(payload) {
                     switch delta {
                     case .text(let piece):
-                        round.text += piece
-                        emit(delta)
-                    case .reasoning:
-                        emit(delta)
+                        emit(.text(piece))
+                    case .reasoning(let piece):
+                        emit(.reasoning(piece))
                     case .usage(let prompt, let completion):
-                        round.usage = (prompt, completion)
-                    case .metadata(let metadata):
-                        round.metadata = metadata
+                        usage = (prompt, completion)
+                    case .metadata(let next):
+                        metadata = next
                     case .done, .toolCall, .toolResult:
                         break
                     }
@@ -186,9 +133,16 @@ struct AnyRouterEngine: ChatEngine {
             pending.removeAll(keepingCapacity: true)
         }
         try handle(parser.feed(pending) + parser.finish())
-        round.toolCalls = decoder.toolCalls
-        round.finishReason = decoder.finishReason
-        return round
+        for call in decoder.toolCalls { emit(.proposed(call)) }
+        if let usage { emit(.usage(prompt: usage.prompt, completion: usage.completion)) }
+        if let metadata { emit(.metadata(metadata)) }
+        emit(.end(finishReason: decoder.finishReason))
+    }
+
+    /// A finished round as the API wants it back: the assistant's turn with its calls, then one `tool` message per result.
+    static func wireMessages(_ round: AgentRound) -> [[String: Any]] {
+        [assistantMessage(text: round.text, calls: round.calls)]
+            + zip(round.calls, round.results).map { call, result in ["role": "tool", "tool_call_id": call.id, "content": result.text] }
     }
 
     /// The assistant turn that asked for tools, replayed to the model together with the results.
@@ -292,5 +246,46 @@ struct AnyRouterEngine: ChatEngine {
         request.setValue(config.source, forHTTPHeaderField: "X-AnyRouter-Source")
         request.setValue(config.version, forHTTPHeaderField: "X-AnyRouter-Version")
         request.setValue(config.categories, forHTTPHeaderField: "X-AnyRouter-Categories")
+    }
+}
+
+/// One AnyRouter request as a round of the app's tool loop (agent design 1.4). Earlier rounds go back as the assistant's
+/// `tool_calls` and their `tool` messages. With tools off the request still lists the tools (the history mentions them)
+/// but sets `tool_choice` to `none`.
+struct AnyRouterStep: StepFunction {
+    let engine: AnyRouterEngine
+    let model: ModelDescriptor
+    let messages: [ChatMessage]
+    let params: GenerationParams
+    let specs: [ToolSpec]
+
+    /// Cloud results are sent whole; old ones are cleared only in large steps, and only when the window is known.
+    var budget: RunBudgetLogic.Budget? {
+        CompactionLogic.window(for: model).map { RunBudgetLogic.Budget(window: $0, onDevice: false) }
+    }
+
+    func tokens(_ rounds: [AgentRound], toolsOn: Bool) -> Int {
+        let sent = [params.systemPrompt].compactMap { $0 } + messages.map(\.content)
+            + rounds.flatMap { [$0.text] + $0.calls.map(\.argumentsJSON) + $0.results.map(\.text) }
+        return sent.reduce(0) { $0 + TokenCountLogic.estimate($1) + PromptAssembler.perMessageTokens }
+    }
+
+    func step(_ rounds: [AgentRound], toolsOn: Bool) -> AsyncThrowingStream<StepEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    guard let key = engine.tokens.token() else { throw AnyRouterError.signedOut }
+                    let request = try engine.makeChatRequest(
+                        key: key, model: model, messages: messages, params: params,
+                        tools: specs, toolChoiceNone: !toolsOn, extraMessages: rounds.flatMap(AnyRouterEngine.wireMessages)
+                    )
+                    try await engine.streamRound(request) { _ = continuation.yield($0) }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 }
