@@ -61,6 +61,22 @@ final class ModelDownloadManager {
         states[entry.id] ?? .notInstalled
     }
 
+    /// Ids with a download in flight, paused or verifying.
+    var activeIDs: Set<String> { Set(states.filter { $0.value.isActive }.map(\.key)) }
+
+    /// Ids whose files are moving now: downloading or verifying. A paused download is not running.
+    var runningIDs: Set<String> {
+        Set(states.filter { state in
+            switch state.value {
+            case .downloading, .verifying: true
+            default: false
+            }
+        }.map(\.key))
+    }
+
+    /// The catalog entry a started download was made from. It outlives the entry leaving the catalog.
+    func jobEntry(for id: String) -> CatalogEntry? { jobs[id]?.record.entry }
+
     /// Sets installed / not installed from disk for entries with no download in flight. Call after loading the catalog.
     func refresh(entries: [CatalogEntry]) {
         for entry in entries where !(states[entry.id]?.isActive ?? false) {
@@ -147,18 +163,29 @@ final class ModelDownloadManager {
 
     /// Stops the download and throws away what was fetched.
     func cancel(_ entry: CatalogEntry) {
-        let id = entry.id
+        cancel(entryID: entry.id)
+    }
+
+    func cancel(entryID id: String) {
         jobs[id] = nil
         startTokens[id] = nil
         apply(.cancel, to: id)
         discards[id] = Task { await discard(id) }
     }
 
+    /// Waits for the clean-up a cancel started, so the folder is gone when this returns.
+    func finishDiscard(entryID id: String) async {
+        await discards[id]?.value
+    }
+
     /// Removes an installed model (or a failed attempt) from disk.
     func delete(_ entry: CatalogEntry) throws {
-        let id = entry.id
+        try delete(entryID: entry.id)
+    }
+
+    func delete(entryID id: String) throws {
         if states[id]?.isActive ?? false {
-            cancel(entry)
+            cancel(entryID: id)
             return
         }
         try storage.delete(entryID: id)

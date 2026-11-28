@@ -98,6 +98,8 @@ struct LocalModelEntry: Identifiable, Hashable, Sendable {
     var revision: String? = nil
     /// Set when the model can read photos once this add-on is downloaded, and this device has room for it.
     var photoAddOn: PhotoAddOn? = nil
+    /// Installed, but its catalog entry is gone. It still loads from its manifest and Delete works from disk.
+    var isOffCatalog = false
     var id: String { descriptor.id }
 }
 
@@ -156,6 +158,13 @@ protocol ModelHubService: AnyObject {
     /// resume, cancel and removal use `downloadState(for:)`, `resume`, `cancel` and `delete` with the add-on's id.
     func addPhotoSupport(to modelID: String)
 
+    /// Everything in the models folder, biggest first, whatever the catalog says.
+    var storageItems: [StorageInventoryLogic.Item] { get }
+    /// Installed models whose catalog entry is gone. They still load; Local Models lists them with a Delete.
+    var offCatalogModels: [LocalModelEntry] { get }
+    /// Deletes one storage row from disk. A running download is left alone.
+    func deleteStorageItem(_ item: StorageInventoryLogic.Item) async
+
     func searchRepos(_ query: String) async throws -> [RepoHit]
     func entries(for hit: RepoHit) async throws -> [LocalModelEntry]
     /// Adds every GGUF file (or the MLX snapshot) of a repo to the user's catalog.
@@ -172,9 +181,19 @@ extension ModelHubService {
     /// Hubs with no add-ons have nothing to add.
     func addPhotoSupport(to modelID: String) {}
 
+    /// Hubs with no disk have nothing stored.
+    var storageItems: [StorageInventoryLogic.Item] { [] }
+    var offCatalogModels: [LocalModelEntry] { [] }
+    func deleteStorageItem(_ item: StorageInventoryLogic.Item) async {}
+
+    /// Clears every download that stopped part way and is not moving now.
+    func deleteUnfinishedDownloads() async {
+        for item in StorageInventoryLogic.unfinished(storageItems) { await deleteStorageItem(item) }
+    }
+
     /// Deletes every installed model, one at a time. A model that fails to delete leaves `lastError` set and the rest still go.
     func deleteAllModels() async {
-        for entry in catalog where downloadState(for: entry.id) == .installed {
+        for entry in catalog + offCatalogModels where downloadState(for: entry.id) == .installed {
             await delete(modelID: entry.id)
         }
     }

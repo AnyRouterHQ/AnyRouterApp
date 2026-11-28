@@ -28,6 +28,17 @@ struct DownloadJobRecord: Codable, Sendable, Equatable {
     var files: [HFFile]
 }
 
+/// One folder under `Models/` as it is on disk. `hasManifest` and `hasJob` say the file exists, so a manifest an older
+/// build wrote that this one cannot decode still counts as installed and is never cleaned up.
+struct ModelFolder: Equatable, Sendable {
+    var name: String
+    var hasManifest = false
+    var manifest: InstalledManifest?
+    var hasJob = false
+    var job: DownloadJobRecord?
+    var bytes: Int64 = 0
+}
+
 /// Where local models live: `Application Support/Models/<entry dir>/`, kept out of iCloud backup.
 /// GGUF: the `.gguf` file in that folder. MLX: the snapshot folder itself (config.json, safetensors, tokenizer).
 struct LocalModelStorage: Sendable {
@@ -183,6 +194,37 @@ struct LocalModelStorage: Sendable {
 
     func totalDiskUsageBytes() -> Int64 {
         Self.directorySize(root)
+    }
+
+    /// Every folder under the root with what it holds, sorted by name.
+    func folders() -> [ModelFolder] {
+        let fm = FileManager.default
+        let dirs = (try? fm.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return dirs.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }.map { dir in
+            let manifestURL = dir.appending(path: Self.manifestName)
+            let jobURL = dir.appending(path: Self.jobName)
+            return ModelFolder(
+                name: dir.lastPathComponent,
+                hasManifest: fm.fileExists(atPath: manifestURL.path),
+                manifest: (try? Data(contentsOf: manifestURL)).flatMap { try? decoder.decode(InstalledManifest.self, from: $0) },
+                hasJob: fm.fileExists(atPath: jobURL.path),
+                job: (try? Data(contentsOf: jobURL)).flatMap { try? JSONDecoder().decode(DownloadJobRecord.self, from: $0) },
+                bytes: Self.directorySize(dir))
+        }
+        .sorted { $0.name < $1.name }
+    }
+
+    /// Removes one folder by its name, for files no catalog entry or download record names.
+    /// A name that is not a single folder under the root (empty, "..", a path) is refused.
+    func delete(folder name: String) throws {
+        guard !name.isEmpty, name != ".", name != "..", !name.contains("/") else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        let dir = root.appending(path: name, directoryHint: .isDirectory)
+        if FileManager.default.fileExists(atPath: dir.path) { try FileManager.default.removeItem(at: dir) }
     }
 
     func delete(entryID id: String) throws {

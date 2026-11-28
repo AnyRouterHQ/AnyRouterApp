@@ -14,6 +14,8 @@ final class LocalModelHub: ModelHubService {
     private(set) var remoteCatalogURL: String = ""
     private(set) var usesDevelopmentCatalog = false
     private(set) var memoryLimitNote: String?
+    private(set) var storageItems: [StorageInventoryLogic.Item] = []
+    private(set) var offCatalogModels: [LocalModelEntry] = []
 
     let downloads: ModelDownloadManager
     @ObservationIgnored private let service: CatalogService
@@ -54,6 +56,7 @@ final class LocalModelHub: ModelHubService {
         if !restored {
             restored = true
             await downloads.restore()
+            await removeLeftovers()
         }
         let settings = CatalogSettings.load(from: defaults)
         remoteCatalogURL = settings.remoteCatalogURL?.absoluteString ?? ""
@@ -76,6 +79,7 @@ final class LocalModelHub: ModelHubService {
         } catch {
             lastError = error.localizedDescription
         }
+        await rescan()
     }
 
     func refreshCatalog() async {
@@ -87,7 +91,9 @@ final class LocalModelHub: ModelHubService {
     var finishedDownloads: Int { downloads.finishedDownloads }
 
     func downloadState(for modelID: String) -> DownloadState {
-        guard let entry = raw[modelID] ?? browsed[modelID] else { return .notInstalled }
+        guard let entry = entry(modelID) else {
+            return storageItems.contains { $0.id == modelID && $0.kind == .offCatalog } ? .installed : .notInstalled
+        }
         let state = downloads.state(for: entry)
         switch state {
         case .notInstalled: return .notInstalled
@@ -113,22 +119,54 @@ final class LocalModelHub: ModelHubService {
         Task { await downloads.start(addOn) }
     }
 
-    func pause(modelID: String) { if let e = raw[modelID] { downloads.pause(e) } }
-    func resume(modelID: String) { if let e = raw[modelID] { downloads.resume(e) } }
-    func cancel(modelID: String) { if let e = raw[modelID] { downloads.cancel(e) } }
+    func pause(modelID: String) { if let e = entry(modelID) { downloads.pause(e) } }
+    func resume(modelID: String) { if let e = entry(modelID) { downloads.resume(e) } }
+    func cancel(modelID: String) { if let e = entry(modelID) { downloads.cancel(e) } }
 
     func delete(modelID: String) async {
-        guard let entry = raw[modelID] else { return }
+        guard let entry = raw[modelID] else {
+            // Gone from the catalog: the inventory knows its folders.
+            if let item = storageItems.first(where: { $0.id == modelID }) { await deleteStorageItem(item) }
+            return
+        }
         // Files first: a chat that starts after this finds no model to load, and the unload below drops a load that
         // began before. Unloading first would let a chat load the model again before its files go.
         do {
             try downloads.delete(entry)
             if let addOn = entry.photoAddOn { try downloads.delete(addOn) }
+            // A photo add-on only this model used, even one the catalog no longer names.
+            for folder in storageItems.first(where: { $0.id == modelID })?.folders.dropFirst() ?? [] {
+                try downloads.storage.delete(folder: folder)
+            }
             lastError = nil
         } catch {
             lastError = error.localizedDescription
         }
         await unloadModel(modelID)
+        await rescan()
+    }
+
+    /// Deletes one row of the storage list from disk, whatever the catalog says. A running download is left alone.
+    func deleteStorageItem(_ item: StorageInventoryLogic.Item) async {
+        guard !item.isRunning else { return }
+        if item.kind == .installed, item.source != nil, raw[item.id] != nil {
+            await delete(modelID: item.id)
+            return
+        }
+        do {
+            if item.kind == .partial {
+                // Through the download manager, so a paused job forgets its files instead of resuming into nothing.
+                try downloads.delete(entryID: item.id)
+                await downloads.finishDiscard(entryID: item.id)
+            } else {
+                for folder in item.folders { try downloads.storage.delete(folder: folder) }
+            }
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
+        if item.source != nil { await unloadModel(item.id) }
+        await rescan()
     }
 
     func searchRepos(_ query: String) async throws -> [RepoHit] {
@@ -183,6 +221,27 @@ final class LocalModelHub: ModelHubService {
     }
 
     // MARK: - Private
+
+    private func entry(_ id: String) -> CatalogEntry? {
+        raw[id] ?? browsed[id] ?? downloads.jobEntry(for: id)
+    }
+
+    /// Reads the models folder again: the storage list, and installed models the catalog no longer lists.
+    private func rescan() async {
+        downloads.refresh(entries: Array(raw.values))
+        let storage = downloads.storage
+        let folders = await Task.detached(priority: .utility) { storage.folders() }.value
+        let running = Set(downloads.runningIDs.map(LocalModelStorage.directoryName(forEntryID:)))
+        storageItems = StorageInventoryLogic.items(folders: folders, names: raw.mapValues(\.title), running: running)
+        offCatalogModels = StorageInventoryLogic.offCatalogEntries(storageItems)
+    }
+
+    /// Once per launch, after `restore()`: drops what a cancelled or forgotten download left. Never a folder with a manifest.
+    private func removeLeftovers() async {
+        let storage = downloads.storage
+        let active = Set(downloads.activeIDs.map(LocalModelStorage.directoryName(forEntryID:)))
+        _ = await Task.detached(priority: .utility) { storage.removeLeftovers(running: active) }.value
+    }
 
     private func persist(adding items: [CatalogEntry]) async {
         var settings = CatalogSettings.load(from: defaults)
