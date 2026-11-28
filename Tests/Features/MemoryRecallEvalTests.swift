@@ -63,20 +63,52 @@ struct MemoryRecallEvalTests {
         Prompt("Ideas for my bakery's new menu", want: [17]),
     ]
 
-    @Test func recallAtThreeAndWrongRecallsOnTheFixture() {
-        let candidates = Self.memories.enumerated().map { MemoryRecallLogic.Candidate(id: UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", $0.offset))!, text: $0.element) }
+    static let candidates = memories.enumerated().map {
+        MemoryRecallLogic.Candidate(id: UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", $0.offset))!, text: $0.element)
+    }
+
+    /// Recall at 3 and wrong recalls, with a semantic score per question (none for BM25 alone).
+    static func measure(semantic: (String) -> [UUID: Double]) -> (found: Int, wanted: Int, wrong: Int) {
         var found = 0
         var wanted = 0
         var wrong = 0
-        for prompt in Self.prompts {
-            let top = MemoryRecallLogic.rank(prompt.question, candidates).prefix(3).compactMap { hit in candidates.firstIndex { $0.id == hit.candidate.id } }
+        for prompt in prompts {
+            let ranked = MemoryRecallLogic.rank(prompt.question, candidates, semantic: semantic(prompt.question))
+            let top = ranked.prefix(3).compactMap { hit in candidates.firstIndex { $0.id == hit.candidate.id } }
             found += prompt.want.filter { top.contains($0) }.count
             wanted += prompt.want.count
             wrong += top.filter { !prompt.want.contains($0) }.count
         }
-        let recall = Double(found) / Double(wanted)
-        print("memory eval: recall at 3 \(found)/\(wanted) = \(recall), wrong recalls \(wrong) in \(Self.prompts.count) prompts")
-        #expect(recall >= 0.8, "recall at 3 fell: \(found)/\(wanted)")
-        #expect(wrong <= 4, "wrong recalls rose: \(wrong)")
+        return (found, wanted, wrong)
+    }
+
+    @Test func recallAtThreeAndWrongRecallsOnTheFixture() {
+        let lexical = Self.measure { _ in [:] }
+        let recall = Double(lexical.found) / Double(lexical.wanted)
+        print("memory eval (BM25): recall at 3 \(lexical.found)/\(lexical.wanted) = \(recall), wrong recalls \(lexical.wrong)")
+        #expect(recall >= 0.8, "recall at 3 fell: \(lexical.found)/\(lexical.wanted)")
+        #expect(lexical.wrong <= 4, "wrong recalls rose: \(lexical.wrong)")
+    }
+
+    /// Unit M7: the same fixture with Apple's on-device embeddings added to BM25. Skipped, with a line in the log, where the
+    /// Simulator has no embedding assets; the BM25 floor above still holds there.
+    @MainActor @Test func hybridRecallWithOnDeviceEmbeddings() async {
+        let embedder = OnDeviceEmbedder()
+        guard await embedder.prepare() else {
+            print("memory eval (hybrid): skipped, no NaturalLanguage embedding on this Simulator")
+            return
+        }
+        let vectors = Self.candidates.compactMap { candidate in embedder.embed(candidate.text).map { (candidate.id, $0) } }
+        let hybrid = Self.measure { question in
+            guard let query = embedder.embed(question) else { return [:] }
+            var similarities: [UUID: Double] = [:]
+            for (id, item) in vectors where item.model == query.model {
+                similarities[id] = MemoryEmbeddingLogic.cosine(query.vector, item.vector)
+            }
+            return MemoryEmbeddingLogic.standout(similarities)
+        }
+        let lexical = Self.measure { _ in [:] }
+        print("memory eval (hybrid, \(vectors.first?.1.model ?? "none")): recall at 3 \(hybrid.found)/\(hybrid.wanted), wrong \(hybrid.wrong); BM25 \(lexical.found)/\(lexical.wanted), wrong \(lexical.wrong)")
+        #expect(hybrid.found >= lexical.found, "meaning must not lose what words found")
     }
 }

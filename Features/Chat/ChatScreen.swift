@@ -142,6 +142,8 @@ struct ChatScreen: View {
             app.speaker.follow(messageID: id, text: text, isFinal: true, hub: app.voice)
         }
         model.generatesTitles = true
+        model.embedder = OnDeviceEmbedder.shared
+        Task { _ = await OnDeviceEmbedder.shared.prepare() }
         if DemoData.attachesSampleFile, thread == nil { model.attachFiles([DemoData.sampleAttachmentURL()]) }
         chat = model
     }

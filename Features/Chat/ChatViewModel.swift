@@ -74,6 +74,8 @@ final class ChatViewModel {
     @ObservationIgnored var sendsWhenActive = false
     /// The question being answered was already retried once after folding the chat for Apple's window.
     @ObservationIgnored private var retriedAfterCompaction = false
+    /// On-device sentence vectors for recall by meaning. The chat screen sets it; without it recall is BM25 alone.
+    @ObservationIgnored var embedder: OnDeviceEmbedder?
     /// The run of the reply being written, saved at its step boundaries.
     @ObservationIgnored private var run: AgentRunRecord?
 
@@ -1057,9 +1059,10 @@ final class ChatViewModel {
                 && record.sourceMessageID != question.id
                 && MemoryProfileLogic.allows(record.scope, source: model.source, deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats)
         }
+        let semantic = MemoryStore(context: context).semanticScores(for: question.content, among: records, embedder: embedder)
         let hits = MemoryRecallLogic.recall(
             question.content, from: records.map { MemoryRecallLogic.Candidate(id: $0.id, text: $0.text) },
-            budget: PromptBudget.forModel(model).memoryHits)
+            budget: PromptBudget.forModel(model).memoryHits, semantic: semantic)
         let used = Set(hits.map(\.candidate.id))
         let now = Date()
         for record in records where used.contains(record.id) {

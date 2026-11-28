@@ -28,10 +28,12 @@ enum MemoryRecallLogic {
     ]
 
     /// The best items for the question, at most three, whole, within the budget.
-    static func recall(_ question: String, from candidates: [Candidate], budget: Int) -> [Hit] {
+    /// `semantic`: how far each item stands out from the others by meaning (MemoryEmbeddingLogic.standout); empty
+    /// without on-device embeddings, which leaves plain BM25.
+    static func recall(_ question: String, from candidates: [Candidate], budget: Int, semantic: [UUID: Double] = [:]) -> [Hit] {
         var hits: [Hit] = []
         var lines = [heading]
-        for hit in rank(question, candidates) where hits.count < maxHits {
+        for hit in rank(question, candidates, semantic: semantic) where hits.count < maxHits {
             let candidate = lines + ["- " + hit.candidate.text]
             guard TokenCountLogic.estimate(candidate.joined(separator: "\n")) <= budget else { continue }
             lines = candidate
@@ -42,7 +44,9 @@ enum MemoryRecallLogic {
 
     /// Every candidate that shares a word with the question, best first. No score floor: BM25 gives a word that every item
     /// holds a tiny weight, so a floor would drop the only matches of a small memory. The live set (unit L1) checks traps.
-    static func rank(_ question: String, _ candidates: [Candidate]) -> [Hit] {
+    /// With `semantic`, an item that shares no word still counts when it stands out by meaning, and the order mixes
+    /// both: BM25 scaled to the best item, plus a third of how far it stands out.
+    static func rank(_ question: String, _ candidates: [Candidate], semantic: [UUID: Double] = [:]) -> [Hit] {
         let terms = Array(Set(words(question).filter { !stopWords.contains($0) }.map(fold)))
         let documents = candidates.map { words($0.text) }
         let folded = documents.map { $0.map(fold) }
@@ -57,7 +61,12 @@ enum MemoryRecallLogic {
             Hit(candidate: candidates[index], score: score(
                 terms: terms, weights: weights, exact: exact, words: documents[index], folded: folded[index], averageLength: averageLength))
         }
-        return scored.filter { $0.score > 0 }.sorted { $0.score > $1.score }
+        let best = scored.map(\.score).max() ?? 0
+        return scored.compactMap { hit in
+            let meaning = semantic[hit.candidate.id].map { max(0, $0) } ?? 0
+            guard hit.score > 0 || meaning >= MemoryEmbeddingLogic.standoutThreshold else { return nil }
+            return Hit(candidate: hit.candidate, score: (best > 0 ? hit.score / best : 0) + meaning / 3)
+        }.sorted { $0.score > $1.score }
     }
 
     /// The footer's words: "Used 1 memory", "Used 3 memories".
