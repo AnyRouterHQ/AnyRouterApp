@@ -21,7 +21,7 @@ enum MemoryRecallLogic {
     /// Words too common to say what a question is about, as typed: "an" is a stop word, "ăn" (eat) is not.
     private static let stopWords: Set<String> = [
         "a", "an", "and", "are", "as", "at", "be", "but", "by", "can", "could", "do", "does", "for", "from", "have", "how",
-        "i", "if", "in", "is", "it", "me", "my", "of", "on", "or", "please", "so", "that", "the", "this", "to", "was", "we",
+        "i", "if", "in", "is", "it", "me", "my", "of", "on", "or", "our", "please", "so", "that", "the", "this", "to", "was", "we",
         "what", "when", "where", "which", "who", "why", "will", "with", "would", "you", "your",
         "anh", "bạn", "các", "cho", "chị", "có", "của", "được", "em", "gì", "không", "là", "mình", "một", "nào", "này",
         "nhé", "những", "sao", "thì", "tôi", "và", "với", "toi", "la", "cua", "va", "co", "khong", "mot", "voi", "gi",
@@ -75,8 +75,10 @@ enum MemoryRecallLogic {
         text.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
     }
 
+    /// Without case and tone marks, and an English plural without its "s", so "trains" finds "train".
     private static func fold(_ word: String) -> String {
-        word.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        let folded = word.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        return folded.count > 3 && folded.hasSuffix("s") && !folded.hasSuffix("ss") ? String(folded.dropLast()) : folded
     }
 
     /// BM25 (k1 1.2, b 0.75) over folded terms. A word counts 1 when it is also one of the question's words as typed,

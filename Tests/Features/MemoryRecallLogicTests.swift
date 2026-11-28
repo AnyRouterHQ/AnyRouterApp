@@ -45,6 +45,12 @@ struct MemoryRecallLogicTests {
         #expect(MemoryRecallLogic.block([]) == nil)
     }
 
+    @Test func anEnglishPluralFindsItsSingular() {
+        let facts = candidates(["I prefer trains over planes", "The glass is full"] + unrelated)
+        #expect(MemoryRecallLogic.recall("Train or plane?", from: facts, budget: 150).map(\.candidate.text) == ["I prefer trains over planes"])
+        #expect(MemoryRecallLogic.recall("glass", from: facts, budget: 150).map(\.candidate.text) == ["The glass is full"], "a double s stays")
+    }
+
     @Test func wordsAreLowercasedLettersAndDigits() {
         #expect(MemoryRecallLogic.words("Room 204, floor-3!") == ["room", "204", "floor", "3"])
     }
