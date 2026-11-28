@@ -715,6 +715,15 @@ The OCR endpoint takes an `sk-ar-` key; the app's sign-in token is one (`OAuthCl
 - [ ] AP5 Entry: sidebar Apps row (13c6429) and composer "Decide about this" (5547939) are done; Extract's tile (f9681b4) and "Extract fields" (543e787) are done
 - [ ] AP6 Screenshots of Decisions, Paste and Extract, light and dark (lane A queue)
 
+### Design review 2026-11-28 (iOS HIG and Liquid Glass)
+
+Source: `design-review-2026-11-28.md` (kept outside the repo). Lane B items:
+
+- [x] Subtract: chip outlines, the suggestion row's ±4 pt padding, local radii (3fe0f76)
+- [x] Primitives in `Design/`: `glassCircle` (129e1f2), composer `GlassEffectContainer` and `StatusBanner` (2b47be8), `bottomActionBar` (aea2952)
+- [x] #1 Decisions Run in `bottomActionBar`, no `.bar` band (aea2952); #7 Extract too (aea2952); #2/#3 field button is a borderedProminent fill, Stop bordered while queueing (09f79a5); #4 Hide 44 pt (a80a04a); #5/#6 (2b47be8). Screenshots pending.
+- Decision: P1's one-line chips are declined. The starter cards stay two lines (bold title, detail line) because the operator asked for them (D23, a83d755); an operator request beats the review. Do not reopen.
+
 ### Tools by model source (decision D24)
 
 Source by tool, 2026-11-27. "Verified" names the test that fails if the cell changes. The AnyRouter MCP server needs a sign-in in this app (`ToolSourceCatalog.anyRouter.auth`); the no-account web search is Exa.
