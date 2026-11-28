@@ -109,7 +109,10 @@ struct ThreadSidebar: View {
     ) -> some View {
         HStack {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                // Bold, not semibold: secondary text at this size "nearly passed" contrast in dark mode (accessibility
+                // audit, drawer, verify-ui 46150715558); bold text of this size counts as large text. Still the
+                // operator's secondary section title.
+                .font(.subheadline.bold())
                 .foregroundStyle(.secondary)
                 .accessibilityAddTraits(.isHeader)
             Spacer()

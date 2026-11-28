@@ -36,7 +36,9 @@ final class AccessibilityAuditTests: XCTestCase {
                 let id = issue.element?.identifier ?? ""
                 let label = (issue.element?.label ?? "").replacingOccurrences(of: "\n", with: " ")
                 if !drawer.isEmpty, drawer.contains(label) || id.hasPrefix("sidebar") { return true }
-                found.append("\(issue.auditType.rawValue) | \(issue.compactDescription) | id=\(id) label=\(label)")
+                // Type and frame name the element, so a finding with an empty label can be traced to a view.
+                let place = issue.element.map { " type=\($0.elementType.rawValue) frame=\($0.frame)" } ?? ""
+                found.append("\(issue.auditType.rawValue) | \(issue.compactDescription) | id=\(id) label=\(label)\(place)")
                 return true
             }
         } catch {
