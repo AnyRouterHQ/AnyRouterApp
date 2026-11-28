@@ -89,7 +89,7 @@ final class LlamaModel: @unchecked Sendable {
         let loaded = llama_model_load_from_file(path, params)
         let log = LlamaLoadLog.end()
         guard let model = loaded else {
-            throw GGUFError.loadFailed(name: name, reason: LlamaLoadLog.reason(from: log))
+            throw GGUFError.loadFailed(name: name, reason: LlamaLoadLog.reason(from: log), log: LlamaLoadLog.trail(from: log))
         }
         guard let vocab = llama_model_get_vocab(model) else {
             llama_model_free(model)

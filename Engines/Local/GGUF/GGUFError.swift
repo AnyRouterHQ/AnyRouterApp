@@ -3,7 +3,8 @@ import Foundation
 enum GGUFError: Error, LocalizedError, Equatable {
     case modelNotInstalled(String)
     /// `reason` is what llama.cpp logged while loading, nil when it said nothing.
-    case loadFailed(name: String, reason: String?)
+    /// `log`: llama.cpp's last warning and error lines, shown behind the reply's Details.
+    case loadFailed(name: String, reason: String?, log: [String] = [])
     case contextFailed
     case tokenizeFailed
     case promptTooLong(tokens: Int, limit: Int)
@@ -18,8 +19,9 @@ enum GGUFError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .modelNotInstalled(let id): "Model is not downloaded: \(id)"
-        case .loadFailed(let name, let reason):
+        case .loadFailed(let name, let reason, let log):
             "Could not load \(name). " + (reason.map { "llama.cpp said: \($0)" } ?? "The file may be damaged or too large for this device.")
+                + (log.isEmpty ? "" : "\n\nllama.cpp log:\n" + log.joined(separator: "\n"))
         case .contextFailed: "Could not allocate memory for the chat. Try a smaller model."
         case .tokenizeFailed: "Could not read the prompt."
         case .promptTooLong(let tokens, let limit): "The message needs \(tokens) tokens, the model reads \(limit) at most."
