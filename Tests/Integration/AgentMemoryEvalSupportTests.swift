@@ -35,9 +35,14 @@ final class AgentMemoryEvalSupportTests: XCTestCase {
         XCTAssertEqual(Set(cases.map(\.language)), ["en", "vi"])
     }
 
+    /// "Ideas for my bakery's new menu" shares one content word of four with "I run a small bakery in District 3", the
+    /// same share as the trap "the dog in the Hachiko story", so the relevance floor (MemoryRecallLogic.minimumShare)
+    /// leaves it out: a missed memory is better than a wrong one.
+    static let knownMisses: Set<String> = ["recall-bakery"]
+
     func testTheRightMemoryIsInTheRequestOfEveryRecallPromptOnEverySource() throws {
         for (name, model) in models {
-            for item in try AgentEvalFixtures.memoryCases() where item.kind == "recall" {
+            for item in try AgentEvalFixtures.memoryCases() where item.kind == "recall" && !Self.knownMisses.contains(item.id) {
                 let run = AgentMemoryScripted.run(item, model: model)
                 XCTAssertEqual(run.script.rightInRequest, true, "\(name) \(item.id): recalled \(run.script.recalled)")
                 let last = try XCTUnwrap(run.prompt.messages.last)
@@ -60,7 +65,7 @@ final class AgentMemoryEvalSupportTests: XCTestCase {
         let trap = AgentMemoryCase(
             id: "t", kind: "trap", language: "en", prompt: "How do I train a neural network?", want: [], forbid: [15], saved: nil, thenAsk: nil)
         let run = AgentMemoryScripted.run(trap, model: descriptor(.gguf, context: 262_144))
-        XCTAssertEqual(run.script.recalled, [15], "BM25 has no score floor, so the shared word \"train\" recalls the trains memory")
+        XCTAssertEqual(run.script.recalled, [15], "\"train\" is one of three content words, over the floor, so the trains memory comes back")
         XCTAssertEqual(run.script.wrongRecalls, 1)
         let clean = AgentMemoryCase(
             id: "c", kind: "trap", language: "en", prompt: "Explain quantum entanglement", want: [], forbid: [15], saved: nil, thenAsk: nil)
@@ -107,7 +112,8 @@ final class AgentMemoryEvalSupportTests: XCTestCase {
             let scripts = cases.map { AgentMemoryScripted.run($0, model: model).script }
             let summary = AgentMemoryScripted.summarize(scripts, total: cases.count)
             AgentEvalReport.publish(AgentMemoryScripted.line(summary, engine: "scripted, \(name) budget", judge: "no model"))
-            XCTAssertEqual(summary.recallFound, summary.recallWanted, name)
+            XCTAssertEqual(summary.recallFound, summary.recallWanted - Self.knownMisses.count, name)
+            XCTAssertEqual(summary.trapHit, 0, "no trap prompt recalls its lookalike: \(name)")
         }
     }
 

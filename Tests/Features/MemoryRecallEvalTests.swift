@@ -4,8 +4,8 @@ import Testing
 
 /// The scripted half of the memory eval (agent design 5.2, 5.3, unit L1): 30 memories, 10 questions in English and
 /// Vietnamese, each with the items it should recall. Recall at 3 decides M7: embeddings only if it stays under 0.9.
-/// Measured with a port of the scorer before this test existed: 0.77, then 0.85 with plural folding and "our" as a stop
-/// word. Two of the misses need meaning, not words ("dinner" for "vegetarian", "rains" for "rainy"), and in the app
+/// Measured with a port of the scorer: 0.77, then 0.85 with plural folding and "our" as a stop word, then 9/13 with no
+/// wrong recall once a memory must hold more than a quarter of the question's content words. Two of the misses need meaning, not words ("dinner" for "vegetarian", "rains" for "rainy"), and in the app
 /// "I am vegetarian" is an About you item that every prompt carries anyway.
 struct MemoryRecallEvalTests {
     struct Prompt {
@@ -93,8 +93,9 @@ struct MemoryRecallEvalTests {
         let lexical = Self.measure { _ in [:] }
         let recall = Double(lexical.found) / Double(lexical.wanted)
         Self.report("memory eval (BM25): recall at 3 \(lexical.found)/\(lexical.wanted) = \(recall), wrong recalls \(lexical.wrong)")
-        #expect(recall >= 0.8, "recall at 3 fell: \(lexical.found)/\(lexical.wanted)")
-        #expect(lexical.wrong <= 4, "wrong recalls rose: \(lexical.wrong)")
+        // With the relevance floor (MemoryRecallLogic.minimumShare): measured 9/13 and no wrong recall.
+        #expect(lexical.found >= 9, "recall at 3 fell: \(lexical.found)/\(lexical.wanted)")
+        #expect(lexical.wrong == 0, "wrong recalls rose: \(lexical.wrong)")
     }
 
     /// Unit M7: the same fixture with Apple's on-device embeddings added to BM25. Skipped, with a line in the log, where the

@@ -45,6 +45,13 @@ struct MemoryRecallLogicTests {
         #expect(MemoryRecallLogic.block([]) == nil)
     }
 
+    @Test func aMemoryThatSharesOneWordWithALongQuestionAboutSomethingElseIsLeftOut() {
+        let facts = candidates(["My dog is called Mochi"] + unrelated)
+        #expect(MemoryRecallLogic.recall("Why is the dog in the Hachiko story so famous?", from: facts, budget: 150).isEmpty,
+                "one word of four is not about the user's dog")
+        #expect(MemoryRecallLogic.recall("Treats for my dog?", from: facts, budget: 150).map(\.candidate.text) == ["My dog is called Mochi"])
+    }
+
     @Test func anEnglishPluralFindsItsSingular() {
         let facts = candidates(["I prefer trains over planes", "The glass is full"] + unrelated)
         #expect(MemoryRecallLogic.recall("Train or plane?", from: facts, budget: 150).map(\.candidate.text) == ["I prefer trains over planes"])

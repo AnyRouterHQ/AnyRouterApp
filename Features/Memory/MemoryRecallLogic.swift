@@ -16,6 +16,12 @@ enum MemoryRecallLogic {
     }
 
     static let maxHits = 3
+    /// A memory must hold more than a quarter of the question's content words (stop words left out, English and
+    /// Vietnamese). Measured on the 30-memory set and the L1 memory set with a port of this scorer: no floor gave 11/13
+    /// with 3 wrong and 3 of 3 trap prompts pulling their lookalike; a floor from 0.26 to 0.29 gives 9/13, 5/6, no wrong
+    /// recall and no trap; 0.3 drops to 7/13. Counting words, not their weights, keeps a small memory (one or two items)
+    /// from losing every match to the question's unseen words.
+    static let minimumShare = 0.27
     static let heading = "Things the user told you before:"
 
     /// Words too common to say what a question is about, as typed: "an" is a stop word, "ăn" (eat) is not.
@@ -58,8 +64,10 @@ enum MemoryRecallLogic {
         }
         let exact = Set(words(question))
         let scored = candidates.indices.map { index in
-            Hit(candidate: candidates[index], score: score(
-                terms: terms, weights: weights, exact: exact, words: documents[index], folded: folded[index], averageLength: averageLength))
+            let matched = Set(folded[index]).intersection(terms).count
+            let share = Double(matched) / Double(max(terms.count, 1))
+            let bm25 = score(terms: terms, weights: weights, exact: exact, words: documents[index], folded: folded[index], averageLength: averageLength)
+            return Hit(candidate: candidates[index], score: share >= minimumShare ? bm25 : 0)
         }
         let best = scored.map(\.score).max() ?? 0
         return scored.compactMap { hit in
