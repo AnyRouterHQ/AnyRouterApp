@@ -2,15 +2,23 @@ import SwiftUI
 
 /// Status colors for fit and badges. System colors only.
 enum ModelStatusColor {
-    static func fit(_ entry: LocalModelEntry) -> Color {
-        if entry.unavailableReason != nil { return .secondary }
+    static func fit(_ entry: LocalModelEntry) -> Color { alert(entry) ?? .secondary }
+
+    /// Colour only where it means something: a warning. "Runs well" is plain secondary text (it failed contrast in green).
+    static func alert(_ entry: LocalModelEntry) -> Color? {
+        if entry.unavailableReason != nil { return nil }
         switch entry.fit {
-        // Colour only where it means something: a warning. "Runs well" is plain secondary text (it failed contrast in green).
-        case .fits: return .secondary
         case .tight: return .orange
         case .wontFit: return .red
-        case .unknown: return .secondary
+        case .fits, .unknown: return nil
         }
+    }
+
+    /// A status line that keeps 4.5:1: the colour goes on a symbol, the words stay primary.
+    static func line(_ text: String, alert: Color?) -> Text {
+        guard let alert else { return Text(text) }
+        return Text(Image(systemName: "exclamationmark.triangle.fill")).foregroundStyle(alert)
+            + Text(" \(text)").foregroundStyle(.primary)
     }
 
     static func badge(_ tone: ModelBadge.Tone) -> Color {
@@ -55,14 +63,14 @@ struct ModelRow: View {
         var parts: [Text] = []
         if let note { parts.append(Text(note).foregroundStyle(.tint)) }
         if let fit = HubListOptions.rowStatus(entry, device: DeviceName.current) {
-            parts.append(Text(fit).foregroundStyle(ModelStatusColor.fit(entry)))
+            parts.append(ModelStatusColor.line(fit, alert: ModelStatusColor.alert(entry)))
         }
         parts += entry.badges.map { Text($0.label).foregroundStyle(ModelStatusColor.badge($0.tone)) }
         switch state {
         case .downloading(let progress): parts.append(Text(progressText("Downloading", progress)))
         case .paused(let progress): parts.append(Text(progressText("Paused", progress)))
         case .verifying: parts.append(Text("Verifying"))
-        case .failed(let message): parts.append(Text(message).foregroundStyle(.red))
+        case .failed(let message): parts.append(ModelStatusColor.line(message, alert: .red))
         case .notInstalled, .installed: break
         }
         if entry.isOffCatalog { parts.append(Text(StorageInventoryLogic.offCatalogNote)) }

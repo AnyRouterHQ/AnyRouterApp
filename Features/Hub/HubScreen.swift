@@ -94,7 +94,7 @@ struct HubScreen: View {
     var body: some View {
         List {
             if let error = hub.lastError {
-                Section { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
+                Section { ErrorLabel(error) }
             }
             Section {
                 LabeledContent("Storage", value: HubListOptions.storageSummary(usedBytes: usedBytes, freeBytes: freeBytes))
@@ -286,7 +286,7 @@ struct RepoSearchSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                if let errorText { Label(errorText, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
+                if let errorText { ErrorLabel(errorText) }
                 ForEach(hits) { hit in
                     NavigationLink {
                         RepoFilesView(hit: hit)
@@ -336,7 +336,7 @@ private struct RepoFilesView: View {
 
     var body: some View {
         List {
-            if let errorText { Label(errorText, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
+            if let errorText { ErrorLabel(errorText) }
             ForEach(files) { entry in
                 NavigationLink {
                     ModelDetailView(entry: entry)
@@ -395,7 +395,7 @@ struct AddByLinkSheet: View {
                     .pickerStyle(.segmented)
                 }
                 if let errorText {
-                    Section { Label(errorText, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
+                    Section { ErrorLabel(errorText) }
                 }
             }
             .navigationTitle("Add by link")

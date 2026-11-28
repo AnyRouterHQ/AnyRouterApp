@@ -27,7 +27,11 @@ struct ModelDetailView: View {
                 ModelLabel(model: entry.descriptor)
                 Text(entry.summary)
                 if let status = HubListOptions.fitStatus(entry, device: device) {
-                    Label(status, systemImage: statusSymbol).foregroundStyle(ModelStatusColor.fit(entry))
+                    Label {
+                        Text(status).foregroundStyle(ModelStatusColor.alert(entry) == nil ? .secondary : .primary)
+                    } icon: {
+                        Image(systemName: statusSymbol).foregroundStyle(ModelStatusColor.fit(entry))
+                    }
                 }
                 if let detail = entry.fitDetail, let text = FitText.explanation(detail, device: device) {
                     Text(text).font(.footnote).foregroundStyle(.secondary)
@@ -92,12 +96,12 @@ struct ModelDetailView: View {
     @ViewBuilder
     private func photoSupport(_ addOn: PhotoAddOn) -> some View {
         let row = PhotoSupportLogic.row(state: hub.downloadState(for: addOn.id), sizeBytes: addOn.sizeBytes)
-        if let failure = row.failure { Text(failure).foregroundStyle(.red) }
+        if let failure = row.failure { ErrorLabel(failure) }
         if let status = row.status {
             if let value = status.value {
                 LabeledContent(status.label, value: value)
             } else {
-                Label(status.label, systemImage: "checkmark.shield").foregroundStyle(.secondary)
+                Label(status.label, systemImage: "checkmark.shield")
             }
         }
         ForEach(row.actions, id: \.title) { action in
@@ -118,9 +122,9 @@ struct ModelDetailView: View {
     private var actions: some View {
         switch state {
         case .notInstalled where entry.unavailableReason != nil:
-            Text(entry.unavailableReason ?? "").foregroundStyle(.secondary)
+            Text(entry.unavailableReason ?? "")
         case .notInstalled, .failed:
-            if case .failed(let message) = state { Text(message).foregroundStyle(.red) }
+            if case .failed(let message) = state { ErrorLabel(message) }
             Button("Download", systemImage: "arrow.down.circle") {
                 if downloadWarning != nil { confirmsDownload = true } else { hub.download(entry) }
             }
@@ -133,7 +137,7 @@ struct ModelDetailView: View {
             Button("Resume", systemImage: "play.circle") { hub.resume(modelID: entry.id) }
             Button("Cancel download", systemImage: "xmark.circle", role: .destructive) { hub.cancel(modelID: entry.id) }
         case .verifying:
-            Label("Verifying", systemImage: "checkmark.shield").foregroundStyle(.secondary)
+            Label("Verifying", systemImage: "checkmark.shield")
         case .installed:
             if let installedDescriptor {
                 Button("Set as Default", systemImage: "star") { models.select(installedDescriptor) }

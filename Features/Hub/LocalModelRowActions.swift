@@ -30,13 +30,13 @@ struct LocalModelActions {
             Button("Delete", systemImage: "trash", role: .destructive) { prompts.pendingDelete = entry }
         case .downloading:
             Button("Cancel", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
-            Button("Pause", systemImage: "pause") { hub.pause(modelID: entry.id) }.tint(.accentColor)
+            Button("Pause", systemImage: "pause") { hub.pause(modelID: entry.id) }.tint(ARPalette.tint)
         case .paused:
             Button("Cancel", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
-            Button("Resume", systemImage: "play") { hub.resume(modelID: entry.id) }.tint(.accentColor)
+            Button("Resume", systemImage: "play") { hub.resume(modelID: entry.id) }.tint(ARPalette.tint)
         case .notInstalled, .failed:
             if entry.unavailableReason == nil {
-                Button("Download", systemImage: "arrow.down") { requestDownload(entry) }.tint(.accentColor)
+                Button("Download", systemImage: "arrow.down") { requestDownload(entry) }.tint(ARPalette.tint)
             }
         case .verifying:
             EmptyView()
