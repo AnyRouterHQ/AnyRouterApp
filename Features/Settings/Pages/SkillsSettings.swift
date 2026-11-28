@@ -64,7 +64,7 @@ struct SkillsSettings: View {
                     .disabled(model.isWorking)
                     .accessibilityIdentifier("settings.skills.import")
                 Button {
-                    Task { await model.sync(tokens: app.tokenStore, into: store) }
+                    if let tokens = app.tokens { Task { await model.sync(tokens: tokens, into: store) } }
                 } label: {
                     HStack {
                         Label("Sync from AnyRouter", systemImage: "arrow.triangle.2.circlepath")
@@ -74,7 +74,7 @@ struct SkillsSettings: View {
                         }
                     }
                 }
-                .disabled(!signedIn || model.isWorking)
+                .disabled(!signedIn || app.tokens == nil || model.isWorking)
                 .accessibilityIdentifier("settings.skills.sync")
             } footer: {
                 Text(model.syncNote ?? (signedIn ? "Syncing adds the skills in your AnyRouter hubs and removes the ones you took out." : "Sign in with AnyRouter to sync the skills in your hubs."))

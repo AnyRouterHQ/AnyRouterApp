@@ -57,6 +57,8 @@ final class AppState {
     let decisions: DecisionsStore
     /// The cloud image reader for Extract, given a file name; nil while signed out. Never handed to a tool.
     @ObservationIgnored var cloudOCR: (String?) -> (any ImageTextReading)? = { _ in nil }
+    /// The sign-in key, read only by the Skills page to sync the user's hub skills. Never handed to a model or a tool.
+    @ObservationIgnored private(set) var tokens: (any TokenStoring)?
     /// The one reporting door. Views and engines call this, never a vendor SDK.
     let telemetry: any Telemetry
     /// Saved crash, hang and metric payloads (Settings, Diagnostics).
@@ -73,6 +75,7 @@ final class AppState {
         if !DemoData.isEnabled { Task.detached { AttachmentStore.shared.purgePending() } }
         let integrations = IntegrationsStore(anyRouterToken: { tokenStore.token() })
         self.integrations = integrations
+        tokens = tokenStore
         tools = ToolRegistry(integrations: integrations, publicSources: ToolSourceCatalog.publicSources)
         if DemoData.isEnabled {
             telemetry = NoopTelemetry()
