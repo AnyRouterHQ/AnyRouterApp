@@ -18,11 +18,19 @@ struct ResponseMetadata: Hashable, Codable, Sendable {
     var ttftMs: Int?
     /// Send to the end of the reply, measured by the chat.
     var totalMs: Int?
+    /// Time the reply waited on its tool calls (a subagent's whole run, a page fetch), measured by the chat. Not the
+    /// model's generation time, so the speed leaves it out.
+    var toolMs: Int?
+    /// What a subagent of this reply spent, apart from the reply's own tokens, so the speed counts only the reply's.
+    var subagentPromptTokens: Int?
+    var subagentCompletionTokens: Int?
 
-    /// Generated tokens per second, after the first token arrived.
+    /// The reply's own generated tokens per second, after the first token arrived, without the time spent in tools.
     var tokensPerSecond: Double? {
-        guard let completionTokens, completionTokens > 0, let totalMs, let ttftMs, totalMs > ttftMs else { return nil }
-        let seconds = Double(totalMs - ttftMs) / 1000
+        guard let completionTokens, completionTokens > 0, let totalMs, let ttftMs else { return nil }
+        let generating = totalMs - ttftMs - (toolMs ?? 0)
+        guard generating > 0 else { return nil }
+        let seconds = Double(generating) / 1000
         guard seconds >= 0.05 else { return nil }
         return Double(completionTokens) / seconds
     }

@@ -139,8 +139,9 @@ struct SubagentChatTests {
 
         let metadata = try #require(reply.metadata)
         #expect(metadata.costUSD == Decimal(string: "0.012"))
-        #expect(metadata.promptTokens == 2_200 + 600)
-        #expect(metadata.completionTokens == 90 + 60)
+        #expect(metadata.promptTokens == 2_200 && metadata.completionTokens == 90, "the reply's own tokens")
+        #expect(metadata.subagentPromptTokens == 600 && metadata.subagentCompletionTokens == 60)
+        #expect((metadata.toolMs ?? 0) >= 0)
     }
 
     /// Device engines never spawn subagents, even one that could.

@@ -859,6 +859,9 @@ final class ChatViewModel {
                 assistant.reasoning = thoughts.trace
             }
             var checkpoint = AgentRunLogic.Checkpoint(node: .generate, round: run.round)
+            // Time spent waiting on tool calls, left out of the reply's speed.
+            var toolStarts: [String: TimeInterval] = [:]
+            var toolMs = 0
             do {
                 for try await delta in stream {
                     // A chunk that was already buffered when the user pressed stop is dropped.
@@ -889,7 +892,10 @@ final class ChatViewModel {
                         endThoughts()
                         let step = ToolStep(call: call, result: nil, sourceID: tools?.sourceID(forTool: call.name))
                         assistant.toolSteps = AgentRunLogic.adding(step, to: assistant.toolSteps)
-                    case .toolResult(let result): Self.fill(result, in: assistant)
+                        toolStarts[call.id] = clock()
+                    case .toolResult(let result):
+                        Self.fill(result, in: assistant)
+                        if let start = toolStarts.removeValue(forKey: result.callID) { toolMs += Self.milliseconds(clock() - start) }
                     case .usage(let prompt, let completion): tokens = (prompt, completion)
                     case .metadata(let metadata): reported = metadata
                     case .done: break
@@ -924,7 +930,7 @@ final class ChatViewModel {
             if !assistant.content.isEmpty || !assistant.toolSteps.isEmpty || assistant.reasoning != nil {
                 assistant.metadata = Self.finalMetadata(
                     reported, tokens: tokens, model: model, ttftMs: ttftMs,
-                    totalMs: Self.milliseconds(clock() - startedAt),
+                    totalMs: Self.milliseconds(clock() - startedAt), toolMs: toolMs,
                     toolCostUSD: assistant.toolSteps.compactMap { $0.result?.costUSD }.reduce(0, +),
                     toolTokens: SubagentLogic.spentTokens(assistant.toolSteps),
                     nameOf: { id in knownModels.first { $0.wireID == id }?.displayName })
@@ -1064,7 +1070,7 @@ final class ChatViewModel {
     /// local and Apple models), plus token counts and the timings measured here.
     static func finalMetadata(
         _ reported: ResponseMetadata?, tokens: (prompt: Int, completion: Int)?, model: ModelDescriptor,
-        ttftMs: Int?, totalMs: Int, toolCostUSD: Decimal = 0, toolTokens: (prompt: Int, completion: Int) = (0, 0),
+        ttftMs: Int?, totalMs: Int, toolMs: Int = 0, toolCostUSD: Decimal = 0, toolTokens: (prompt: Int, completion: Int) = (0, 0),
         nameOf: (String) -> String?
     ) -> ResponseMetadata {
         var metadata = reported ?? ResponseMetadata()
@@ -1083,6 +1089,7 @@ final class ChatViewModel {
         if metadata.completionTokens == nil { metadata.completionTokens = tokens?.completion }
         metadata.ttftMs = ttftMs
         metadata.totalMs = totalMs
+        if toolMs > 0 { metadata.toolMs = toolMs }
         // Calls that spend AnyRouter credits (`decide`) count in the reply's cost, on a device reply too.
         if toolCostUSD > 0 { metadata.costUSD = (metadata.costUSD ?? 0) + toolCostUSD }
         // A subagent's requests count in the reply's tokens.

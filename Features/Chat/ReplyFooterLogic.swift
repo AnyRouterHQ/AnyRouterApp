@@ -197,6 +197,8 @@ struct ReplyDetails: Equatable {
             row("Input", metadata?.promptTokens.map(String.init)),
             row("Output", metadata?.completionTokens.map(String.init)),
             row("Cached", metadata?.cachedTokens.map(String.init)),
+            row("Subagent input", metadata?.subagentPromptTokens.map(String.init)),
+            row("Subagent output", metadata?.subagentCompletionTokens.map(String.init)),
             row("Cost", metadata?.costUSD.map(PriceFormat.cost)),
         ]
         let calls = steps.flatMap(ReplySources.flattened)

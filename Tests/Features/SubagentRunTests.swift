@@ -329,7 +329,7 @@ struct SubagentLogicRunTests {
         #expect(cut?.text == ToolRowLogic.cancelledText && cut?.isError == true && cut?.callID == "s2")
     }
 
-    @Test func aSubagentsTokensAddToTheReplysOwn() {
+    @Test func aSubagentsTokensAreKeptApartFromTheReplysOwn() {
         var spent = done("d", SubagentLogic.toolName)
         spent.promptTokens = 600
         spent.completionTokens = 60
@@ -340,8 +340,7 @@ struct SubagentLogicRunTests {
         let reply = ResponseMetadata(costUSD: 1, promptTokens: 100, completionTokens: 10)
         #expect(SubagentLogic.adding((0, 0), to: reply) == reply)
         let added = SubagentLogic.adding(tokens, to: reply)
-        #expect(added.promptTokens == 700 && added.completionTokens == 70 && added.costUSD == 1)
-        let fromNothing = SubagentLogic.adding(tokens, to: ResponseMetadata())
-        #expect(fromNothing.promptTokens == 600 && fromNothing.completionTokens == 60)
+        #expect(added.promptTokens == 100 && added.completionTokens == 10 && added.costUSD == 1, "the reply's own counts stay")
+        #expect(added.subagentPromptTokens == 600 && added.subagentCompletionTokens == 60)
     }
 }

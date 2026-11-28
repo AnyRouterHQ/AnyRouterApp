@@ -135,12 +135,12 @@ enum SubagentLogic {
         }
     }
 
-    /// `metadata` with `tokens` added to its own counts.
+    /// `metadata` with a subagent's `tokens` recorded. Kept apart from the reply's own tokens: the details list them under the subagent, and the speed stays the reply's.
     static func adding(_ tokens: (prompt: Int, completion: Int), to metadata: ResponseMetadata) -> ResponseMetadata {
         guard tokens.prompt + tokens.completion > 0 else { return metadata }
         var total = metadata
-        total.promptTokens = (metadata.promptTokens ?? 0) + tokens.prompt
-        total.completionTokens = (metadata.completionTokens ?? 0) + tokens.completion
+        total.subagentPromptTokens = tokens.prompt
+        total.subagentCompletionTokens = tokens.completion
         return total
     }
 }
