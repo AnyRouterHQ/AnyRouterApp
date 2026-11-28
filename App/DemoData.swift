@@ -862,6 +862,9 @@ final class DemoHub: ModelHubService {
         let entries = DemoData.hubEntries
         catalog = entries
         var states: [String: DownloadState] = [:]
+        // Built in locals: an @Observable class cannot set its properties before every one has a value.
+        var folders: [ModelFolder] = []
+        var running: Set<String> = []
         if installed {
             states[entries[0].id] = .installed
             states[entries[1].id] = .installed
@@ -882,6 +885,8 @@ final class DemoHub: ModelHubService {
             }
         }
         self.states = states
+        self.folders = folders
+        self.running = running
         rescan()
     }
 
