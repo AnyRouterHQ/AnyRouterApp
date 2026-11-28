@@ -33,6 +33,7 @@ struct ToolSourceScreen: View {
                 }
             }
         }
+        .formSwitches()
         .navigationTitle(source.title)
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Remove \(source.title)?", isPresented: $confirmsRemove, titleVisibility: .visible) {

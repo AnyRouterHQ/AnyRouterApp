@@ -80,6 +80,7 @@ struct MemorySettings: View {
                 .accessibilityIdentifier("settings.memory.deleteAll")
             }
         }
+        .formSwitches()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {

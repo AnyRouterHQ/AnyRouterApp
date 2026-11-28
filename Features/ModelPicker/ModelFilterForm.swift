@@ -25,6 +25,7 @@ struct ModelFilterForm: View {
                 .accessibilityIdentifier("filters-clear")
             }
         }
+        .formSwitches()
         .navigationTitle("Filters")
         .navigationBarTitleDisplayMode(.inline)
         // Done goes back to the list, like the back button.

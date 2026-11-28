@@ -65,6 +65,7 @@ struct ResponseCustomizationSettings: View {
                 Text("Length and sampling.")
             }
         }
+        .formSwitches()
     }
 }
 

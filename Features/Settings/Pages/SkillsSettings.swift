@@ -80,6 +80,7 @@ struct SkillsSettings: View {
                 Text(model.syncNote ?? (signedIn ? "Syncing adds the skills in your AnyRouter hubs and removes the ones you took out." : "Sign in with AnyRouter to sync the skills in your hubs."))
             }
         }
+        .formSwitches()
         .alert("Import from URL", isPresented: $asksForLink) {
             TextField("https://example.com/SKILL.md", text: $link)
                 .keyboardType(.URL)

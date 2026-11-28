@@ -33,7 +33,7 @@ struct IntegrationsSettingsView: View {
         // The model list carries the tools capability, so it is read again when the switch moves.
         .onChange(of: settings.onDeviceTools) { Task { await app.models.refresh() } }
         .navigationDestination(item: $detail) { ToolSourceScreen(source: $0) }
-        .sheet(isPresented: $showsAdd) { AddMCPServerSheet().appControls() }
+        .sheet(isPresented: $showsAdd) { AddMCPServerSheet().formSwitches() }
         .task { await store.refreshAll() }
     }
 
@@ -45,6 +45,7 @@ struct IntegrationsSettingsView: View {
                     subtitle: "Qwen, Llama 3 and Gemma models can call the tools above. Uses part of their small context."
                 ) { ToolSourceIcon(icon: .symbol("cpu")) }
             }
+            .formSwitches()
             .accessibilityIdentifier("tools.on-device-models")
         } footer: {
             Text("These models get four tools at most, so the list fits their small context. Calls from them are not yet checked on a device.")
@@ -99,6 +100,7 @@ private struct ToolSourceRow: View {
                 }
             }
             .disabled(signedOut)
+            .formSwitches()
             .accessibilityIdentifier("tools.source.\(source.id)")
             Button { open(source) } label: {
                 Label("Tools of \(source.title)", systemImage: "chevron.right").labelStyle(.iconOnly)

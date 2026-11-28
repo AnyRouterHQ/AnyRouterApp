@@ -62,6 +62,7 @@ struct VoiceModelsScreen: View {
                 get: { hub.settings.readRepliesAloud },
                 set: { hub.settings.readRepliesAloud = $0 }
             ))
+            .formSwitches()
             .accessibilityIdentifier("voice.readAloud")
             Button(sampleIsPlaying ? "Stop" : "Test voice", systemImage: sampleIsPlaying ? "stop.circle" : "speaker.wave.2") {
                 Task { await toggleSample() }

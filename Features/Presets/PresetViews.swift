@@ -110,10 +110,11 @@ struct PresetsSettingsSheet: View {
                 }
             }
         }
+        .formSwitches()
         .navigationTitle("Presets")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $creating) { PresetEditor(store: store, preset: nil).presentationSizing(.form).appControls() }
-        .sheet(item: $editing) { PresetEditor(store: store, preset: $0).presentationSizing(.form).appControls() }
+        .sheet(isPresented: $creating) { PresetEditor(store: store, preset: nil).presentationSizing(.form).formSwitches() }
+        .sheet(item: $editing) { PresetEditor(store: store, preset: $0).presentationSizing(.form).formSwitches() }
     }
 }
 
@@ -149,6 +150,7 @@ private struct PresetEditor: View {
                     Text("Shown above the keyboard when you paste text into a message. The pasted text goes after the prompt.")
                 }
             }
+            .formSwitches()
             .navigationTitle(preset == nil ? "New preset" : "Edit preset")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

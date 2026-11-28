@@ -42,6 +42,7 @@ struct PrivacySettings: View {
                 .accessibilityHint("Opens in Safari")
             }
         }
+        .formSwitches()
         .confirmationDialog("Delete all conversations?", isPresented: $confirmsDelete, titleVisibility: .visible) {
             Button("Delete All Conversations", role: .destructive) {
                 ThreadActions.deleteAll(in: context)

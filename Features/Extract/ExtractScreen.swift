@@ -186,6 +186,7 @@ struct ExtractScreen: View {
     private func readerSection(isOn: Binding<Bool>) -> some View {
         Section {
             Toggle("Read with AnyRouter", isOn: isOn)
+                .formSwitches()
                 .accessibilityIdentifier("extract-cloud-reader")
         } footer: {
             Text("Off: images are read on this device. On: the image is sent to AnyRouter to be read. The chat model is chosen separately.")

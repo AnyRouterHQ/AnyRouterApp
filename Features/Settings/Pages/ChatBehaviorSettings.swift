@@ -37,5 +37,6 @@ struct ChatBehaviorSettings: View {
                 Text("Quick actions on something you copied read it when you tap them. Set Paste from Other Apps to Allow so iOS stops asking.")
             }
         }
+        .formSwitches()
     }
 }

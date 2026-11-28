@@ -156,6 +156,7 @@ struct CatalogSourceDetailScreen: View {
             Toggle("Use the development catalog", isOn: Binding(
                 get: { hub.usesDevelopmentCatalog },
                 set: { on in Task { await hub.setUsesDevelopmentCatalog(on) } }))
+            .formSwitches()
             Button(isBusy ? "Saving…" : "Save") { saveRemote() }
                 .disabled(isBusy)
         } header: {
