@@ -7,10 +7,22 @@ struct ModelTitle: View {
     var name: String?
     /// The chat's title (`ChatHeaderLogic.title`); nil shows only the model.
     var title: String? = nil
+    /// "Instructions" when this chat has its own instructions (`InstructionsLogic.headerTag`), inside the pill.
+    var tag: String? = nil
     var isLoading = false
     var action: () -> Void
 
     var body: some View {
+        VStack(spacing: 0) {
+            pill
+            // Outside the button, so VoiceOver and the UI tests read it as its own text.
+            if let tag {
+                Text(tag).font(.caption2).foregroundStyle(.secondary).accessibilityIdentifier("chat.instructions-tag")
+            }
+        }
+    }
+
+    private var pill: some View {
         Button(action: action) {
             VStack(spacing: 0) {
                 if let title {
@@ -39,7 +51,7 @@ struct ModelTitle: View {
                     }
             }
             .foregroundStyle(.primary)
-            // Room inside the system's glass capsule, which is as tall as the two side buttons.
+            // Room inside the shared glass the toolbar draws behind the title (sharedBackgroundVisibility in ChatScreen).
             .padding(.horizontal, 12)
             .frame(minHeight: 44)
             .contentShape(.rect)

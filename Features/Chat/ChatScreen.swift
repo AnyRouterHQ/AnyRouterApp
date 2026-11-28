@@ -37,25 +37,23 @@ struct ChatScreen: View {
                 }
             }
             ToolbarItem(placement: .principal) {
-                VStack(spacing: 0) {
-                    ModelTitle(
-                        name: chat?.model?.shortName,
-                        title: ChatHeaderLogic.title(
-                            chat?.thread?.title, hasReply: chat?.thread?.messages.contains(where: { $0.role == .assistant }) ?? false),
-                        isLoading: models.isLoading
-                    ) { shell.isModelPickerPresented = true }
-                        // A popover under the title on iPad. On iPhone and in a compact iPad window the system turns it into the sheet.
-                        .popover(isPresented: Bindable(shell).isModelPickerPresented, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
-                            // Regular width shows a popover, which closes with a tap outside; compact shows a sheet.
-                            ModelPickerSheet(currentID: chat?.model?.id, showsClose: sizeClass != .regular) { chat?.choose($0) }
-                                .frame(minWidth: sizeClass == .regular ? 400 : nil, idealWidth: sizeClass == .regular ? 440 : nil,
-                                       minHeight: sizeClass == .regular ? 520 : nil, idealHeight: sizeClass == .regular ? 640 : nil)
-                        }
-                    if let tag = InstructionsLogic.headerTag(chat: chat?.chatInstructions) {
-                        Text(tag).font(.caption2).foregroundStyle(.secondary).accessibilityIdentifier("chat.instructions-tag")
+                ModelTitle(
+                    name: chat?.model?.shortName,
+                    title: ChatHeaderLogic.title(
+                        chat?.thread?.title, hasReply: chat?.thread?.messages.contains(where: { $0.role == .assistant }) ?? false),
+                    tag: InstructionsLogic.headerTag(chat: chat?.chatInstructions),
+                    isLoading: models.isLoading
+                ) { shell.isModelPickerPresented = true }
+                    // A popover under the title on iPad. On iPhone and in a compact iPad window the system turns it into the sheet.
+                    .popover(isPresented: Bindable(shell).isModelPickerPresented, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
+                        // Regular width shows a popover, which closes with a tap outside; compact shows a sheet.
+                        ModelPickerSheet(currentID: chat?.model?.id, showsClose: sizeClass != .regular) { chat?.choose($0) }
+                            .frame(minWidth: sizeClass == .regular ? 400 : nil, idealWidth: sizeClass == .regular ? 440 : nil,
+                                   minHeight: sizeClass == .regular ? 520 : nil, idealHeight: sizeClass == .regular ? 640 : nil)
                     }
-                }
             }
+            // The system draws its shared glass behind the title, so the model pill reads as one control (design review P2).
+            .sharedBackgroundVisibility(.visible)
             // One group, so iOS 26 draws New chat and More in a single shared glass capsule.
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button { shell.newChat(closeSidebar: false) } label: { Image(systemName: "square.and.pencil") }
