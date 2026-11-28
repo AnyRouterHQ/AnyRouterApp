@@ -136,6 +136,7 @@ struct AddMCPServerSheet: View {
                     TextField("Name (optional)", text: $name)
                     TextField("https://example.com/mcp", text: $urlText)
                         .keyboardType(.URL)
+                        .accessibilityIdentifier("mcp.add.url")
                     SecureField("Bearer token (optional)", text: $token)
                 } header: {
                     Text("Server")
