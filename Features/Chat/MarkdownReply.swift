@@ -22,7 +22,7 @@ struct MarkdownReply: View {
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 Group {
-                    if MarkdownBlocks.isSelectableText(block) {
+                    if MarkdownBlocks.isSelectableText(block), MarkdownRenderer.current == .markdownUI {
                         SelectableReplyBlock(text: block, size: base, scaledSize: points, font: font).equatable()
                     } else {
                         MarkdownBlock(text: block, size: points, font: font).equatable()
