@@ -558,6 +558,46 @@
           "updatedAt": "2026-11-28"
         }
       ]
+    },
+    {
+      "id": "lfm-3",
+      "name": "LFM 3",
+      "publisher": "Liquid AI",
+      "line": "lfm-3",
+      "logo": "liquid",
+      "summary": "Liquid AI's compact model for chat in many languages, reasoning and structured output. It thinks before it answers.",
+      "website": "https://huggingface.co/LiquidAI/LFM3-1.7B",
+      "tags": [
+        "thinking",
+        "multilingual",
+        "mobile"
+      ],
+      "badges": [
+        "new"
+      ],
+      "status": "current",
+      "order": 7,
+      "variants": [
+        {
+          "repo": "LiquidAI/LFM3-1.7B-GGUF",
+          "engine": "gguf",
+          "file": "LFM3-1.7B-QAD-Q4_0.gguf",
+          "params": "1.7B",
+          "quant": "Q4_0",
+          "sizeBytes": 1049615680,
+          "contextLength": 262144,
+          "license": "other",
+          "revision": "cd0c74c575b5c416f3011b5b4c298077f26ca8c2",
+          "sha256": "43a7d09a0e9cba91b63eb7052488b9564569bddfd65754d2e426465e572a7452",
+          "memory": {
+            "fullKVBytesPerToken": 12288,
+            "windowKVBytesPerToken": 10240,
+            "windowTokens": 256
+          },
+          "createdAt": "2026-11-28",
+          "updatedAt": "2026-11-28"
+        }
+      ]
     }
   ]
 }
