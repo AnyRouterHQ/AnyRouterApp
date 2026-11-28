@@ -34,7 +34,8 @@ struct DecisionRunnerScreen: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(store.app?.title ?? "Custom decision")
-        .navigationBarTitleDisplayMode(.inline)
+        // Large: inline, the title, the model pill and Recent shared one bar and the pill read "Gemi…cision 1" on iPhone.
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { modelPill(store) }
             ToolbarItem(placement: .topBarTrailing) {
