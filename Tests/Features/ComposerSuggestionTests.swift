@@ -21,6 +21,13 @@ struct ComposerSuggestionTests {
     private let catalog = [
         "fix-english", "explain-text", "translate", "summarize", "reply-to-this", "summarize-link", "about-link", "describe-image",
         "read-photo", "what-time", "plan-day", "write-message", "ask-photo", "explain-simply", "what-can-you-do",
+        "write-professionally", "surprise-me", "spanish-week", "brainstorm",
+    ]
+
+    /// The empty chat's starters as row ids, in order.
+    private let starterRow = [
+        "preset.write-professionally", "preset.surprise-me", "preset.spanish-week", "preset.plan-day", "preset.explain-simply",
+            "preset.summarize", "preset.brainstorm",
     ]
 
     private func state(
@@ -43,25 +50,25 @@ struct ComposerSuggestionTests {
 
     // MARK: - An empty chat
 
-    @Test func nothingCopiedOffersStartersThatWorkRightAway() {
+    /// The operator's set, in their order, then the extra starters; More holds the rest.
+    @Test func nothingCopiedOffersTheStartersInOrder() {
         let shown = show(state())
         #expect(shown?.mode == .starters && shown?.cards == true)
-        #expect(ids(shown) == ["preset.what-time", "preset.plan-day", "preset.write-message", "preset.ask-photo", "more"])
+        #expect(ids(shown) == starterRow + ["more"])
+        #expect(Array(ComposerSuggestionLogic.starterPresetIDs.prefix(4)) == ["write-professionally", "surprise-me", "spanish-week", "plan-day"])
     }
 
-    /// The clock needs a tool and a photo question a model that sees photos, so neither is offered without them.
-    @Test func theStartersLeaveOutWhatTheModelCannotDo() {
-        #expect(ids(show(state(tools: false, vision: false))) ==
-            ["preset.plan-day", "preset.write-message", "preset.explain-simply", "preset.what-can-you-do", "more"])
-        #expect(ids(show(state(vision: false))) ==
-            ["preset.what-time", "preset.plan-day", "preset.write-message", "preset.explain-simply", "more"])
-        #expect(ComposerSuggestionLogic.starterPresetIDs(tools: true, vision: true) ==
-            ["what-time", "plan-day", "write-message", "ask-photo", "explain-simply", "what-can-you-do"])
+    /// The starters need neither tools nor a model that sees photos, so every model gets the same row.
+    @Test func everyModelGetsTheSameStarters() {
+        #expect(ids(show(state(tools: false, vision: false))) == starterRow + ["more"])
     }
 
-    @Test func yourOwnPresetsLeadTheStarters() {
+    @Test func yourOwnPresetsLeadTheStartersUpToEightCards() {
         let shown = show(state(), presets: ["mine"] + catalog, custom: ["mine"])
-        #expect(ids(shown) == ["preset.mine", "preset.what-time", "preset.plan-day", "preset.write-message", "more"])
+        #expect(ids(shown) == ["preset.mine"] + starterRow + ["more"])
+        let many = (1...9).map { "mine\($0)" }
+        let crowded = show(state(), presets: many + catalog, custom: Set(many))
+        #expect(ids(crowded) == many.prefix(ComposerSuggestionLogic.maxStarters).map { "preset.\($0)" } + ["more"])
     }
 
     @Test func copiedTextTurnsTheCardsIntoActionsOnItAndMoreHoldsTheFifth() {
@@ -83,7 +90,7 @@ struct ComposerSuggestionTests {
         #expect(ids(show(state(content: .link))) == ["preset.summarize-link", "preset.about-link", "more"])
         let noTools = show(state(clipboard: .link, content: .link, tools: false))
         #expect(noTools?.mode == .starters)
-        #expect(ids(noTools) == ["preset.plan-day", "preset.write-message", "preset.ask-photo", "preset.explain-simply", "more"])
+        #expect(ids(noTools) == starterRow + ["more"])
     }
 
     /// Reading the text in a picture runs on the device, so it is offered for any model.
@@ -170,9 +177,8 @@ struct ComposerSuggestionTests {
         let vm = try await chat()
         let presets = store()
         let first = suggestions(vm, presets)
-        let expected = ComposerSuggestionLogic.starterPresetIDs(tools: vm.supportsTools, vision: vm.model?.supportsVision == true)
         #expect(first?.mode == .starters)
-        #expect(first?.items.dropLast().map(\.id) == expected.prefix(ComposerSuggestionLogic.maxPresets).map { "preset.\($0)" })
+        #expect(first?.items.dropLast().map(\.id) == starterRow)
         presets.add(title: "Mine", prompt: "Mine", category: .write)
         #expect(suggestions(vm, presets)?.items.first?.id == "preset.\(presets.custom[0].id)", "your own preset leads")
         vm.input = "hello"
@@ -202,7 +208,44 @@ struct ComposerSuggestionTests {
         let task = vm.choose(preset("plan"), mode: .starters, clipboardText: { reads += 1; return "secret" })
         #expect(task == nil)
         #expect(vm.input == "plan:\n")
+        #expect(vm.placeholder == nil, "no blank, so the cursor goes to the end")
         #expect(reads == 0, "the text is only read for a clipboard tap")
+    }
+
+    /// A tap is a prefill to edit, never a send: the prompt is in the field, its first blank is picked for the cursor,
+    /// and the chat is still empty.
+    @Test func aStarterTapPrefillsTheFieldAtItsFirstBlankAndSendsNothing() async throws {
+        let vm = try await chat()
+        var plan = preset("plan-day")
+        plan.prompt = "Plan my day. Here is what I need to do: [your tasks]. Start at [8:00]."
+        let task = vm.choose(plan, mode: .starters, clipboardText: { "" })
+        #expect(task == nil)
+        #expect(vm.input == plan.prompt)
+        let blank = try #require(vm.placeholder)
+        #expect(vm.input[blank] == "[your tasks]")
+        #expect(vm.messages.isEmpty, "nothing was sent")
+    }
+
+    // MARK: - Prefill
+
+    @Test func theFirstBlankIsAShortBracketedPhraseNotALink() {
+        func blank(_ text: String) -> String? { ComposerSuggestionLogic.placeholderRange(in: text).map { String(text[$0]) } }
+        #expect(blank("Explain [a topic] simply, see [b].") == "[a topic]")
+        #expect(blank("See [the docs](https://example.com) and fill [this].") == "[this]")
+        #expect(blank("Nothing to fill.") == nil)
+        #expect(blank("Empty [] then [real one]") == "[real one]")
+        #expect(blank("An open [bracket only") == nil)
+        #expect(blank("Line [one\ntwo] then [ok]") == "[ok]")
+        #expect(blank("[" + String(repeating: "x", count: 61) + "] then [short]") == "[short]")
+        #expect(blank("Nested [a [b] c]") == "[b]")
+    }
+
+    /// What is already typed is never lost: it fills the first blank, or follows the prompt.
+    @Test func aPresetKeepsWhatIsAlreadyTyped() {
+        #expect(ComposerSuggestionLogic.prefill("Explain [a topic] simply.", into: "  ") == "Explain [a topic] simply.")
+        #expect(ComposerSuggestionLogic.prefill("Explain [a topic] simply.", into: " tides ") == "Explain tides simply.")
+        #expect(ComposerSuggestionLogic.prefill("Summarize this.\n\nText:\n", into: "Notes") == "Summarize this.\n\nText:\nNotes")
+        #expect(ComposerSuggestionLogic.prefill("Surprise me.", into: "space") == "Surprise me.\n\nspace")
     }
 
     @Test func aTapAfterAPasteWrapsThePastedText() async throws {

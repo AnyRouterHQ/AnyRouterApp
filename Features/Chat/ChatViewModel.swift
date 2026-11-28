@@ -18,6 +18,8 @@ final class ChatViewModel {
     private(set) var thread: ThreadRecord?
     /// Bumps when the composer should take focus (after a preset fills it).
     private(set) var focusTick = 0
+    /// The blank a preset left in `input` ("[a topic]"), for the composer to select with the focus. Nil after any other fill.
+    private(set) var placeholder: Range<String.Index>?
     /// Bumps when the composer should start dictating (a "Start voice" request).
     private(set) var voiceTick = 0
     /// Per-thread "Enable thinking"; a new chat keeps it here until the first send creates the thread.
@@ -543,6 +545,7 @@ final class ChatViewModel {
         input = text
         ownText = text
         pasteOffered = false
+        placeholder = nil
         focusTick += 1
     }
 
@@ -581,12 +584,15 @@ final class ChatViewModel {
 
     /// Fills the composer with the preset prompt so the user can edit before sending. A preset with pickers opens
     /// its choices first.
+    /// A preset into the field, never sent: the prompt into an empty field, or around what is already typed. The
+    /// cursor goes to its first blank ("[a topic]"), else to the end.
     func usePreset(_ preset: PromptPreset) {
         if preset.hasOptions {
             presetNeedingChoices = preset
             return
         }
-        fill(preset.prompt)
+        fill(ComposerSuggestionLogic.prefill(preset.prompt, into: input))
+        placeholder = ComposerSuggestionLogic.placeholderRange(in: input)
     }
 
     /// The choices are made: the prompt for them plus the message goes out as one send.

@@ -56,7 +56,7 @@ struct ClipboardQuickSendTests {
 
     @Test func everyQuickActionAndStarterIsABundledPreset() {
         let ids = Set(bundled().all.map(\.id))
-        var named = ComposerSuggestionLogic.starterPresetIDs(tools: true, vision: true)
+        var named = ComposerSuggestionLogic.starterPresetIDs
         for kind in [ClipboardKind.text, .link, .image] {
             named += ComposerSuggestionLogic.clipboardPresetIDs(kind, tools: true, vision: true)
         }

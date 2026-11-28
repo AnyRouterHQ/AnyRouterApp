@@ -195,9 +195,29 @@ final class ScreenshotTests: XCTestCase {
             XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
             logClosedDrawer(app)
             // Nothing is copied in a demo run, so the cards are the general starters; the demo model takes tools.
-            XCTAssertTrue(app.descendants(matching: .any)["composer.suggestion.preset.what-time"].waitForExistence(timeout: 5),
-                          "an empty clipboard offers starters that work right away")
+            XCTAssertTrue(app.descendants(matching: .any)["composer.suggestion.preset.write-professionally"].waitForExistence(timeout: 5),
+                          "an empty clipboard offers the starters, Write professionally first")
             capture("empty-chat", appearance)
+        }
+    }
+
+    /// A starter card prefills the field with its full prompt to edit; it never sends. "Plan my day" is the fourth card,
+    /// so the row is scrolled to it first.
+    func testStarterPrefillsTheComposer() {
+        forEachAppearance { app, appearance in
+            XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
+            let card = app.descendants(matching: .any)["composer.suggestion.preset.plan-day"]
+            XCTAssertTrue(card.waitForExistence(timeout: 5), "Plan my day is a starter")
+            let row = app.descendants(matching: .any)["composer.suggestions"]
+            var swipes = 0
+            while !card.isHittable && swipes < 4 { row.swipeLeft(); swipes += 1 }
+            card.tap()
+            let input = app.descendants(matching: .any)["composer.input"]
+            let filled = NSPredicate(format: "value BEGINSWITH %@", "Plan my day. Here is what I need to do today")
+            let prefilled = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: filled, object: input)], timeout: 5)
+            XCTAssertEqual(prefilled, .completed, "the field holds the full prompt")
+            XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].exists, "nothing was sent: the chat is still empty")
+            capture("composer-starter-prefilled", appearance)
         }
     }
 

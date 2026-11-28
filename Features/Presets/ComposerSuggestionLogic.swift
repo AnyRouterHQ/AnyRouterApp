@@ -57,8 +57,10 @@ struct ComposerSuggestionState: Equatable, Sendable {
 
 /// The one place that decides what appears above the composer. No UI, so it is tested directly.
 enum ComposerSuggestionLogic {
-    /// Preset chips in the row. The rest are in the More menu.
+    /// Preset chips in the row for a copy or a paste. The rest are in the More menu.
     static let maxPresets = 4
+    /// Starter cards on an empty chat: the person's own presets, then `starterPresetIDs`.
+    static let maxStarters = 8
 
     /// Rules, first match wins:
     /// - nothing while dictating or while the @ list is open;
@@ -86,9 +88,8 @@ enum ComposerSuggestionLogic {
         if !onClipboard.isEmpty {
             return row(.clipboard, cards: true, leading: [], presets: pick(onClipboard, from: presets))
         }
-        let starters = presets.filter { customIDs.contains($0.id) }
-            + pick(starterPresetIDs(tools: state.supportsTools, vision: state.supportsVision), from: presets)
-        return row(.starters, cards: true, leading: [], presets: starters)
+        let starters = presets.filter { customIDs.contains($0.id) } + pick(starterPresetIDs, from: presets)
+        return row(.starters, cards: true, leading: [], presets: starters, limit: maxStarters)
     }
 
     /// The quick actions for what was copied, by preset id, in order. A link needs tools to open the page, a picture a
@@ -101,16 +102,49 @@ enum ComposerSuggestionLogic {
         }
     }
 
-    /// The empty chat's starters when the clipboard has nothing to act on: each works right away. The clock needs tools,
-    /// a photo question a model that sees it.
-    static func starterPresetIDs(tools: Bool, vision: Bool) -> [String] {
-        (tools ? ["what-time"] : []) + ["plan-day", "write-message"] + (vision ? ["ask-photo"] : []) + ["explain-simply", "what-can-you-do"]
-    }
+    /// The empty chat's starters when the clipboard has nothing to act on, in this order (operator's set first). A tap
+    /// puts the prompt in the field to edit; it never sends.
+    static let starterPresetIDs = [
+        "write-professionally", "surprise-me", "spanish-week", "plan-day", "explain-simply", "summarize", "brainstorm",
+    ]
 
     /// Whether a tap on this preset acts on the copy. A pick from More that is not one of the copy's actions (a plan, a
     /// phone use case) runs as usual and never reads the clipboard.
     static func actsOnClipboard(_ preset: PromptPreset, kind: ClipboardKind, tools: Bool, vision: Bool) -> Bool {
         clipboardPresetIDs(kind, tools: tools, vision: vision).contains(preset.id)
+    }
+
+    // MARK: Prefill
+
+    /// The first blank to fill in a prompt, such as "[a topic]": square brackets around a short line that is not a
+    /// markdown link. The composer puts the cursor on it.
+    static func placeholderRange(in text: String) -> Range<String.Index>? {
+        var searchStart = text.startIndex
+        while let open = text[searchStart...].firstIndex(of: "[") {
+            guard let close = text[open...].firstIndex(of: "]") else { return nil }
+            let inner = text[text.index(after: open)..<close]
+            // "[a [b] c]": the blank is the innermost one.
+            if let nested = inner.lastIndex(of: "[") {
+                searchStart = nested
+                continue
+            }
+            let afterClose = text.index(after: close)
+            let isLink = afterClose < text.endIndex && text[afterClose] == "("
+            if !inner.isEmpty, inner.count <= 60, !inner.contains("\n"), !isLink {
+                return open..<afterClose
+            }
+            searchStart = afterClose
+        }
+        return nil
+    }
+
+    /// What a preset puts in the field. An empty field gets the prompt. Text already there is kept: it fills the
+    /// prompt's first blank, or follows the prompt.
+    static func prefill(_ prompt: String, into input: String) -> String {
+        let typed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty else { return prompt }
+        if let blank = placeholderRange(in: prompt) { return prompt.replacingCharacters(in: blank, with: typed) }
+        return prompt.hasSuffix("\n") ? prompt + typed : prompt + "\n\n" + typed
     }
 
     private static func quickActions(_ kind: ClipboardKind, _ state: ComposerSuggestionState) -> [String] {
@@ -123,9 +157,9 @@ enum ComposerSuggestionLogic {
     }
 
     private static func row(
-        _ mode: ComposerSuggestionMode, cards: Bool, leading: [ComposerSuggestion], presets: [PromptPreset]
+        _ mode: ComposerSuggestionMode, cards: Bool, leading: [ComposerSuggestion], presets: [PromptPreset], limit: Int = maxPresets
     ) -> ComposerSuggestions? {
-        let shown = presets.prefix(maxPresets).map(ComposerSuggestion.preset)
+        let shown = presets.prefix(limit).map(ComposerSuggestion.preset)
         // More is there whenever a preset is: it lists every preset, not just the ones that did not fit.
         let items = leading + shown + (shown.isEmpty ? [] : [.more])
         return items.isEmpty ? nil : ComposerSuggestions(mode: mode, items: items, cards: cards)

@@ -1,5 +1,21 @@
 [
   {
+    "id": "write-professionally",
+    "detail": "a clear, polished message",
+    "title": "Write professionally",
+    "prompt": "Rewrite the text below so it reads as professional, clear and friendly. Keep my meaning and every fact, name and date exactly. Use short paragraphs and plain words, no jargon. Give the rewritten text first, then one line on what you changed.\n\nText:\n[paste or type your text]",
+    "category": "write",
+    "symbol": "briefcase"
+  },
+  {
+    "id": "surprise-me",
+    "detail": "a fact you did not know",
+    "title": "Surprise me",
+    "prompt": "Surprise me with one fascinating, little-known fact about [a topic you like, or anything]. Explain it in three short paragraphs: the fact, why it is true, and one place I could notice it in everyday life. Keep it friendly and under 150 words.",
+    "category": "explore",
+    "symbol": "wand.and.stars"
+  },
+  {
     "id": "what-time",
     "detail": "right now, where you are",
     "title": "What time is it?",
@@ -9,9 +25,9 @@
   },
   {
     "id": "plan-day",
-    "detail": "around your plans",
+    "detail": "a simple schedule with breaks",
     "title": "Plan my day",
-    "prompt": "Help me plan my day. Ask me what I have on and how much energy I have, then give me a simple schedule with breaks.",
+    "prompt": "Plan my day. Here is what I need to do today: [your tasks, meetings and errands]. I start at [8:00] and want to finish by [18:00]. Put the hardest task when I am freshest, group small errands, and add short breaks and lunch. Answer with a time-blocked schedule as a simple list, then one tip to stay on track.",
     "category": "plan",
     "symbol": "sun.max"
   },
@@ -42,17 +58,17 @@
   },
   {
     "id": "spanish-week",
-    "detail": "30 minutes a day for a week",
-    "title": "Weekly Spanish plan",
-    "prompt": "I am a beginner learning Spanish and can study 30 minutes a day. Build me a 7-day plan. For each day give: (1) a theme, (2) 8 new words with example sentences, (3) one short grammar point with two examples, (4) a 5-minute speaking or writing exercise. End with a quiz of 10 questions that mixes all days, and put the answers at the very bottom.",
+    "detail": "a 7-day plan at your level",
+    "title": "Learn Spanish",
+    "prompt": "I want to learn Spanish. My level is [beginner, intermediate or advanced] and I can study [30 minutes] a day. Build me a 7-day plan. For each day give: a theme, 8 useful words with example sentences, one short grammar point with two examples, and a 5-minute speaking or writing exercise. End with a 10-question quiz that mixes all days, with the answers at the very bottom.",
     "category": "learn",
     "symbol": "graduationcap"
   },
   {
     "id": "explain-simply",
-    "detail": "how vaccines train the body",
-    "title": "Explain like I am new",
-    "prompt": "Explain how vaccines train the immune system. Start with a one-sentence summary, then a simple analogy, then a short step-by-step explanation, then three common misunderstandings.",
+    "detail": "any topic, in plain words",
+    "title": "Explain simply",
+    "prompt": "Explain [a topic] in simple words, as if I am new to it. Start with a one-sentence summary, then an everyday analogy, then a short step-by-step explanation, and end with three common misunderstandings. No jargon; if you need a term, define it in a few words.",
     "category": "learn",
     "symbol": "lightbulb"
   },
@@ -309,9 +325,9 @@
   },
   {
     "id": "brainstorm",
-    "detail": "ten weekend side projects",
+    "detail": "ten ideas, from safe to bold",
     "title": "Brainstorm ideas",
-    "prompt": "Brainstorm 10 side project ideas that a single developer can ship in a weekend. For each, give a one-line pitch and the hardest part.",
+    "prompt": "Brainstorm 10 ideas for [what you need ideas for]. Make them varied, from safe to bold. For each, give a one-line pitch and the first small step to try it. End by naming the two you would pick and why.",
     "category": "explore",
     "symbol": "sparkles"
   },

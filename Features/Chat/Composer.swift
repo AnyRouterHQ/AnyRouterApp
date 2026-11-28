@@ -14,6 +14,8 @@ struct Composer: View {
     @State private var showsFiles = false
     /// The @ list was opened from the + menu instead of by typing an @.
     @State private var showsPluginList = false
+    /// The field's selection, set to a preset's first blank ("[a topic]") when the preset fills the field.
+    @State private var selection: TextSelection?
     /// The photo or camera picker that is open reads text into the composer instead of attaching the image.
     @State private var readsText = false
     /// "Answer offline" found nothing installed: the smallest model that fits, waiting for a yes.
@@ -121,8 +123,8 @@ struct Composer: View {
                     // As tall as a one-line field and bottom aligned, so the + stays centred on its last line.
                     plusMenu
                     HStack(alignment: .bottom, spacing: 6) {
-                        TextField("", text: $model.input, prompt: Text(hasModel ? "Ask anything" : "Choose a model to start"),
-                                  axis: .vertical)
+                        TextField("", text: $model.input, selection: $selection,
+                                  prompt: Text(hasModel ? "Ask anything" : "Choose a model to start"), axis: .vertical)
                             .font(.body)
                             .lineLimit(1...6)
                             .focused(focused)
@@ -156,7 +158,10 @@ struct Composer: View {
         .padding(.bottom, 8)
         // Send, stop and the buttons beside the field keep the keyboard up.
         .keepsKeyboardOnTap()
-        .onChange(of: model.focusTick) { focused.wrappedValue = true }
+        .onChange(of: model.focusTick) {
+            focused.wrappedValue = true
+            if let blank = model.placeholder { selection = TextSelection(range: blank) }
+        }
         .onChange(of: model.voiceTick) { app.dictation.begin(text: $model.input, hub: app.voice) }
         .onChange(of: model.input) { old, new in
             model.inputChanged(from: old, to: new)
