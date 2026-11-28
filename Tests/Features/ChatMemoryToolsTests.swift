@@ -56,7 +56,7 @@ struct ChatMemoryToolsTests {
     @Test func memorySavesThroughTheHostWithoutAskingAndSearchChatsIsASensitiveRead() async throws {
         let r = try rig()
         let tools = r.tools.tools
-        #expect(tools.map(\.spec.sideEffect) == [.write, .sensitiveRead])
+        #expect(tools.map { $0.spec.sideEffect } == [.write, .sensitiveRead])
         let host = AgentToolHost(builtIns: tools, search: nil, mcp: nil, approver: nil)
         let arguments = #"{"action":"add","text":"Likes green tea."}"#
         let result = await host.execute(ToolCall(id: "c", name: MemoryToolLogic.memoryName, argumentsJSON: arguments))
