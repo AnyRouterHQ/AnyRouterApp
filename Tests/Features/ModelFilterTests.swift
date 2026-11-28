@@ -21,11 +21,8 @@ struct ModelFilterTests {
         ).rest.map(\.displayName)
     }
 
-    @Test func theDefaultHidesModelsThatNeedAKey() {
-        #expect(!names(ModelFilter()).contains("Locked"))
-        #expect(names(ModelFilter(hideNeedsKey: false)).contains("Locked"))
+    @Test func theDefaultFiltersNothing() {
         #expect(!ModelFilter().isActive)
-        #expect(ModelFilter(hideNeedsKey: false).isActive)
     }
 
     @Test func aSearchStillFindsModelsThatNeedAKey() {
@@ -76,7 +73,7 @@ struct ModelFilterTests {
     @Test func activeCountIgnoresTheDefaults() {
         #expect(ModelFilter().activeCount == 0)
         #expect(ModelFilter(freeOnly: true, vision: true, tools: true, reasoning: true, longContext: true,
-                            maxInputPrice: .upTo1, providers: ["a"], hideNeedsKey: false).activeCount == 8)
+                            maxInputPrice: .upTo1, providers: ["a"]).activeCount == 7)
     }
 
     @Test func theProviderListCountsModelsAndSortsByName() {
@@ -133,11 +130,11 @@ struct ModelFilterTests {
         #expect(store.cloud() == ModelFilter())
         #expect(store.local() == LocalFilter())
 
-        store.save(cloud: ModelFilter(freeOnly: true, vision: true, maxInputPrice: .upTo5, providers: ["openai"], hideNeedsKey: false))
+        store.save(cloud: ModelFilter(freeOnly: true, vision: true, maxInputPrice: .upTo5, providers: ["openai"]))
         store.save(local: LocalFilter(engine: .mlx, fitsOnly: true))
 
         let again = PickerFilterStore(defaults: defaults)
-        #expect(again.cloud() == ModelFilter(freeOnly: true, vision: true, maxInputPrice: .upTo5, providers: ["openai"], hideNeedsKey: false))
+        #expect(again.cloud() == ModelFilter(freeOnly: true, vision: true, maxInputPrice: .upTo5, providers: ["openai"]))
         #expect(again.local() == LocalFilter(engine: .mlx, fitsOnly: true))
         // Changing one tab leaves the other alone.
         again.save(cloud: ModelFilter())

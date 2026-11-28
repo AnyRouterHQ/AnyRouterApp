@@ -23,7 +23,7 @@ struct CloudListLogicTests {
 
     private func names(
         _ sort: PickerSort, query: String = "", rank: [String: Int]? = nil, unusable: Bool = true,
-        filter: ModelFilter = ModelFilter(hideNeedsKey: false)
+        filter: ModelFilter = ModelFilter()
     ) -> [String] {
         CloudListLogic.arrange(
             models: models, query: query, sort: sort, usageRank: rank ?? self.rank, showUnusable: unusable, filter: filter

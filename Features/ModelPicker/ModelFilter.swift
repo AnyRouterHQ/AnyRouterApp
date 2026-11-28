@@ -34,18 +34,15 @@ struct ModelFilter: Equatable, Codable, Sendable {
     var maxInputPrice: MaxPrice = .any
     /// Provider prefixes of the wire id ("openai", "anthropic"). Empty means all.
     var providers: Set<String> = []
-    /// On by default. A search still finds models that need a key.
-    var hideNeedsKey = true
 
     /// How many settings differ from the default. Shown on the filter button.
     var activeCount: Int {
-        [freeOnly, vision, tools, reasoning, longContext, maxInputPrice != .any, !providers.isEmpty, !hideNeedsKey]
+        [freeOnly, vision, tools, reasoning, longContext, maxInputPrice != .any, !providers.isEmpty]
             .filter { $0 }.count
     }
 
     var isActive: Bool { activeCount > 0 }
 
-    /// Everything except `hideNeedsKey`, which depends on whether the user is searching.
     func matches(_ model: ModelDescriptor) -> Bool {
         if freeOnly && model.cloud?.pricing.isFree != true { return false }
         if vision && model.cloud?.supportsVision != true { return false }

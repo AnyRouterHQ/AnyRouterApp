@@ -63,9 +63,8 @@ enum CloudListLogic {
         var candidates = models.filter { model in
             guard model.source == .anyrouter else { return false }
             if signedIn {
-                // "Hide needs-key models" does not apply to a search, so a search still finds them.
-                let showLocked = showUnusable && (!filter.hideNeedsKey || searching)
-                if !showLocked && !model.isInstalled { return false }
+                // The picker passes usable models only and lists the rest under Not available (01be7d1).
+                if !showUnusable && !model.isInstalled { return false }
             } else if let availability = model.cloud?.availability, availability != .usable {
                 // Signed out nothing is installed. The catalog is public, so every model that can be routed at all is listed.
                 return false
