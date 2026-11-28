@@ -3,7 +3,8 @@ import SwiftUI
 
 /// Sidebar: a header row (logo, app name, search), then a plain list (Apps, pinned and recent chats) and a bottom bar
 /// with Settings and New chat. On iPhone it fills the drawer, on iPad the split-view column. Everything starts on one
-/// leading edge and trailing items end on one trailing edge, `margin` from the sides, as in a stock list.
+/// leading edge and trailing items end on one trailing edge, `margin` from the sides, as in a stock list. The bottom
+/// bar is the system's.
 struct ThreadSidebar: View {
     /// True when shown as a drawer over the chat (iPhone). Picking something then closes it.
     let isDrawer: Bool
@@ -11,10 +12,8 @@ struct ThreadSidebar: View {
     @Environment(ShellModel.self) private var shell
     @Environment(\.dynamicTypeSize) private var typeSize
     /// Row and hit-area heights grow with Dynamic Type instead of clipping the text.
-    @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 44
+    @ScaledMetric(relativeTo: .body) private var rowHeight = ARTheme.controlSize
     @ScaledMetric(relativeTo: .title3) private var logoSize: CGFloat = 22
-    /// Gear and New chat: one 40 pt glass shape inside a 44 pt hit area.
-    @ScaledMetric(relativeTo: .body) private var barButtonHeight: CGFloat = 40
     @Query(sort: \ThreadRecord.updatedAt, order: .reverse) private var threads: [ThreadRecord]
 
     @State private var editing = ThreadEditing()
@@ -71,12 +70,25 @@ struct ThreadSidebar: View {
         // Rows set their own 44 pt; the section titles stay as short as their text.
         .environment(\.defaultMinListRowHeight, 0)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .safeAreaInset(edge: .top, spacing: 8) { titleRow }
-        .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
+        // A bar, not an inset, so the rows get the scroll edge effect under the header.
+        .safeAreaBar(edge: .top, spacing: 8) { titleRow }
+        // Settings and New chat are system bottom-bar items: the system draws their glass, size and edge effect.
+        .toolbar {
+            ToolbarItem(placement: .bottomBar) {
+                Button("Settings", systemImage: "gearshape") { shell.presentSettings(closeSidebar: isDrawer) }
+                    .accessibilityIdentifier("sidebar.settings")
+            }
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+            ToolbarItem(placement: .bottomBar) {
+                Button("New chat", systemImage: "plus") { shell.newChat(closeSidebar: isDrawer) }
+                    .labelStyle(.titleAndIcon)
+                    .accessibilityIdentifier("sidebar.compose")
+            }
+        }
         .threadEditingDialogs($editing)
     }
 
-    /// The list's side margin: every row's text, the header and the bottom bar line up on it.
+    /// The list's side margin: every row's text and the header line up on it.
     fileprivate static let margin: CGFloat = 16
 
     private var titleRow: some View {
@@ -120,38 +132,6 @@ struct ThreadSidebar: View {
         .selectionDisabled()
     }
 
-    private var bottomBar: some View {
-        GlassEffectContainer {
-            HStack {
-                Button { shell.presentSettings(closeSidebar: isDrawer) } label: {
-                    Image(systemName: "gearshape")
-                        .font(.body.weight(.medium))
-                        .frame(width: barButtonHeight, height: barButtonHeight)
-                        .glassEffect(.regular.interactive(), in: .circle)
-                        .barHitArea()
-                }
-                .accessibilityLabel("Settings")
-                .accessibilityIdentifier("sidebar.settings")
-                Spacer()
-                Button { shell.newChat(closeSidebar: isDrawer) } label: {
-                    Label("New chat", systemImage: "plus")
-                        .font(.body.weight(.medium))
-                        // Never cut: at large text the capsule grows instead (the audit flagged "New chat" clipped).
-                        .fixedSize()
-                        .padding(.horizontal, 16)
-                        .frame(minHeight: barButtonHeight)
-                        .glassEffect(.regular.interactive(), in: .capsule)
-                        .barHitArea()
-                }
-                .accessibilityIdentifier("sidebar.compose")
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.primary)
-        }
-        .padding(.horizontal, Self.margin)
-        .padding(.vertical, 8)
-    }
-
     private var appsRow: some View {
         Button { shell.open(.apps, closeSidebar: isDrawer) } label: {
             Label("Apps", systemImage: "square.grid.2x2")
@@ -185,11 +165,6 @@ struct ThreadSidebar: View {
 }
 
 private extension View {
-    /// The 40 pt glass shape keeps a 44 pt tap target (HIG minimum, checked by the accessibility audit).
-    func barHitArea() -> some View {
-        frame(minWidth: 44, minHeight: 44).contentShape(.rect)
-    }
-
     /// Row text on the list's margin; the open chat's highlight sits 8 pt inside the drawer edges.
     func rowInsets() -> some View {
         listRowInsets(EdgeInsets(top: 0, leading: ThreadSidebar.margin, bottom: 0, trailing: ThreadSidebar.margin))

@@ -8,6 +8,10 @@ enum ARTheme {
     static let pagePadding: CGFloat = 16
     /// The chat column on a wide screen, margins included, so a line stays readable on an iPad.
     static let contentMaxWidth: CGFloat = 720
+    /// One control size for rows and hand-made glass circles: the HIG's 44 pt target. Read it through `@ScaledMetric`.
+    static let controlSize: CGFloat = 44
+    /// The composer row: the one-line field and the + beside it. Read it through `@ScaledMetric`.
+    static let composerRowHeight: CGFloat = 48
 }
 
 extension View {
