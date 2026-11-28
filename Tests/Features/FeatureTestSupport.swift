@@ -57,7 +57,7 @@ final class SystemPromptRecorder: @unchecked Sendable {
 
 /// Tool host with fixed specs; never asked to run anything in these tests.
 struct StubToolHost: ToolHost {
-    var specs: [ToolSpec] = [ToolSpec(name: "search", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: true)]
+    var specs: [ToolSpec] = [ToolSpec(name: "search", title: nil, description: "", schema: "{}", isReadOnly: true)]
     func execute(_ call: ToolCall) async -> ToolResult {
         ToolResult(callID: call.id, name: call.name, text: "", isError: false)
     }

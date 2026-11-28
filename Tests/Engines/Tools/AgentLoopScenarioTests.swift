@@ -196,7 +196,7 @@ final class AgentLoopScenarioTests: XCTestCase {
 
     func testALinkTheUserWroteIsNotAskedAbout() async {
         struct Page: BuiltInTool {
-            let name = "fetch_url", title = "Page", summary = "", description = "", inputSchemaJSON = "{}"
+            let name = "fetch_url", title = "Page", summary = "", description = "", schema: JSONSchema = "{}"
             func run(_ arguments: JSONValue) async throws -> String { "page text" }
         }
         let run = await play(steps: [.calls([("fetch_url", #"{"url":"https://example.com/a"}"#)]), echo],
@@ -207,7 +207,7 @@ final class AgentLoopScenarioTests: XCTestCase {
     func testAModelThatNeverStopsCallingToolsIsCutOffAndStillAnswers() async {
         let counting = Counter()
         struct Tick: BuiltInTool {
-            let name = "tick", title = "Tick", summary = "", description = "", inputSchemaJSON = "{}"
+            let name = "tick", title = "Tick", summary = "", description = "", schema: JSONSchema = "{}"
             let counter: Counter
             func run(_ arguments: JSONValue) async throws -> String { "tick \(counter.next())" }
         }
@@ -223,7 +223,7 @@ final class AgentLoopScenarioTests: XCTestCase {
 
     func testAHugeResultIsCutBeforeItGoesBackToTheModel() async {
         struct Wall: BuiltInTool {
-            let name = "wall", title = "Wall", summary = "", description = "", inputSchemaJSON = "{}"
+            let name = "wall", title = "Wall", summary = "", description = "", schema: JSONSchema = "{}"
             func run(_ arguments: JSONValue) async throws -> String { String(repeating: "x", count: 50_000) }
         }
         let run = await play(steps: [.calls([("wall", "{}")]), echo], host: host([Wall()]))
@@ -244,7 +244,7 @@ final class AgentLoopScenarioTests: XCTestCase {
 
     func testStoppingDuringAToolEndsTheReplyWithoutAnotherRequest() async throws {
         struct Slow: BuiltInTool {
-            let name = "slow", title = "Slow", summary = "", description = "", inputSchemaJSON = "{}"
+            let name = "slow", title = "Slow", summary = "", description = "", schema: JSONSchema = "{}"
             let started: Flag
             func run(_ arguments: JSONValue) async throws -> String {
                 started.value = true

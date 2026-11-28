@@ -46,7 +46,7 @@ private struct BrokenStep: StepFunction {
 
 /// Answers `boom` with an error, `slow` after a long wait, `page` with `pageLength` characters, anything else with its arguments.
 private final class LoopHost: ToolHost, @unchecked Sendable {
-    let specs = [ToolSpec(name: "look", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: true)]
+    let specs = [ToolSpec(name: "look", title: nil, description: "", schema: "{}", isReadOnly: true)]
     var pageLength = 6_000
     let started = Flag()
     private let lock = NSLock()
@@ -194,7 +194,7 @@ struct AgentLoopTests {
 
 /// A host that keeps the rounds the loop announces before running them, and the calls it ran.
 private final class RoundHost: ToolHost, @unchecked Sendable {
-    let specs = [ToolSpec(name: "look", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: true)]
+    let specs = [ToolSpec(name: "look", title: nil, description: "", schema: "{}", isReadOnly: true)]
     private let lock = NSLock()
     private var announced: [AgentSavedRound] = []
     private var ran: [String] = []

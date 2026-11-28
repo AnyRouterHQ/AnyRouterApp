@@ -53,7 +53,7 @@ private struct LookTool: BuiltInTool {
     let title = "Look"
     let summary = "Looks."
     let description = "Looks."
-    let inputSchemaJSON = #"{"type":"object"}"#
+    let schema: JSONSchema = #"{"type":"object"}"#
 
     func run(_ arguments: JSONValue) async throws -> String { "looked" }
 }

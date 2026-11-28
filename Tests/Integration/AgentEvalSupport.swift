@@ -53,7 +53,7 @@ struct EvalFixtureTool: BuiltInTool {
     let title: String
     let summary: String
     let description: String
-    let inputSchemaJSON: String
+    let schema: JSONSchema
     let result: String
 
     func run(_ arguments: JSONValue) async throws -> String { result }
@@ -61,14 +61,14 @@ struct EvalFixtureTool: BuiltInTool {
     static func search(result: String) -> EvalFixtureTool {
         EvalFixtureTool(
             name: WebSearchBinding.name, title: "Search the web", summary: "Search the web", description: WebSearchBinding.description,
-            inputSchemaJSON: WebSearchBinding.inputSchemaJSON, result: result)
+            schema: WebSearchBinding.schema, result: result)
     }
 
     static func pageReader(result: String) -> EvalFixtureTool {
         let real = FetchURLTool()
         return EvalFixtureTool(
             name: real.name, title: real.title, summary: real.summary, description: real.description,
-            inputSchemaJSON: real.inputSchemaJSON, result: result)
+            schema: real.schema, result: result)
     }
 }
 

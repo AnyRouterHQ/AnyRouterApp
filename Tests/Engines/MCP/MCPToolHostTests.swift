@@ -61,7 +61,7 @@ final class MCPToolHostTests: XCTestCase {
         XCTAssertEqual(specs.map(\.name), ["get_credits", "create_key"])
         XCTAssertEqual(specs.map(\.isReadOnly), [true, false])
         XCTAssertEqual(specs[1].title, "Create key")
-        XCTAssertEqual(specs[0].inputSchemaJSON, #"{"type":"object"}"#)
+        XCTAssertEqual(specs[0].schema.json, #"{"type":"object"}"#)
     }
 
     func testACustomServerCannotWaiveApprovalWithAReadOnlyHint() async {

@@ -10,7 +10,7 @@ struct CurrentDateTimeTool: BuiltInTool {
     let title = "Date and time"
     let summary = "The current date, time and time zone"
     let description = "Get the current local date and time on this device. Call it without arguments unless the user names another time zone."
-    let inputSchemaJSON = #"{"type":"object","properties":{"timezone":{"type":"string","description":"IANA time zone id. Leave out unless the user asks about another place."}}}"#
+    let schema: JSONSchema = #"{"type":"object","properties":{"timezone":{"type":"string","description":"IANA time zone id. Leave out unless the user asks about another place."}}}"#
 
     var now: @Sendable () -> Date = { Date() }
     var deviceTimeZone: @Sendable () -> TimeZone = { .current }

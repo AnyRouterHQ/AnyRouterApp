@@ -174,7 +174,7 @@ struct LocalToolFormatTests {
 
     private let search = ToolSpec(
         name: "web_search_exa", title: nil, description: "Search the web.",
-        inputSchemaJSON: #"{"type":"object","properties":{"query":{"type":"string"},"numResults":{"type":"integer"},"deep":{"type":"boolean"},"tags":{"type":"array"},"x":{"type":"number"},"o":{"type":"object"}},"required":["query"]}"#,
+        schema: #"{"type":"object","properties":{"query":{"type":"string"},"numResults":{"type":"integer"},"deep":{"type":"boolean"},"tags":{"type":"array"},"x":{"type":"number"},"o":{"type":"object"}},"required":["query"]}"#,
         isReadOnly: true)
 
     @Test func theFamilyDecidesTheFormat() {
@@ -202,7 +202,7 @@ struct LocalToolFormatTests {
         let text = LocalToolFormat.gemma.instructions(for: [search])
         #expect(text.contains(#"def web_search_exa(query: str, deep: bool = None, numResults: int = None, o: dict = None, tags: list = None, x: float = None) -> str:"#))
         #expect(text.contains("\"\"\"Search the web.\"\"\""))
-        let bare = ToolSpec(name: "t", title: nil, description: "d", inputSchemaJSON: "not json", isReadOnly: true)
+        let bare = ToolSpec(name: "t", title: nil, description: "d", schema: "not json", isReadOnly: true)
         #expect(LocalToolFormat.gemma.instructions(for: [bare]).contains("def t() -> str:"))
         #expect(LocalToolFormat.qwen.instructions(for: [bare]).contains(#""parameters":{"type":"object"}"#))
     }
@@ -261,7 +261,7 @@ private struct RoundsEngine: ChatEngine {
 }
 
 private struct AnswerHost: ToolHost {
-    var specs: [ToolSpec] = [ToolSpec(name: "web_search_exa", title: nil, description: "Search.", inputSchemaJSON: #"{"type":"object"}"#, isReadOnly: true)]
+    var specs: [ToolSpec] = [ToolSpec(name: "web_search_exa", title: nil, description: "Search.", schema: #"{"type":"object"}"#, isReadOnly: true)]
     func execute(_ call: ToolCall) async -> ToolResult {
         ToolResult(callID: call.id, name: call.name, text: "found: \(call.argumentsJSON)", isError: call.name == "boom")
     }
@@ -269,7 +269,7 @@ private struct AnswerHost: ToolHost {
 
 /// Answers every call with a 6,000-character page, the most a device model's tool profile lets through.
 private struct LongPageHost: ToolHost {
-    var specs: [ToolSpec] = [ToolSpec(name: "web_search_exa", title: nil, description: "Search.", inputSchemaJSON: #"{"type":"object"}"#, isReadOnly: true)]
+    var specs: [ToolSpec] = [ToolSpec(name: "web_search_exa", title: nil, description: "Search.", schema: #"{"type":"object"}"#, isReadOnly: true)]
     func execute(_ call: ToolCall) async -> ToolResult {
         ToolResult(callID: call.id, name: call.name, text: String(repeating: "Long page text. ", count: 375), isError: false)
     }

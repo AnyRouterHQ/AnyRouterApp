@@ -4,7 +4,7 @@ import XCTest
 
 final class AppleToolGuidanceTests: XCTestCase {
     private func spec(_ name: String) -> ToolSpec {
-        ToolSpec(name: name, title: nil, description: "d", inputSchemaJSON: #"{"type":"object","properties":{"q":{"type":"string"}}}"#, isReadOnly: true)
+        ToolSpec(name: name, title: nil, description: "d", schema: #"{"type":"object","properties":{"q":{"type":"string"}}}"#, isReadOnly: true)
     }
 
     func testAppleAndLocalModelsBothGetFourTools() {

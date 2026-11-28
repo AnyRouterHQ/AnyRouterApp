@@ -10,7 +10,7 @@ struct ProposeSkillTool: BuiltInTool {
     let title = "Propose skill"
     let summary = "Suggest a skill for you to approve"
     let description = SkillProposalLogic.toolDescription
-    let inputSchemaJSON = SkillProposalLogic.toolSchema
+    let schema = JSONSchema(parsing: SkillProposalLogic.toolSchema)
 
     func run(_ arguments: JSONValue) async throws -> String { try await store.propose(arguments) }
 }

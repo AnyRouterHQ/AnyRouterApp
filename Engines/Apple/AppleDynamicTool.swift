@@ -24,7 +24,7 @@ struct AppleDynamicTool: Tool {
     ) -> [AppleDynamicTool] {
         // How many tools the model gets is decided once, by `ToolProfile`, before the host hands over its specs.
         specs.compactMap { spec -> AppleDynamicTool? in
-            guard let schema = try? ToolSchemaNode.parse(spec.inputSchemaJSON).generationSchema(name: spec.name)
+            guard let schema = try? spec.schema.generationSchema(name: spec.name)
             else { return nil }
             return AppleDynamicTool(
                 name: spec.name, description: spec.description, parameters: schema,

@@ -6,7 +6,7 @@ import XCTest
 
 struct ToolProfileTests {
     private func spec(_ name: String, _ description: String = "d") -> ToolSpec {
-        ToolSpec(name: name, title: nil, description: description, inputSchemaJSON: "{}", isReadOnly: true)
+        ToolSpec(name: name, title: nil, description: description, schema: "{}", isReadOnly: true)
     }
 
     @Test func cloudModelsGetEveryToolUntouched() {
@@ -103,13 +103,13 @@ struct ToolProfileTests {
 }
 
 private struct Wall: BuiltInTool {
-    let name = "wall", title = "Wall", summary = "", description = "", inputSchemaJSON = "{}"
+    let name = "wall", title = "Wall", summary = "", description = "", schema: JSONSchema = "{}"
     func run(_ arguments: JSONValue) async throws -> String { String(repeating: "x", count: 30_000) }
 }
 
 private struct Quiet: BuiltInTool {
     let name: String
-    let title = "Quiet", summary = "", description = "", inputSchemaJSON = "{}"
+    let title = "Quiet", summary = "", description = "", schema: JSONSchema = "{}"
     func run(_ arguments: JSONValue) async throws -> String { "ran" }
 }
 

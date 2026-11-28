@@ -71,24 +71,17 @@ enum LocalToolFormat: String, CaseIterable, Sendable {
 
     /// One tool as the JSON function description Hermes and Llama models were trained on.
     private static func declaration(_ spec: ToolSpec) -> String {
-        let schema = JSONValue.parse(spec.inputSchemaJSON) ?? .object(["type": .string("object")])
         let function: JSONValue = .object([
-            "name": .string(spec.name), "description": .string(spec.description), "parameters": schema,
+            "name": .string(spec.name), "description": .string(spec.description), "parameters": spec.schema.wireObject,
         ])
         return JSONValue.object(["type": .string("function"), "function": function]).jsonString()
     }
 
     /// `def name(a: str, b: int = None) -> str:` with the description as the docstring. Required arguments come first.
     private static func pythonSignature(_ spec: ToolSpec) -> String {
-        let schema = JSONValue.parse(spec.inputSchemaJSON)
-        let properties = schema?["properties"]?.object ?? [:]
-        let required = Set(schema?["required"]?.array?.compactMap(\.string) ?? [])
-        let names = properties.keys.sorted { lhs, rhs in
-            required.contains(lhs) != required.contains(rhs) ? required.contains(lhs) : lhs < rhs
-        }
-        let arguments = names.map { name -> String in
-            let kind = pythonType(properties[name]?["type"]?.string)
-            return required.contains(name) ? "\(name): \(kind)" : "\(name): \(kind) = None"
+        let arguments = spec.schema.properties.map { property -> String in
+            let kind = pythonType(property.schema.value["type"]?.string)
+            return property.isRequired ? "\(property.name): \(kind)" : "\(property.name): \(kind) = None"
         }
         return "def \(spec.name)(\(arguments.joined(separator: ", "))) -> str:\n    \"\"\"\(spec.description)\"\"\""
     }

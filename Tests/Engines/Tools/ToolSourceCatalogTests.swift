@@ -53,7 +53,7 @@ struct ToolSourceCatalogTests {
     @Test func eachPinnedToolIsReadOnlyAndHasAValidSchema() throws {
         for source in ToolSourceCatalog.publicSources {
             for pin in source.tools {
-                let schema = try #require(JSONValue.parse(pin.inputSchemaJSON))
+                let schema = try #require(JSONValue.parse(pin.schema.json))
                 #expect(schema["type"]?.string == "object", "\(pin.name)")
                 #expect(pin.mcpTool.isReadOnly)
                 #expect(source.server?.skipsApproval(pin.mcpTool) == true, "\(pin.name) runs without a question")

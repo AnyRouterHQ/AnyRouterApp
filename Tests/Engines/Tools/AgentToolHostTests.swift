@@ -7,7 +7,7 @@ private struct Echo: BuiltInTool {
     let title = "Echo"
     let summary = "Echoes"
     let description = "Echo the text"
-    let inputSchemaJSON = #"{"type":"object","properties":{"text":{"type":"string"}}}"#
+    let schema: JSONSchema = #"{"type":"object","properties":{"text":{"type":"string"}}}"#
     var delay: Double = 0
     var fail: String?
 
@@ -124,7 +124,7 @@ final class AgentToolHostTests: XCTestCase {
 
     func testLongResultsAreCut() async {
         struct Wall: BuiltInTool {
-            let name = "wall", title = "Wall", summary = "", description = "", inputSchemaJSON = "{}"
+            let name = "wall", title = "Wall", summary = "", description = "", schema: JSONSchema = "{}"
             func run(_ arguments: JSONValue) async throws -> String { String(repeating: "x", count: 30_000) }
         }
         let result = await host([Wall()]).execute(call("wall"))

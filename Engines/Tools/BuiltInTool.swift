@@ -9,7 +9,7 @@ protocol BuiltInTool: Sendable {
     var summary: String { get }
     /// For the model.
     var description: String { get }
-    var inputSchemaJSON: String { get }
+    var schema: JSONSchema { get }
     /// The tool needs an internet connection, so it is left out while the device is offline.
     var needsNetwork: Bool { get }
     /// What running it can change.
@@ -37,7 +37,7 @@ extension BuiltInTool {
     }
 
     var spec: ToolSpec {
-        ToolSpec(name: name, title: title, description: description, inputSchemaJSON: inputSchemaJSON, sideEffect: sideEffect)
+        ToolSpec(name: name, title: title, description: description, schema: schema, sideEffect: sideEffect)
     }
 }
 

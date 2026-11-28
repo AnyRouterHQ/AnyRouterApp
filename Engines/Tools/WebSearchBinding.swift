@@ -5,10 +5,10 @@ import Foundation
 struct WebSearchBinding: Sendable {
     static let name = "web_search"
     static let description = "Search the web. Returns the top results with titles, links and snippets."
-    static let inputSchemaJSON = #"{"type":"object","properties":{"query":{"type":"string","description":"What to search for"}},"required":["query"]}"#
+    static let schema: JSONSchema = #"{"type":"object","properties":{"query":{"type":"string","description":"What to search for"}},"required":["query"]}"#
 
     static var spec: ToolSpec {
-        ToolSpec(name: name, title: "Search the web", description: description, inputSchemaJSON: inputSchemaJSON, isReadOnly: true)
+        ToolSpec(name: name, title: "Search the web", description: description, schema: schema, isReadOnly: true)
     }
 
     struct Match: Equatable {

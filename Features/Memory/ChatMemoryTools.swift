@@ -98,7 +98,7 @@ struct MemoryTool: BuiltInTool {
     let title = "Memory"
     let summary = "What you told the app before"
     let description = MemoryToolLogic.memoryDescription
-    let inputSchemaJSON = MemoryToolLogic.memorySchema
+    let schema = JSONSchema(parsing: MemoryToolLogic.memorySchema)
 
     func run(_ arguments: JSONValue) async throws -> String { try await backend.memory(arguments) }
 }
@@ -111,7 +111,7 @@ struct SearchChatsTool: BuiltInTool {
     let title = "Search chats"
     let summary = "Find earlier chats"
     let description = MemoryToolLogic.searchChatsDescription
-    let inputSchemaJSON = MemoryToolLogic.searchChatsSchema
+    let schema = JSONSchema(parsing: MemoryToolLogic.searchChatsSchema)
 
     func run(_ arguments: JSONValue) async throws -> String { try await backend.searchChats(arguments) }
 }

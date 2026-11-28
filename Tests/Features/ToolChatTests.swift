@@ -235,7 +235,7 @@ struct ToolApprovalTests {
     private func request(_ name: String) -> ToolApprovalRequest {
         ToolApprovalRequest(
             serverName: "S",
-            spec: ToolSpec(name: name, title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: false),
+            spec: ToolSpec(name: name, title: nil, description: "", schema: "{}", isReadOnly: false),
             call: ToolCall(id: name, name: name, argumentsJSON: "{}"))
     }
 
@@ -290,7 +290,7 @@ struct ToolApprovalPromptTests {
     private func request(args: String, title: String? = "Send a note") -> ToolApprovalRequest {
         ToolApprovalRequest(
             serverName: "Example",
-            spec: ToolSpec(name: "send_note", title: title, description: "", inputSchemaJSON: "{}", isReadOnly: false),
+            spec: ToolSpec(name: "send_note", title: title, description: "", schema: "{}", isReadOnly: false),
             call: ToolCall(id: "1", name: "send_note", argumentsJSON: args))
     }
 
@@ -317,7 +317,7 @@ struct ToolApprovalQueueTests {
     private func entry() -> ToolApprovalQueue.Entry {
         .init(id: UUID(), request: ToolApprovalRequest(
             serverName: "S",
-            spec: ToolSpec(name: "t", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: false),
+            spec: ToolSpec(name: "t", title: nil, description: "", schema: "{}", isReadOnly: false),
             call: ToolCall(id: "1", name: "t", argumentsJSON: "{}")))
     }
 

@@ -9,7 +9,7 @@ struct ToolSideEffectTests {
         let name: String
         let sideEffect: ToolSideEffect
         var undoesInsteadOfAsking = false
-        let title = "Effect", summary = "", description = "", inputSchemaJSON = "{}"
+        let title = "Effect", summary = "", description = "", schema: JSONSchema = "{}"
         func run(_ arguments: JSONValue) async throws -> String { "ran" }
     }
 
@@ -70,8 +70,8 @@ struct ToolSideEffectTests {
     @Test func specsCarryTheClassAndReadOnlyFollowsIt() {
         #expect(Effect(name: "t", sideEffect: .sensitiveRead).spec.sideEffect == .sensitiveRead)
         #expect(ToolSideEffect.allCases.filter(\.isRead) == [.read, .sensitiveRead])
-        let marked = ToolSpec(name: "a", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: true)
-        let unmarked = ToolSpec(name: "b", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: false)
+        let marked = ToolSpec(name: "a", title: nil, description: "", schema: "{}", isReadOnly: true)
+        let unmarked = ToolSpec(name: "b", title: nil, description: "", schema: "{}", isReadOnly: false)
         #expect(marked.sideEffect == .read && marked.isReadOnly)
         #expect(unmarked.sideEffect == .external && !unmarked.isReadOnly, "an MCP tool not marked read-only acts on its server")
     }

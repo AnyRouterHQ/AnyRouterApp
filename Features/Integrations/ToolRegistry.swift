@@ -13,7 +13,7 @@ struct RegisteredTool: Identifiable, Hashable, Sendable {
     var name: String
     var title: String
     var description: String
-    var inputSchemaJSON: String
+    var schema: JSONSchema
     var needsApproval: Bool
     var enabled: Bool
 }
@@ -153,13 +153,13 @@ final class ToolRegistry {
             list.append(RegisteredTool(
                 id: "builtin/\(WebSearchBinding.name)", source: .builtIn, name: WebSearchBinding.name,
                 title: "Search the web", description: WebSearchBinding.description,
-                inputSchemaJSON: WebSearchBinding.inputSchemaJSON, needsApproval: false,
+                schema: WebSearchBinding.schema, needsApproval: false,
                 enabled: isBuiltInEnabled(WebSearchBinding.name)))
         }
         for tool in listedBuiltIns {
             list.append(RegisteredTool(
                 id: "builtin/\(tool.name)", source: .builtIn, name: tool.name, title: tool.title,
-                description: tool.description, inputSchemaJSON: tool.inputSchemaJSON, needsApproval: false,
+                description: tool.description, schema: tool.schema, needsApproval: false,
                 enabled: isBuiltInEnabled(tool.name)))
         }
         for source in publicSources {
@@ -169,7 +169,7 @@ final class ToolRegistry {
                     id: IntegrationsLogic.toolKey(serverID: server.id, toolName: pin.name),
                     source: .mcp(serverID: server.id, serverName: server.name),
                     name: pin.name, title: pin.title, description: pin.summary,
-                    inputSchemaJSON: pin.inputSchemaJSON, needsApproval: false,
+                    schema: pin.schema, needsApproval: false,
                     enabled: integrations.isEnabled(pin.mcpTool, on: server)))
             }
         }
@@ -181,7 +181,7 @@ final class ToolRegistry {
                     id: IntegrationsLogic.toolKey(serverID: server.id, toolName: tool.name),
                     source: .mcp(serverID: server.id, serverName: server.name),
                     name: tool.name, title: tool.displayName, description: tool.description ?? tool.displayName,
-                    inputSchemaJSON: tool.inputSchema.jsonString(),
+                    schema: JSONSchema(tool.inputSchema),
                     needsApproval: !server.skipsApproval(tool),
                     enabled: integrations.isEnabled(tool, on: server)))
             }

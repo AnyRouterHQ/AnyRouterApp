@@ -136,7 +136,7 @@ struct SkillProposalTests {
         let tool = ProposeSkillTool(store: r.proposals)
         #expect(tool.name == "propose_skill" && tool.sideEffect == .write && tool.undoesInsteadOfAsking)
         #expect(tool.spec.name == SkillProposalLogic.toolName && tool.description == SkillProposalLogic.toolDescription)
-        #expect(tool.inputSchemaJSON == SkillProposalLogic.toolSchema && !tool.title.isEmpty && !tool.summary.isEmpty)
+        #expect(tool.schema == JSONSchema(parsing: SkillProposalLogic.toolSchema) && !tool.title.isEmpty && !tool.summary.isEmpty)
         #expect(JSONValue.parse(SkillProposalLogic.toolSchema)?["required"]?.array?.count == 3)
         let asked = Asked()
         let host = AgentToolHost(builtIns: [tool], search: nil, mcp: nil, approver: asked)

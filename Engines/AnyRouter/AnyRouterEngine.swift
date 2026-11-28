@@ -231,9 +231,10 @@ struct AnyRouterEngine: ResumableEngine, SubagentEngine {
         return ["role": message.role.rawValue, "content": parts]
     }
 
-    /// OpenAI `tools` entry. A schema that is not a JSON object degrades to "no arguments".
+    /// OpenAI `tools` entry. The schema goes as the tool gave it, whole; one that is not a JSON object degrades to "no
+    /// arguments".
     static func wireTool(_ spec: ToolSpec) -> [String: Any] {
-        let schema = (try? JSONSerialization.jsonObject(with: Data(spec.inputSchemaJSON.utf8))) as? [String: Any]
+        let schema = (try? JSONSerialization.jsonObject(with: Data(spec.schema.wireObject.jsonString().utf8))) as? [String: Any]
         return [
             "type": "function",
             "function": [

@@ -35,7 +35,7 @@ struct NotesTool: BuiltInTool {
     let title = "Notes"
     let summary = "The model's list for a long task"
     let description = NotesLogic.description
-    let inputSchemaJSON = NotesLogic.schema
+    let schema = JSONSchema(parsing: NotesLogic.schema)
 
     func run(_ arguments: JSONValue) async throws -> String { try await notes.replace(arguments) }
 }

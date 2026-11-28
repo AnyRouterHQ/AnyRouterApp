@@ -8,7 +8,7 @@ struct ReadSkillTool: BuiltInTool {
     let title = "Skills"
     let summary = "Steps for common tasks"
     let description = SkillLogic.readSkillDescription
-    let inputSchemaJSON = SkillLogic.readSkillSchema
+    let schema = JSONSchema(parsing: SkillLogic.readSkillSchema)
 
     func run(_ arguments: JSONValue) async throws -> String { try SkillLogic.read(arguments, from: skills) }
 }

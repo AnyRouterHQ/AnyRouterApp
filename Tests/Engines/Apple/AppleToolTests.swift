@@ -3,49 +3,44 @@ import XCTest
 
 @testable import AnyRouter
 
+/// Agent v2 K1a: Apple's generation schema reads the subset of a tool's JSONSchema; ToolSchemaNode is gone.
 final class ToolSchemaTests: XCTestCase {
-    private func parse(_ json: String) -> ToolSchemaNode { ToolSchemaNode.parse(json) }
-
-    private func props(_ node: ToolSchemaNode) -> [ToolSchemaNode.Property] {
-        guard case .object(let list) = node.kind else { XCTFail("not an object"); return [] }
-        return list
-    }
+    private func props(_ json: String) -> [JSONSchema.Property] { JSONSchema(parsing: json).argumentProperties }
 
     func testPrimitivesRequiredFirstThenAlphabeticalWithDescriptions() {
-        let node = parse(#"""
+        let list = props(#"""
             {"type":"object","required":["query"],"properties":{
               "zeta":{"type":"boolean","description":"flag"},
               "limit":{"type":"integer"},
               "ratio":{"type":"number"},
               "query":{"type":"string","description":"what to find"}}}
             """#)
-        let list = props(node)
         XCTAssertEqual(list.map(\.name), ["query", "limit", "ratio", "zeta"])
         XCTAssertEqual(list.map(\.isRequired), [true, false, false, false])
-        XCTAssertEqual(list[0].node, ToolSchemaNode(kind: .string, description: "what to find"))
-        XCTAssertEqual(list[1].node.kind, .integer)
-        XCTAssertEqual(list[2].node.kind, .number)
-        XCTAssertEqual(list[3].node, ToolSchemaNode(kind: .boolean, description: "flag"))
+        XCTAssertEqual(list.map { $0.schema.shape() }, [.string, .integer, .number, .boolean])
+        XCTAssertEqual(list[0].schema.description, "what to find")
+        XCTAssertEqual(list[3].schema.description, "flag")
+        XCTAssertNil(list[1].schema.description)
     }
 
     func testEnumArrayAndNestedObject() {
-        let node = parse(#"""
+        let list = Dictionary(uniqueKeysWithValues: props(#"""
             {"type":"object","properties":{
               "mode":{"enum":["a","b","a"]},
               "tags":{"type":"array","items":{"type":"string"}},
               "loose":{"type":"array"},
               "where":{"type":"object","required":["city"],"properties":{"city":{"type":"string"}}}}}
-            """#)
-        let list = Dictionary(uniqueKeysWithValues: props(node).map { ($0.name, $0.node) })
-        XCTAssertEqual(list["mode"]?.kind, .choice(["a", "b"]))
-        XCTAssertEqual(list["tags"]?.kind, .array(ToolSchemaNode(kind: .string, description: nil)))
-        XCTAssertEqual(list["loose"]?.kind, .array(ToolSchemaNode(kind: .string, description: nil)))
-        guard case .object(let inner)? = list["where"]?.kind else { return XCTFail("no nested object") }
-        XCTAssertEqual(inner, [.init(name: "city", node: ToolSchemaNode(kind: .string, description: nil), isRequired: true)])
+            """#).map { ($0.name, $0.schema) })
+        XCTAssertEqual(list["mode"]?.shape(), .choice(["a", "b"]))
+        XCTAssertEqual(list["tags"]?.shape(), .array(JSONSchema(.object(["type": .string("string")]))))
+        XCTAssertEqual(list["loose"]?.shape(), .array(JSONSchema(.object([:]))))
+        guard case .object(let inner)? = list["where"]?.shape() else { return XCTFail("no nested object") }
+        XCTAssertEqual(inner.map(\.name), ["city"])
+        XCTAssertEqual(inner.map(\.isRequired), [true])
     }
 
     func testUnsupportedKeywordsDegradeToString() {
-        let node = parse(#"""
+        let list = Dictionary(uniqueKeysWithValues: props(#"""
             {"properties":{
               "a":{"anyOf":[{"type":"string"},{"type":"number"}]},
               "b":{"type":["integer","null"]},
@@ -53,49 +48,49 @@ final class ToolSchemaTests: XCTestCase {
               "d":{"enum":[]},
               "e":{"$ref":"#/defs/x"},
               "f":"not a schema",
+              "g":{"type":["null"]},
               "":{"type":"string"}}}
-            """#)
-        let list = Dictionary(uniqueKeysWithValues: props(node).map { ($0.name, $0.node.kind) })
+            """#).map { ($0.name, $0.schema.shape()) })
         XCTAssertEqual(list["a"], .string)
         XCTAssertEqual(list["b"], .integer)
         XCTAssertEqual(list["c"], .string)
         XCTAssertEqual(list["d"], .string)
         XCTAssertEqual(list["e"], .string)
         XCTAssertEqual(list["f"], .string)
-        XCTAssertEqual(list.count, 6)
+        XCTAssertEqual(list["g"], .string)
+        XCTAssertEqual(list.count, 7)
     }
 
     func testBadInputGivesEmptyObject() {
         for json in ["", "not json", "[]", #"{"type":"string","description":"x"}"#] {
-            let node = parse(json)
-            XCTAssertEqual(props(node), [], json)
+            XCTAssertEqual(props(json), [], json)
         }
-        XCTAssertEqual(parse(#"{"type":"string","description":"x"}"#).description, "x")
+        XCTAssertEqual(JSONSchema(parsing: #"{"type":"string","description":"x"}"#).description, "x")
     }
 
     func testDeepNestingBecomesString() {
         var json = #"{"type":"string"}"#
         for _ in 0..<8 { json = "{\"type\":\"object\",\"properties\":{\"n\":" + json + "}}" }
-        var node = parse(json)
+        var schema = JSONSchema(parsing: json)
         var depth = 0
-        while case .object(let list) = node.kind, let next = list.first {
-            node = next.node
+        while case .object(let list) = schema.shape(atDepth: depth), let next = list.first {
+            schema = next.schema
             depth += 1
         }
-        XCTAssertEqual(depth, ToolSchemaNode.maxDepth + 1)
-        XCTAssertEqual(node.kind, .string)
+        XCTAssertEqual(depth, JSONSchema.maxDepth + 1)
+        XCTAssertEqual(schema.shape(atDepth: depth), .string)
     }
 
     func testFoundationModelsSchemaBuilds() throws {
-        let node = parse(#"""
+        let schema = JSONSchema(parsing: #"""
             {"type":"object","required":["q"],"properties":{
               "q":{"type":"string","description":"query"},
               "mode":{"enum":["fast","slow"]},
               "ids":{"type":"array","items":{"type":"integer"}},
               "where":{"type":"object","properties":{"lat":{"type":"number"},"on":{"type":"boolean"}}}}}
             """#)
-        _ = try node.generationSchema(name: "search")
-        _ = try parse("{}").generationSchema(name: "empty")
+        _ = try schema.generationSchema(name: "search")
+        _ = try JSONSchema(parsing: "{}").generationSchema(name: "empty")
     }
 }
 
@@ -193,7 +188,7 @@ final class AppleToolRunTests: XCTestCase {
     func testTheEngineOffersEveryToolTheProfileLeftIn() async throws {
         let specs = (0..<12).map {
             ToolSpec(name: "t\($0)", title: nil, description: "tool \($0)",
-                     inputSchemaJSON: #"{"type":"object","properties":{"q":{"type":"string"}}}"#, isReadOnly: true)
+                     schema: #"{"type":"object","properties":{"q":{"type":"string"}}}"#, isReadOnly: true)
         }
         let host = FakeHost(specs: specs) { call in
             ToolResult(callID: call.id, name: call.name, text: "ok:" + call.argumentsJSON, isError: false)

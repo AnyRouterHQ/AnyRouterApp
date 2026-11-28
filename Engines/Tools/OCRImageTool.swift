@@ -11,7 +11,7 @@ struct OCRImageTool: BuiltInTool {
     let title = "Read text in photos"
     let summary = "Text and tables in photos attached to this chat"
     let description = "Read the text in a photo attached to this chat, with tables kept as rows. Call it without a name to read the newest photos."
-    let inputSchemaJSON = #"{"type":"object","properties":{"name":{"type":"string","description":"File name of the photo"}}}"#
+    let schema: JSONSchema = #"{"type":"object","properties":{"name":{"type":"string","description":"File name of the photo"}}}"#
 
     /// The chat's image attachments, oldest first.
     let images: [ChatAttachment]

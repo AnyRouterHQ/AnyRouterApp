@@ -64,7 +64,7 @@ enum SubagentLogic {
             a short summary and its sources. Use it for a question that needs several searches or pages. The helper does \
             not see this chat, so put everything it needs in the task.
             """,
-        inputSchemaJSON: ##"{"type":"object","properties":{"task":{"type":"string","description":"The question, with everything the helper needs to know."},"title":{"type":"string","description":"Two to four words the user sees, such as Compare prices."},"hints":{"type":"string","description":"Where to look or what to leave out."}},"required":["task"]}"##,
+        schema: ##"{"type":"object","properties":{"task":{"type":"string","description":"The question, with everything the helper needs to know."},"title":{"type":"string","description":"Two to four words the user sees, such as Compare prices."},"hints":{"type":"string","description":"Where to look or what to leave out."}},"required":["task"]}"##,
         sideEffect: .read)
 
     /// The subagent's system prompt. It never sees the chat, the user's instructions or memory.

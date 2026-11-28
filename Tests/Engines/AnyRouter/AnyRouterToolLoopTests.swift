@@ -65,7 +65,7 @@ private final class ScriptedHost: ToolHost, @unchecked Sendable {
 
     static let search = ToolSpec(
         name: "web_search", title: nil, description: "Search the web",
-        inputSchemaJSON: #"{"type":"object","properties":{"q":{"type":"string"}},"required":["q"]}"#, isReadOnly: true
+        schema: #"{"type":"object","properties":{"q":{"type":"string"}},"required":["q"]}"#, isReadOnly: true
     )
 
     var calls: [ToolCall] { lock.withLock { received } }
@@ -360,8 +360,21 @@ struct ToolWireTests {
         #expect((function["parameters"] as? [String: Any])?["type"] as? String == "object")
     }
 
+    /// Agent v2 K1a: an MCP server's schema reaches the cloud request whole (anyOf, minimum, additionalProperties), the
+    /// same bytes as the server sent apart from key order.
+    @Test func anMCPSchemaReachesTheCloudRequestWhole() throws {
+        let server = #"{"type":"object","properties":{"n":{"type":"integer","minimum":1,"maximum":9.5},"q":{"anyOf":[{"type":"string"},{"type":"null"}]}},"required":["q"],"additionalProperties":false}"#
+        let spec = ToolSpec(
+            name: "find", title: nil, description: "Find.", schema: JSONSchema(try #require(JSONValue.parse(server))), isReadOnly: true)
+        let function = try #require(AnyRouterEngine.wireTool(spec)["function"] as? [String: Any])
+        let sent = try JSONSerialization.data(withJSONObject: try #require(function["parameters"]), options: [.sortedKeys])
+        let original = try JSONSerialization.data(
+            withJSONObject: try JSONSerialization.jsonObject(with: Data(server.utf8)), options: [.sortedKeys])
+        #expect(sent == original)
+    }
+
     @Test func aBrokenSchemaDegradesToNoArguments() throws {
-        let broken = ToolSpec(name: "t", title: nil, description: "d", inputSchemaJSON: "not json", isReadOnly: true)
+        let broken = ToolSpec(name: "t", title: nil, description: "d", schema: "not json", isReadOnly: true)
         let function = try #require(AnyRouterEngine.wireTool(broken)["function"] as? [String: Any])
         #expect((function["parameters"] as? [String: Any])?["type"] as? String == "object")
     }

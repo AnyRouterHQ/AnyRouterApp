@@ -33,7 +33,7 @@ struct AnyRouterStepTests {
 
     /// Every page is 30,000 characters, about 10,000 tokens.
     private struct Pages: ToolHost {
-        let specs = [ToolSpec(name: "page", title: nil, description: "Read a page", inputSchemaJSON: "{}", isReadOnly: true)]
+        let specs = [ToolSpec(name: "page", title: nil, description: "Read a page", schema: "{}", isReadOnly: true)]
         func execute(_ call: ToolCall) async -> ToolResult {
             ToolResult(callID: call.id, name: call.name, text: String(repeating: "x", count: 30_000), isError: false)
         }
@@ -85,7 +85,7 @@ struct AnyRouterStepTests {
         let model = ModelDescriptor(
             id: "anyrouter/test/sub", source: .anyrouter, displayName: "Sub", contextLength: 20_000,
             capabilities: ["chat", "tools"], sizeBytes: nil, isInstalled: true)
-        let specs = [ToolSpec(name: "web_search", title: nil, description: "Search", inputSchemaJSON: "{}", isReadOnly: true)]
+        let specs = [ToolSpec(name: "web_search", title: nil, description: "Search", schema: "{}", isReadOnly: true)]
         let made = engine.childStep(
             model: model, messages: [ChatMessage(role: .user, content: "Find it")], params: GenerationParams(systemPrompt: "Research."), specs: specs)
         let step = try #require(made as? AnyRouterStep)

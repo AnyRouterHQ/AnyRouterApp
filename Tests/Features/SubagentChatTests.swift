@@ -66,7 +66,7 @@ private struct FakeSearch: BuiltInTool {
     let title = "Search"
     let summary = "Searches."
     let description = "Searches."
-    let inputSchemaJSON = #"{"type":"object"}"#
+    let schema: JSONSchema = #"{"type":"object"}"#
 
     func run(_ arguments: JSONValue) async throws -> String { "two results" }
 }

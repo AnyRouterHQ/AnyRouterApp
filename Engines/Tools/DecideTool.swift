@@ -13,7 +13,7 @@ struct DecideTool: BuiltInTool {
     let title = "Decide"
     let summary = "Ask a decision model about a text"
     let description = "Ask a decision model one question about a text and get a calibrated answer: yes or no, or one of the options you give, with probabilities. Use it to classify or judge a text, not to look things up."
-    let inputSchemaJSON = #"{"type":"object","properties":{"text":{"type":"string","description":"The text to judge."},"question":{"type":"string","description":"One question about the text."},"options":{"type":"array","items":{"type":"string"},"description":"Answers to choose from. Leave out for a yes or no question."}},"required":["text","question"]}"#
+    let schema: JSONSchema = #"{"type":"object","properties":{"text":{"type":"string","description":"The text to judge."},"question":{"type":"string","description":"One question about the text."},"options":{"type":"array","items":{"type":"string"},"description":"Answers to choose from. Leave out for a yes or no question."}},"required":["text","question"]}"#
     let needsNetwork = true
     let sideEffect: ToolSideEffect
     let sourceID = ToolSourceCatalog.anyRouter.id

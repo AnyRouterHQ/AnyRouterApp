@@ -6,7 +6,7 @@ struct CalculatorTool: BuiltInTool {
     let title = "Calculator"
     let summary = "Exact arithmetic"
     let description = "Evaluate an arithmetic expression. Supports + - * / % ^, parentheses, sqrt, abs, round, floor, ceil, ln, exp, and the constants pi and e."
-    let inputSchemaJSON = #"{"type":"object","properties":{"expression":{"type":"string","description":"For example (12.5 + 7) * 3 / 2"}},"required":["expression"]}"#
+    let schema: JSONSchema = #"{"type":"object","properties":{"expression":{"type":"string","description":"For example (12.5 + 7) * 3 / 2"}},"required":["expression"]}"#
 
     func run(_ arguments: JSONValue) async throws -> String {
         guard let expression = arguments["expression"]?.string, !expression.isEmpty else {

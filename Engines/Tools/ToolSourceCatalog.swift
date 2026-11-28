@@ -23,7 +23,7 @@ struct PinnedTool: Hashable, Sendable {
     var symbol: String
     /// One line. Shown in Settings and sent to the model.
     var summary: String
-    var inputSchemaJSON: String
+    var schema: JSONSchema
     var onByDefault = true
     /// Arguments filled in when the model leaves them out.
     var fills: [String: JSONValue] = [:]
@@ -36,7 +36,7 @@ struct PinnedTool: Hashable, Sendable {
     var mcpTool: MCPTool {
         MCPTool(
             name: name, title: title, description: summary,
-            inputSchema: JSONValue.parse(inputSchemaJSON) ?? .object(["type": .string("object")]),
+            inputSchema: schema.value,
             annotations: MCPTool.Annotations(title: title, readOnlyHint: true, destructiveHint: false, openWorldHint: true))
     }
 }
@@ -114,12 +114,12 @@ enum ToolSourceCatalog {
             PinnedTool(
                 name: "web_search_exa", title: "Search the web", symbol: "magnifyingglass",
                 summary: "Search the web. Returns the best pages with text from each.",
-                inputSchemaJSON: #"{"type":"object","properties":{"query":{"type":"string","description":"What to look for, in plain words"},"numResults":{"type":"integer","description":"How many results, 1 to 10"}},"required":["query"]}"#,
+                schema: #"{"type":"object","properties":{"query":{"type":"string","description":"What to look for, in plain words"},"numResults":{"type":"integer","description":"How many results, 1 to 10"}},"required":["query"]}"#,
                 fills: ["numResults": .number(5)], copies: ["objective": "query"], queryArgument: "query"),
             PinnedTool(
                 name: "web_fetch_exa", title: "Read web pages", symbol: "doc.text.magnifyingglass",
                 summary: "Read the text of web pages from their addresses.",
-                inputSchemaJSON: #"{"type":"object","properties":{"urls":{"type":"array","items":{"type":"string"},"description":"Page addresses"}},"required":["urls"]}"#),
+                schema: #"{"type":"object","properties":{"urls":{"type":"array","items":{"type":"string"},"description":"Page addresses"}},"required":["urls"]}"#),
         ])
 
     static let deepWiki = ToolSource(
@@ -132,17 +132,17 @@ enum ToolSourceCatalog {
             PinnedTool(
                 name: "ask_wiki_question", title: "Ask about a repository", symbol: "text.bubble",
                 summary: "Ask a question about a public GitHub repository.",
-                inputSchemaJSON: #"{"type":"object","properties":{"repoName":{"type":"string","description":"owner/repo"},"question":{"type":"string"}},"required":["repoName","question"]}"#,
+                schema: #"{"type":"object","properties":{"repoName":{"type":"string","description":"owner/repo"},"question":{"type":"string"}},"required":["repoName","question"]}"#,
                 queryArgument: "question"),
             PinnedTool(
                 name: "read_wiki_structure", title: "List documentation topics", symbol: "list.bullet.indent",
                 summary: "List the documentation topics of a public GitHub repository.",
-                inputSchemaJSON: #"{"type":"object","properties":{"repoName":{"type":"string","description":"owner/repo"}},"required":["repoName"]}"#,
+                schema: #"{"type":"object","properties":{"repoName":{"type":"string","description":"owner/repo"}},"required":["repoName"]}"#,
                 onByDefault: false),
             PinnedTool(
                 name: "read_wiki_contents", title: "Read documentation", symbol: "book",
                 summary: "Read the documentation of a public GitHub repository.",
-                inputSchemaJSON: #"{"type":"object","properties":{"repoName":{"type":"string","description":"owner/repo"}},"required":["repoName"]}"#,
+                schema: #"{"type":"object","properties":{"repoName":{"type":"string","description":"owner/repo"}},"required":["repoName"]}"#,
                 onByDefault: false),
         ])
 
@@ -156,16 +156,16 @@ enum ToolSourceCatalog {
             PinnedTool(
                 name: "microsoft_docs_search", title: "Search documentation", symbol: "magnifyingglass",
                 summary: "Search Microsoft and Azure documentation.",
-                inputSchemaJSON: #"{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}"#,
+                schema: #"{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}"#,
                 queryArgument: "query"),
             PinnedTool(
                 name: "microsoft_docs_fetch", title: "Read a documentation page", symbol: "doc.text",
                 summary: "Read a Microsoft Learn page from its address.",
-                inputSchemaJSON: #"{"type":"object","properties":{"url":{"type":"string"}},"required":["url"]}"#),
+                schema: #"{"type":"object","properties":{"url":{"type":"string"}},"required":["url"]}"#),
             PinnedTool(
                 name: "microsoft_code_sample_search", title: "Search code samples", symbol: "curlybraces",
                 summary: "Find code samples in Microsoft documentation.",
-                inputSchemaJSON: #"{"type":"object","properties":{"query":{"type":"string"},"language":{"type":"string","description":"For example csharp or python"}},"required":["query"]}"#,
+                schema: #"{"type":"object","properties":{"query":{"type":"string"},"language":{"type":"string","description":"For example csharp or python"}},"required":["query"]}"#,
                 onByDefault: false, queryArgument: "query"),
         ])
 

@@ -31,7 +31,7 @@ struct ReadAttachmentTool: BuiltInTool {
     let title = "Read attachments"
     let summary = "Text of files attached to this chat"
     let description = "Read the text of a file the user attached to this chat. Call it without a name to list the attachments."
-    let inputSchemaJSON = #"{"type":"object","properties":{"name":{"type":"string","description":"File name of the attachment"}}}"#
+    let schema: JSONSchema = #"{"type":"object","properties":{"name":{"type":"string","description":"File name of the attachment"}}}"#
 
     let provider: any AttachmentTextProviding
     var maxCharacters = 20_000

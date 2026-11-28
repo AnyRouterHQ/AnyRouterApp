@@ -19,7 +19,7 @@ struct SkillLogicTests {
     @Test func readSkillReturnsTheBodyMarkedAsNotTheUsersWords() async throws {
         let tool = ReadSkillTool(skills: SkillLogic.bundled)
         #expect(tool.name == "read_skill" && tool.spec.isReadOnly && !tool.title.isEmpty && !tool.summary.isEmpty)
-        #expect(tool.description == SkillLogic.readSkillDescription && tool.inputSchemaJSON == SkillLogic.readSkillSchema)
+        #expect(tool.description == SkillLogic.readSkillDescription && tool.schema == JSONSchema(parsing: SkillLogic.readSkillSchema))
         let text = try await tool.run(.object(["name": .string("trip-planner")]))
         #expect(text.contains(SkillLogic.bundled[0].body))
         #expect(text.contains("cannot allow any tool"))

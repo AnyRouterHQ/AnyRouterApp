@@ -6,8 +6,8 @@ struct ToolSpec: Identifiable, Hashable, Codable, Sendable {
     var name: String
     var title: String?
     var description: String
-    /// JSON Schema of the arguments object, as JSON text.
-    var inputSchemaJSON: String
+    /// JSON Schema of the arguments object, whole, as the tool gives it.
+    var schema: JSONSchema
     /// What running the tool can change. The tool host's approvals follow it.
     var sideEffect: ToolSideEffect
 
@@ -18,8 +18,8 @@ struct ToolSpec: Identifiable, Hashable, Codable, Sendable {
 
 extension ToolSpec {
     /// A tool known only as read-only or not, as an MCP server marks it: anything that is not read-only acts on the server.
-    init(name: String, title: String?, description: String, inputSchemaJSON: String, isReadOnly: Bool) {
-        self.init(name: name, title: title, description: description, inputSchemaJSON: inputSchemaJSON, sideEffect: isReadOnly ? .read : .external)
+    init(name: String, title: String?, description: String, schema: JSONSchema, isReadOnly: Bool) {
+        self.init(name: name, title: title, description: description, schema: schema, sideEffect: isReadOnly ? .read : .external)
     }
 }
 

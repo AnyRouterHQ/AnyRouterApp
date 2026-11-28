@@ -43,7 +43,7 @@ final class ToolsTests: XCTestCase {
         let decoded = try JSONDecoder().decode(ToolStep.self, from: JSONEncoder().encode(step))
         XCTAssertEqual(decoded, step)
 
-        let spec = ToolSpec(name: "web_search", title: nil, description: "Search", inputSchemaJSON: "{}", isReadOnly: true)
+        let spec = ToolSpec(name: "web_search", title: nil, description: "Search", schema: "{}", isReadOnly: true)
         XCTAssertEqual(spec.id, "web_search")
     }
 }

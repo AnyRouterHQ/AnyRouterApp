@@ -112,7 +112,7 @@ final class CurrentDateTimeTests: XCTestCase {
     func testTheDescriptionDoesNotInviteAPlace() {
         let tool = CurrentDateTimeTool()
         XCTAssertFalse(tool.description.contains("Asia"))
-        XCTAssertTrue(tool.inputSchemaJSON.contains("Leave out unless the user asks"))
+        XCTAssertTrue(tool.schema.json.contains("Leave out unless the user asks"))
     }
 
     func testUnknownTimeZoneIsAnError() async {

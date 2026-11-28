@@ -7,7 +7,7 @@ struct FetchURLTool: BuiltInTool {
     let title = "Read a web page"
     let summary = "Fetch a page and read its text (https only)"
     let description = "Fetch a web page over https and return its readable text. Use it to read a link the user gave you or a search result."
-    let inputSchemaJSON = #"{"type":"object","properties":{"url":{"type":"string","description":"The https URL to read"}},"required":["url"]}"#
+    let schema: JSONSchema = #"{"type":"object","properties":{"url":{"type":"string","description":"The https URL to read"}},"required":["url"]}"#
     let needsNetwork = true
 
     var session: URLSession = .shared

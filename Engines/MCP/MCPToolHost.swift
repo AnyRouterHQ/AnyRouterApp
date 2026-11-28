@@ -87,7 +87,7 @@ struct MCPToolHost: ToolHost {
                 name: names[index],
                 title: item.tool.title ?? item.tool.annotations?.title,
                 description: item.tool.description ?? item.tool.displayName,
-                inputSchemaJSON: item.tool.inputSchema.jsonString(),
+                schema: JSONSchema(item.tool.inputSchema),
                 // A custom server's read-only hint is only a hint: it must not skip the user's approval.
                 isReadOnly: item.server.skipsApproval(item.tool)
             )

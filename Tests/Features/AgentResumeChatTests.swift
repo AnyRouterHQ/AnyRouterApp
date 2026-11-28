@@ -18,7 +18,7 @@ private struct SendNote: BuiltInTool {
     let title = "Send note"
     let summary = "Sends a note."
     let description = "Sends a note."
-    let inputSchemaJSON = #"{"type":"object"}"#
+    let schema: JSONSchema = #"{"type":"object"}"#
     let sideEffect = ToolSideEffect.external
 
     func run(_ arguments: JSONValue) async throws -> String {

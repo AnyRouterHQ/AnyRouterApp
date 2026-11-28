@@ -13,7 +13,7 @@ struct ToolMenuLogicTests {
         case .mcp(let serverID, _): id = IntegrationsLogic.toolKey(serverID: serverID, toolName: name)
         }
         return RegisteredTool(id: id, source: source, name: name, title: name.uppercased(), description: "",
-                              inputSchemaJSON: "{}", needsApproval: false, enabled: on)
+                              schema: "{}", needsApproval: false, enabled: on)
     }
 
     @Test func sourcesFallIntoDeviceAnyRouterAndCustomSubmenus() {

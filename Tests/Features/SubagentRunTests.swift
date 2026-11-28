@@ -60,7 +60,7 @@ private struct FailingStep: StepFunction {
 private final class ChatTools: ToolHost, @unchecked Sendable {
     let specs: [ToolSpec] = {
         func spec(_ name: String, _ sideEffect: ToolSideEffect) -> ToolSpec {
-            ToolSpec(name: name, title: nil, description: "", inputSchemaJSON: "{}", sideEffect: sideEffect)
+            ToolSpec(name: name, title: nil, description: "", schema: "{}", sideEffect: sideEffect)
         }
         return [
             spec(WebSearchBinding.name, .read), spec(FetchURLTool.toolName, .read), spec("current_date_time", .read), spec("calculator", .read),
@@ -283,12 +283,12 @@ struct SubagentLogicRunTests {
         for broken in ["", "not json", #"{"task":"   "}"#, #"{"hints":"docs"}"#] {
             #expect(SubagentLogic.message(from: broken) == nil, "\(broken)")
         }
-        let schema = try #require(JSONValue.parse(SubagentLogic.spec.inputSchemaJSON))
+        let schema = try #require(JSONValue.parse(SubagentLogic.spec.schema.json))
         #expect(schema["required"]?.array == [.string("task")])
         #expect(SubagentLogic.spec.name == SubagentLogic.toolName && SubagentLogic.spec.sideEffect == .read)
         #expect(SubagentLogic.instructions.contains("Sources:") && !SubagentLogic.instructions.isEmpty)
-        #expect(SubagentLogic.canResearch([SubagentLogic.spec, ToolSpec(name: FetchURLTool.toolName, title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: true)]))
-        #expect(!SubagentLogic.canResearch([ToolSpec(name: "calculator", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: true)]))
+        #expect(SubagentLogic.canResearch([SubagentLogic.spec, ToolSpec(name: FetchURLTool.toolName, title: nil, description: "", schema: "{}", isReadOnly: true)]))
+        #expect(!SubagentLogic.canResearch([ToolSpec(name: "calculator", title: nil, description: "", schema: "{}", isReadOnly: true)]))
         #expect(SubagentLogic.childToolNames == [WebSearchBinding.name, FetchURLTool.toolName, "current_date_time", "calculator"])
     }
 
