@@ -52,11 +52,9 @@ The failed reply and the newest **Model load** record end with the cause, in thi
 2. "llama.cpp said: ..." with the last 20 warning and error lines under it. The first line to read is "error loading model": it names the cause (mmap failed, out of memory, unknown architecture, a missing tensor, a bad or truncated file). A file that was truncated cannot reach this point: every download is checked against its size and the SHA256 pinned in the catalog before it is installed.
 3. "Ended after <step>" on the record, with no failure line: iOS ended the app for memory during the load. Check **Times iOS ended the app** and **Memory limit**. A standard limit (about 3.5 GB) cannot load Inkling in memory; it needs the streamed tier, which needs the address space of the first case.
 
-Read these Diagnostics values on the phone before sending a load record back: Installed RAM, Memory limit, Increased memory limit, Extended address space, Largest file it can open, and the Large models line for Inkling.
-
 ## Extensions in the IPA
 
-The bundle ID is now `oneni.anyr.app` (it was `dev.anyrouter.app`). The new ID installs as a separate app, so delete the old copy first.
+The bundle ID is `oneni.anyr.app`. A copy installed under the old ID `dev.anyrouter.app` is a separate app, so delete it first.
 
 The IPA carries the Control Center and Lock Screen controls as an embedded extension (`oneni.anyr.app.controls`, in `AnyRouter.app/PlugIns`). Sideloadly and AltStore re-sign every embedded extension with your Apple ID. Each extension takes one more App ID from the free-account limit, so install it once and renew it, rather than reinstalling. The controls need no App Group: their intents open the app and run there. Add them from Control Center (Edit, Add a Control, AnyRouter) or the Lock Screen.
 
