@@ -60,7 +60,7 @@ struct SubagentRunner: Sendable {
         var steps: [ToolStep] = []
         var summary = ""
         var metadata: ResponseMetadata?
-        var usage: (prompt: Int, completion: Int)?
+        var usage: Usage?
         do {
             let stream = AgentLoop.stream(
                 step: step, host: tools, maxToolRounds: SubagentLogic.maxRounds - 1, tokenBudget: SubagentLogic.tokenBudget)
@@ -75,7 +75,7 @@ struct SubagentRunner: Sendable {
                 case .toolResult(let result):
                     if let index = steps.firstIndex(where: { $0.id == result.callID }) { steps[index].result = result }
                     await onSteps(call, steps)
-                case .usage(let prompt, let completion): usage = (prompt, completion)
+                case .usage(let next): usage = next
                 case .metadata(let next): metadata = next
                 case .reasoning, .done: break
                 }
@@ -90,8 +90,8 @@ struct SubagentRunner: Sendable {
             result.isError = false
         }
         result.costUSD = metadata?.costUSD
-        result.promptTokens = metadata?.promptTokens ?? usage?.prompt
-        result.completionTokens = metadata?.completionTokens ?? usage?.completion
+        result.promptTokens = metadata?.promptTokens ?? usage?.input
+        result.completionTokens = metadata?.completionTokens ?? usage?.output
         return result
     }
 }

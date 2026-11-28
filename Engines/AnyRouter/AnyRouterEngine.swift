@@ -118,7 +118,7 @@ struct AnyRouterEngine: ResumableEngine, SubagentEngine {
 
         var parser = SSEParser()
         var decoder = ChatChunkDecoder()
-        var usage: (prompt: Int, completion: Int)?
+        var usage: Usage?
         var metadata: ResponseMetadata?
         func handle(_ payloads: [String]) throws {
             for payload in payloads {
@@ -128,8 +128,8 @@ struct AnyRouterEngine: ResumableEngine, SubagentEngine {
                         emit(.text(piece))
                     case .reasoning(let piece):
                         emit(.reasoning(piece))
-                    case .usage(let prompt, let completion):
-                        usage = (prompt, completion)
+                    case .usage(let next):
+                        usage = next
                     case .metadata(let next):
                         metadata = next
                     case .done, .toolCall, .toolResult:
@@ -144,7 +144,7 @@ struct AnyRouterEngine: ResumableEngine, SubagentEngine {
         }
         try handle(parser.finish())
         for call in decoder.toolCalls { emit(.proposed(call)) }
-        if let usage { emit(.usage(prompt: usage.prompt, completion: usage.completion)) }
+        if let usage { emit(.usage(usage)) }
         if let metadata { emit(.metadata(metadata)) }
         emit(.end(finishReason: decoder.finishReason))
     }

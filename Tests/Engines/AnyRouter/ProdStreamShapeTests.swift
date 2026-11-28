@@ -30,6 +30,6 @@ struct ProdStreamShapeTests {
             }
         }
         #expect(texts == ["4"])
-        #expect(usage == [.usage(prompt: 21, completion: 2)])
+        #expect(usage == [.usage(Usage(input: 21, output: 2))])
     }
 }

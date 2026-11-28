@@ -118,7 +118,7 @@ struct ChatChunkDecoder {
         if let usage = json["usage"] as? [String: Any],
             let prompt = (usage["prompt_tokens"] as? NSNumber)?.intValue,
             let completion = (usage["completion_tokens"] as? NSNumber)?.intValue {
-            deltas.append(.usage(prompt: prompt, completion: completion))
+            deltas.append(.usage(Usage(input: prompt, output: completion)))
             usageSeen = true
         }
         if let raw = json["anyrouter_metadata"] as? [String: Any], let parsed = Self.metadata(from: raw) {
@@ -126,7 +126,7 @@ struct ChatChunkDecoder {
             deltas.append(.metadata(parsed))
             // Servers that only send the metadata still give token counts.
             if !usageSeen, let prompt = parsed.promptTokens, let completion = parsed.completionTokens {
-                deltas.append(.usage(prompt: prompt, completion: completion))
+                deltas.append(.usage(Usage(input: prompt, output: completion)))
                 usageSeen = true
             }
         }

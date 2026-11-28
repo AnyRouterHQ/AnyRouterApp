@@ -119,8 +119,8 @@ final class GGUFEngine: ChatEngine {
                             continuation.yield(.text($0))
                         }
                     }
-                    continuation.yield(.usage(prompt: result.promptTokens, completion: result.completionTokens))
-                    continuation.yield(.metadata(ResponseMetadata(decodedTokens: result.decodedTokens)))
+                    continuation.yield(
+                        .usage(Usage(input: result.promptTokens, output: result.completionTokens, decoded: result.decodedTokens)))
                     continuation.yield(.done(finishReason: result.finishReason))
                     continuation.finish()
                 } catch is CancellationError {

@@ -139,9 +139,9 @@ struct SubagentRunTests {
     /// what the subagent spent.
     @Test func aSubagentSearchesTwiceAndTheParentGetsItsSummaryAndSpend() async throws {
         let child = ChildScript([
-            [.text("Let me search. "), search("s1"), .usage(prompt: 100, completion: 10), .end(finishReason: "tool_calls")],
-            [search("s2"), .usage(prompt: 200, completion: 20), .end(finishReason: "tool_calls")],
-            [.text("Actors run one call at a time.\nSources: https://docs.example.com/actors"), .usage(prompt: 300, completion: 30),
+            [.text("Let me search. "), search("s1"), .usage(Usage(input: 100, output: 10)), .end(finishReason: "tool_calls")],
+            [search("s2"), .usage(Usage(input: 200, output: 20)), .end(finishReason: "tool_calls")],
+            [.text("Actors run one call at a time.\nSources: https://docs.example.com/actors"), .usage(Usage(input: 300, output: 30)),
              .metadata(ResponseMetadata(costUSD: Decimal(string: "0.002"))), .end(finishReason: "stop")],
         ])
         let tools = ChatTools()
@@ -210,9 +210,9 @@ struct SubagentRunTests {
     /// The round that reaches the token budget is the last with tools: its calls run, then the next request answers.
     @Test func theTokenBudgetStopsTheSubagent() async {
         let child = ChildScript([
-            [search("s1"), .usage(prompt: 20_000, completion: 500), .end(finishReason: "tool_calls")],
-            [search("s2"), .usage(prompt: 9_000, completion: 500), .end(finishReason: "tool_calls")],
-            [.text("Short answer."), .usage(prompt: 1_000, completion: 50), .end(finishReason: "stop")],
+            [search("s1"), .usage(Usage(input: 20_000, output: 500)), .end(finishReason: "tool_calls")],
+            [search("s2"), .usage(Usage(input: 9_000, output: 500)), .end(finishReason: "tool_calls")],
+            [.text("Short answer."), .usage(Usage(input: 1_000, output: 50)), .end(finishReason: "stop")],
         ])
         let tools = ChatTools()
         let result = await runner(child, tools: tools).run(delegate())

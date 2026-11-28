@@ -58,12 +58,12 @@ struct ResponseMetadataTests {
     @Test func tokenCountsAreReportedOnceEvenWhenBothFieldsAreThere() throws {
         let deltas = try MetadataFixture.decode(MetadataFixture.sse)
         let usages = deltas.filter { if case .usage = $0 { true } else { false } }
-        #expect(usages == [.usage(prompt: 12, completion: 34)])
+        #expect(usages == [.usage(Usage(input: 12, output: 34))])
     }
 
     @Test func metadataAloneStillGivesUsageAndAStringCost() throws {
         let deltas = try MetadataFixture.decode(MetadataFixture.metadataOnlyUsage)
-        #expect(deltas.contains(.usage(prompt: 5, completion: 6)))
+        #expect(deltas.contains(.usage(Usage(input: 5, output: 6))))
         #expect(metadata(deltas)?.costUSD == Decimal(string: "0.01"))
     }
 
@@ -76,7 +76,7 @@ struct ResponseMetadataTests {
 
             """)
         #expect(metadata(deltas) == nil)
-        #expect(deltas.contains(.usage(prompt: 1, completion: 2)))
+        #expect(deltas.contains(.usage(Usage(input: 1, output: 2))))
     }
 
     @Test func aCostInAnotherCurrencyIsNotShownAsDollars() {
@@ -183,7 +183,7 @@ struct ResponseTimingTests {
         var engine = ScriptedEngine(source: .anyrouter, models: [cloudModel("anyrouter/auto", name: "AnyRouter Auto")])
         engine.chunks = ["Hello"]
         engine.deltas = [
-            .usage(prompt: 12, completion: 30),
+            .usage(Usage(input: 12, output: 30)),
             .metadata(ResponseMetadata(
                 requestID: "req_1", servedModelID: "nvidia/nemotron-3.5-bolt-e4b", provider: "NVIDIA",
                 costUSD: Decimal(string: "0.0004"))),
@@ -245,7 +245,7 @@ struct ResponseTimingTests {
 
     @Test func aServerWithoutMetadataStillGetsTimingsAndTheRequestedModel() {
         let model = cloudModel("openai/gpt-5", name: "GPT-5")
-        let m = ChatViewModel.finalMetadata(nil, tokens: (3, 4), model: model, ttftMs: 200, totalMs: 900, nameOf: { _ in nil })
+        let m = ChatViewModel.finalMetadata(nil, tokens: Usage(input: 3, output: 4), model: model, ttftMs: 200, totalMs: 900, nameOf: { _ in nil })
         #expect(m.servedModelID == "openai/gpt-5")
         #expect(m.servedModelName == "GPT-5")
         #expect(m.promptTokens == 3)

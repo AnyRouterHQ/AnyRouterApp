@@ -121,8 +121,8 @@ final class GGUFModelSmokeTests: XCTestCase {
             case .text(let piece):
                 if firstText == nil { firstText = clock.now }
                 text += piece
-            case .usage(let prompt, let completion):
-                usage = (prompt, completion)
+            case .usage(let next):
+                usage = (next.input, next.output)
                 usageBeforeDone = done == 0
             case .done(let reason):
                 done += 1
@@ -191,8 +191,9 @@ final class GGUFModelSmokeTests: XCTestCase {
             for try await delta in ctx.engine.stream(model: ctx.model, messages: messages, params: params) {
                 switch delta {
                 case .text(let piece): reply += piece
-                case .usage(let tokens, _): prompt = tokens
-                case .metadata(let metadata): decoded = metadata.decodedTokens
+                case .usage(let usage):
+                    prompt = usage.input
+                    decoded = usage.decoded
                 default: break
                 }
             }
@@ -239,7 +240,7 @@ final class GGUFModelSmokeTests: XCTestCase {
         for try await delta in ctx.engine.stream(model: ctx.model, messages: [message], params: params) {
             switch delta {
             case .text(let piece): text += piece
-            case .usage(let prompt, let completion): usage = (prompt, completion)
+            case .usage(let next): usage = (next.input, next.output)
             case .done, .toolCall, .toolResult, .metadata, .reasoning: break
             }
         }

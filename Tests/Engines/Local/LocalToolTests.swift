@@ -253,7 +253,7 @@ private struct RoundsEngine: ChatEngine {
                 continuation.yield(.text(String(rest.prefix(size))))
                 rest = rest.dropFirst(size)
             }
-            continuation.yield(.usage(prompt: 10, completion: 5))
+            continuation.yield(.usage(Usage(input: 10, output: 5)))
             continuation.yield(.done(finishReason: "stop"))
             continuation.finish()
         }
@@ -355,7 +355,7 @@ struct LocalToolEngineTests {
         #expect(calls.first?.name == "web_search_exa")
         #expect(results.first?.text == #"found: {"query":"swift"}"#)
         #expect(deltas.last == .done(finishReason: "stop"))
-        #expect(deltas.contains(.usage(prompt: 20, completion: 10)), "usage adds up over the rounds")
+        #expect(deltas.contains(.usage(Usage(input: 20, output: 10))), "usage adds up over the rounds")
 
         let prompts = rounds.systemPrompts
         #expect(prompts[0]?.hasPrefix("Be brief.") == true)

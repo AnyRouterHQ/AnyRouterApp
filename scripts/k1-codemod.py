@@ -2,7 +2,9 @@
 """Agent v2 K1 codemod (docs/research/agent-v2.md). Kept for the length of K1 so each wave can be rerun and reviewed.
 
 Usage: scripts/k1-codemod.py <wave> [--check]
-  k1a  ToolSpec.inputSchemaJSON (String) becomes schema (JSONSchema), everywhere it is declared, passed or read.
+  k1a   ToolSpec.inputSchemaJSON (String) becomes schema (JSONSchema), everywhere it is declared, passed or read.
+  k1a2  ChatDelta and StepEvent .usage(prompt:completion:) becomes .usage(Usage), where a usage is built. Matches
+        (`case .usage(let prompt, let completion)`) mean something different at each site and are rewritten by hand.
 --check only lists the files a wave would change.
 """
 import re
@@ -40,7 +42,11 @@ def k1a(text: str) -> str:
     return text
 
 
-WAVES = {"k1a": (k1a, K1A_BY_HAND)}
+def k1a2(text: str) -> str:
+    return re.sub(r'\.usage\(prompt: ([^,()]+), completion: ([^()]+?)\)', r'.usage(Usage(input: \1, output: \2))', text)
+
+
+WAVES = {"k1a": (k1a, K1A_BY_HAND), "k1a2": (k1a2, set())}
 
 
 def main() -> int:

@@ -87,9 +87,9 @@ struct AgentLoopTests {
         let first = ResponseMetadata(provider: "one", promptTokens: 10)
         let second = ResponseMetadata(provider: "two", promptTokens: 5)
         let step = ScriptedStep([
-            [.reasoning("hmm"), .text("Let me look. "), .proposed(call("c1")), .usage(prompt: 10, completion: 2), .metadata(first),
+            [.reasoning("hmm"), .text("Let me look. "), .proposed(call("c1")), .usage(Usage(input: 10, output: 2)), .metadata(first),
              .end(finishReason: "tool_calls")],
-            [.text("Done."), .usage(prompt: 5, completion: 1), .metadata(second), .end(finishReason: "stop")],
+            [.text("Done."), .usage(Usage(input: 5, output: 1)), .metadata(second), .end(finishReason: "stop")],
         ])
         let host = LoopHost()
         let run = await collect(AgentLoop.stream(step: step, host: host, maxToolRounds: 4))
@@ -97,7 +97,7 @@ struct AgentLoopTests {
         let result = ToolResult(callID: "c1", name: "look", text: "saw {}", isError: false)
         #expect(run.deltas == [
             .reasoning("hmm"), .text("Let me look. "), .toolCall(call("c1")), .toolResult(result), .text("Done."),
-            .metadata(ResponseMetadata.combining(first, second)!), .usage(prompt: 15, completion: 3), .done(finishReason: "stop"),
+            .metadata(ResponseMetadata.combining(first, second)!), .usage(Usage(input: 15, output: 3)), .done(finishReason: "stop"),
         ])
         #expect(step.requests.map(\.toolsOn) == [true, true])
         #expect(step.requests[1].rounds == [AgentRound(text: "Let me look. ", calls: [call("c1")], results: [result])])

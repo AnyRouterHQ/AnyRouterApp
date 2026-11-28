@@ -844,7 +844,7 @@ final class ChatViewModel {
             var failure: ReplyFailure?
             var firstTokenSeen = false
             var reported: ResponseMetadata?
-            var tokens: (prompt: Int, completion: Int)?
+            var tokens: Usage?
             var ttftMs: Int?
             // A fast local model makes 50 tokens a second; the screen takes them 20 times a second.
             var pending = TextCoalescer(interval: Self.textInterval)
@@ -902,7 +902,7 @@ final class ChatViewModel {
                     case .toolResult(let result):
                         Self.fill(result, in: assistant)
                         if let start = toolStarts.removeValue(forKey: result.callID) { toolMs += Self.milliseconds(clock() - start) }
-                    case .usage(let prompt, let completion): tokens = (prompt, completion)
+                    case .usage(let usage): tokens = usage
                     case .metadata(let metadata): reported = metadata
                     case .done: break
                     }
@@ -1075,7 +1075,7 @@ final class ChatViewModel {
     /// The metadata stored with a reply: what the server reported (or "On device" and cost 0 for
     /// local and Apple models), plus token counts and the timings measured here.
     static func finalMetadata(
-        _ reported: ResponseMetadata?, tokens: (prompt: Int, completion: Int)?, model: ModelDescriptor,
+        _ reported: ResponseMetadata?, tokens: Usage?, model: ModelDescriptor,
         ttftMs: Int?, totalMs: Int, toolMs: Int = 0, toolCostUSD: Decimal = 0, toolTokens: (prompt: Int, completion: Int) = (0, 0),
         nameOf: (String) -> String?
     ) -> ResponseMetadata {
@@ -1091,8 +1091,9 @@ final class ChatViewModel {
             metadata.servedModelName = served == model.wireID
                 ? model.shortName : (nameOf(served) ?? ResponseFormat.prettyName(served))
         }
-        if metadata.promptTokens == nil { metadata.promptTokens = tokens?.prompt }
-        if metadata.completionTokens == nil { metadata.completionTokens = tokens?.completion }
+        if metadata.promptTokens == nil { metadata.promptTokens = tokens?.input }
+        if metadata.completionTokens == nil { metadata.completionTokens = tokens?.output }
+        if metadata.decodedTokens == nil { metadata.decodedTokens = tokens?.decoded }
         metadata.ttftMs = ttftMs
         metadata.totalMs = totalMs
         if toolMs > 0 { metadata.toolMs = toolMs }

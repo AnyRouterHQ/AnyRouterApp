@@ -97,7 +97,7 @@ struct LocalToolStep: StepFunction {
                             let shown = parser.feed(piece)
                             if !shown.isEmpty { continuation.yield(.text(shown)) }
                         case .reasoning(let piece): continuation.yield(.reasoning(piece))
-                        case .usage(let prompt, let completion): continuation.yield(.usage(prompt: prompt, completion: completion))
+                        case .usage(let usage): continuation.yield(.usage(usage))
                         case .metadata(let metadata): continuation.yield(.metadata(metadata))
                         case .done(let reason): finishReason = reason
                         case .toolCall, .toolResult: break

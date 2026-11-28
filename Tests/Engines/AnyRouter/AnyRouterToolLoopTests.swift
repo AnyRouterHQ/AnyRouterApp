@@ -119,7 +119,7 @@ struct AnyRouterToolLoopTests {
             .toolCall(call),
             .toolResult(ToolResult(callID: "call_a", name: "web_search", text: "result of web_search", isError: false)),
             .text("Swift "), .text("is great"),
-            .usage(prompt: 30, completion: 7),
+            .usage(Usage(input: 30, output: 7)),
             .done(finishReason: "stop"),
         ])
 

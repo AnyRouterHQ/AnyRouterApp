@@ -168,7 +168,7 @@ struct GGUFEngineTests {
         }
         #expect(reason == "length" || reason == "stop")
         let usage = deltas.compactMap { delta -> (Int, Int)? in
-            if case .usage(let prompt, let completion) = delta { return (prompt, completion) } else { return nil }
+            if case .usage(let usage) = delta { return (usage.input, usage.output) } else { return nil }
         }
         #expect(usage.count == 1)
         #expect((usage.first?.0 ?? 0) > 0, "prompt tokens are counted")

@@ -31,7 +31,7 @@ enum StepEvent: Equatable, Sendable {
     case reasoning(String)
     /// A call the model asked for. The loop decides whether it runs.
     case proposed(ToolCall)
-    case usage(prompt: Int, completion: Int)
+    case usage(Usage)
     case metadata(ResponseMetadata)
     case end(finishReason: String?)
 }
@@ -96,7 +96,7 @@ enum AgentLoop {
         var maxRounds = host == nil ? 0 : maxToolRounds
         var stubbed = 0
         var failed: Set<[String]> = []
-        var usage: (prompt: Int, completion: Int)?
+        var usage: Usage?
         var metadata: ResponseMetadata?
         var finishReason: String?
         var node = resume == nil ? AgentNode.assemble : .act
@@ -126,15 +126,15 @@ enum AgentLoop {
                     case .wrote(let text): wrote = text
                     case .reasoning(let piece): emit(.reasoning(piece))
                     case .proposed(let call): proposed.calls.append(call)
-                    case .usage(let prompt, let completion):
-                        usage = ((usage?.prompt ?? 0) + prompt, (usage?.completion ?? 0) + completion)
+                    case .usage(let next):
+                        usage = usage.map { $0 + next } ?? next
                     case .metadata(let next): metadata = ResponseMetadata.combining(metadata, next)
                     case .end(let reason): finishReason = reason
                     }
                 }
                 try Task.checkCancellation()
                 if let wrote { proposed.text = wrote }
-                if let tokenBudget, let usage, usage.prompt + usage.completion >= tokenBudget { maxRounds = min(maxRounds, rounds.count + 1) }
+                if let tokenBudget, let usage, usage.input + usage.output >= tokenBudget { maxRounds = min(maxRounds, rounds.count + 1) }
                 node = AgentGraph.next(node, on: proposed.calls.isEmpty ? .noCalls : .calls, round: rounds.count, maxRounds: maxRounds)
                 if node == .act { await host?.willRun(proposed.text, calls: proposed.calls) }
             case .act:
@@ -181,7 +181,7 @@ enum AgentLoop {
             }
         }
         if let metadata { emit(.metadata(metadata)) }
-        if let usage { emit(.usage(prompt: usage.prompt, completion: usage.completion)) }
+        if let usage { emit(.usage(usage)) }
         emit(.done(finishReason: finishReason))
     }
 

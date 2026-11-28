@@ -119,7 +119,7 @@ struct AnyRouterEngineStreamTests {
         }
         let result = await run(engine(api))
         #expect(result.error == nil)
-        #expect(result.deltas == [.text("Hel"), .text("lo"), .usage(prompt: 4, completion: 2), .done(finishReason: "stop")])
+        #expect(result.deltas == [.text("Hel"), .text("lo"), .usage(Usage(input: 4, output: 2)), .done(finishReason: "stop")])
     }
 
     @Test func connectionEndingWithoutDoneStillFinishesTheAnswer() async {

@@ -105,15 +105,15 @@ struct SubagentChatTests {
         let model = toolModel("anyrouter/test", .anyrouter)
         let child = ScriptedRounds([
             [.proposed(ToolCall(id: "s1", name: WebSearchBinding.name, argumentsJSON: #"{"query":"actors"}"#)),
-             .usage(prompt: 100, completion: 10), .end(finishReason: "tool_calls")],
+             .usage(Usage(input: 100, output: 10)), .end(finishReason: "tool_calls")],
             [.proposed(ToolCall(id: "s2", name: WebSearchBinding.name, argumentsJSON: #"{"query":"actor isolation"}"#)),
-             .usage(prompt: 200, completion: 20), .end(finishReason: "tool_calls")],
-            [.text("Actors run one call at a time."), .usage(prompt: 300, completion: 30),
+             .usage(Usage(input: 200, output: 20)), .end(finishReason: "tool_calls")],
+            [.text("Actors run one call at a time."), .usage(Usage(input: 300, output: 30)),
              .metadata(ResponseMetadata(costUSD: Decimal(string: "0.002"))), .end(finishReason: "stop")],
         ])
         let parent = ScriptedRounds([
-            [.proposed(delegation), .usage(prompt: 1_000, completion: 50), .end(finishReason: "tool_calls")],
-            [.text("They take one call at a time."), .usage(prompt: 1_200, completion: 40),
+            [.proposed(delegation), .usage(Usage(input: 1_000, output: 50)), .end(finishReason: "tool_calls")],
+            [.text("They take one call at a time."), .usage(Usage(input: 1_200, output: 40)),
              .metadata(ResponseMetadata(costUSD: Decimal(string: "0.010"))), .end(finishReason: "stop")],
         ])
         let engine = DelegatingEngine(model: model, parent: parent, child: child)

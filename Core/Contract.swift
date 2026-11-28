@@ -53,7 +53,7 @@ enum ChatDelta: Sendable, Equatable {
     case text(String)
     /// Append-only suffix of what the model thinks before it answers. Shown apart from the answer and never sent back.
     case reasoning(String)
-    case usage(prompt: Int, completion: Int)
+    case usage(Usage)
     case done(finishReason: String?)
     /// The model asked for a tool. Emitted once per call, before it runs.
     case toolCall(ToolCall)
