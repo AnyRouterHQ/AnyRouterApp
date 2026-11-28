@@ -222,7 +222,8 @@ struct ModelPickerSheet: View {
             // In the bar under the title, not floating at the bottom: at the medium detent the floating field covered the
             // last rows (Browse models), and the list now ends at the sheet's edge (screenshots 46107915397).
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search models")
-            .safeAreaInset(edge: .top, spacing: 0) {
+            // A bar, not an inset, so the list gets the scroll edge effect under the tabs (design review #8).
+            .safeAreaBar(edge: .top, spacing: 0) {
                 Picker("Source", selection: $tab) {
                     ForEach(PickerTab.allCases) { Text($0.title).tag($0) }
                 }
