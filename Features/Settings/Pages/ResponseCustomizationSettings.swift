@@ -95,8 +95,8 @@ struct ResponseAdvancedSettings: View {
                 }
             }
             Section("Sampling") {
-                slider("Temperature", value: $settings.temperature, range: 0...2, step: 0.05)
-                slider("Top P", value: $settings.topP, range: 0...1, step: 0.01)
+                slider("Temperature", id: "settings-temperature", value: $settings.temperature, range: 0...2, step: 0.05)
+                slider("Top P", id: "settings-top-p", value: $settings.topP, range: 0...1, step: 0.01)
             }
             Section {
                 Button("Reset to defaults", role: .destructive) { settings.resetGenerationDefaults() }
@@ -106,7 +106,7 @@ struct ResponseAdvancedSettings: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func slider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double) -> some View {
+    private func slider(_ title: String, id: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double) -> some View {
         VStack(spacing: 4) {
             HStack {
                 Text(title)
@@ -114,6 +114,7 @@ struct ResponseAdvancedSettings: View {
                 Text(value.wrappedValue.formatted(.number.precision(.fractionLength(2)))).foregroundStyle(.secondary)
             }
             Slider(value: value, in: range, step: step)
+                .accessibilityIdentifier(id)
         }
     }
 }
