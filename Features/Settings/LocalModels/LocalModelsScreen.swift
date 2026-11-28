@@ -50,7 +50,6 @@ struct LocalModelsScreen: View {
             }
             if !installed.isEmpty {
                 Section("Installed") { ForEach(installed) { installedRow($0) } }
-                    .accessibilityIdentifier("local.installed")
             }
             voiceSection
             storageSection
@@ -133,7 +132,6 @@ struct LocalModelsScreen: View {
                 .accessibilityIdentifier("local.unavailable")
             }
         }
-        .accessibilityIdentifier("local.featured")
     }
 
     /// Voice engines and models: dictation and spoken replies.

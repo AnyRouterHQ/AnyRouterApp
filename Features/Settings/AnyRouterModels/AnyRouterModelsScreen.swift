@@ -36,7 +36,6 @@ struct AnyRouterModelsScreen: View {
             }
             if !list.starred.isEmpty {
                 Section("Starred") { ForEach(list.starred) { row($0) } }
-                    .accessibilityIdentifier("anyrouter.starred")
             }
             if !list.rest.isEmpty {
                 Section {
@@ -44,7 +43,6 @@ struct AnyRouterModelsScreen: View {
                 } header: {
                     if !list.starred.isEmpty { Text("All models") }
                 }
-                .accessibilityIdentifier("anyrouter.all")
             }
             if hiddenCount > 0 && !isSearching {
                 Section {

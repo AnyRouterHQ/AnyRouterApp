@@ -40,7 +40,6 @@ struct CatalogSourcesScreen: View {
                     }
                 }
             }
-            .accessibilityIdentifier("sources.list")
             Section("Add a Hugging Face repo") {
                 TextField("org/name or huggingface.co URL", text: $repoText)
                     .textInputAutocapitalization(.never)
