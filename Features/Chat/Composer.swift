@@ -413,9 +413,7 @@ struct Composer: View {
                 .labelStyle(.iconOnly)
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(.primary)
-                .frame(width: plusSize, height: plusSize)
-                .glassEffect(.regular.interactive(), in: .circle)
-                .contentShape(.circle)
+                .glassCircle(diameter: plusSize)
         }
         // The menu lists from the top as written, even though it opens upward from the bottom of the screen.
         .menuOrder(.fixed)
