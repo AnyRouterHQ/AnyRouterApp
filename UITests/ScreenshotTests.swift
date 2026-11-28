@@ -164,6 +164,16 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// The drawer with no pinned chat: the Pinned section goes away and Recents follows Apps.
+    func testSidebarWithoutPins() {
+        forEachAppearance(extra: ["-ARDemoLongThread", "8", "-ARDemoNoPins", "YES"]) { app, appearance in
+            XCTAssertTrue(app.descendants(matching: .any)["chat.content"].waitForExistence(timeout: 20))
+            showSidebar(app)
+            XCTAssertFalse(app.staticTexts["Pinned"].exists, "no Pinned section without pinned chats")
+            capture("sidebar-no-pins", appearance)
+        }
+    }
+
     /// The rename alert opened from the chat's "..." menu, then the sidebar. Demo chats keep the titles they were made with;
     /// a generated title needs a model, which the simulator run does not have.
     func testRenameChatAlertAndSidebar() {

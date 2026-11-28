@@ -147,7 +147,7 @@ enum DemoData {
         ]
         for (index, item) in threads.enumerated() {
             let created = now.addingTimeInterval(-Double(index) * 3600 * 5)
-            let thread = ThreadRecord(title: item.0, createdAt: created, isPinned: item.1, modelID: item.2)
+            let thread = ThreadRecord(title: item.0, createdAt: created, isPinned: item.1 && !noPins, modelID: item.2)
             context.insert(thread)
             for (offset, message) in item.3.enumerated() {
                 let record = MessageRecord(role: message.0, content: message.1,
@@ -165,6 +165,9 @@ enum DemoData {
         try context.save()
         return container
     }
+
+    /// `-ARDemoNoPins YES`: no demo chat is pinned, for the sidebar without a Pinned section.
+    private static var noPins: Bool { UserDefaults.standard.bool(forKey: "ARDemoNoPins") }
 
     /// `-ARDemoMemories YES`: a few memories for the Settings > Memory screenshots.
     private static var memories: Bool { UserDefaults.standard.bool(forKey: "ARDemoMemories") }

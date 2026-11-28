@@ -98,12 +98,18 @@ final class SidebarTests: XCTestCase {
         XCTAssertLessThan(recents.frame.midY - pinned.frame.midY, 56, "a section title follows the last row closely")
     }
 
-    func testAppsRowSitsUnderSearch() {
+    /// The operator's layout: logo, name and a search icon on one 44 pt row, Apps as the first row under it.
+    func testHeaderHoldsSearchAndAppsSitsUnderIt() {
         let app = launch()
         let row = app.buttons["sidebar-apps"]
         app.revealSidebar(whenVisible: row)
         let search = app.buttons["sidebar.search"]
-        XCTAssertEqual(row.frame.minY, search.frame.maxY, accuracy: 4, "Apps is the row right under Search, not a section of its own")
+        let title = app.element("sidebar.header")
+        XCTAssertEqual(search.label, "Search chats")
+        XCTAssertGreaterThanOrEqual(search.frame.height, 44, "the search icon keeps a 44 pt target")
+        XCTAssertEqual(search.frame.midY, title.frame.midY, accuracy: 3, "the search icon sits on the title's row")
+        let gap = row.frame.minY - search.frame.maxY
+        XCTAssertTrue(gap >= 0 && gap <= 16, "Apps is the first row under the header, not a section of its own (gap \(gap))")
         row.tap()
         XCTAssertTrue(app.navigationBars["Apps"].waitForExistence(timeout: 10))
     }

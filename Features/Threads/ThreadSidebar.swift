@@ -1,8 +1,9 @@
 import SwiftData
 import SwiftUI
 
-/// Sidebar: the app name over a plain list (search, Apps, pinned and recent chats) and a bottom bar with
-/// Settings and New chat. On iPhone it fills the drawer, on iPad the split-view column.
+/// Sidebar: a header row (logo, app name, search), then a plain list (Apps, pinned and recent chats) and a bottom bar
+/// with Settings and New chat. On iPhone it fills the drawer, on iPad the split-view column. Everything starts on one
+/// leading edge and trailing items end on one trailing edge, `margin` from the sides, as in a stock list.
 struct ThreadSidebar: View {
     /// True when shown as a drawer over the chat (iPhone). Picking something then closes it.
     let isDrawer: Bool
@@ -11,7 +12,7 @@ struct ThreadSidebar: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     /// Row and hit-area heights grow with Dynamic Type instead of clipping the text.
     @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 44
-    @ScaledMetric(relativeTo: .subheadline) private var searchHeight: CGFloat = 36
+    @ScaledMetric(relativeTo: .title3) private var logoSize: CGFloat = 22
     /// Gear and New chat: one 40 pt glass shape inside a 44 pt hit area.
     @ScaledMetric(relativeTo: .body) private var barButtonHeight: CGFloat = 40
     @Query(sort: \ThreadRecord.updatedAt, order: .reverse) private var threads: [ThreadRecord]
@@ -41,21 +42,6 @@ struct ThreadSidebar: View {
 
     private var content: some View {
         List(selection: selection) {
-            // A quiet capsule (36 pt, scaled) inside a 44 pt hit area: it points at the search, it is not the field.
-            Button { shell.presentSearch() } label: {
-                Label("Search chats", systemImage: "magnifyingglass")
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 12)
-                    .frame(maxWidth: .infinity, minHeight: searchHeight, alignment: .leading)
-                    .background(Color(.quaternarySystemFill), in: .capsule)
-                    .frame(minHeight: rowHeight)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .rowInsets()
-            .accessibilityIdentifier("sidebar.search")
             appsRow
             if sections.isEmpty {
                 Text("No chats yet")
@@ -71,10 +57,10 @@ struct ThreadSidebar: View {
                 header("Recents") {
                     Button { shell.presentSearch() } label: {
                         HStack(spacing: 4) { Text("View all"); Image(systemName: "chevron.right").imageScale(.small) }
-                            .frame(minWidth: 44, minHeight: rowHeight)
+                            .frame(minWidth: 44, minHeight: rowHeight, alignment: .trailing)
                             .contentShape(.rect)
                             // The 44 pt target reaches into the gaps above and below, so the title row stays short.
-                            .padding(.vertical, -6)
+                            .padding(.vertical, -12)
                     }
                     .accessibilityIdentifier("sidebar.viewall")
                 }
@@ -85,29 +71,43 @@ struct ThreadSidebar: View {
         // Rows set their own 44 pt; the section titles stay as short as their text.
         .environment(\.defaultMinListRowHeight, 0)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .safeAreaInset(edge: .top, spacing: 0) { titleRow }
+        .safeAreaInset(edge: .top, spacing: 8) { titleRow }
         .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
         .threadEditingDialogs($editing)
     }
 
+    /// The list's side margin: every row's text, the header and the bottom bar line up on it.
+    fileprivate static let margin: CGFloat = 16
+
     private var titleRow: some View {
-        HStack {
+        HStack(spacing: 8) {
+            ARLogoMark(size: logoSize).foregroundStyle(.primary).accessibilityHidden(true)
             Text("AnyRouter")
                 .font(.title3.bold())
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("sidebar.header")
             Spacer()
+            Button { shell.presentSearch() } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.body.weight(.medium))
+                    .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.primary)
+            .accessibilityLabel("Search chats")
+            .accessibilityIdentifier("sidebar.search")
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 4)
+        .frame(minHeight: 44)
+        .padding(.horizontal, Self.margin)
     }
 
     /// Section titles are rows, not `Section` headers: a plain list puts about 22 pt above each header that SwiftUI
-    /// cannot remove, which spread the drawer out.
+    /// cannot remove, and makes them sticky. 20 pt above, 6 pt below, the system header style.
     private func header<Trailing: View>(
         _ title: LocalizedStringKey, @ViewBuilder trailing: () -> Trailing = { EmptyView() }
     ) -> some View {
-        HStack {
+        HStack(alignment: .firstTextBaseline) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -115,9 +115,7 @@ struct ThreadSidebar: View {
             Spacer()
             trailing().font(.subheadline)
         }
-        .frame(minHeight: 32)
-        .padding(.horizontal, 8)
-        .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 0, trailing: 12))
+        .listRowInsets(EdgeInsets(top: 20, leading: Self.margin, bottom: 6, trailing: Self.margin))
         .listRowSeparator(.hidden)
         .selectionDisabled()
     }
@@ -150,7 +148,7 @@ struct ThreadSidebar: View {
             .buttonStyle(.plain)
             .foregroundStyle(.primary)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, Self.margin)
         .padding(.vertical, 8)
     }
 
@@ -178,7 +176,8 @@ struct ThreadSidebar: View {
                 // margins; the iPad column keeps the list's own selection.
                 .listRowBackground(
                     isDrawer && thread.id == shell.selectedThreadID
-                        ? Color(.quaternarySystemFill).clipShape(.rect(cornerRadius: 12)).padding(.horizontal, 8) : nil
+                        ? Color(.quaternarySystemFill).clipShape(.rect(cornerRadius: 10, style: .continuous)).padding(.horizontal, 8)
+                        : nil
                 )
                 .threadActions(thread, editing: $editing)
         }
@@ -191,10 +190,9 @@ private extension View {
         frame(minWidth: 44, minHeight: 44).contentShape(.rect)
     }
 
-    /// Rows sit 12 pt from the edges so the highlight of the open chat has room; the content keeps the 20 pt of the title.
+    /// Row text on the list's margin; the open chat's highlight sits 8 pt inside the drawer edges.
     func rowInsets() -> some View {
-        padding(.horizontal, 8)
-            .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+        listRowInsets(EdgeInsets(top: 0, leading: ThreadSidebar.margin, bottom: 0, trailing: ThreadSidebar.margin))
             .listRowSeparator(.hidden)
     }
 }
