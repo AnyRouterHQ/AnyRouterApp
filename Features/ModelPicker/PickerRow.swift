@@ -79,7 +79,10 @@ enum PickerRow {
     static func make(_ model: ModelDescriptor, fitBadge: String? = nil, usage: ModelUsage? = nil) -> ModelRowModel {
         switch model.source {
         case .apple:
-            var details = ["On device · Free"]
+            // The same Apple logo for both; the cloud one says where it runs and how much it reads.
+            var details = model.id == ApplePCCLogic.modelID
+                ? [ApplePCCLogic.detail] + [ApplePCCLogic.contextText(model.contextLength)].compactMap { $0 }
+                : ["On device · Free"]
             if !model.isInstalled { details.append(model.summary ?? "Not available on this device") }
             return ModelRowModel(
                 id: model.id, title: model.shortName, details: details,

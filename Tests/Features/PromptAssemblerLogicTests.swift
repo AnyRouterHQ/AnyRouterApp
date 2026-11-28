@@ -45,6 +45,8 @@ struct PromptAssemblerLogicTests {
             ModelDescriptor(id: "m", source: source, displayName: "m", contextLength: context, capabilities: ["chat"], sizeBytes: nil, isInstalled: true)
         }
         #expect(PromptBudget.forModel(model(.apple, 4096)) == PromptBudget(profile: 120, memoryHits: 150, skillSteps: 250))
+        #expect(PromptBudget.forModel(model(.apple, 32_768)) == PromptBudget(profile: 200, memoryHits: 300, skillSteps: 400),
+                "Apple on Private Cloud Compute reads its own 32K context")
         #expect(PromptBudget.forModel(model(.gguf, nil)) == PromptBudget(profile: 120, memoryHits: 150, skillSteps: 250))
         #expect(PromptBudget.forModel(model(.gguf, 4096)) == PromptBudget(profile: 120, memoryHits: 150, skillSteps: 250))
         #expect(PromptBudget.forModel(model(.mlx, 8192)) == PromptBudget(profile: 200, memoryHits: 300, skillSteps: 400))

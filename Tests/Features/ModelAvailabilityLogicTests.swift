@@ -126,6 +126,16 @@ struct ModelAvailabilityLogicTests {
         #expect(reason?.fix == nil)
     }
 
+    /// The cloud Apple model goes under Not available with the exact reason it cannot be used.
+    @Test func cloudAppleIntelligenceUnavailableSaysWhy() {
+        for status in [ApplePCCStatus.needsNewerSystem, .notEntitled, .deviceNotEligible, .systemNotReady, .unavailable] {
+            let reason = ModelAvailabilityLogic.reason(for: ApplePCCLogic.descriptor(status), signedIn: false)
+            #expect(reason == .unsupportedHere(ApplePCCLogic.reason(status)))
+        }
+        #expect(ModelAvailabilityLogic.reason(for: ApplePCCLogic.descriptor(.available(contextSize: 32_768)), signedIn: false) == nil,
+                "no AnyRouter sign-in needed: it is Apple's")
+    }
+
     @Test func appleIntelligenceOffUsesItsOwnWords() {
         var apple = localModel("apple/foundation", source: .apple, installed: false)
         #expect(ModelAvailabilityLogic.reason(for: apple, signedIn: false) == .unsupportedHere(nil))

@@ -62,6 +62,10 @@ struct OfflineTests {
         #expect(!OfflineLogic.needsNetwork(apple))
         #expect(!OfflineLogic.needsNetwork(testModel(id: "local/a", source: .gguf)))
         #expect(!OfflineLogic.needsNetwork(testModel(id: "local/b", source: .mlx)))
+        #expect(OfflineLogic.needsNetwork(ApplePCCLogic.descriptor(.available(contextSize: 32_768))),
+                "Apple Intelligence on Private Cloud Compute runs on Apple's servers")
+        let offline = OfflineLogic.suggestedModel(in: [ApplePCCLogic.descriptor(.available(contextSize: nil)), apple])
+        #expect(offline?.id == apple.id, "offline, the on-device Apple model is suggested, not the cloud one")
     }
 
     @Test func theSuggestionIsAppleThenTheFirstDownloadedModelByName() {

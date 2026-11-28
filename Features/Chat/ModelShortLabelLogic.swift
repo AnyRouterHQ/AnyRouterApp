@@ -37,7 +37,7 @@ enum ModelShortLabel {
         // A quantization or alias in brackets is detail, not the name: "Gemma 4 E2B (Q4_0 (QAT))".
         if let bracket = text.range(of: " (") { text = String(text[..<bracket.lowerBound]) }
         var words = text.split(whereSeparator: \.isWhitespace).map(String.init)
-        if words.first?.lowercased() == "apple" { return "Apple" }
+        if words.first?.lowercased() == "apple" { return name.hasSuffix("(Cloud)") ? "Apple Cloud" : "Apple" }
         // "Anthropic: Claude Haiku 4.5", the way some model lists write a maker.
         if words.count > 1, words[0].hasSuffix(":") { words.removeFirst() }
         if words.count > 1, makers.contains(words[0].lowercased()) { words.removeFirst() }

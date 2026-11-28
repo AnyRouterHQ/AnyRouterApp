@@ -41,6 +41,7 @@ struct ModelShortLabelTests {
         ("Qwen 3.5 0.8B", "Qwen 3.5 0.8B"),
         ("Apple Intelligence", "Apple"),
         ("Apple Foundation Model", "Apple"),
+        ("Apple Intelligence (Cloud)", "Apple Cloud"),
         // Cloud models, as the AnyRouter list names them.
         ("AnyRouter", "AnyRouter"),
         ("AnyRouter Auto", "AnyRouter Auto"),

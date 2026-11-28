@@ -6,8 +6,11 @@ enum OfflineLogic {
     static let pickerNote = "AnyRouter models need a connection."
     static let toolNote = "You are offline, so web tools were skipped."
 
-    /// AnyRouter models run in the cloud. Apple and the downloaded models run on the device.
-    static func needsNetwork(_ model: ModelDescriptor) -> Bool { model.source == .anyrouter }
+    /// AnyRouter models and Apple Intelligence on Private Cloud Compute run on servers. The on-device Apple model and the
+    /// downloaded models run on the device.
+    static func needsNetwork(_ model: ModelDescriptor) -> Bool {
+        model.source == .anyrouter || model.id == ApplePCCLogic.modelID
+    }
 
     /// Apple Intelligence when it is ready, else the downloaded model that sorts first by name.
     static func suggestedModel(in models: [ModelDescriptor]) -> ModelDescriptor? {

@@ -483,7 +483,7 @@ enum DemoData {
         let cloud = onboarding ? [] : signedOut
             ? (cloudModels + [keyCloudModel]).map { var model = $0; model.isInstalled = false; return model }
             : cloudModels + [keyCloudModel] + extraCloudModels
-        registry.register(DemoEngine(source: .apple, models: [descriptor("apple/foundation", .apple, "Apple Intelligence")]))
+        registry.register(DemoEngine(source: .apple, models: [descriptor("apple/foundation", .apple, "Apple Intelligence")] + demoPCC))
         registry.register(DemoEngine(source: .gguf, models: onboarding ? [] : installedLocal))
         let cloudEngine = DemoEngine(source: .anyrouter, models: cloud, listDelay: .seconds(cloudDelay))
         if approval {
@@ -611,6 +611,16 @@ enum DemoData {
         ("gguf/Qwen/Qwen3-14B-GGUF/Qwen3-14B-Q4_K_M.gguf", "Qwen3 14B", 9_000_000_000,
          "Strong reasoning, needs a lot of memory."),
     ]
+
+    /// `-ARDemoPCC available` (or `notEntitled`): the picker's Local tab also has Apple Intelligence on Private Cloud
+    /// Compute, ready with a 32K context or under Not available with the entitlement reason, for screenshots.
+    private static var demoPCC: [ModelDescriptor] {
+        switch UserDefaults.standard.string(forKey: "ARDemoPCC") {
+        case "available": [ApplePCCLogic.descriptor(.available(contextSize: 32_768))]
+        case "notEntitled": [ApplePCCLogic.descriptor(.notEntitled)]
+        default: []
+        }
+    }
 
     /// `-ARDemoTooBigInstalled YES`: Llama 3.1 8B, which the demo estimate calls too big, is on the device too, so the
     /// picker and Local Models show an installed model the estimate doubts (still pickable, with a quiet line).

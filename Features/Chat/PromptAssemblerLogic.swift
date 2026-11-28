@@ -17,8 +17,8 @@ struct PromptBudget: Equatable, Sendable {
 
     static func forModel(_ model: ModelDescriptor) -> PromptBudget {
         switch model.source {
-        case .apple: PromptBudget(profile: 120, memoryHits: 150, skillSteps: 250)
-        case .gguf, .mlx:
+        // Apple on Private Cloud Compute reads more (its contextSize, 32K) than the on-device model: the larger budget.
+        case .apple, .gguf, .mlx:
             (model.contextLength ?? 0) > 4096
                 ? PromptBudget(profile: 200, memoryHits: 300, skillSteps: 400) : PromptBudget(profile: 120, memoryHits: 150, skillSteps: 250)
         case .anyrouter: PromptBudget(profile: 500, memoryHits: 1500, skills: 1500)

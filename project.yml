@@ -115,6 +115,10 @@ targets:
       - target: AnyRouterShare
     settings:
       base:
+        # Private Cloud Compute (Apple Foundation Models on Apple's servers) is in the iOS 27 SDK only. The code that names
+        # it compiles when the SDK is 27 (the ios27-build workflow), so the iOS 26 SDK builds stay as they are.
+        "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos27*]": $(inherited) APPLE_PCC_SDK
+        "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator27*]": $(inherited) APPLE_PCC_SDK
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO

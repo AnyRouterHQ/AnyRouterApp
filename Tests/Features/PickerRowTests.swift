@@ -111,6 +111,17 @@ struct PickerRowTests {
         #expect(row.isDimmed)
     }
 
+    /// Apple Intelligence on Private Cloud Compute: the same Apple row, saying where it runs and how much it reads.
+    @Test func theCloudAppleRowSaysPrivateCloudComputeAndItsContext() {
+        let ready = PickerRow.make(ApplePCCLogic.descriptor(.available(contextSize: 32_768)))
+        #expect(ready.title == "Apple Intelligence (Cloud)")
+        #expect(ready.details == ["Free · Private Cloud Compute", "32K context"])
+        #expect(!ready.isDimmed)
+        let off = PickerRow.make(ApplePCCLogic.descriptor(.notEntitled))
+        #expect(off.details == ["Free · Private Cloud Compute", "This build is not yet allowed to use Private Cloud Compute"])
+        #expect(off.isDimmed)
+    }
+
     @Test func aQATRowHasTheShortNameAndItsVariantWithoutNestedBrackets() {
         let row = PickerRow.make(localModel(
             "gguf/google/gemma-4-E2B-it-qat-GGUF/gemma-4-E2B-it-qat-Q4_0.gguf", name: "Gemma 4 E2B (Q4_0 (QAT))",
