@@ -90,12 +90,11 @@ struct PickerRowTests {
             localModel("gguf/unsloth/gemma-3-1b-it-GGUF/gemma-3-1b-it-Q4_K_M.gguf", name: "Gemma 3 1B", size: 1_050_000_000),
             fitBadge: "Fits")
         #expect(row.title == "Gemma 3 1B")
-        #expect(row.idLabel == PickerRow.middleTruncated("unsloth/gemma-3-1b-it-GGUF/gemma-3-1b-it-Q4_K_M.gguf"))
-        #expect(row.idLabel.count <= PickerRow.idLimit)
-        #expect(row.details.first == "On device · Free")
-        #expect(row.details.contains("GGUF Q4_K_M"))
-        #expect(row.details.last == "Fits")
+        #expect(row.details.first == "GGUF Q4_K_M", "the variant leads the second line")
         #expect(row.details.contains { $0.contains("GB") })
+        #expect(row.details.contains("On device · Free"))
+        #expect(row.details.last == "Fits")
+        #expect(!row.detailLine.contains("unsloth"), "the repo and file are on the detail screen, not the row")
     }
 
     @Test func mlxFormatShowsTheBitWidth() {
@@ -105,7 +104,6 @@ struct PickerRowTests {
 
     @Test func appleRowIsOnDeviceAndExplainsWhenUnavailable() {
         let ready = PickerRow.make(testModel(id: "apple/foundation", source: .apple))
-        #expect(ready.idLabel == "apple/foundation")
         #expect(ready.details == ["On device · Free"])
         var off = testModel(id: "apple/foundation", source: .apple, installed: false)
         off.summary = "Turn on Apple Intelligence in Settings."
@@ -114,14 +112,13 @@ struct PickerRowTests {
         #expect(row.isDimmed)
     }
 
-    @Test func longIdsKeepBothEnds() {
-        let long = "anthropic/claude-sonnet-4-6-extended-thinking-20260101"
-        let short = PickerRow.middleTruncated(long)
-        #expect(short.count == PickerRow.idLimit)
-        #expect(short.hasPrefix("anthropic/claude-sonne"))
-        #expect(short.hasSuffix("0101"))
-        #expect(short.contains("…"))
-        #expect(PickerRow.middleTruncated("openai/gpt-5") == "openai/gpt-5")
+    @Test func aQATRowHasTheShortNameAndItsVariantWithoutNestedBrackets() {
+        let row = PickerRow.make(localModel(
+            "gguf/google/gemma-4-E2B-it-qat-GGUF/gemma-4-E2B-it-qat-Q4_0.gguf", name: "Gemma 4 E2B (Q4_0 (QAT))",
+            size: 3_350_000_000))
+        #expect(row.title == "Gemma 4 E2B")
+        #expect(row.details.first == "Q4_0 QAT")
+        #expect(row.details[2] == "On device · Free")
     }
 
     @Test func eachRowHasExactlyTwoLinesOfText() {

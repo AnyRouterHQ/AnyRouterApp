@@ -9,6 +9,29 @@ enum ModelShortLabel {
     /// Makers whose name only repeats in front of the model's own: "Google Gemma 3" reads "Gemma 3".
     private static let makers: Set<String> = ["google", "openai", "anthropic", "meta", "nvidia", "microsoft"]
 
+    /// The name a model goes by everywhere: picker rows, the chat header, reply footers, switch notes, Local Models.
+    /// An on-device model drops the quantization its catalog name carries in brackets ("Gemma 4 E2B (Q4_0 (QAT))" is
+    /// "Gemma 4 E2B"); the auto router is "AnyRouter"; every other model keeps its name.
+    static func name(of model: ModelDescriptor) -> String {
+        if model.id == ModelDescriptor.autoRouterID { return "AnyRouter" }
+        guard model.source == .gguf || model.source == .mlx, let bracket = model.displayName.range(of: " (") else {
+            return model.displayName
+        }
+        return String(model.displayName[..<bracket.lowerBound])
+    }
+
+    /// An on-device model's variant for the second line of its row: the bracket of its catalog name without the
+    /// nested brackets ("Q4_0 QAT"), else the format read from its file ("GGUF Q4_K_M", "MLX 4-bit"). Nil otherwise.
+    static func variant(of model: ModelDescriptor) -> String? {
+        guard model.source == .gguf || model.source == .mlx else { return nil }
+        if let bracket = model.displayName.range(of: " (") {
+            let inner = String(model.displayName[bracket.upperBound...].filter { $0 != "(" && $0 != ")" })
+            let text = inner.trimmingCharacters(in: .whitespaces)
+            if !text.isEmpty { return text }
+        }
+        return PickerRow.format(model)
+    }
+
     static func make(_ name: String) -> String {
         var text = name
         // A quantization or alias in brackets is detail, not the name: "Gemma 4 E2B (Q4_0 (QAT))".

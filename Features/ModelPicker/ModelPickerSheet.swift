@@ -34,10 +34,6 @@ struct ModelRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(row.title).font(.body).lineLimit(layout.titleLineLimit).layoutPriority(1)
-                    if !row.idLabel.isEmpty {
-                        Text(row.idLabel).font(.footnote).foregroundStyle(.secondary)
-                            .lineLimit(1).truncationMode(.middle)
-                    }
                     Spacer(minLength: 0)
                     rankLabel
                 }
@@ -48,7 +44,7 @@ struct ModelRowView: View {
                     detailLine(usage: nil)
                 }
             }
-            if isCurrent { Image(systemName: "checkmark").fontWeight(.semibold) }
+            if isCurrent { currentMark }
         }
     }
 
@@ -62,9 +58,6 @@ struct ModelRowView: View {
                     Spacer(minLength: 0)
                     rankLabel
                 }
-                if !row.idLabel.isEmpty {
-                    Text(row.idLabel).font(.footnote).foregroundStyle(.secondary).lineLimit(2).truncationMode(.middle)
-                }
                 VStack(alignment: .leading, spacing: 2) {
                     if row.isFree, let badge = row.details.first { freeBadge(badge) }
                     if !row.detailsAfterBadge.isEmpty { Text(row.detailsAfterBadge).lineLimit(layout.detailLineLimit) }
@@ -74,8 +67,17 @@ struct ModelRowView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             }
-            if isCurrent { Image(systemName: "checkmark").fontWeight(.semibold) }
+            if isCurrent { currentMark }
         }
+    }
+
+    /// The standard list checkmark: body size, semibold, the app tint. Left to inherit, it drew about 44 pt and heavy
+    /// on the operator's device.
+    private var currentMark: some View {
+        Image(systemName: "checkmark")
+            .font(.body.weight(.semibold))
+            .imageScale(.medium)
+            .foregroundStyle(.tint)
     }
 
     @ViewBuilder
@@ -173,6 +175,7 @@ struct ModelPickerSheet: View {
         _cloudFilter = State(initialValue: store.cloud())
         _localFilter = State(initialValue: store.local())
         _tab = State(initialValue: currentID?.hasPrefix("anyrouter/") == true ? .anyrouter : .local)
+        _detent = State(initialValue: DemoData.opensPickerAtMedium ? .medium : .large)
     }
 
     /// What the current tab shows. Built once per body, not once per subview that needs it.
@@ -224,19 +227,6 @@ struct ModelPickerSheet: View {
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
                 .padding(.bottom, 8)
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if tab == .local {
-                    Button {
-                        dismiss()
-                        shell.open(.hub, closeSidebar: true)
-                    } label: {
-                        Label("Browse models", systemImage: "square.stack.3d.up").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
-                    .padding()
-                }
             }
             .toolbar {
                 if showsClose {
@@ -323,6 +313,15 @@ struct ModelPickerSheet: View {
             ForEach(list) { model in
                 modelButton(model, fitBadge: fitBadge(for: model))
             }
+            // A row at the end of the list, not a button floating over it: at the medium height the floating one
+            // covered the last model (operator's device).
+            Button {
+                dismiss()
+                shell.open(.hub, closeSidebar: true)
+            } label: {
+                Label("Browse models", systemImage: "square.stack.3d.up")
+            }
+            .accessibilityIdentifier("model-picker.browse")
         }
     }
 

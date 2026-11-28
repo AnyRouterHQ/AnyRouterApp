@@ -21,6 +21,6 @@ extension ModelDescriptor {
     /// AnyRouter's own routers: auto, coding, agent, ...
     var isRouter: Bool { cloudProvider == "anyrouter" }
 
-    /// Name for the pill, picker rows and reply footers.
-    var shortName: String { id == Self.autoRouterID ? "AnyRouter" : displayName }
+    /// Name for the chat header, picker rows, reply footers and Local Models (`ModelShortLabel.name`).
+    var shortName: String { ModelShortLabel.name(of: self) }
 }

@@ -41,6 +41,8 @@ enum DemoData {
 
     /// `-ARDemoAttachFile YES` stages a small text file under the composer, so the UI test can see the chip
     /// without driving the system file picker.
+    /// `-ARDemoPickerMedium YES`: the model picker opens at its medium height, for screenshots of that detent.
+    static var opensPickerAtMedium: Bool { isEnabled && UserDefaults.standard.bool(forKey: "ARDemoPickerMedium") }
     static var attachesSampleFile: Bool { isEnabled && UserDefaults.standard.bool(forKey: "ARDemoAttachFile") }
 
     /// `-ARDemoDecisionPhoto YES` puts a drawn receipt in a decision's photo row: the Simulator has no camera.

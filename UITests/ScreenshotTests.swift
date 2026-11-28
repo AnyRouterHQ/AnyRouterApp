@@ -508,6 +508,26 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// The picker at its medium height, both tabs: the last Local row must not sit under anything (operator's device).
+    func testModelPickerMedium() {
+        forEachAppearance(extra: ["-ARDemoPickerMedium", "YES"]) { app, appearance in
+            XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
+            app.buttons["Model"].tap()
+            let tabs = app.segmentedControls.firstMatch
+            XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+            let local = tabs.buttons["Local"]
+            for _ in 0..<3 where !local.isSelected {
+                local.tap()
+                sleep(1)
+            }
+            XCTAssertTrue(app.buttons["model-row.apple/foundation"].waitForExistence(timeout: 5))
+            capture("model-picker-local-medium", appearance)
+            tabs.buttons["AnyRouter"].tap()
+            sleep(1)
+            capture("model-picker-medium", appearance)
+        }
+    }
+
     func testModelPicker() {
         forEachAppearance { app, appearance in
             XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))

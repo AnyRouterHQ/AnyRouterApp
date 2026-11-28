@@ -3,10 +3,8 @@ import Foundation
 /// What one picker row shows. Two text lines, so the list keeps a fixed row height.
 struct ModelRowModel: Equatable, Identifiable {
     var id: String
-    /// Line 1, never truncated before the id.
+    /// Line 1: the model's short name. Ids and file names are on the detail screen, not the row.
     var title: String
-    /// Line 1, muted. Truncated in the middle when long. Empty for cloud models: their id is on the detail screen.
-    var idLabel: String
     /// Line 2, muted, joined with " · ". When `isFree`, the first one is the "Free" badge.
     var details: [String]
     var brand: ModelBrand
@@ -73,7 +71,6 @@ enum RowCapability: String, CaseIterable, Identifiable, Sendable {
 enum PickerRow {
     static let needsKeyText = "Needs your provider key"
     static let unavailableText = "Unavailable"
-    static let idLimit = 34
     /// Models up to this place in the weekly ranking show their number: the ten the short list shows.
     static let rankedCount = CloudListLogic.topCount
 
@@ -85,17 +82,18 @@ enum PickerRow {
             var details = ["On device · Free"]
             if !model.isInstalled { details.append(model.summary ?? "Not available on this device") }
             return ModelRowModel(
-                id: model.id, title: model.shortName, idLabel: model.id, details: details,
+                id: model.id, title: model.shortName, details: details,
                 brand: ModelBrand.resolve(model), isDimmed: !model.isInstalled, needsKey: false,
                 capabilities: RowCapability.of(model))
         case .gguf, .mlx:
-            var details = ["On device · Free"]
+            // "Q4_0 QAT · 3.35 GB · On device · Free": the variant first, the name already says the family and size.
+            var details: [String] = []
+            if let variant = ModelShortLabel.variant(of: model) { details.append(variant) }
             if let size = model.sizeBytes { details.append(ByteCountFormatter.string(fromByteCount: size, countStyle: .file)) }
-            details.append(format(model))
+            details.append("On device · Free")
             if let fitBadge { details.append(fitBadge) }
-            let repo = model.id.split(separator: "/").dropFirst().joined(separator: "/")
             return ModelRowModel(
-                id: model.id, title: model.displayName, idLabel: middleTruncated(repo), details: details,
+                id: model.id, title: model.shortName, details: details,
                 brand: ModelBrand.resolve(model), isDimmed: false, needsKey: false,
                 capabilities: RowCapability.of(model))
         case .anyrouter:
@@ -123,7 +121,7 @@ enum PickerRow {
         }
         let availability = info?.availability ?? .usable
         return ModelRowModel(
-            id: model.id, title: title(model), idLabel: "", details: details,
+            id: model.id, title: title(model), details: details,
             brand: ModelBrand.resolve(model), isDimmed: availability != .usable && !model.isInstalled,
             needsKey: availability == .needsKey, capabilities: RowCapability.of(model), isFree: isFree, usage: usage)
     }
@@ -148,13 +146,5 @@ enum PickerRow {
             return "\(name) \(text[range])-bit"
         }
         return name
-    }
-
-    /// Keeps both ends of a long id: "anthropic/claude-sonn…-20260101".
-    static func middleTruncated(_ text: String, limit: Int = idLimit) -> String {
-        guard text.count > limit, limit > 8 else { return text }
-        let head = (limit - 1) * 2 / 3
-        let tail = limit - 1 - head
-        return String(text.prefix(head)) + "…" + String(text.suffix(tail))
     }
 }
