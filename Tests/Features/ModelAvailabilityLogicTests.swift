@@ -166,11 +166,10 @@ struct ModelAvailabilityLogicTests {
             localModel("gguf/big", name: "Big"),
         ]
         let result = ModelAvailabilityLogic.partition(
-            models, signedIn: true,
-            fit: { $0.id == "gguf/big" ? fit(.wontFit) : nil },
-            engineNote: { $0.id == "mlx/x" ? "No MLX here" : nil })
-        #expect(result.available.map(\.displayName) == ["Fine"])
-        #expect(result.unavailable.map(\.model.displayName) == ["Key", "Later", "Big", "Alpha none", "Beta none", "Zed off", "Mlx"])
+            models, signedIn: true, engineNote: { $0.id == "mlx/x" ? "No MLX here" : nil })
+        // An installed local model is available whatever the fit estimate says: "Big" is pickable.
+        #expect(result.available.map(\.displayName) == ["Fine", "Big"])
+        #expect(result.unavailable.map(\.model.displayName) == ["Key", "Later", "Alpha none", "Beta none", "Zed off", "Mlx"])
         #expect(result.unavailable.first?.id == "anyrouter/a/key")
     }
 
