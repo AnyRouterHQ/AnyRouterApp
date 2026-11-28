@@ -98,6 +98,12 @@ jobs:
             -enableCodeCoverage YES \
             CODE_SIGNING_ALLOWED=NO | tee test.log | tail -n 200
 
+      - name: Measurement reports
+        if: always()
+        run: |
+          # Tests that measure (the memory eval) write lines starting "memory eval"; they show here and in the summary.
+          grep -hE "memory eval" test.log | sort -u | cut -c1-400 | head -20 | tee -a "$GITHUB_STEP_SUMMARY" || true
+
       - name: Last test output
         if: failure()
         run: |

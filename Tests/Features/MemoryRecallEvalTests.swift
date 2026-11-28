@@ -82,9 +82,10 @@ struct MemoryRecallEvalTests {
         return (found, wanted, wrong)
     }
 
-    /// The CI log shows test events but not what a test prints, so the numbers go out as a known issue: the run stays
-    /// green and the line is searchable ("memory eval").
+    /// The line goes to the test log, where the CI step "Measurement reports" picks it up, and is also kept as a known
+    /// issue in the result bundle; the run stays green.
     static func report(_ line: String) {
+        print(line)
         withKnownIssue("Measurement report, not a failure") { Issue.record(Comment(rawValue: line)) }
     }
 
@@ -101,7 +102,8 @@ struct MemoryRecallEvalTests {
     @MainActor @Test func hybridRecallWithOnDeviceEmbeddings() async {
         let embedder = OnDeviceEmbedder()
         guard await embedder.prepare() else {
-            Self.report("memory eval (hybrid): skipped, no NaturalLanguage embedding on this Simulator")
+            let lexical = Self.measure { _ in [:] }
+            Self.report("memory eval: bm25 recall@3 \(lexical.found)/\(lexical.wanted), hybrid skipped, assets no")
             return
         }
         let vectors = Self.candidates.compactMap { candidate in embedder.embed(candidate.text).map { (candidate.id, $0) } }
@@ -114,7 +116,7 @@ struct MemoryRecallEvalTests {
             return MemoryEmbeddingLogic.standout(similarities)
         }
         let lexical = Self.measure { _ in [:] }
-        Self.report("memory eval (hybrid, \(vectors.first?.1.model ?? "none")): recall at 3 \(hybrid.found)/\(hybrid.wanted), wrong \(hybrid.wrong); BM25 \(lexical.found)/\(lexical.wanted), wrong \(lexical.wrong)")
+        Self.report("memory eval: bm25 recall@3 \(lexical.found)/\(lexical.wanted) wrong \(lexical.wrong), hybrid recall@3 \(hybrid.found)/\(hybrid.wanted) wrong \(hybrid.wrong), assets yes, model \(vectors.first?.1.model ?? "none")")
         #expect(hybrid.found >= lexical.found, "meaning must not lose what words found")
     }
 }
