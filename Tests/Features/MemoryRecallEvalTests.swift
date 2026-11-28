@@ -107,7 +107,7 @@ struct MemoryRecallEvalTests {
             return
         }
         let vectors = Self.candidates.compactMap { candidate in embedder.embed(candidate.text).map { (candidate.id, $0) } }
-        let hybrid = Self.measure { question in
+        func standout(_ question: String) -> [UUID: Double] {
             guard let query = embedder.embed(question) else { return [:] }
             var similarities: [UUID: Double] = [:]
             for (id, item) in vectors where item.model == query.model {
@@ -115,6 +115,20 @@ struct MemoryRecallEvalTests {
             }
             return MemoryEmbeddingLogic.standout(similarities)
         }
+        let hybrid = Self.measure(semantic: standout)
+        // Stricter variants, to choose the rule from numbers: a higher threshold, and at most one item found by meaning alone.
+        var variants: [String] = []
+        for threshold in [2.0, 2.5, 3.0] {
+            for onlyBest in [false, true] {
+                let result = Self.measure { question in
+                    let kept = standout(question).filter { $0.value >= threshold }
+                    guard onlyBest, let best = kept.max(by: { $0.value < $1.value }) else { return kept }
+                    return [best.key: best.value]
+                }
+                variants.append("z\(threshold)\(onlyBest ? " one" : ""): \(result.found)/\(result.wanted) wrong \(result.wrong)")
+            }
+        }
+        Self.report("memory eval variants: " + variants.joined(separator: "; "))
         let lexical = Self.measure { _ in [:] }
         Self.report("memory eval: bm25 recall@3 \(lexical.found)/\(lexical.wanted) wrong \(lexical.wrong), hybrid recall@3 \(hybrid.found)/\(hybrid.wanted) wrong \(hybrid.wrong), assets yes, model \(vectors.first?.1.model ?? "none")")
         #expect(hybrid.found >= lexical.found, "meaning must not lose what words found")
