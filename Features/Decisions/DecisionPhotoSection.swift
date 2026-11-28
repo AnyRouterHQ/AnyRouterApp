@@ -58,7 +58,7 @@ struct DecisionPhotoSection: View {
         } footer: {
             if let error = store.imageError {
                 Text(error)
-            } else if store.selectedModel?.acceptsImages == false {
+            } else if store.selectedModel?.capabilities.contains("vision") == false {
                 Text("This model can't read photos. Choose another model.")
             }
         }
