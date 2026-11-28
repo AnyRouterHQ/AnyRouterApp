@@ -885,7 +885,8 @@ final class ChatViewModel {
                     // A tool call and its result are step boundaries: the run is saved there, never per token.
                     if let next = AgentRunLogic.checkpoint(after: delta, from: checkpoint) {
                         checkpoint = next
-                        run.node = next.node
+                        // A call that waits for the user keeps the run at approve until the answer comes.
+                        if run.status != .awaitingApproval { run.node = next.node }
                         run.round = next.round
                         run.updatedAt = Date()
                         if let self { try? self.save(self.context) }
