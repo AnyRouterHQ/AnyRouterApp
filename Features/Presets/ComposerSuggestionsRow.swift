@@ -16,13 +16,16 @@ struct ComposerSuggestionsRow: View {
     var body: some View {
         HStack(spacing: 8) {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(suggestions.items.filter { $0 != .more }) { item in
-                        switch item {
-                        case .clipboard(let kind): clipboardChip(kind)
-                        case .preset(let preset):
-                            if suggestions.cards { starterCard(preset) } else { presetChip(preset) }
-                        case .more: EmptyView()
+                // The chips' own glass container: the scroll view sits between them and the composer's.
+                GlassEffectContainer(spacing: 4) {
+                    HStack(spacing: 8) {
+                        ForEach(suggestions.items.filter { $0 != .more }) { item in
+                            switch item {
+                            case .clipboard(let kind): clipboardChip(kind)
+                            case .preset(let preset):
+                                if suggestions.cards { starterCard(preset) } else { presetChip(preset) }
+                            case .more: EmptyView()
+                            }
                         }
                     }
                 }

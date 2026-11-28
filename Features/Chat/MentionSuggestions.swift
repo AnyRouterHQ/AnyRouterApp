@@ -4,6 +4,8 @@ import SwiftUI
 /// Choosing a row keeps the keyboard up, because the panel sits inside the composer.
 struct MentionSuggestions: View {
     let items: [MentionItem]
+    /// The composer's glass namespace, so the panel morphs in and out of the composer's container.
+    let glassNamespace: Namespace.ID
     /// Set when the list was opened from the + menu: it has no @ to end it, so it gets a close button.
     var onClose: (() -> Void)?
     let onPick: (MentionItem) -> Void
@@ -54,6 +56,7 @@ struct MentionSuggestions: View {
         }
         // A floating panel over the chat, so it takes glass directly, like the composer field.
         .glassEffect(.regular, in: .rect(cornerRadius: ARTheme.radiusXL))
+        .glassEffectID("mention", in: glassNamespace)
         .accessibilityIdentifier("mention.panel")
     }
 }

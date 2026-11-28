@@ -34,6 +34,7 @@ struct Composer: View {
     @Environment(ShellModel.self) private var shell
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var glassSpace
     /// Half the one-line field height (48 pt), so one line is a capsule.
     @ScaledMetric(relativeTo: .body) private var fieldRadius: CGFloat = 24
     /// The round button keeps its 44 pt minimum at the default size and grows with Dynamic Type.
@@ -52,99 +53,103 @@ struct Composer: View {
 
     /// The field and what sits around it. Split from `body` so the type checker keeps up with the long modifier chain.
     private var fieldStack: some View {
-        VStack(spacing: 8) {
-            if let query = mentionQuery ?? (showsPluginList ? "" : nil) {
-                let close: (() -> Void)? = mentionQuery == nil ? { showsPluginList = false } : nil
-                MentionSuggestions(items: ComposerMention.filter(mentionRows, query: query), onClose: close) { item in
-                    if case .preset(let id) = item.kind {
-                        if let preset = presets?.preset(id: id) { model.choosePreset(preset) }
-                    } else {
-                        model.addMention(item)
+        // Every glass shape of the composer (chips, @ panel, banners, +, field) in one container, so they sample together
+        // and morph. Spacing 4 is under the 8 pt gaps, so neighbours stay separate shapes.
+        GlassEffectContainer(spacing: 4) {
+            VStack(spacing: 8) {
+                if let query = mentionQuery ?? (showsPluginList ? "" : nil) {
+                    let close: (() -> Void)? = mentionQuery == nil ? { showsPluginList = false } : nil
+                    MentionSuggestions(items: ComposerMention.filter(mentionRows, query: query), glassNamespace: glassSpace, onClose: close) { item in
+                        if case .preset(let id) = item.kind {
+                            if let preset = presets?.preset(id: id) { model.choosePreset(preset) }
+                        } else {
+                            model.addMention(item)
+                        }
+                        showsPluginList = false
                     }
-                    showsPluginList = false
                 }
-            }
-            if let error = model.errorMessage {
-                ErrorBanner(text: error) { model.dismissError() }
-            }
-            QueuedMessagesView(model: model)
-            if let error = app.dictation.errorMessage {
-                ErrorBanner(text: error) { app.dictation.dismissError() }
-            }
-            if let notice = app.speaker.notice {
-                ErrorBanner(text: notice) { app.speaker.dismissNotice() }
-            }
-            if app.dictation.isActive {
-                DictationBar(dictation: app.dictation, hub: app.voice)
-            }
-            if let notice = deviceNote ?? model.modelNotice {
-                Text(notice)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let error = model.errorMessage {
+                    StatusBanner(text: error) { model.dismissError() }
+                }
+                QueuedMessagesView(model: model)
+                if let error = app.dictation.errorMessage {
+                    StatusBanner(text: error) { app.dictation.dismissError() }
+                }
+                if let notice = app.speaker.notice {
+                    StatusBanner(text: notice) { app.speaker.dismissNotice() }
+                }
+                if app.dictation.isActive {
+                    DictationBar(dictation: app.dictation, hub: app.voice)
+                }
+                if let notice = deviceNote ?? model.modelNotice {
+                    Text(notice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 4)
+                }
+                if !model.pending.isEmpty || model.ingesting > 0 {
+                    PendingAttachments(attachments: model.pending, ingesting: model.ingesting,
+                                       failed: model.failedAttachmentIDs, store: model.attachmentStore) { model.removePending($0) }
+                }
+                if let note = model.attachmentNote {
+                    HStack(spacing: 8) {
+                        Text(note).font(.caption).foregroundStyle(.secondary)
+                        if model.visionAlternative != nil {
+                            Button(AttachmentLogic.switchToVisionTitle) { model.switchToVisionModel() }
+                                .font(.caption)
+                                .frame(minHeight: 44)
+                                .accessibilityIdentifier("composer.switch-to-vision")
+                        }
+                    }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 4)
-            }
-            if !model.pending.isEmpty || model.ingesting > 0 {
-                PendingAttachments(attachments: model.pending, ingesting: model.ingesting,
-                                   failed: model.failedAttachmentIDs, store: model.attachmentStore) { model.removePending($0) }
-            }
-            if let note = model.attachmentNote {
-                HStack(spacing: 8) {
-                    Text(note).font(.caption).foregroundStyle(.secondary)
-                    if model.visionAlternative != nil {
-                        Button(AttachmentLogic.switchToVisionTitle) { model.switchToVisionModel() }
-                            .font(.caption)
-                            .frame(minHeight: 44)
-                            .accessibilityIdentifier("composer.switch-to-vision")
+                }
+                if let presets, let suggestions {
+                    ComposerSuggestionsRow(
+                        suggestions: suggestions, presets: presets,
+                        onClipboard: { pasteClipboard($0) },
+                        onPreset: { pick($0, mode: suggestions.mode) },
+                        onSend: { model.sendNow($0) },
+                        onEditPresets: { shell.presentSettings(closeSidebar: false, destination: .presets) },
+                        onDismiss: { model.dismissPasteOffer(); app.clipboard.waveOff() })
+                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
+                }
+                if !model.mentions.isEmpty {
+                    MentionChips(mentions: model.mentions) { model.removeMention($0) }
+                }
+                HStack(alignment: .bottom, spacing: 8) {
+                    // As tall as a one-line field and bottom aligned, so the + stays centred on its last line.
+                    plusMenu
+                    HStack(alignment: .bottom, spacing: 6) {
+                        TextField("", text: $model.input, prompt: Text(hasModel ? "Ask anything" : "Choose a model to start"),
+                                  axis: .vertical)
+                            .font(.body)
+                            .lineLimit(1...6)
+                            .focused(focused)
+                            .accessibilityIdentifier("composer.input")
+                            .submitLabel(.return)
+                            // Hardware keyboards: Return sends, Shift-Return adds a line.
+                            .onKeyPress(.return, phases: .down) { press in
+                                guard !press.modifiers.contains(.shift) else { return .ignored }
+                                if model.canSend { _ = model.send() } else if model.canQueue { model.enqueue() }
+                                return .handled
+                            }
+                            // As tall as the button on one line, so the placeholder sits in the middle of the field.
+                            .padding(.vertical, 11)
+                            .frame(minHeight: buttonSize)
+                        trailingButton
                     }
+                    .padding(.leading, 16)
+                    .padding(.trailing, fieldInset)
+                    .padding(.vertical, fieldInset)
+                    // A floating control over the list, so it takes glass directly (the only such place).
+                    // One line is a capsule; more lines keep the same corner radius.
+                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: fieldRadius))
+                    .contentShape(.rect(cornerRadius: fieldRadius))
+                    // A tap anywhere on the field focuses it; the field is not a Button, so there is no stock control for this.
+                    .onTapGesture { focused.wrappedValue = true }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 4)
-            }
-            if let presets, let suggestions {
-                ComposerSuggestionsRow(
-                    suggestions: suggestions, presets: presets,
-                    onClipboard: { pasteClipboard($0) },
-                    onPreset: { pick($0, mode: suggestions.mode) },
-                    onSend: { model.sendNow($0) },
-                    onEditPresets: { shell.presentSettings(closeSidebar: false, destination: .presets) },
-                    onDismiss: { model.dismissPasteOffer(); app.clipboard.waveOff() })
-                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
-            }
-            if !model.mentions.isEmpty {
-                MentionChips(mentions: model.mentions) { model.removeMention($0) }
-            }
-            HStack(alignment: .bottom, spacing: 8) {
-                // As tall as a one-line field and bottom aligned, so the + stays centred on its last line.
-                plusMenu
-                HStack(alignment: .bottom, spacing: 6) {
-                    TextField("", text: $model.input, prompt: Text(hasModel ? "Ask anything" : "Choose a model to start"),
-                              axis: .vertical)
-                        .font(.body)
-                        .lineLimit(1...6)
-                        .focused(focused)
-                        .accessibilityIdentifier("composer.input")
-                        .submitLabel(.return)
-                        // Hardware keyboards: Return sends, Shift-Return adds a line.
-                        .onKeyPress(.return, phases: .down) { press in
-                            guard !press.modifiers.contains(.shift) else { return .ignored }
-                            if model.canSend { _ = model.send() } else if model.canQueue { model.enqueue() }
-                            return .handled
-                        }
-                        // As tall as the button on one line, so the placeholder sits in the middle of the field.
-                        .padding(.vertical, 11)
-                        .frame(minHeight: buttonSize)
-                    trailingButton
-                }
-                .padding(.leading, 16)
-                .padding(.trailing, fieldInset)
-                .padding(.vertical, fieldInset)
-                // A floating control over the list, so it takes glass directly (the only such place).
-                // One line is a capsule; more lines keep the same corner radius.
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: fieldRadius))
-                .contentShape(.rect(cornerRadius: fieldRadius))
-                // A tap anywhere on the field focuses it; the field is not a Button, so there is no stock control for this.
-                .onTapGesture { focused.wrappedValue = true }
             }
         }
         .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: suggestions)
@@ -485,23 +490,5 @@ private struct ComposerHaptics: ViewModifier {
             .sensoryFeedback(.selection, trigger: modelChoiceCount)
             // An error appearing, not each change of its text.
             .sensoryFeedback(.error, trigger: errorMessage) { old, new in old == nil && new != nil }
-    }
-}
-
-/// An error above the composer: a red label and the system close button.
-struct ErrorBanner: View {
-    let text: String
-    var onDismiss: () -> Void
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Label(text, systemImage: "exclamationmark.triangle.fill")
-                .font(.callout)
-                .foregroundStyle(.red)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Button(role: .close, action: onDismiss)
-        }
-        .padding(12)
-        .background(.red.opacity(0.12), in: .rect(cornerRadius: ARTheme.radius))
     }
 }
