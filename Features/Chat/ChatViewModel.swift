@@ -1197,7 +1197,7 @@ final class ChatViewModel {
         if thread.profileSnapshot == nil { thread.profileSnapshot = MemoryProfileLogic.frozenIDs(items) }
         guard settings.useMemory, !thread.memoryOff, let frozen = thread.profileSnapshot else { return nil }
         return MemoryProfileLogic.render(
-            items, frozen: frozen, source: model.source,
+            items, frozen: frozen, toCloud: MemoryProfileLogic.isCloud(model),
             deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats, budget: PromptBudget.forModel(model).profile)
     }
 
@@ -1209,7 +1209,7 @@ final class ChatViewModel {
         let records = MemoryStore(context: context).items.filter { record in
             (record.kind == .fact || (record.kind == .chatSummary && record.sourceThreadID != thread.id))
                 && record.sourceMessageID != question.id
-                && MemoryProfileLogic.allows(record.scope, source: model.source, deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats)
+                && MemoryProfileLogic.allows(record.scope, toCloud: MemoryProfileLogic.isCloud(model), deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats)
         }
         // At most one memory counts by meaning alone, only when it stands out 3 deviations above the rest (M7, measured in
         // CI 46119393019: 10/13 with no wrong recall and no trap, against BM25's 9/13).

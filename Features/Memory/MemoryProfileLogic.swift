@@ -23,19 +23,25 @@ enum MemoryProfileLogic {
         kinds.flatMap { kind in items.filter { $0.kind == kind }.sorted { $0.createdAt > $1.createdAt } }.map(\.id)
     }
 
+    /// Whether a model runs off this device, for memory scope: AnyRouter models, and Apple Intelligence on Private Cloud
+    /// Compute. The user's "this device" means this device; Apple's servers are not it, however private (PLAN D34).
+    static func isCloud(_ model: ModelDescriptor) -> Bool {
+        model.source == .anyrouter || model.id == ApplePCCLogic.modelID
+    }
+
     /// A cloud model gets items learned in on-device chats only when the user allowed it.
-    static func allows(_ scope: MemoryScope, source: ModelSource, deviceMemoriesInCloud: Bool) -> Bool {
-        source != .anyrouter || scope == .everywhere || deviceMemoriesInCloud
+    static func allows(_ scope: MemoryScope, toCloud: Bool, deviceMemoriesInCloud: Bool) -> Bool {
+        !toCloud || scope == .everywhere || deviceMemoriesInCloud
     }
 
     /// The profile, or nil when no item is left. Items go in whole; one that does not fit is left out, never cut.
     static func render(
-        _ items: [Item], frozen: [UUID], source: ModelSource, deviceMemoriesInCloud: Bool, budget: Int
+        _ items: [Item], frozen: [UUID], toCloud: Bool, deviceMemoriesInCloud: Bool, budget: Int
     ) -> String? {
         let byID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
         var lines = [heading]
         for id in frozen {
-            guard let item = byID[id], allows(item.scope, source: source, deviceMemoriesInCloud: deviceMemoriesInCloud) else { continue }
+            guard let item = byID[id], allows(item.scope, toCloud: toCloud, deviceMemoriesInCloud: deviceMemoriesInCloud) else { continue }
             let candidate = lines + ["- " + item.text]
             if TokenCountLogic.estimate(candidate.joined(separator: "\n")) <= budget { lines = candidate }
         }

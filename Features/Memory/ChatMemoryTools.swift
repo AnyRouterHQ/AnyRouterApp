@@ -24,7 +24,7 @@ final class ChatMemoryTools {
         let store = MemoryStore(context: context)
         let visible = try store.all().filter {
             $0.kind != .chatSummary
-                && MemoryProfileLogic.allows($0.scope, source: .anyrouter, deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats)
+                && MemoryProfileLogic.allows($0.scope, toCloud: true, deviceMemoriesInCloud: settings.deviceMemoriesInCloudChats)
         }
         switch try MemoryToolLogic.request(from: arguments) {
         case .search(let query):

@@ -18,7 +18,7 @@ struct MemoryProfileLogicTests {
 
     @Test func theProfileIsOneLinePerItemUnderTheHeading() {
         let preference = item("Answer in Vietnamese.", .preference)
-        let text = MemoryProfileLogic.render([preference], frozen: [preference.id], source: .apple, deviceMemoriesInCloud: false, budget: 120)
+        let text = MemoryProfileLogic.render([preference], frozen: [preference.id], toCloud: false, deviceMemoriesInCloud: false, budget: 120)
         #expect(text == MemoryProfileLogic.heading + "\n- Answer in Vietnamese.")
     }
 
@@ -26,21 +26,35 @@ struct MemoryProfileLogicTests {
         let long = item(String(repeating: "word ", count: 50), .note)
         let short = item("Short answers.", .preference)
         let budget = TokenCountLogic.estimate(MemoryProfileLogic.heading + "\n- Short answers.")
-        let text = MemoryProfileLogic.render([long, short], frozen: [long.id, short.id], source: .apple, deviceMemoriesInCloud: false, budget: budget)
+        let text = MemoryProfileLogic.render([long, short], frozen: [long.id, short.id], toCloud: false, deviceMemoriesInCloud: false, budget: budget)
         #expect(text == MemoryProfileLogic.heading + "\n- Short answers.")
     }
 
     @Test func anItemDeletedSinceTheChatStartedLeavesAndNothingLeftMeansNoProfile() {
-        #expect(MemoryProfileLogic.render([], frozen: [UUID()], source: .apple, deviceMemoriesInCloud: false, budget: 120) == nil)
+        #expect(MemoryProfileLogic.render([], frozen: [UUID()], toCloud: false, deviceMemoriesInCloud: false, budget: 120) == nil)
     }
 
     @Test func itemsFromOnDeviceChatsReachCloudModelsOnlyWithTheSwitch() {
-        #expect(MemoryProfileLogic.allows(.deviceOnly, source: .apple, deviceMemoriesInCloud: false))
-        #expect(MemoryProfileLogic.allows(.deviceOnly, source: .gguf, deviceMemoriesInCloud: false))
-        #expect(!MemoryProfileLogic.allows(.deviceOnly, source: .anyrouter, deviceMemoriesInCloud: false))
-        #expect(MemoryProfileLogic.allows(.deviceOnly, source: .anyrouter, deviceMemoriesInCloud: true))
-        #expect(MemoryProfileLogic.allows(.everywhere, source: .anyrouter, deviceMemoriesInCloud: false))
+        #expect(MemoryProfileLogic.allows(.deviceOnly, toCloud: false, deviceMemoriesInCloud: false))
+        #expect(MemoryProfileLogic.allows(.deviceOnly, toCloud: false, deviceMemoriesInCloud: false))
+        #expect(!MemoryProfileLogic.allows(.deviceOnly, toCloud: true, deviceMemoriesInCloud: false))
+        #expect(MemoryProfileLogic.allows(.deviceOnly, toCloud: true, deviceMemoriesInCloud: true))
+        #expect(MemoryProfileLogic.allows(.everywhere, toCloud: true, deviceMemoriesInCloud: false))
         let private_ = item("I take insulin.", .profile, scope: .deviceOnly)
-        #expect(MemoryProfileLogic.render([private_], frozen: [private_.id], source: .anyrouter, deviceMemoriesInCloud: false, budget: 500) == nil)
+        #expect(MemoryProfileLogic.render([private_], frozen: [private_.id], toCloud: true, deviceMemoriesInCloud: false, budget: 500) == nil)
+    }
+
+    /// PLAN D34: Apple Intelligence on Private Cloud Compute is cloud for memory scope. A memory the user kept to "this
+    /// device" never reaches Apple's servers unless the user allowed device memories in cloud chats.
+    @Test func privateCloudComputeIsCloudForDeviceOnlyMemories() {
+        let pcc = ApplePCCLogic.descriptor(.available(contextSize: 32_768))
+        let onDevice = testModel(id: "apple/foundation", source: .apple)
+        #expect(MemoryProfileLogic.isCloud(pcc))
+        #expect(!MemoryProfileLogic.isCloud(onDevice))
+        #expect(MemoryProfileLogic.isCloud(testModel(id: "anyrouter/x", source: .anyrouter)))
+        #expect(!MemoryProfileLogic.isCloud(testModel(id: "gguf/x", source: .gguf)))
+        #expect(!MemoryProfileLogic.allows(.deviceOnly, toCloud: MemoryProfileLogic.isCloud(pcc), deviceMemoriesInCloud: false))
+        #expect(MemoryProfileLogic.allows(.deviceOnly, toCloud: MemoryProfileLogic.isCloud(onDevice), deviceMemoriesInCloud: false))
+        #expect(MemoryProfileLogic.allows(.everywhere, toCloud: MemoryProfileLogic.isCloud(pcc), deviceMemoriesInCloud: false))
     }
 }
