@@ -4,6 +4,7 @@ import Testing
 
 /// `decide` spends AnyRouter credits: the cost shows on its row and counts in the reply; outside a cloud chat it asks
 /// every time with the notice of "Ask a cloud model" (manager decision on D28).
+@MainActor
 struct DecideCostTests {
     private final class Service: DecisionsService, @unchecked Sendable {
         func decisionModels() async throws -> [DecisionModel] { [] }
