@@ -20,6 +20,10 @@ enum SmokeEnv {
     static var mmprojSHA256: String? { env["ANYROUTER_SMOKE_MMPROJ_SHA256"].flatMap { $0.isEmpty ? nil : $0 } }
     /// Token limit of the "2+2" answer. Small for models that decode at a fraction of a token per second.
     static var maxTokens: Int? { env["ANYROUTER_SMOKE_MAX_TOKENS"].flatMap { Int($0) } }
+    /// Where the agent eval writes its JSON report (the workflow uploads it). Unset: no file.
+    static var agentEvalJSON: String? { env["ANYROUTER_SMOKE_AGENT_EVAL_JSON"].flatMap { $0.isEmpty ? nil : $0 } }
+    /// Minutes one agent eval set may run before its remaining cases are reported as not run.
+    static var evalMinutes: Double? { env["ANYROUTER_SMOKE_EVAL_MINUTES"].flatMap { Double($0) } }
     /// Folder with the Gemma 4 MLX tokenizer files (no weights), for the chat template check.
     static var mlxTokenizerDir: String? { env["ANYROUTER_SMOKE_MLX_TOKENIZER_DIR"] }
 }

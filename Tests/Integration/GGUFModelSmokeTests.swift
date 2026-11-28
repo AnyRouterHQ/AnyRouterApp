@@ -6,7 +6,7 @@ import XCTest
 /// Runs one bundled GGUF model (the smallest, or `ANYROUTER_SMOKE_MODEL_ID`) through the real `GGUFEngine` path: catalog entry, installer, llama.cpp.
 /// Skipped unless `ANYROUTER_SMOKE_GGUF_PATH` is set, so normal CI stays fast.
 final class GGUFModelSmokeTests: XCTestCase {
-    private struct Context {
+    struct Context {
         var engine: GGUFEngine
         var storage: LocalModelStorage
         var entry: CatalogEntry
@@ -18,13 +18,13 @@ final class GGUFModelSmokeTests: XCTestCase {
     }
 
     /// A hard link when possible: a multi-GB model must not take twice the runner's disk.
-    private static func stage(_ source: URL, as destination: URL) throws {
+    static func stage(_ source: URL, as destination: URL) throws {
         do { try FileManager.default.linkItem(at: source, to: destination) } catch {
             try FileManager.default.copyItem(at: source, to: destination)
         }
     }
 
-    private func makeContext(withProjector: Bool = false) async throws -> Context {
+    static func makeContext(withProjector: Bool = false) async throws -> Context {
         let path = SmokeEnv.ggufPath
         try XCTSkipUnless(path != nil, "ANYROUTER_SMOKE_GGUF_PATH is not set. The real-model test runs only in model-smoke.yml.")
         let sha = try XCTUnwrap(SmokeEnv.ggufSHA256, "ANYROUTER_SMOKE_GGUF_SHA256 is required with the path")
@@ -94,7 +94,7 @@ final class GGUFModelSmokeTests: XCTestCase {
     }
 
     func testAnswersTwoPlusTwoWithUsageAndDone() async throws {
-        let ctx = try await makeContext()
+        let ctx = try await Self.makeContext()
         var params = GenerationParams()
         params.temperature = 0
         params.maxTokens = SmokeEnv.maxTokens ?? 1024
@@ -168,7 +168,7 @@ final class GGUFModelSmokeTests: XCTestCase {
     /// The eval prompt for a device run too: a photo of one flat color, asked for its name.
     func testNamesTheColorOfAPhoto() async throws {
         try XCTSkipUnless(SmokeEnv.mmprojFile != nil, "this model has no image projector")
-        let ctx = try await makeContext(withProjector: true)
+        let ctx = try await Self.makeContext(withProjector: true)
         XCTAssertTrue(ctx.model.capabilities.contains("vision"), "an installed model with a projector must list the vision capability")
         let data = Self.redPhoto()
         let id = UUID()
@@ -205,7 +205,7 @@ final class GGUFModelSmokeTests: XCTestCase {
     }
 
     func testCancellingMidStreamStopsWithinTwoSeconds() async throws {
-        let ctx = try await makeContext()
+        let ctx = try await Self.makeContext()
         var long = GenerationParams()
         long.temperature = 0.8
         long.maxTokens = 2000
@@ -274,7 +274,7 @@ final class GGUFModelSmokeTests: XCTestCase {
     }
 
     func testInstallerRejectsWrongChecksumAndWrongSize() async throws {
-        let ctx = try await makeContext()
+        let ctx = try await Self.makeContext()
         let id = ctx.entry.id
         let file = try XCTUnwrap(ctx.entry.file)
         let storage = LocalModelStorage(root: makeTempDirectory())

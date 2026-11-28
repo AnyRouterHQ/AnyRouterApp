@@ -1,0 +1,265 @@
+{
+  "note": "LA11 tool-calling set (PLAN D28 unit L1, agent design 5.2). Each case is one prompt for a model with four tools: the clock, the calculator, web_search and fetch_url (the page reader). The clock and the calculator are the real tools. web_search and fetch_url answer the fixtureResult text: the facts in it are invented, so a right answer proves the model read the tool result and did not guess. expectTool null means the prompt needs no tool. mustContain: every entry must be in the answer (ignoring case and accents); 'a|b' accepts either. Placeholders {year}, {month}, {weekday} come from the clock at run time. argsContain: text the expected call's arguments must hold. Run by AgentToolEvalSmokeTests (GGUF, model-smoke.yml) and AgentEvalDeviceTests (Apple and MLX, opt-in).",
+  "cases": [
+    {
+      "id": "time-en",
+      "language": "en",
+      "prompt": "What time is it right now?",
+      "expectTool": "current_date_time",
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        ":|am|pm"
+      ],
+      "mustNotContain": [
+        "Asia/",
+        "Hanoi",
+        "Ho Chi Minh"
+      ]
+    },
+    {
+      "id": "date-en",
+      "language": "en",
+      "prompt": "What is today's date?",
+      "expectTool": "current_date_time",
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        "{year}"
+      ],
+      "mustNotContain": [
+        "Asia/",
+        "Hanoi"
+      ]
+    },
+    {
+      "id": "weekday-en",
+      "language": "en",
+      "prompt": "Which day of the week is it today?",
+      "expectTool": "current_date_time",
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        "{weekday}"
+      ],
+      "mustNotContain": [
+        "Asia/",
+        "Hanoi"
+      ]
+    },
+    {
+      "id": "time-vi",
+      "language": "vi",
+      "prompt": "Bây giờ là mấy giờ rồi?",
+      "expectTool": "current_date_time",
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        ":|giờ|am|pm"
+      ],
+      "mustNotContain": [
+        "Asia/"
+      ]
+    },
+    {
+      "id": "date-vi",
+      "language": "vi",
+      "prompt": "Hôm nay là ngày bao nhiêu?",
+      "expectTool": "current_date_time",
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        "{year}"
+      ],
+      "mustNotContain": [
+        "Asia/"
+      ]
+    },
+    {
+      "id": "calc-times-en",
+      "language": "en",
+      "prompt": "What is 17 times 23?",
+      "expectTool": "calculator",
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        "391"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "calc-expression-en",
+      "language": "en",
+      "prompt": "Calculate (1234 + 4321) / 5.",
+      "expectTool": "calculator",
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        "1111"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "calc-percent-en",
+      "language": "en",
+      "prompt": "What is 15% of 240?",
+      "expectTool": "calculator",
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        "36"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "calc-times-vi",
+      "language": "vi",
+      "prompt": "Tính giúp tôi 48 nhân 25 bằng bao nhiêu?",
+      "expectTool": "calculator",
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        "1200|1.200|1,200"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "calc-sqrt-vi",
+      "language": "vi",
+      "prompt": "Căn bậc hai của 1764 là bao nhiêu?",
+      "expectTool": "calculator",
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        "42"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "search-version-en",
+      "language": "en",
+      "prompt": "What is the latest release of the Zorblax library? Search the web.",
+      "expectTool": "web_search",
+      "argsContain": [],
+      "fixtureResult": "Search results for \"Zorblax library latest release\":\n1. Zorblax 4.2.1 released (Zorblax Blog). The newest stable release of Zorblax is 4.2.1, published on 3 March. It fixes the cache bug from 4.2.0.\n2. Zorblax changelog (zorblax.example/changelog). Every version, newest first.",
+      "mustContain": [
+        "4.2.1"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "search-hours-vi",
+      "language": "vi",
+      "prompt": "Tìm trên web giờ mở cửa của quán phở Bà Tám ở Quận 3.",
+      "expectTool": "web_search",
+      "argsContain": [],
+      "fixtureResult": "Kết quả tìm kiếm:\n1. Phở Bà Tám, Quận 3: mở cửa từ 6:30 sáng đến 14:00 hằng ngày, nghỉ ngày rằm.\n2. Phở Bà Tám trên bản đồ: 4,6 sao, 212 đánh giá.",
+      "mustContain": [
+        "6:30|6h30|6.30|6 giờ 30"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "search-population-en",
+      "language": "en",
+      "prompt": "Look up the population of the town of Marlowe Springs.",
+      "expectTool": "web_search",
+      "argsContain": [],
+      "fixtureResult": "Search results for \"Marlowe Springs population\":\n1. Marlowe Springs is a town in the Alder valley. Population at the last census: 18,452.\n2. Marlowe Springs visitor guide: lakes, a clock tower and a Sunday market.",
+      "mustContain": [
+        "18,452|18452|18.452"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "search-price-vi",
+      "language": "vi",
+      "prompt": "Tra cứu giá vé vào cổng Vườn Bách Thảo Xanh trên mạng.",
+      "expectTool": "web_search",
+      "argsContain": [],
+      "fixtureResult": "Kết quả tìm kiếm:\n1. Vườn Bách Thảo Xanh: vé người lớn 40.000 đồng, trẻ em 20.000 đồng, mở cửa mỗi ngày.\n2. Vườn Bách Thảo Xanh: giờ mở cửa và bản đồ.",
+      "mustContain": [
+        "40.000|40,000|40000|40 nghìn|40k"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "fetch-changelog-en",
+      "language": "en",
+      "prompt": "Read https://zorblax.example/changelog and tell me the newest version.",
+      "expectTool": "fetch_url",
+      "argsContain": [
+        "zorblax.example/changelog"
+      ],
+      "fixtureResult": "URL: https://zorblax.example/changelog\nTitle: Zorblax changelog\n\n4.2.1 (newest): fixes the cache bug.\n4.2.0: adds streaming.\n4.1.9: security update.",
+      "mustContain": [
+        "4.2.1"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "fetch-timetable-vi",
+      "language": "vi",
+      "prompt": "Đọc trang https://truong.example/thoi-khoa-bieu và cho tôi biết môn đầu tiên của thứ Hai.",
+      "expectTool": "fetch_url",
+      "argsContain": [
+        "truong.example/thoi-khoa-bieu"
+      ],
+      "fixtureResult": "URL: https://truong.example/thoi-khoa-bieu\nTitle: Thời khóa biểu lớp 6A\n\nThứ Hai: Toán (7:30), Văn (9:00), Anh (10:30)\nThứ Ba: Lý (7:30), Sử (9:00)",
+      "mustContain": [
+        "toán"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "fetch-tide-en",
+      "language": "en",
+      "prompt": "Summarise https://harbor.example/tide-report in one sentence.",
+      "expectTool": "fetch_url",
+      "argsContain": [
+        "harbor.example/tide-report"
+      ],
+      "fixtureResult": "URL: https://harbor.example/tide-report\nTitle: Tide report for Port Elm\n\nHigh tide: 05:40 and 18:05.\nLow tide: 11:50 and 00:15.",
+      "mustContain": [
+        "05:40|5:40"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "none-cats-en",
+      "language": "en",
+      "prompt": "Write one short sentence about cats.",
+      "expectTool": null,
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        "cat"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "none-cats-vi",
+      "language": "vi",
+      "prompt": "Viết một câu ngắn về con mèo.",
+      "expectTool": null,
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        "mèo"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "none-translate-en",
+      "language": "en",
+      "prompt": "Translate 'good morning' into French.",
+      "expectTool": null,
+      "argsContain": [],
+      "fixtureResult": null,
+      "mustContain": [
+        "bonjour"
+      ],
+      "mustNotContain": []
+    }
+  ]
+}
