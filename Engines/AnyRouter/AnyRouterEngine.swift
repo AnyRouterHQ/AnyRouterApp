@@ -104,9 +104,9 @@ struct AnyRouterEngine: ResumableEngine, SubagentEngine {
         let status = AnyRouterError.status(of: response)
         guard (200..<300).contains(status) else {
             var body = Data()
-            for try await byte in bytes {
-                body.append(byte)
-                if body.count > 16 * 1024 { break }
+            try await bytes.forEachChunk { chunk in
+                body.append(chunk)
+                return body.count <= 16 * 1024
             }
             if status == 401 {
                 tokens.clear()
@@ -138,14 +138,11 @@ struct AnyRouterEngine: ResumableEngine, SubagentEngine {
                 }
             }
         }
-        var pending = Data()
-        for try await byte in bytes {
-            pending.append(byte)
-            guard byte == 0x0A else { continue }
-            try handle(parser.feed(pending))
-            pending.removeAll(keepingCapacity: true)
+        try await bytes.forEachChunk(endingAt: 0x0A) { chunk in
+            try handle(parser.feed(chunk))
+            return true
         }
-        try handle(parser.feed(pending) + parser.finish())
+        try handle(parser.finish())
         for call in decoder.toolCalls { emit(.proposed(call)) }
         if let usage { emit(.usage(prompt: usage.prompt, completion: usage.completion)) }
         if let metadata { emit(.metadata(metadata)) }

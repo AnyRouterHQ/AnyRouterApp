@@ -44,9 +44,12 @@ struct FetchURLTool: BuiltInTool {
 
         var data = Data()
         var truncated = false
-        for try await byte in bytes {
-            data.append(byte)
-            if data.count >= maxBytes { truncated = true; break }
+        try await bytes.forEachChunk { chunk in
+            data.append(chunk)
+            guard data.count >= maxBytes else { return true }
+            data = data.prefix(maxBytes)
+            truncated = true
+            return false
         }
         let body = String(decoding: data, as: UTF8.self)
         let isHTML = type.contains("html") || (type.isEmpty && body.lowercased().contains("<html"))

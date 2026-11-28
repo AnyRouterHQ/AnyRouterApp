@@ -191,11 +191,12 @@ actor MCPClient {
     /// Reads a body, failing as soon as it passes `limit` so a hostile server cannot fill memory.
     static func read(_ bytes: URLSession.AsyncBytes, limit: Int) async throws -> Data {
         var data = Data()
-        for try await byte in bytes {
-            data.append(byte)
+        try await bytes.forEachChunk { chunk in
+            data.append(chunk)
             if data.count > limit {
                 throw MCPError.invalidResponse("The answer is larger than \(limit / 1024) KB.")
             }
+            return true
         }
         return data
     }
