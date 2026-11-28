@@ -26,7 +26,7 @@ final class SettingsJourney: JourneyCase {
             step("settings-root")
             audit(app, "settings-root")
 
-            for page in ["Inference", "Privacy"] {
+            for page in ["Chat Behavior", "Privacy"] {
                 let row = button(app, containing: page)
                 reveal(row, in: app)
                 row.tap()

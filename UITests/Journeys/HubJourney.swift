@@ -11,9 +11,13 @@ final class HubJourney: JourneyCase {
         runPasses { app, _ in
             XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
             openSettings(app)
-            let row = button(app, containing: "Manage models")
-            reveal(row, in: app)
-            row.tap()
+            // The hub moved: Settings > Local Models > Browse all models.
+            let local = button(app, containing: "Local Models")
+            reveal(local, in: app)
+            local.tap()
+            let browse = button(app, containing: "Browse all models")
+            reveal(browse, in: app)
+            browse.tap()
             XCTAssertTrue(app.descendants(matching: .any)["hub.list"].waitForExistence(timeout: 10), "hub list")
             XCTAssertTrue(card(app, "Qwen3 0.6B").waitForExistence(timeout: 5), "installed model")
             step("hub-top")
