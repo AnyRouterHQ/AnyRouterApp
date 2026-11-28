@@ -52,7 +52,7 @@ struct ChatScreen: View {
                                    minHeight: sizeClass == .regular ? 520 : nil, idealHeight: sizeClass == .regular ? 640 : nil)
                     }
             }
-            // The title draws its own glass pill (ModelTitle); no shared toolbar glass on top of it.
+            // Plain title and model name, no shared glass behind them (operator).
             .sharedBackgroundVisibility(.hidden)
             // One group, so iOS 26 draws New chat and More in a single shared glass capsule.
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -387,7 +387,8 @@ private struct ChatContent: View {
         .scrollDismissesKeyboard(.interactively)
         // Hard at the bottom: under the floating composer a soft edge let reply text and trace rows read through the
         // field and beside the + button (HIG audit 2026-11-28 #4).
-        .scrollEdgeEffectStyle(.soft, for: .top)
+        // Hard under the top bar too, so reply text does not read through the plain title (operator, after the glass pill).
+        .scrollEdgeEffectStyle(.hard, for: .top)
         .scrollEdgeEffectStyle(.hard, for: .bottom)
         .defaultScrollAnchor(.bottom, for: .initialOffset)
         .defaultScrollAnchor(.bottom, for: .alignment)

@@ -41,14 +41,13 @@ struct ModelTitle: View {
                 }
             }
             .foregroundStyle(.primary)
-            // Room inside the glass pill.
             .padding(.horizontal, 12)
             .frame(minHeight: 44)
             .contentShape(.rect)
         }
-        // The title is the model control, so it is a glass pill like the buttons beside it (design review P2: the toolbar's
-        // shared background drew nothing behind a principal item, screenshots 46140428971).
-        .buttonStyle(.glass)
+        // Plain text, no shape (operator): the chat list's hard top edge keeps reply text from reading through it.
+        .buttonStyle(.plain)
+        .hoverEffect(.highlight)
         // VoiceOver reads label then value: "Model, <name>"; the chat's title is in the hint.
         .accessibilityLabel("Model")
         .accessibilityValue(AccessibilityLogic.modelPillValue(name: name, isLoading: isLoading))
