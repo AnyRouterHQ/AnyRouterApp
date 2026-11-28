@@ -56,8 +56,43 @@ enum DemoData {
     static var opensPickerAtMedium: Bool { isEnabled && UserDefaults.standard.bool(forKey: "ARDemoPickerMedium") }
     static var attachesSampleFile: Bool { isEnabled && UserDefaults.standard.bool(forKey: "ARDemoAttachFile") }
 
-    /// `-ARDemoDecisionPhoto YES` puts a drawn receipt in a decision's photo row: the Simulator has no camera.
+    /// `-ARDemoDecisionPhoto YES` puts a drawn receipt (or a stop sign, in the Traffic sign app) in a decision's photo row:
+    /// the Simulator has no camera.
     static var addsDecisionPhoto: Bool { isEnabled && UserDefaults.standard.bool(forKey: "ARDemoDecisionPhoto") }
+
+    static func decisionPhoto(for appID: String?) -> Data {
+        appID == "traffic-sign" ? stopSignPhoto() : receiptPhoto()
+    }
+
+    static func stopSignPhoto() -> Data {
+        let size = CGSize(width: 600, height: 800)
+        return UIGraphicsImageRenderer(size: size).jpegData(withCompressionQuality: 0.9) { context in
+            UIColor(red: 0.62, green: 0.78, blue: 0.92, alpha: 1).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            UIColor.darkGray.setFill()
+            context.fill(CGRect(x: 285, y: 400, width: 30, height: 400))
+            let center = CGPoint(x: 300, y: 300)
+            func octagon(_ radius: CGFloat) -> UIBezierPath {
+                let path = UIBezierPath()
+                for corner in 0..<8 {
+                    let angle = CGFloat.pi / 8 + CGFloat(corner) * .pi / 4
+                    let point = CGPoint(x: center.x + radius * cos(angle), y: center.y + radius * sin(angle))
+                    if corner == 0 { path.move(to: point) } else { path.addLine(to: point) }
+                }
+                path.close()
+                return path
+            }
+            UIColor.white.setFill()
+            octagon(220).fill()
+            UIColor(red: 0.78, green: 0.06, blue: 0.1, alpha: 1).setFill()
+            octagon(205).fill()
+            let word = NSAttributedString(string: "STOP", attributes: [
+                .font: UIFont.systemFont(ofSize: 120, weight: .heavy), .foregroundColor: UIColor.white,
+            ])
+            let box = word.size()
+            word.draw(at: CGPoint(x: center.x - box.width / 2, y: center.y - box.height / 2))
+        }
+    }
 
     static func receiptPhoto() -> Data {
         let size = CGSize(width: 600, height: 800)

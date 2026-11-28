@@ -23,10 +23,10 @@ struct DecisionPhotoSection: View {
             }
             if store.showsImageInput {
                 Menu {
+                    if store.app?.photoFirst == true { cameraButton }
                     Button("Photos", systemImage: "photo") { showsPhotos = true }
                     Button("Files", systemImage: "folder") { showsFiles = true }
-                    Button("Camera", systemImage: "camera") { showsCamera = true }
-                        .disabled(!CameraPicker.isAvailable)
+                    if store.app?.photoFirst != true { cameraButton }
                 } label: {
                     Label("Add photo", systemImage: "photo.badge.plus")
                 }
@@ -62,6 +62,11 @@ struct DecisionPhotoSection: View {
                 Text("This model can't read photos. Choose another model.")
             }
         }
+    }
+
+    private var cameraButton: some View {
+        Button("Camera", systemImage: "camera") { showsCamera = true }
+            .disabled(!CameraPicker.isAvailable)
     }
 
     /// The bytes of each picked file that is not huge. The URLs are security scoped.

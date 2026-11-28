@@ -36,6 +36,8 @@ struct DecisionApp: Identifiable, Equatable, Codable, Sendable {
     var symbol: String
     var inputHint: String
     var acceptsImages: Bool
+    /// The photo row, camera first, sits above the text field: the photo is the input and text is optional.
+    var photoFirst: Bool?
     var defaultModel: String?
     var samples: [Sample]
     var questions: [Question]

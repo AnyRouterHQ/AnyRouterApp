@@ -658,6 +658,21 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// Traffic sign: photo first, the demo stop sign (the Simulator has no camera), Run, the answer.
+    func testDecisionTrafficSign() {
+        forEachAppearance(extra: ["-ARDemoDecisionPhoto", "YES"]) { app, appearance in
+            openApps(app)
+            app.buttons["apps-tile-traffic-sign"].tap()
+            XCTAssertTrue(app.buttons["Remove photo"].waitForExistence(timeout: 15), "the demo sign is in the row")
+            capture("decision-sign-ready", appearance)
+            app.buttons["decisions-run"].tap()
+            XCTAssertTrue(app.descendants(matching: .any)["decisions-result-line"].waitForExistence(timeout: 10))
+            assertNoGiantImages(app, "a decision app", maxHeight: 200)
+            app.swipeUp()
+            capture("decision-sign-result", appearance)
+        }
+    }
+
     /// The custom decision, empty and then filled by a sample.
     func testDecisionCustom() {
         forEachAppearance { app, appearance in

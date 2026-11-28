@@ -12,6 +12,7 @@ struct DecisionRunnerScreen: View {
         @Bindable var store = app.decisions
         Form {
             samplesRow(store)
+            if store.app?.photoFirst == true { photoSection(store) }
             Section {
                 TextField(
                     store.app?.inputHint ?? "Paste an email, a policy, an incident…", text: $store.state, axis: .vertical)
@@ -24,11 +25,7 @@ struct DecisionRunnerScreen: View {
                 }
             }
             if store.app?.id == DecisionAppsLogic.pasteAppID { PasteCard(state: store.state) }
-            if store.showsImageInput || !store.images.isEmpty {
-                DecisionPhotoSection(store: store)
-            } else if store.app?.acceptsImages ?? true {
-                Section { Label("This model reads text only. To add photos, choose another model in the model menu.", systemImage: "photo.badge.exclamationmark").foregroundStyle(.secondary) }
-            }
+            if store.app?.photoFirst != true { photoSection(store) }
             Section {
                 DisclosureGroup("Questions", isExpanded: $showsQuestions) { questionRows($store) }
             }
@@ -47,11 +44,24 @@ struct DecisionRunnerScreen: View {
         .safeAreaInset(edge: .bottom) { runBar(store) }
         .onAppear { showsQuestions = store.app == nil }
         .task {
-            if DemoData.addsDecisionPhoto, store.images.isEmpty, store.showsImageInput { await store.addImages([DemoData.receiptPhoto()]) }
+            if DemoData.addsDecisionPhoto, store.images.isEmpty, store.showsImageInput { await store.addImages([DemoData.decisionPhoto(for: store.app?.id)]) }
         }
     }
 
     // MARK: Input
+
+    /// Photos, or the plain "can't read photos" line when the model is text only; the model menu is in the toolbar.
+    @ViewBuilder
+    private func photoSection(_ store: DecisionsStore) -> some View {
+        if store.showsImageInput || !store.images.isEmpty {
+            DecisionPhotoSection(store: store)
+        } else if store.app?.acceptsImages ?? true {
+            Section {
+                Label("This model can't read photos. Choose another model.", systemImage: "photo.badge.exclamationmark")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
 
     /// One-tap samples. They sit above the field and fill it (and, for the custom decision, the questions).
     private func samplesRow(_ store: DecisionsStore) -> some View {

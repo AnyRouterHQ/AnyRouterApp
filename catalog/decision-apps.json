@@ -151,6 +151,94 @@
       "resultLine": "{business}. Category: {category}. {deductible}."
     },
     {
+      "id": "traffic-sign",
+      "title": "Traffic sign",
+      "symbol": "signpost.right",
+      "inputHint": "Point the camera at a sign or add a photo",
+      "acceptsImages": true,
+      "photoFirst": true,
+      "defaultModel": "google/gemini-decision-1",
+      "samples": [
+        {
+          "title": "Speed sign",
+          "text": "A round sign with a red border, a white middle and the number 50 in black."
+        },
+        {
+          "title": "Stop sign",
+          "text": "A red eight-sided sign with the white word STOP."
+        }
+      ],
+      "questions": [
+        {
+          "id": "kind",
+          "type": "choice",
+          "prompt": "What kind of sign is it?",
+          "items": [
+            "regulatory or prohibitory",
+            "mandatory",
+            "warning",
+            "information or guide",
+            "priority (stop or yield)",
+            "temporary or roadworks",
+            "not a traffic sign"
+          ]
+        },
+        {
+          "id": "sign",
+          "type": "choice",
+          "prompt": "Which sign is it?",
+          "items": [
+            "stop",
+            "give way or yield",
+            "no entry",
+            "no parking",
+            "no stopping",
+            "speed limit",
+            "end of speed limit",
+            "no overtaking",
+            "no U-turn",
+            "one way",
+            "pedestrian crossing",
+            "school zone",
+            "roundabout",
+            "keep right",
+            "keep left",
+            "traffic lights ahead",
+            "slippery road",
+            "sharp bend",
+            "road works",
+            "other"
+          ]
+        },
+        {
+          "id": "speed",
+          "type": "choice",
+          "prompt": "Speed limit shown",
+          "items": [
+            "none",
+            "20",
+            "30",
+            "40",
+            "50",
+            "60",
+            "70",
+            "80",
+            "90",
+            "100",
+            "120"
+          ]
+        },
+        {
+          "id": "cars",
+          "type": "yesNo",
+          "prompt": "Does it apply to cars?",
+          "yes": "It applies to cars",
+          "no": "It does not apply to cars"
+        }
+      ],
+      "resultLine": "Sign: {sign}, {kind}. Speed limit shown: {speed}. {cars}."
+    },
+    {
       "id": "incident-triage",
       "title": "Incident triage",
       "symbol": "bolt.trianglebadge.exclamationmark",
