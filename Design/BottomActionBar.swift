@@ -13,13 +13,20 @@ extension View {
         return safeAreaBar(edge: .bottom) {
             VStack(spacing: 8) {
                 accessory
-                Button(action: action) {
-                    label.frame(maxWidth: .infinity).prominentLabel()
+                // A disabled prominent button with the mono tint drew white on white in light mode (screenshots
+                // 46140428971), so a disabled action is plain glass with dimmed text, still clearly a button.
+                if isEnabled {
+                    Button(action: action) { label.frame(maxWidth: .infinity).prominentLabel() }
+                        .buttonStyle(.glassProminent)
+                        .controlSize(.large)
+                        .accessibilityIdentifier(id)
+                } else {
+                    Button(action: action) { label.frame(maxWidth: .infinity) }
+                        .buttonStyle(.glass)
+                        .controlSize(.large)
+                        .disabled(true)
+                        .accessibilityIdentifier(id)
                 }
-                .buttonStyle(.glassProminent)
-                .controlSize(.large)
-                .disabled(!isEnabled)
-                .accessibilityIdentifier(id)
             }
             .frame(maxWidth: 560)
             .padding(.horizontal)
