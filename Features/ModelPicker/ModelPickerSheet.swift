@@ -219,7 +219,9 @@ struct ModelPickerSheet: View {
             }
             .navigationTitle("Model")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $query, prompt: "Search models")
+            // In the bar under the title, not floating at the bottom: at the medium detent the floating field covered the
+            // last rows (Browse models), and the list now ends at the sheet's edge (screenshots 46107915397).
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search models")
             .safeAreaInset(edge: .top, spacing: 0) {
                 Picker("Source", selection: $tab) {
                     ForEach(PickerTab.allCases) { Text($0.title).tag($0) }
