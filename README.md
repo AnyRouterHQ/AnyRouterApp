@@ -27,7 +27,15 @@ AnyRouter is a native SwiftUI chat app. You can chat with models that run on you
 - Sign in with AnyRouter. The key is stored in the Keychain only.
 
 **Chat**
-- Threads, markdown rendering, stop and regenerate, and a model picker.
+- Threads with search, markdown rendering, stop and regenerate, and a model picker.
+- Photo, camera and PDF attachments, with vision for cloud models and for local models that have a projector.
+- Reasoning shown as a "Thought for Ns" row, and tool calls shown as rows you can open.
+- Tools for every model source: clock, calculator, web search, page reader, and your AnyRouter MCP tools. Writes and outside calls ask first.
+- Memory, skills and sub-agents for research, with Settings pages to review and delete.
+- Voice: dictation, spoken replies, and optional Whisper and Qwen3-TTS downloads.
+
+**Apps**
+- Decisions, Paste and Extract as native screens, plus Shortcuts, Control Center controls and a Share extension.
 
 **Downloads**
 - Background downloads that resume, with checksum verification.
@@ -57,10 +65,11 @@ Local models and Apple Foundation Models never leave your device. AnyRouter clou
 ## Roadmap
 
 Planned, not built yet:
-- Reasoning stream with a collapsible thinking block
-- Image attachments (vision models)
 - Syntax highlighting in code blocks
-- A native Mac version
+- Photos for MLX models
+- Calendar, reminders and contacts tools
+- Speculative decoding and KV cache options for local models
+- Image generation
 
 ## Contributing
 

@@ -12,11 +12,11 @@ the reference mobile chat design and chats with three model sources:
 2. Local Hugging Face models (GGUF via llama.cpp, and MLX), with a configurable catalog
 3. AnyRouter cloud models, after sign-in with AnyRouter OAuth
 
-`PLAN.md` is the single source of truth for scope, decisions, lanes, and status.
+`PLAN.md` is the single source of truth for scope, decisions, open work, and the current state of the app.
 
 ## Start of every session
 
-1. Read `PLAN.md` in full. Find your lane and its unchecked tasks.
+1. Read `PLAN.md` in full. Pick a task from § Open work.
 2. Read the code and docs your task points at. Do not guess.
 3. Work on your lane branch in your own git worktree (see Workflow). Never edit another lane's folders.
 
@@ -90,12 +90,12 @@ git push origin HEAD:main            # retry pull --rebase + push if rejected
 
 ## Updating PLAN.md (required)
 
-- Tick your own task line and add the short commit SHA: `- [x] A3 CI workflow (a1b2c3d)`.
-- New finding, blocker, or decision → one line in § Open questions or § Decisions.
-- Do not append to § Status log; the manager writes it in batches.
+- PLAN.md holds the latest state only: no lanes, no ticked tasks, no SHAs, no status log.
+- When a task is done, delete its line from § Open work and update the current-state text if behavior changed.
+- New decision → § Decisions. New question → § Open questions. New task → § Open work.
 
 ## Definition of done for a task
 
 - Pushed to `main` and the `main` build for that commit (or a later one) is green.
 - Behavior covered by a test where it is logic (parsing, catalog, SSE, PKCE, prompt building). UI flows are covered by UI tests with stable accessibility identifiers.
-- PLAN.md task ticked as above.
+- PLAN.md updated as above (task line deleted, current state matches the code).
