@@ -76,6 +76,8 @@ struct ModelBrandTests {
     @Test func aFamilyWithoutAPublicMarkShowsItsSymbolTile() {
         #expect(ModelBrand.resolve(localModel("gguf/org/Inkling-2-Mini-GGUF/x.gguf")) == .tile("drop.fill"))
         #expect(brand("some-host/inkling-2") == .tile("drop.fill"))
+        #expect(ModelBrand.resolve(localModel("gguf/openbmb/MiniCPM5-2B-GGUF/MiniCPM5-2B-Q4_K_M.gguf")) == .tile("bolt.fill"))
+        #expect(ModelBrand.resolve(localModel("gguf/LiquidAI/LFM3-VL-2B-GGUF/LFM3-VL-2B-QAD-Q4_0.gguf")) == .asset("Logo-liquid"))
         #expect(UIImage(systemName: "drop.fill") != nil)
         for family in ModelBrand.table.symbols {
             #expect(UIImage(systemName: family.symbol) != nil, "no system symbol \(family.symbol) for \(family.prefix)")

@@ -226,6 +226,10 @@
     {
       "prefix": "inkling",
       "symbol": "drop.fill"
+    },
+    {
+      "prefix": "minicpm",
+      "symbol": "bolt.fill"
     }
   ],
   "colorMarks": {

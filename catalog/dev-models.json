@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-11-27",
+  "updatedAt": "2026-11-28",
   "families": [
     {
       "id": "gemma-4",
@@ -516,7 +516,8 @@
       "website": "https://www.liquid.ai",
       "tags": [],
       "badges": [],
-      "status": "current",
+      "status": "deprecated",
+      "replacedBy": "lfm-3",
       "order": 5,
       "variants": [
         {
@@ -550,7 +551,8 @@
         "vision"
       ],
       "badges": [],
-      "status": "current",
+      "status": "deprecated",
+      "replacedBy": "lfm-3-vl",
       "order": 6,
       "variants": [
         {
@@ -726,6 +728,150 @@
           },
           "createdAt": "2026-11-27",
           "updatedAt": "2026-11-27"
+        }
+      ]
+    },
+    {
+      "id": "minicpm-5",
+      "name": "MiniCPM 5",
+      "publisher": "OpenBMB",
+      "line": "minicpm",
+      "logo": "minicpm",
+      "summary": "OpenBMB's small models for English and Chinese chat, code, math and step-by-step problems. They think before they answer.",
+      "website": "https://huggingface.co/openbmb/MiniCPM5-2B",
+      "tags": [
+        "thinking",
+        "code",
+        "multilingual",
+        "mobile"
+      ],
+      "badges": [
+        "new"
+      ],
+      "status": "current",
+      "order": 10,
+      "variants": [
+        {
+          "repo": "openbmb/MiniCPM5-1B-GGUF",
+          "engine": "gguf",
+          "file": "MiniCPM5-1B-Q4_K_M.gguf",
+          "params": "1B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 688065920,
+          "contextLength": 131072,
+          "license": "apache-2.0",
+          "revision": "5385560dd3e232bcc3577fd9442c332cad2facbd",
+          "sha256": "81b64d05a23b17b34c475f42b3e72fbde62d4b92cc34541f7a8031d0752deafa",
+          "memory": {
+            "fullKVBytesPerToken": 24576,
+            "lazyWeightBytes": 112803840
+          },
+          "createdAt": "2026-11-28",
+          "updatedAt": "2026-11-28"
+        },
+        {
+          "repo": "openbmb/MiniCPM5-2B-GGUF",
+          "engine": "gguf",
+          "file": "MiniCPM5-2B-Q4_K_M.gguf",
+          "params": "2B",
+          "quant": "Q4_K_M",
+          "sizeBytes": 1561318368,
+          "contextLength": 131072,
+          "license": "apache-2.0",
+          "revision": "8ad02b786ab81e33d465e1c80562640c55ab2877",
+          "sha256": "ec2d5801640099e97d8d7e8003ad4d81f336e757811f03a26173dddf386602fd",
+          "memory": {
+            "fullKVBytesPerToken": 43008,
+            "lazyWeightBytes": 150405120
+          },
+          "createdAt": "2026-11-28",
+          "updatedAt": "2026-11-28"
+        }
+      ]
+    },
+    {
+      "id": "lfm-3",
+      "name": "LFM 3",
+      "publisher": "Liquid AI",
+      "line": "lfm",
+      "logo": "liquid",
+      "summary": "Liquid AI's compact model for chat in many languages, reasoning and structured output. It thinks before it answers.",
+      "website": "https://huggingface.co/LiquidAI/LFM3-1.7B",
+      "tags": [
+        "thinking",
+        "multilingual",
+        "mobile"
+      ],
+      "badges": [
+        "new"
+      ],
+      "status": "current",
+      "order": 11,
+      "variants": [
+        {
+          "repo": "LiquidAI/LFM3-1.7B-GGUF",
+          "engine": "gguf",
+          "file": "LFM3-1.7B-QAD-Q4_0.gguf",
+          "params": "1.7B",
+          "quant": "Q4_0",
+          "sizeBytes": 1049615680,
+          "contextLength": 262144,
+          "license": "other",
+          "revision": "cd0c74c575b5c416f3011b5b4c298077f26ca8c2",
+          "sha256": "43a7d09a0e9cba91b63eb7052488b9564569bddfd65754d2e426465e572a7452",
+          "memory": {
+            "fullKVBytesPerToken": 12288,
+            "windowKVBytesPerToken": 10240,
+            "windowTokens": 256
+          },
+          "createdAt": "2026-11-28",
+          "updatedAt": "2026-11-28"
+        }
+      ]
+    },
+    {
+      "id": "lfm-3-vl",
+      "name": "LFM 3 VL",
+      "publisher": "Liquid AI",
+      "line": "lfm-vl",
+      "logo": "liquid",
+      "summary": "Liquid AI's compact model that reads photos and documents as well as text. It thinks before it answers.",
+      "website": "https://huggingface.co/LiquidAI/LFM3-VL-2B",
+      "tags": [
+        "thinking",
+        "vision",
+        "multilingual",
+        "mobile"
+      ],
+      "badges": [
+        "new"
+      ],
+      "status": "current",
+      "order": 12,
+      "variants": [
+        {
+          "repo": "LiquidAI/LFM3-VL-2B-GGUF",
+          "engine": "gguf",
+          "file": "LFM3-VL-2B-QAD-Q4_0.gguf",
+          "params": "2B",
+          "quant": "Q4_0",
+          "sizeBytes": 1049615648,
+          "contextLength": 128000,
+          "license": "other",
+          "revision": "1add221a5ea6c047fcf1eaaf2d247939d7cf8849",
+          "sha256": "621c455376cb96a20891697deb9975c6fb47dd5ea98ed3ad1f3b7e8f24f0b1e6",
+          "vision": {
+            "mmprojFile": "mmproj-LFM3-VL-2B-Q8_0.gguf",
+            "mmprojSize": 203031872,
+            "imageSide": 512
+          },
+          "memory": {
+            "fullKVBytesPerToken": 12288,
+            "windowKVBytesPerToken": 10240,
+            "windowTokens": 256
+          },
+          "createdAt": "2026-11-28",
+          "updatedAt": "2026-11-28"
         }
       ]
     }
