@@ -35,8 +35,14 @@ enum PhotoSupportLogic {
 
     /// "Add photo support · 346 MB". The size is left out when the catalog has none.
     static func addTitle(sizeBytes: Int64?) -> String {
-        guard let size = HubLogic.sizeText(sizeBytes) else { return "Add photo support" }
+        guard let size = sizeText(sizeBytes) else { return "Add photo support" }
         return "Add photo support · \(size)"
+    }
+
+    /// Whole megabytes below a gigabyte: the system formatter keeps a decimal there ("345.9 MB"), a row title wants "346 MB".
+    static func sizeText(_ bytes: Int64?) -> String? {
+        guard let bytes, bytes < 1_000_000_000 else { return HubLogic.sizeText(bytes) }
+        return "\(Int((Double(bytes) / 1_000_000).rounded())) MB"
     }
 
     static func row(state: DownloadState, sizeBytes: Int64?) -> PhotoSupportRow {

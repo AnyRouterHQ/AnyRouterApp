@@ -42,7 +42,7 @@ struct InklingCatalogTests {
         #expect(entry.vision?.isOptional == true)
         let addOn = try #require(entry.photoAddOn)
         #expect(addOn.sizeBytes == 345_911_008, "the size Hugging Face lists for the Q8_0 projector at the pinned revision")
-        #expect(HubLogic.sizeText(addOn.sizeBytes) == "346 MB")
+        #expect(PhotoSupportLogic.addTitle(sizeBytes: addOn.sizeBytes) == "Add photo support · 346 MB")
         #expect(entry.sizeBytes == 6_881_463_904, "the model's own download does not grow")
     }
 

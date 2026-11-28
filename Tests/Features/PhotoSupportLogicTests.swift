@@ -8,6 +8,7 @@ struct PhotoSupportLogicTests {
 
     @Test func theActionNamesTheDownloadSize() {
         #expect(PhotoSupportLogic.addTitle(sizeBytes: size) == "Add photo support · 346 MB")
+        #expect(PhotoSupportLogic.addTitle(sizeBytes: 1_500_000_000) == "Add photo support · 1.5 GB", "from a gigabyte the system's text")
         #expect(PhotoSupportLogic.addTitle(sizeBytes: nil) == "Add photo support")
         #expect(PhotoSupportLogic.removeTitle == "Remove photo support")
     }
