@@ -17,6 +17,8 @@ concurrency:
 permissions:
   contents: read
   actions: read
+  # A failed phone build marks its commit with a red "Device IPA" status, so every lane sees it on the commit.
+  statuses: write
 
 jobs:
   changes:
@@ -95,7 +97,7 @@ jobs:
             -clonedSourcePackagesDirPath SourcePackages \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             SENTRY_DSN="$SENTRY_DSN" \
-            CURRENT_PROJECT_VERSION=${{ github.run_number }} AR_GIT_COMMIT="${COMMIT_SHA::7}" | tail -n 200
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} AR_GIT_COMMIT="${COMMIT_SHA::7}" | tee device-build.log | tail -n 200
 
       - name: Package IPA
         run: |
@@ -184,3 +186,24 @@ jobs:
             echo "\`AnyRouter-debug-adhoc\` is the same build ad-hoc signed with its entitlements (increased memory limit, App Group),"
             echo "for a signing tool and account that keep them. See docs/sideload.md, Running Inkling 2 Mini on a 12 GB iPhone."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Mark the commit
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ job.status }}
+        run: |
+          URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ "$OUTCOME" = "success" ]; then STATE=success; DESC="Phone IPAs built"; else STATE=failure; DESC="Phone build failed, see the run summary"; fi
+          gh api "repos/${{ github.repository }}/statuses/$COMMIT_SHA" -f state="$STATE" -f context="Device IPA" \
+            -f description="$DESC" -f target_url="$URL" > /dev/null || echo "could not set the commit status"
+          if [ "$OUTCOME" != "success" ]; then
+            FILES=$(grep -E "error:" device-build.log 2>/dev/null | sed -E 's|^.*/AnyRouterApp/||; s|:[0-9]+:[0-9]+: error:.*||' | sort -u | head -8 | tr '\n' ' ')
+            echo "::error title=Device IPA failed::Phone build failed at ${COMMIT_SHA::7}: ${FILES:-see the build step}"
+            {
+              echo "## Device IPA failed"
+              echo ""
+              echo "Commit \`${COMMIT_SHA::7}\`. Files with errors: ${FILES:-none found in the build log (a later step failed)}"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+

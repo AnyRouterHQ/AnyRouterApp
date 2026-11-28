@@ -138,3 +138,60 @@ jobs:
           name: TestResults
           path: TestResults.xcresult
           retention-days: 7
+
+  # The Simulator build above cannot see device-only code (MLX has no Simulator build), so a phone-only break once
+  # stayed green here and failed only in device-ipa (46128267685). This job compiles for a device, unsigned, no tests,
+  # beside build-test, so such a break turns this run red.
+  device-build:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then echo "No Xcode 26 on this runner"; ls /Applications | grep -i xcode; exit 1; fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Cache SwiftPM and device DerivedData
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            SourcePackages
+            DerivedDataDevice
+          key: spm-dd-device-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            spm-dd-device-${{ runner.os }}-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build for a device (unsigned, no tests)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project AnyRouter.xcodeproj -scheme AnyRouter \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath DerivedDataDevice \
+            -clonedSourcePackagesDirPath SourcePackages \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tee device-build.log | tail -n 100
+
+      - name: Device build errors
+        if: failure()
+        run: |
+          {
+            echo "## Device build failed"
+            echo ""
+            echo "Files with errors:"
+            echo '```'
+            grep -E "error:" device-build.log | sed -E 's|^.*/AnyRouterApp/||' | sort -u | cut -c1-300 | head -40 || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
