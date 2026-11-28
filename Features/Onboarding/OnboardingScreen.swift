@@ -35,11 +35,15 @@ struct OnboardingScreen: View {
                     .listRowBackground(Color.clear)
                     .padding(.vertical, 8)
                 }
+                // Plain rows on the page, as in Apple's welcome screens: no card, so rows of one and two lines keep their own
+                // height and no seam can show between cell backgrounds (screenshots 46091121132, 46107915397).
                 Section("Chat with") {
                     source("Apple Intelligence", detail: "Private and on device. No download.", icon: "apple.logo")
                     source("Local models", detail: "Download open models and run them on this device.", icon: "iphone")
                     source("AnyRouter cloud", detail: "Hundreds of cloud models with one account.", icon: "cloud")
                 }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
                 if case .failed(let reason, let mode) = flow {
                     Section {
                         Label(reason.text, systemImage: "exclamationmark.triangle")
@@ -62,13 +66,8 @@ struct OnboardingScreen: View {
         Label {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
-                // Two lines reserved on every row, so the three rows share one height: a two-line row between one-line
-                // rows left a 1 px black seam under its separator in dark mode (screenshots 46091121132).
-                Text(detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(2, reservesSpace: true)
+                Text(detail).font(.subheadline).foregroundStyle(.secondary)
             }
-            // Every separator starts under the text, as in a stock list; left to the default, the one under
-            // "Local models" ran to the edge (screenshots 46075429647).
-            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         } icon: {
             Image(systemName: icon).imageScale(.large)
         }
