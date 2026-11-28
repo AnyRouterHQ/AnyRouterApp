@@ -6,10 +6,17 @@ struct FamilyDetailView: View {
     let filter: FamilyFilter
 
     @Environment(AppState.self) private var app
+    @Environment(ModelStore.self) private var models
+
+    @State private var prompts = LocalModelPrompts()
+    @State private var detail: LocalModelEntry?
 
     private var device: String { DeviceName.current }
     private var variants: [LocalModelEntry] { FamilyLogic.variants(of: family, filter: filter) }
     private var recommendedID: String? { FamilyLogic.recommendedVariantID(in: family) }
+    private var actions: LocalModelActions {
+        LocalModelActions(hub: app.hub, models: models, memory: app.memory, prompts: prompts, device: device)
+    }
     private var brand: ModelBrand {
         family.variants.first.map { ModelBrand.resolve($0.descriptor) } ?? .unknown
     }
@@ -28,16 +35,22 @@ struct FamilyDetailView: View {
                 }
             }
             Section {
+                // One row per size with Get at its end, so a size downloads from here; the row opens its page.
                 ForEach(variants) { entry in
-                    NavigationLink {
-                        ModelDetailView(entry: entry)
-                    } label: {
-                        ModelRow(
-                            entry: entry,
-                            state: app.hub.downloadState(for: entry.id),
-                            note: entry.id == recommendedID ? "Recommended for this \(device)" : nil
-                        )
+                    let state = app.hub.downloadState(for: entry.id)
+                    HStack(spacing: 8) {
+                        Button { detail = entry } label: {
+                            ModelRow(entry: entry, state: state,
+                                     note: entry.id == recommendedID ? "Recommended for this \(device)" : nil)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .hoverEffect(.highlight)
+                        ModelGetAccessory(entry: entry, state: state) { actions.requestDownload(entry) }
                     }
+                    .swipeActions(edge: .trailing) { actions.swipe(entry, state: state) }
+                    .contextMenu { actions.menu(entry, state: state) }
                 }
             } header: {
                 Text("Sizes")
@@ -49,6 +62,8 @@ struct FamilyDetailView: View {
         }
         .navigationTitle(family.name)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(item: $detail) { ModelDetailView(entry: $0) }
+        .modifier(LocalModelDialogs(prompts: prompts, hub: app.hub, device: device))
         .overlay {
             if variants.isEmpty {
                 ContentUnavailableView("No size matches", systemImage: "cube",

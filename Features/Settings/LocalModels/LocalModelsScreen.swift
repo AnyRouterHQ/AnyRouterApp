@@ -111,7 +111,7 @@ struct LocalModelsScreen: View {
                     }
                     .buttonStyle(.plain)
                     .hoverEffect(.highlight)
-                    accessory(entry, state: state)
+                    ModelGetAccessory(entry: entry, state: state) { actions.requestDownload(entry) }
                 }
                 .swipeActions(edge: .trailing) { actions.swipe(entry, state: state) }
                 .contextMenu { actions.menu(entry, state: state) }
@@ -163,28 +163,6 @@ struct LocalModelsScreen: View {
     }
 
     // MARK: Rows
-
-    /// What stands at the end of a Featured row: Get, or a check once installed. A download in flight shows its own bar.
-    @ViewBuilder
-    private func accessory(_ entry: LocalModelEntry, state: DownloadState) -> some View {
-        switch state {
-        case .notInstalled, .failed:
-            if entry.unavailableReason == nil {
-                Button { actions.requestDownload(entry) } label: {
-                    Text("Get")
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.capsule)
-                // The stock small download capsule; the row around it is the 44 pt target.
-                .controlSize(.small)
-                .accessibilityLabel("Get \(entry.descriptor.displayName)")
-            }
-        case .installed:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.secondary).accessibilityLabel("Installed")
-        case .downloading, .paused, .verifying:
-            EmptyView()
-        }
-    }
 
     private func installedRow(_ entry: LocalModelEntry) -> some View {
         let state = hub.downloadState(for: entry.id)

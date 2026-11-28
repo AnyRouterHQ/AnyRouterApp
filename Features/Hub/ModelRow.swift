@@ -54,7 +54,7 @@ struct ModelRow: View {
     private var statusParts: [Text] {
         var parts: [Text] = []
         if let note { parts.append(Text(note).foregroundStyle(.tint)) }
-        if let fit = HubListOptions.fitStatus(entry, device: DeviceName.current) {
+        if let fit = HubListOptions.rowStatus(entry, device: DeviceName.current) {
             parts.append(Text(fit).foregroundStyle(ModelStatusColor.fit(entry)))
         }
         parts += entry.badges.map { Text($0.label).foregroundStyle(ModelStatusColor.badge($0.tone)) }
@@ -85,6 +85,34 @@ struct ModelRow: View {
         case .downloading(.none), .paused(.none), .verifying:
             ProgressView()
         case .notInstalled, .installed, .failed:
+            EmptyView()
+        }
+    }
+}
+
+/// What stands at the end of a row that offers a download: Get, or a check once installed. A download in flight shows its
+/// own bar in the row. Used by Featured in Local Models and the sizes of a model family.
+struct ModelGetAccessory: View {
+    let entry: LocalModelEntry
+    let state: DownloadState
+    let get: () -> Void
+
+    var body: some View {
+        switch state {
+        case .notInstalled, .failed:
+            if entry.unavailableReason == nil {
+                Button(action: get) {
+                    Text("Get")
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                // The stock small download capsule; the row around it is the 44 pt target.
+                .controlSize(.small)
+                .accessibilityLabel("Get \(entry.descriptor.displayName)")
+            }
+        case .installed:
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.secondary).accessibilityLabel("Installed")
+        case .downloading, .paused, .verifying:
             EmptyView()
         }
     }

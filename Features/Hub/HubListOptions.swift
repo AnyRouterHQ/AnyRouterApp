@@ -42,6 +42,13 @@ enum HubListOptions {
         }
     }
 
+    /// The fit line of a list row: nothing when the model runs well, so only a warning stands out. The model's own page
+    /// still says "Runs well" (`fitStatus`).
+    static func rowStatus(_ entry: LocalModelEntry, device: String) -> String? {
+        let runsWell = entry.unavailableReason == nil && (entry.fitDetail?.verdict ?? entry.fit) == .fits
+        return runsWell ? nil : fitStatus(entry, device: device)
+    }
+
     static func storageSummary(usedBytes: Int64, freeBytes: Int64?) -> String {
         var text = "Models use \(FitFormat.gigabytes(usedBytes))"
         if let freeBytes { text += " · \(FitFormat.gigabytes(freeBytes)) free" }

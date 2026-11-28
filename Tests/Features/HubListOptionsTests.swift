@@ -35,6 +35,18 @@ struct HubListOptionsTests {
         #expect(line.hasSuffix("· Uses ~3.1 GB"))
     }
 
+    /// Review #20: "Runs well" on every row of Local Models was noise. A row speaks only to warn; the model page keeps it.
+    @Test func aRowSaysNothingWhenTheModelRunsWellAndStillWarns() {
+        #expect(HubListOptions.rowStatus(entry("a", fit: .fits), device: "iPhone") == nil)
+        #expect(HubListOptions.fitStatus(entry("a", fit: .fits), device: "iPhone") == "Runs well")
+        #expect(HubListOptions.rowStatus(entry("a", fit: .tight), device: "iPhone") == "May be slow")
+        #expect(HubListOptions.rowStatus(entry("a", fit: .fits, unavailable: "needs a GPU"), device: "iPhone") == "needs a GPU")
+        var measured = entry("a", fit: .fits)
+        measured.fitDetail = FitDetail(verdict: .wontFit, neededBytes: 9, budgetBytes: 1, context: 0, maxReply: 0,
+                                       streamsFromStorage: false, isEstimate: false)
+        #expect(HubListOptions.rowStatus(measured, device: "iPad") == "Too big for this iPad", "the measured verdict wins")
+    }
+
     @Test func fitStatusPrefersUnavailableReasonThenVerdict() {
         #expect(HubListOptions.fitStatus(entry("a", unavailable: "needs a GPU"), device: "iPhone") == "needs a GPU")
         #expect(HubListOptions.fitStatus(entry("a", fit: .tight), device: "iPhone") == "May be slow")
