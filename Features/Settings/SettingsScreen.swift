@@ -86,6 +86,7 @@ struct SettingsDestinationView: View {
             case .integrations: IntegrationsSettingsView()
             case .chatBehavior: ChatBehaviorSettings()
             case .memory: MemorySettings()
+            case .skills: SkillsSettings()
             case .shortcuts: ShortcutsSettings()
             case .theme: ThemeSettings()
             case .about: AboutSettings()

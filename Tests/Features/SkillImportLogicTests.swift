@@ -6,6 +6,10 @@ struct SkillImportLogicTests {
     private let markdown = ["Content-Type": "text/markdown; charset=utf-8"]
     private let file = "---\nname: bill-splitter\ndescription: Split a bill.\n---\n1. Ask who paid."
 
+    private func check(url: URL? = URL(string: "https://example.com/x"), status: Int = 200, type: String? = "text/markdown", length: Int64 = 10) throws {
+        try SkillImportLogic.check(finalURL: url, status: status, contentType: type, length: length)
+    }
+
     private func importer(_ api: StubbedAPI) -> SkillImporter { SkillImporter(session: api.session) }
     private func link(_ api: StubbedAPI) -> URL { URL(string: "https://\(api.host)/SKILL.md")! }
 
@@ -18,10 +22,6 @@ struct SkillImportLogicTests {
     }
 
     @Test func aResponseMustBeHTTPSSuccessfulTextAndSmall() throws {
-        let https = URL(string: "https://example.com/x")
-        func check(url: URL? = https, status: Int = 200, type: String? = "text/markdown", length: Int64 = 10) throws {
-            try SkillImportLogic.check(finalURL: url, status: status, contentType: type, length: length)
-        }
         try check()
         try check(type: "text/plain; charset=UTF-8")
         try check(type: " TEXT/Markdown ;x=y", length: -1)

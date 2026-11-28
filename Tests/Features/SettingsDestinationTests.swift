@@ -13,9 +13,9 @@ struct SettingsDestinationTests {
         let rows = SettingsDestination.Group.allCases.map { group in (group.title, group.destinations.map(\.title)) }
         #expect(rows.map(\.0) == ["Models", "Chat", "App"])
         #expect(rows[0].1 == ["Local Models", "AnyRouter Models"])
-        #expect(rows[1].1 == ["Responses", "Presets", "Memory", "Integrations", "Chat Behavior"])
+        #expect(rows[1].1 == ["Responses", "Presets", "Memory", "Skills", "Integrations", "Chat Behavior"])
         #expect(rows[2].1 == ["Shortcuts & Controls", "Theme", "Privacy", "About"])
-        #expect(rows.flatMap(\.1).count <= 11, "the root list stays short enough for one iPhone screen")
+        #expect(rows.flatMap(\.1).count <= 12, "the root list stays short enough for one iPhone screen")
     }
 
     @Test func aboutHoldsDiagnosticsTermsAndLicenses() {
@@ -33,6 +33,7 @@ struct SettingsDestinationTests {
         #expect(SettingsDestination.presets.group == .chat)
         #expect(SettingsDestination.memory.group == .chat)
         #expect(SettingsDestination.memory.title == "Memory")
+        #expect(SettingsDestination.skills.group == .chat && SettingsDestination.skills.title == "Skills")
     }
 
     @Test func shortcutsPageNamesEveryEntryPointWithHowToAddIt() {
