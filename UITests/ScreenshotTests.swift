@@ -239,10 +239,10 @@ final class ScreenshotTests: XCTestCase {
             XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
             let more = app.descendants(matching: .any)["composer.suggestion.more"]
             XCTAssertTrue(more.waitForExistence(timeout: 10), "the More menu ends the row")
-            // The starter cards are wide, so More sits past the screen edge until the row is scrolled.
-            let row = app.descendants(matching: .any)["composer.suggestions"]
-            var swipes = 0
-            while !more.isHittable && swipes < 6 { row.swipeLeft(); swipes += 1 }
+            // More stays in view beside the scrolling cards, so Edit Presets… needs no scroll, and it is a full hit area.
+            XCTAssertTrue(more.isHittable, "More is reachable without scrolling the cards")
+            XCTAssertGreaterThanOrEqual(more.frame.width, 44, "More is at least 44 pt wide")
+            XCTAssertGreaterThanOrEqual(more.frame.height, 44, "More is at least 44 pt tall")
             more.tap()
             XCTAssertTrue(app.descendants(matching: .any)["composer.suggestion.edit"].waitForExistence(timeout: 5), "Edit Presets is in the menu")
             capture("composer-more-menu", appearance)

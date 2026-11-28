@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The one row above the composer: on an empty chat, two-line starter cards; for a copy or a paste, one-line chips.
-/// Both are glass like the controls beside the field, and a More menu ends the row. What shows, and in what order, is
-/// decided by `ComposerSuggestionLogic`.
+/// Both are glass like the controls beside the field. The chips scroll; the More menu (and Hide) stay at the end of the
+/// row, in view. What shows, and in what order, is decided by `ComposerSuggestionLogic`.
 struct ComposerSuggestionsRow: View {
     let suggestions: ComposerSuggestions
     let presets: PresetStore
@@ -12,41 +12,48 @@ struct ComposerSuggestionsRow: View {
     var onEditPresets: () -> Void
     var onDismiss: () -> Void
     @ScaledMetric(relativeTo: .subheadline) private var cardRadius: CGFloat = 18
+    @ScaledMetric(relativeTo: .subheadline) private var moreSide: CGFloat = 44
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(suggestions.items) { item in
-                    switch item {
-                    case .clipboard(let kind): clipboardChip(kind)
-                    case .preset(let preset):
-                        if suggestions.mode == .starters { starterCard(preset) } else { presetChip(preset) }
-                    case .more: moreMenu
+        HStack(spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(suggestions.items.filter { $0 != .more }) { item in
+                        switch item {
+                        case .clipboard(let kind): clipboardChip(kind)
+                        case .preset(let preset):
+                            if suggestions.mode == .starters { starterCard(preset) } else { presetChip(preset) }
+                        case .more: EmptyView()
+                        }
                     }
-                }
-                // Starters belong to the empty chat and go away on their own. A clipboard or paste offer can be waved off.
-                if suggestions.mode != .starters {
-                    // A glyph on every device; the close role drew a "Close" text button on iPad.
-                    Button(action: onDismiss) {
-                        Label("Hide suggestions", systemImage: "xmark").labelStyle(.iconOnly)
-                    }
-                    .buttonStyle(.glass)
-                    .buttonBorderShape(.circle)
-                    .controlSize(.regular)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .accessibilityIdentifier("composer.suggestion.hide")
                 }
             }
+            // Room for the glass edge now that the row clips, without changing the row's height.
+            .contentMargins(.vertical, 4, for: .scrollContent)
+            .padding(.vertical, -4)
+            // From the screen's leading edge, with the first chip on the page margin (the edge of the + button), so a card
+            // cut where the row meets More says the row scrolls. No fade mask: placed after the negative padding, its frame
+            // was the inset slot, so it cut the cards' shadows into a hard grey band (screenshots 46075429647).
+            .contentMargins(.leading, ARTheme.pagePadding, for: .scrollContent)
+            .padding(.leading, -ARTheme.pagePadding)
+            // On the scroll view, not the HStack: an HStack would hand this id down to every chip.
+            .accessibilityIdentifier("composer.suggestions")
+
+            // Outside the scroll, so More (and its Edit Presets…) is reachable without scrolling past every card.
+            if suggestions.items.contains(.more) { moreMenu }
+            // Starters belong to the empty chat and go away on their own. A clipboard or paste offer can be waved off.
+            if suggestions.mode != .starters {
+                // A glyph on every device; the close role drew a "Close" text button on iPad.
+                Button(action: onDismiss) {
+                    Label("Hide suggestions", systemImage: "xmark").labelStyle(.iconOnly)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .controlSize(.regular)
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityIdentifier("composer.suggestion.hide")
+            }
         }
-        // Room for the glass edge now that the row clips, without changing the row's height.
-        .contentMargins(.vertical, 4, for: .scrollContent)
-        .padding(.vertical, -4)
-        // Edge to edge, with the first chip on the page margin (the edge of the + button), so a card cut at the screen
-        // edge says the row scrolls. No fade mask: placed after the negative padding, its frame was the inset slot, so
-        // it cut the cards' shadows into a hard grey band from the margin on (screenshots 46075429647).
-        .contentMargins(.horizontal, ARTheme.pagePadding, for: .scrollContent)
-        .padding(.horizontal, -ARTheme.pagePadding)
-        .accessibilityIdentifier("composer.suggestions")
     }
 
     /// What was copied, by kind, in the same glass as the presets. Tapping it puts the copy in the composer.
@@ -124,13 +131,16 @@ struct ComposerSuggestionsRow: View {
                     .accessibilityIdentifier("composer.suggestion.edit")
             }
         } label: {
-            Label("More presets", systemImage: "ellipsis").labelStyle(.iconOnly)
+            // Glass on the label, like the composer's +: the circle is the whole 44 pt hit area. A glass button style
+            // drew a circle around the glyph only (42 × 19 pt) and an outer frame added space, not hit area.
+            Label("More presets", systemImage: "ellipsis")
+                .labelStyle(.iconOnly)
+                .foregroundStyle(.primary)
+                .frame(width: moreSide, height: moreSide)
+                .glassEffect(.regular.interactive(), in: .circle)
+                .contentShape(.circle)
         }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .controlSize(.regular)
         .chipOutline(.circle)
-        .frame(minWidth: 44, minHeight: 44)
         .accessibilityIdentifier("composer.suggestion.more")
     }
 
