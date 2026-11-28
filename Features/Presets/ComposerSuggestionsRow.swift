@@ -43,14 +43,18 @@ struct ComposerSuggestionsRow: View {
             if suggestions.items.contains(.more) { moreMenu }
             // Starters belong to the empty chat and go away on their own. A clipboard or paste offer can be waved off.
             if suggestions.mode != .starters {
-                // A glyph on every device; the close role drew a "Close" text button on iPad.
+                // A glyph on every device; the close role drew a "Close" text button on iPad. Glass on the label, like
+                // More, so the circle is the whole 44 pt hit area.
                 Button(action: onDismiss) {
-                    Label("Hide suggestions", systemImage: "xmark").labelStyle(.iconOnly)
+                    Label("Hide suggestions", systemImage: "xmark")
+                        .labelStyle(.iconOnly)
+                        .foregroundStyle(.primary)
+                        .frame(width: moreSide, height: moreSide)
+                        .glassEffect(.regular.interactive(), in: .circle)
+                        .contentShape(.circle)
                 }
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
-                .controlSize(.regular)
-                .frame(minWidth: 44, minHeight: 44)
+                .buttonStyle(.plain)
+                .chipOutline(.circle)
                 .accessibilityIdentifier("composer.suggestion.hide")
             }
         }
