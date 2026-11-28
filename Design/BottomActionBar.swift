@@ -1,8 +1,9 @@
 import SwiftUI
 
 extension View {
-    /// The screen's one primary action at the bottom: a large prominent glass button in the safe-area bar, so the list
-    /// scrolls under it with the system's edge effect instead of a painted band. `accessory` sits above the button (a
+    /// The screen's one primary action at the bottom: a large prominent glass button in the safe-area bar. Like a
+    /// safeAreaInset it insets the list, so the last row scrolls fully above the button; the hard bottom edge effect
+    /// keeps rows from showing through around it (screenshots 46140428971 showed "no parking" under Run). `accessory` sits above the button (a
     /// reason it is disabled, secondary actions).
     func bottomActionBar<ButtonLabel: View, Accessory: View>(
         id: String, isEnabled: Bool, action: @escaping () -> Void,
@@ -10,7 +11,7 @@ extension View {
     ) -> some View {
         let label = label()
         let accessory = accessory()
-        return safeAreaBar(edge: .bottom) {
+        return scrollEdgeEffectStyle(.hard, for: .bottom).safeAreaBar(edge: .bottom) {
             VStack(spacing: 8) {
                 accessory
                 // A disabled prominent button with the mono tint drew white on white in light mode (screenshots
