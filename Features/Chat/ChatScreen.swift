@@ -342,7 +342,7 @@ private struct ChatContent: View {
                                 spacing: rowSpacing, trailing: rowSpacing + 1 + listPadding),
                             alignment: .top)
                     } else if message.id == lastQuestionID {
-                        row.onGeometryChange(for: CGFloat.self) { $0.size.height.rounded() } action: { questionHeight = $0 }
+                        row.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { questionHeight = $0 }
                     } else {
                         row
                     }
@@ -380,11 +380,8 @@ private struct ChatContent: View {
         // While following, rows that finish their layout late (lazy rows, photos) keep the end on screen; after a send the
         // question stays put instead (screenshots 46014514092 opened the reply-parts thread above its end without this).
         .defaultScrollAnchor(following ? .bottom : nil, for: .sizeChanges)
-        // Whole points, here and for the question's height: the last row's minimum height is made from both, so a
-        // sub-point change fed back into the layout. A host sample of a 4-message thread (perf 46097287521) showed the
-        // main thread laying out the LazyVStack and its min-height frame without end, and XCUITest timing out.
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            (geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom).rounded()
+            geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
         } action: { _, height in
             visibleHeight = height
         }
