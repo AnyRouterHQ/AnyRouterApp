@@ -185,6 +185,9 @@ private struct ChatContent: View {
     /// The list's height without the bars over it, and the height of the last question (see `ScrollFollow.settle`).
     @State private var visibleHeight: CGFloat = 0
     @State private var questionHeight: CGFloat = 0
+    /// The sent question that holds the top of the view (D27) until the reader scrolls. Layout after the send (the new rows,
+    /// the keyboard going down, the reply growing) moves the content under it, so the list scrolls back to it each time.
+    @State private var anchoredQuestion: UUID?
     @ScaledMetric(relativeTo: .subheadline) private var greetingLogoSize: CGFloat = 15
 
     var body: some View {
@@ -300,16 +303,16 @@ private struct ChatContent: View {
         switch ScrollFollow.settle(after: event, lastQuestionID: lastQuestionID) {
         case .question(let id):
             following = false
+            anchoredQuestion = id
             // A send puts the keyboard down, so the question and its reply get the whole view (manager, 2026-11-28). A send
             // adds the question and the empty reply together, so the event is a change of messages, not "last is a question".
             if case .messagesChanged = event { composerFocused = false }
-            // The question's row is not laid out in the update that added it, so scrolling to it there found no target and
-            // the view stayed where it was (verify-ui 46150715558, anchor PNGs). Scroll once that layout is done, without an
-            // animation: the keyboard going down at the same moment cut an animated scroll short on iPhone and iPad mini
-            // (verify-ui 46154947700: the question stopped at 641 pt; the iPad Pro, with no keyboard, settled).
-            Task { proxy.scrollTo(id, anchor: .top) }
+            // Often a no-op: the rows are not laid out yet in this update (verify-ui 46150715558). The content size and
+            // visible height changes that follow scroll to the anchored question again.
+            proxy.scrollTo(id, anchor: .top)
         case .bottom:
             following = true
+            anchoredQuestion = nil
             proxy.scrollTo("bottom", anchor: .bottom)
         case .stay:
             break
@@ -399,14 +402,21 @@ private struct ChatContent: View {
             geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
         } action: { _, height in
             visibleHeight = height
+            if let anchoredQuestion { proxy.scrollTo(anchoredQuestion, anchor: .top) }
         }
         // Rows that finish their layout late (photo and file cards, text views) grew the end of the chat after it opened,
         // so the "Reply parts" thread opened about 250 pt short of its end (lane B, screenshots 46075429647). While
         // following, any growth of the content keeps the end on screen.
         .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { old, new in
-            if following, new > old { proxy.scrollTo("bottom", anchor: .bottom) }
+            if let anchoredQuestion {
+                proxy.scrollTo(anchoredQuestion, anchor: .top)
+            } else if following, new > old {
+                proxy.scrollTo("bottom", anchor: .bottom)
+            }
         }
         .onScrollPhaseChange { old, new in
+            // The reader's own scroll lets go of the anchored question.
+            if new == .tracking || new == .interacting { anchoredQuestion = nil }
             following = ScrollFollow.following(from: old, to: new, atBottom: atBottom, was: following)
         }
         // A send or a regenerate puts the question at the top while the reply streams; anything else shows the end.
@@ -422,6 +432,7 @@ private struct ChatContent: View {
             if ScrollFollow.showsJumpButton(following: following, atBottom: atBottom) {
                 Button {
                     following = true
+                    anchoredQuestion = nil
                     proxy.scrollTo("bottom", anchor: .bottom)
                 } label: {
                     Label("Jump to latest", systemImage: "arrow.down").labelStyle(.iconOnly)
