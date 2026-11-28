@@ -224,7 +224,7 @@ Ids are stable. Delete a line when the task is done.
 - U9 Picker and Hub lists: lazy containers, sections cached in `ModelStore`, a 150 ms search debounce, per-card progress observation (M4).
 - U14 Accessibility: copy and regenerate as accessibility actions, model pill value, header traits, Reduce Motion for `TypingDots`, a reply-finished announcement, zero audit issues on the main screens. U23 Status and error text at 4.5:1 contrast (`.secondary` is for captions). U25 Dynamic Type audit at the largest accessibility size on home, chat, picker and Settings.
 - U15 Thread search with a predicate fetch and debounce, once a measurement shows a need. U17 Deep links and an opt-in Spotlight index. U18 Chunked SSE read, only if M3 on the real SSE path shows it.
-- U21 Map the server's sign-in failure text to one plain line and keep the raw text behind it. U24 The Hub "Pause" button takes the app tint (orange is for the tight-fit status only).
+- U24 The Hub "Pause" button takes the app tint (orange is for the tight-fit status only).
 - Accessibility audit, still open: preset chips clip at AccessibilityXL; picker rows truncate names at AccessibilityXL; the response-details row clips. Re-audit the rest with `gh workflow run verify-ui.yml`.
 - Review findings left: diagnostics sharing defaults on whenever a DSN is built in (default it off and ask once); `fatalError` when the store fails to open and no versioned schema exists; `Records.swift` decodes JSON on every access; per-byte reads in the AnyRouter SSE loop, `MCPClient.read` and `FetchURLTool`; loopback connections are not tracked or timed out; the picker refreshes only on sign-in; `device-ipa.yml` builds a second device IPA after every main CI run (macOS minutes cost 10x).
 

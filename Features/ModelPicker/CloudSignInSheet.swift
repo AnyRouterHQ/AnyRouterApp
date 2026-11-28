@@ -18,7 +18,7 @@ struct CloudSignInSheet: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            if let error { Text(error).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center) }
+            if let error { SignInFailureNotice(raw: error) }
             VStack(spacing: 8) {
                 Button { signIn(.signIn) } label: { Text("Sign in").prominentLabel().frame(maxWidth: .infinity) }
                     .buttonStyle(.borderedProminent)

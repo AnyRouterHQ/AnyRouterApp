@@ -97,7 +97,7 @@ struct AnyRouterModelsScreen: View {
                 Label("Sign in to use cloud models", systemImage: "cloud")
             } description: {
                 Text("AnyRouter picks the best model for each message.")
-                if let signInError { Text(signInError).foregroundStyle(.red) }
+                if let signInError { SignInFailureNotice(raw: signInError) }
             } actions: {
                 Button { signIn() } label: { Text("Sign in with AnyRouter").prominentLabel() }.buttonStyle(.borderedProminent)
             }

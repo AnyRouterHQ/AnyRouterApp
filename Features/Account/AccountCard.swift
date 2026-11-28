@@ -50,8 +50,7 @@ struct AccountCard: View {
         .buttonStyle(.bordered)
         .controlSize(.large)
         if let signInError {
-            // Plain, neutral text: server details are not shown to the user.
-            Text(signInError).font(.footnote).foregroundStyle(.secondary)
+            SignInFailureNotice(raw: signInError, tint: .secondary)
             Button("Try again") { signIn(.signIn) }
         }
     }
