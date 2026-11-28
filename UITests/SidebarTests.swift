@@ -95,12 +95,15 @@ final class SidebarTests: XCTestCase {
 
         let pinned = list.staticTexts["Trip ideas for Lisbon"], recents = list.staticTexts["Recents"]
         XCTAssertTrue(pinned.exists && recents.exists)
-        XCTAssertLessThan(recents.frame.midY - pinned.frame.midY, 70, "a section title follows the last row closely")    }
+        XCTAssertLessThan(recents.frame.midY - pinned.frame.midY, 56, "a section title follows the last row closely")
+    }
 
-    func testMoreHoldsApps() {
+    func testAppsRowSitsUnderSearch() {
         let app = launch()
         let row = app.buttons["sidebar-apps"]
         app.revealSidebar(whenVisible: row)
+        let search = app.buttons["sidebar.search"]
+        XCTAssertEqual(row.frame.minY, search.frame.maxY, accuracy: 4, "Apps is the row right under Search, not a section of its own")
         row.tap()
         XCTAssertTrue(app.navigationBars["Apps"].waitForExistence(timeout: 10))
     }

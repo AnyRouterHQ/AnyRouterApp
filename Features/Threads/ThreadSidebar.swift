@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// Sidebar: the app name over a plain list (search, pinned and recent chats, more places) and a bottom bar with
+/// Sidebar: the app name over a plain list (search, Apps, pinned and recent chats) and a bottom bar with
 /// Settings and New chat. On iPhone it fills the drawer, on iPad the split-view column.
 struct ThreadSidebar: View {
     /// True when shown as a drawer over the chat (iPhone). Picking something then closes it.
@@ -56,6 +56,7 @@ struct ThreadSidebar: View {
             .buttonStyle(.plain)
             .rowInsets()
             .accessibilityIdentifier("sidebar.search")
+            appsRow
             if sections.isEmpty {
                 Text("No chats yet")
                     .foregroundStyle(.secondary)
@@ -72,16 +73,17 @@ struct ThreadSidebar: View {
                         HStack(spacing: 4) { Text("View all"); Image(systemName: "chevron.right").imageScale(.small) }
                             .frame(minWidth: 44, minHeight: rowHeight)
                             .contentShape(.rect)
+                            // The 44 pt target reaches into the gaps above and below, so the title row stays short.
+                            .padding(.vertical, -6)
                     }
                     .accessibilityIdentifier("sidebar.viewall")
                 }
                 rows(sections.recent)
             }
-            header("More")
-            moreRows
         }
         .listStyle(.plain)
-        .environment(\.defaultMinListRowHeight, rowHeight)
+        // Rows set their own 44 pt; the section titles stay as short as their text.
+        .environment(\.defaultMinListRowHeight, 0)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .top, spacing: 0) { titleRow }
         .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
@@ -91,14 +93,13 @@ struct ThreadSidebar: View {
     private var titleRow: some View {
         HStack {
             Text("AnyRouter")
-                .font(.title2.bold())
+                .font(.title3.bold())
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("sidebar.header")
             Spacer()
-            ARLogoMark(size: 28).foregroundStyle(.primary).accessibilityHidden(true)
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
     }
 
     /// Section titles are rows, not `Section` headers: a plain list puts about 22 pt above each header that SwiftUI
@@ -107,16 +108,16 @@ struct ThreadSidebar: View {
         _ title: LocalizedStringKey, @ViewBuilder trailing: () -> Trailing = { EmptyView() }
     ) -> some View {
         HStack {
-            // Primary, not secondary: the accessibility audit reads secondary at this size as "contrast nearly passed".
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(.secondary)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             trailing().font(.subheadline)
         }
+        .frame(minHeight: 32)
         .padding(.horizontal, 8)
-        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 0, trailing: 12))
+        .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 0, trailing: 12))
         .listRowSeparator(.hidden)
         .selectionDisabled()
     }
@@ -153,7 +154,7 @@ struct ThreadSidebar: View {
         .padding(.vertical, 8)
     }
 
-    private var moreRows: some View {
+    private var appsRow: some View {
         Button { shell.open(.apps, closeSidebar: isDrawer) } label: {
             Label("Apps", systemImage: "square.grid.2x2")
                 .fixedSize(horizontal: false, vertical: true)
@@ -173,10 +174,11 @@ struct ThreadSidebar: View {
                 .frame(minHeight: rowHeight)
                 .rowInsets()
                 .tag(thread.id)
-                // A plain list does not mark the open chat on iPhone, so the row paints its own highlight.
+                // A plain list does not mark the open chat on iPhone, so the drawer paints the system fill inside the row's
+                // margins; the iPad column keeps the list's own selection.
                 .listRowBackground(
-                    thread.id == shell.selectedThreadID
-                        ? Color(.quaternarySystemFill).clipShape(.rect(cornerRadius: 12)) : nil
+                    isDrawer && thread.id == shell.selectedThreadID
+                        ? Color(.quaternarySystemFill).clipShape(.rect(cornerRadius: 12)).padding(.horizontal, 8) : nil
                 )
                 .threadActions(thread, editing: $editing)
         }
