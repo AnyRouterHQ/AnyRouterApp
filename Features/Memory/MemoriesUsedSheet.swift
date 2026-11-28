@@ -14,20 +14,18 @@ struct MemoriesUsedSheet: View {
             List {
                 Section {
                     ForEach(hits, id: \.memoryID) { hit in
-                        HStack {
-                            Text(hit.text)
-                                .foregroundStyle(forgotten.contains(hit.memoryID) ? .secondary : .primary)
-                                .strikethrough(forgotten.contains(hit.memoryID))
-                            Spacer()
-                            if !forgotten.contains(hit.memoryID) {
-                                Button("Forget", role: .destructive) { forget(hit) }
-                                    .buttonStyle(.borderless)
-                                    .accessibilityIdentifier("memory.forget")
+                        Text(hit.text)
+                            .foregroundStyle(forgotten.contains(hit.memoryID) ? .secondary : .primary)
+                            .strikethrough(forgotten.contains(hit.memoryID))
+                            .swipeActions {
+                                if !forgotten.contains(hit.memoryID) {
+                                    Button("Forget", role: .destructive) { forget(hit) }
+                                        .accessibilityIdentifier("memory.forget")
+                                }
                             }
-                        }
                     }
                 } footer: {
-                    Text(failure ?? "These were in front of your question for this reply. Forget removes one from memory.")
+                    Text(failure ?? "These were in front of your question for this reply. Swipe one to forget it.")
                 }
             }
             .navigationTitle("Memories used")
