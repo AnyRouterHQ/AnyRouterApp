@@ -3,7 +3,7 @@ import os
 /// Signposts for the performance baseline (PLAN § Native UX & performance). Free when nothing is listening.
 /// Names are read by `UITests/PerformanceTests.swift`; rename them in both places.
 enum Perf {
-    static let signposter = OSSignposter(subsystem: "dev.anyrouter.app", category: "perf")
+    static let signposter = OSSignposter(subsystem: "oneni.anyr.app", category: "perf")
 
     /// Time from process start of our code to the first usable model. Begun in `ModelStore.init`, ended once.
     @MainActor private static var modelsState: OSSignpostIntervalState?

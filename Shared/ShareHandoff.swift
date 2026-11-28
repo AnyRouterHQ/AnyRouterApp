@@ -49,7 +49,7 @@ struct SharedPayload: Codable, Equatable, Identifiable, Sendable {
 /// The folder in the shared App Group container where shares wait for the app. One folder per share, with
 /// `payload.json` and the files next to it.
 struct ShareInbox: Sendable {
-    static let groupID = "group.dev.anyrouter.app"
+    static let groupID = "group.oneni.anyr.app"
     private static let payloadName = "payload.json"
 
     let root: URL

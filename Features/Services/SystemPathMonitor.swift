@@ -14,7 +14,7 @@ final class SystemPathMonitor: PathMonitoring {
             let online = path.status == .satisfied
             Task { @MainActor in update(online) }
         }
-        monitor.start(queue: DispatchQueue(label: "dev.anyrouter.app.network"))
+        monitor.start(queue: DispatchQueue(label: "oneni.anyr.app.network"))
         self.monitor = monitor
     }
 

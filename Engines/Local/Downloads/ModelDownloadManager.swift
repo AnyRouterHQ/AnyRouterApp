@@ -9,7 +9,7 @@ import Observation
 /// and call `restore()` once at launch.
 @MainActor @Observable
 final class ModelDownloadManager {
-    static let sessionIdentifier = "dev.anyrouter.app.models"
+    static let sessionIdentifier = "oneni.anyr.app.models"
 
     private(set) var states: [String: ModelDownloadState] = [:]
     /// Downloads that reached `installed` in this run, for a success tap. Reading installs from disk does not count.

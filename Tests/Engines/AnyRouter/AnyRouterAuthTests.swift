@@ -217,7 +217,7 @@ struct KeychainStoreTests {
 struct SystemKeychainTests {
     /// An unsigned Simulator build has no Keychain access, so only what a working Keychain must do is asserted.
     @Test func writesReadsAndDeletesWithoutCrashing() {
-        let keychain = SystemKeychain(service: "dev.anyrouter.tests.\(UUID().uuidString)")
+        let keychain = SystemKeychain(service: "oneni.anyr.tests.\(UUID().uuidString)")
         #expect(keychain.read("account") == nil)
         if keychain.write("account", "secret") { #expect(keychain.read("account") == "secret") }
         #expect(keychain.write("account", nil))
@@ -225,7 +225,7 @@ struct SystemKeychainTests {
     }
 
     @Test func theDefaultStoreUsesTheSystemKeychain() {
-        let store = KeychainStore(service: "dev.anyrouter.tests.\(UUID().uuidString)")
+        let store = KeychainStore(service: "oneni.anyr.tests.\(UUID().uuidString)")
         store.clear()
         #expect(store.token() == nil)
     }

@@ -460,7 +460,7 @@ enum DemoData {
     /// Replaces the real engines, hub, account and settings with fakes. Nothing here touches the network.
     @MainActor
     static func install(registry: EngineRegistry) -> (settings: AppSettings, models: ModelStore, hub: any ModelHubService, account: any AccountService) {
-        let suite = "dev.anyrouter.app.demo"
+        let suite = "oneni.anyr.app.demo"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         if !UserDefaults.standard.bool(forKey: "ARDemoKeepSettings") { defaults.removePersistentDomain(forName: suite) }
         let settings = AppSettings(defaults: defaults)

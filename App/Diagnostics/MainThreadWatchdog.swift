@@ -5,7 +5,7 @@ import os
 /// Finds main-thread hangs without waking the device while the app is idle. A run loop observer on the main thread
 /// notes when the main thread wakes up and when it goes back to sleep; a background thread sleeps until the main
 /// thread wakes, then checks every 50 ms for as long as it stays busy. A stall is logged (subsystem
-/// `dev.anyrouter.app`, category `hang`) and kept for Settings > Diagnostics. It reads nothing from the app's state,
+/// `oneni.anyr.app`, category `hang`) and kept for Settings > Diagnostics. It reads nothing from the app's state,
 /// so it cannot cause a hang itself. (An earlier version ran a 50 ms timer on the main thread and a 50 ms loop on a
 /// second thread forever: 40 wake-ups a second while the app sat idle.)
 final class MainThreadWatchdog: @unchecked Sendable {
@@ -28,7 +28,7 @@ final class MainThreadWatchdog: @unchecked Sendable {
     private var started = false
     /// While the app is in the background the system may suspend every thread, so a long gap is not a hang.
     private var inBackground = false
-    private let log = Logger(subsystem: "dev.anyrouter.app", category: "hang")
+    private let log = Logger(subsystem: "oneni.anyr.app", category: "hang")
 
     /// Newest first.
     var recent: [MainThreadStall] { lock.withLock { Array(stalls.reversed()) } }
@@ -63,7 +63,7 @@ final class MainThreadWatchdog: @unchecked Sendable {
         CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
         let thread = Thread { [weak self] in self?.watch() }
         thread.qualityOfService = .utility
-        thread.name = "dev.anyrouter.watchdog"
+        thread.name = "oneni.anyr.watchdog"
         thread.start()
     }
 

@@ -6,7 +6,7 @@ import XCTest
 /// Signpost names come from `App/Perf.swift`.
 @MainActor
 final class PerformanceTests: XCTestCase {
-    private static let subsystem = "dev.anyrouter.app"
+    private static let subsystem = "oneni.anyr.app"
     private static let category = "perf"
 
     private func signpost(_ name: String) -> XCTOSSignpostMetric {

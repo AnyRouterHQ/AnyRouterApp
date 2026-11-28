@@ -13,7 +13,7 @@ struct ControlsBundle: WidgetBundle {
 
 struct NewChatControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
-        StaticControlConfiguration(kind: "dev.anyrouter.app.controls.new-chat") {
+        StaticControlConfiguration(kind: "oneni.anyr.app.controls.new-chat") {
             ControlWidgetButton(action: NewChatControlIntent()) {
                 Label("New chat", systemImage: "square.and.pencil")
             }
@@ -25,7 +25,7 @@ struct NewChatControl: ControlWidget {
 
 struct VoiceControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
-        StaticControlConfiguration(kind: "dev.anyrouter.app.controls.voice") {
+        StaticControlConfiguration(kind: "oneni.anyr.app.controls.voice") {
             ControlWidgetButton(action: VoiceControlIntent()) {
                 Label("Voice", systemImage: "waveform")
             }
@@ -37,7 +37,7 @@ struct VoiceControl: ControlWidget {
 
 struct PasteAndFixControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
-        StaticControlConfiguration(kind: "dev.anyrouter.app.controls.paste-and-fix") {
+        StaticControlConfiguration(kind: "oneni.anyr.app.controls.paste-and-fix") {
             ControlWidgetButton(action: PasteAndFixControlIntent()) {
                 Label("Paste & fix", systemImage: "text.badge.checkmark")
             }

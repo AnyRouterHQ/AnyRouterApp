@@ -10,7 +10,7 @@ What the AnyRouter app collects, where it goes, and how to turn it off.
 
 ## On the device only
 
-- **Logs.** `os.Logger` with the categories `auth`, `chat`, `engine`, `download`, `mcp` and `app`, subsystem `dev.anyrouter.app`. They stay in the system log.
+- **Logs.** `os.Logger` with the categories `auth`, `chat`, `engine`, `download`, `mcp` and `app`, subsystem `oneni.anyr.app`. They stay in the system log.
 - **Crash, hang and metric reports.** iOS (MetricKit) hands the app reports about crashes, hangs, CPU and disk exceptions, and daily metrics, usually the day after. The app keeps the newest 20 as JSON in its own storage. See them in **Settings, Diagnostics**, and share one with the share button. Nothing is sent unless you share it. They are deleted with the app.
 
 ## Optional remote reporting (Sentry)

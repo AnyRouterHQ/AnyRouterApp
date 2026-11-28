@@ -23,7 +23,7 @@ A native SwiftUI app **AnyRouter** for iPhone and iPad that follows a reference 
 | D3 | Both GGUF (llama.cpp) and MLX engines behind one `ChatEngine` protocol | Operator choice |
 | D4 | Milestone 1 = TestFlight internal build | Operator choice. Automatic signing with an App Store Connect API key; needs 4 secrets and an app record (see Open questions). |
 | D5 | iOS/iPadOS 26.0 minimum, universal app (iPhone + iPad) | FoundationModels needs 26. One target. |
-| D6 | Bundle id `dev.anyrouter.app`, display name `AnyRouter` | Matches the `dev.anyrouter.*` family. |
+| D6 | Bundle id `oneni.anyr.app`, display name `AnyRouter` | The family is now `oneni.anyr.*` (was `dev.anyrouter.*`). |
 | D7 | XcodeGen `project.yml`, no committed `.xcodeproj` | Parallel lanes add files without pbxproj conflicts. |
 | D8 | CI on GitHub Actions macOS runners is the only build | Operator Mac has no Xcode and a no-local-build rule. |
 | D9 | OAuth: dynamic client registration (`/api/v1/mcp/oauth/register`) + PKCE + loopback `127.0.0.1` callback via `ASWebAuthenticationSession` | Pattern proven on device in an earlier AnyRouter iOS prototype; the server rejects custom URL schemes. |
@@ -129,7 +129,7 @@ Tests/                           each lane under Tests/<Lane folder>/
 Run at most 3 lanes at once. Lane A merges first (B and C may start in parallel and rebase onto A).
 
 ### Lane A — scaffold, core, CI (model: sonnet-low)
-- [x] A1 `project.yml`: app target `AnyRouter` (iOS 26, iPhone+iPad, `dev.anyrouter.app`), test target, SPM packages section, Release: `DEAD_CODE_STRIPPING=YES`, `SWIFT_COMPILATION_MODE=wholemodule`, `-Osize` only if it measurably shrinks the IPA (#1)
+- [x] A1 `project.yml`: app target `AnyRouter` (iOS 26, iPhone+iPad, `oneni.anyr.app`), test target, SPM packages section, Release: `DEAD_CODE_STRIPPING=YES`, `SWIFT_COMPILATION_MODE=wholemodule`, `-Osize` only if it measurably shrinks the IPA (#1)
 - [x] A2 `Core/` contract types + `EngineRegistry` + SwiftData `ThreadRecord`/`MessageRecord`, with unit tests (#1)
 - [x] A3 `App/` shell: `@main`, root `NavigationSplitView` placeholder, AnyRouter app icon + accent from anyrouter brand (#1)
 - [x] A4 CI `.github/workflows/ci.yml`: macOS runner with Xcode 26, `brew install xcodegen`, `xcodegen`, build + test on iOS Simulator, cache SPM + DerivedData, concurrency cancel. Target < 8 min warm. (#1)
@@ -279,9 +279,9 @@ Entry points (reach AnyRouter from anywhere on the phone; owner sonnet-medium-lo
 - [x] LA18 (6819aaa; the @/plugin list entry waits for sonnet-high-public-tools) Reply helper: built-in "Reply to this" with tone (Polite, Short, Friendly, Formal) and language (Same, English, Vietnamese) pickers; in the launcher row and the @/plugin list; Copy button copies the answer only
 - [x] LA19 (7a24e71; the Share route comes with LA22) Read a photo: composer + menu (Camera, Photos) and Share run on-device Vision text recognition (vi, en) into the composer, with presets Translate, Split this bill, Summarize
 - [x] LA20 (44bc847) Offline mode: `NWPathMonitor`; offline skips AnyRouter models and web tools ("Offline"), the picker suggests the installed local or Apple model, a chat note says a tool was skipped
-- [x] LA21 (df9b363) Control Center and Lock Screen controls (`ControlWidget`, new widget extension `dev.anyrouter.app.controls`): New chat, Voice, Paste and fix, through the LA17 intent. Edits `project.yml`
+- [x] LA21 (df9b363) Control Center and Lock Screen controls (`ControlWidget`, new widget extension `oneni.anyr.app.controls`): New chat, Voice, Paste and fix, through the LA17 intent. Edits `project.yml`
 - [x] LA23 (1618db2) Headless Shortcuts actions that return a string without opening the app: Run preset on text, Summarize, Translate, Ask with model (ModelEntity); New chat and Start voice (starts dictation) as App Shortcuts for the Action Button. Offline: a cloud default gives way to a device model, an asked-for cloud model is refused
-- [x] LA22 (b48900a; App Group availability unverified on a device, see docs/sideload.md) Share extension "Ask AnyRouter" (text, URL, PDF, image) through the App Group `group.dev.anyrouter.app`; degrades with a clear message where App Groups are not available (free Apple ID sideload). Edits `project.yml` and entitlements
+- [x] LA22 (b48900a; App Group availability unverified on a device, see docs/sideload.md) Share extension "Ask AnyRouter" (text, URL, PDF, image) through the App Group `group.oneni.anyr.app`; degrades with a clear message where App Groups are not available (free Apple ID sideload). Edits `project.yml` and entitlements
 
 ## Agent (D28, lane C)
 
@@ -637,7 +637,7 @@ Note (open drawer layer): with the iPhone drawer open, `main.container` kept an 
 ## Open questions (operator)
 
 - Q1 Add GitHub secrets: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_BASE64` (API key role App Manager).
-- Q2 Create the app record in App Store Connect (bundle id `dev.anyrouter.app`, name AnyRouter).
+- Q2 Create the app record in App Store Connect (bundle id `oneni.anyr.app`, name AnyRouter).
 - Q6 Verify-later sign-up is a Clerk dashboard setting (email address, verify at sign-up), not code. Until it is off, new users are verified before the app gets its key and the Settings row never shows. The server also needs `/me` to return `email_verified` (duyet/anyrouter#8468, not merged). The app treats a missing field as verified.
 - Q4 Resolved: icon from the public AnyRouter logo, anyrouter.dev orange accent (#8).
 - Q7 "No cloud models" on a signed-in device (28bd02c). The public catalog decodes fine (510 entries checked against the decoder), so the cause is on the signed-in path and not proven without a key. What the code did: every engine error was dropped by `try?`, each partial answer replaced the whole list, and an empty list always read "No cloud models". Now the reason and Retry show, and Settings > Diagnostics keeps it. If it still happens, the Diagnostics row names the cause.

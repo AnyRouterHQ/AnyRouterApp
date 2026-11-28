@@ -1,6 +1,6 @@
 name: AnyRouter
 options:
-  bundleIdPrefix: dev.anyrouter
+  bundleIdPrefix: oneni.anyr
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
@@ -73,7 +73,7 @@ targets:
         NSSpeechRecognitionUsageDescription: AnyRouter uses speech recognition to turn your speech into text. Recognition runs on this device.
         # `anyrouter://share` and `anyrouter://ask`: how the share extension asks the app to open.
         CFBundleURLTypes:
-          - CFBundleURLName: dev.anyrouter.app
+          - CFBundleURLName: oneni.anyr.app
             CFBundleURLSchemes:
               - anyrouter
         UILaunchScreen:
@@ -90,7 +90,7 @@ targets:
         com.apple.developer.kernel.extended-virtual-addressing: true
         # Shares from the extension wait here for the app. A build signed without this capability has no inbox.
         com.apple.security.application-groups:
-          - group.dev.anyrouter.app
+          - group.oneni.anyr.app
     dependencies:
       - package: MarkdownUI
         product: MarkdownUI
@@ -141,7 +141,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: AnyRouterControls
-        PRODUCT_BUNDLE_IDENTIFIER: dev.anyrouter.app.controls
+        PRODUCT_BUNDLE_IDENTIFIER: oneni.anyr.app.controls
         INFOPLIST_KEY_CFBundleDisplayName: AnyRouter Controls
         SKIP_INSTALL: YES
   AnyRouterShare:
@@ -170,11 +170,11 @@ targets:
       path: Share/AnyRouterShare.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.dev.anyrouter.app
+          - group.oneni.anyr.app
     settings:
       base:
         PRODUCT_NAME: AnyRouterShare
-        PRODUCT_BUNDLE_IDENTIFIER: dev.anyrouter.app.share
+        PRODUCT_BUNDLE_IDENTIFIER: oneni.anyr.app.share
         INFOPLIST_KEY_CFBundleDisplayName: Ask AnyRouter
         SKIP_INSTALL: YES
         # NSItemProvider and the responder chain predate Sendable. The glue stays in Swift 5 mode; the app is Swift 6.
@@ -191,7 +191,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: AnyRouterTests
-        PRODUCT_BUNDLE_IDENTIFIER: dev.anyrouter.app.tests
+        PRODUCT_BUNDLE_IDENTIFIER: oneni.anyr.app.tests
         INFOPLIST_KEY_CFBundleDisplayName: AnyRouterTests
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/AnyRouter.app/AnyRouter"
@@ -207,7 +207,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: AnyRouterUITests
-        PRODUCT_BUNDLE_IDENTIFIER: dev.anyrouter.app.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: oneni.anyr.app.uitests
         TEST_TARGET_NAME: AnyRouter
   AnyRouterJourneys:
     type: bundle.ui-testing
@@ -219,7 +219,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: AnyRouterJourneys
-        PRODUCT_BUNDLE_IDENTIFIER: dev.anyrouter.app.journeys
+        PRODUCT_BUNDLE_IDENTIFIER: oneni.anyr.app.journeys
         TEST_TARGET_NAME: AnyRouter
 schemes:
   AnyRouterVerify:

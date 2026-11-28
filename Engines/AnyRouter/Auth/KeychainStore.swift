@@ -54,7 +54,7 @@ struct KeychainStore: AuthTokenStore {
     private static let tokenAccount = "oauth-access-token"
     private static let expiryAccount = "oauth-expires-at"
 
-    init(service: String = "dev.anyrouter.app") {
+    init(service: String = "oneni.anyr.app") {
         backing = SystemKeychain(service: service)
     }
 

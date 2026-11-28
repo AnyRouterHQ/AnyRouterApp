@@ -12,7 +12,7 @@ protocol MCPCredentialStoring: Sendable {
 struct MCPKeychainCredentialStore: MCPCredentialStoring {
     private let service: String
 
-    init(service: String = "dev.anyrouter.app.mcp") {
+    init(service: String = "oneni.anyr.app.mcp") {
         self.service = service
     }
 

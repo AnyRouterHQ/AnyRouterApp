@@ -101,7 +101,7 @@ protocol TelemetrySink: Sendable {
 
 /// Logs every event with `os.Logger` (on the device only) and forwards it to the sink while sharing is on.
 struct LoggingTelemetry: Telemetry {
-    static let subsystem = "dev.anyrouter.app"
+    static let subsystem = "oneni.anyr.app"
 
     let sink: (any TelemetrySink)?
     let shareEnabled: @Sendable () -> Bool

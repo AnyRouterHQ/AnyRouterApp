@@ -126,7 +126,7 @@ struct PickerFilterStore {
     /// Demo runs (screenshots, UI tests) use the demo suite, which is wiped at launch, so a filter set in
     /// one test does not leak into the next.
     static var standardDefaults: UserDefaults {
-        DemoData.isEnabled ? (UserDefaults(suiteName: "dev.anyrouter.app.demo") ?? .standard) : .standard
+        DemoData.isEnabled ? (UserDefaults(suiteName: "oneni.anyr.app.demo") ?? .standard) : .standard
     }
 
     func cloud() -> ModelFilter { load(Self.cloudKey) ?? ModelFilter() }
