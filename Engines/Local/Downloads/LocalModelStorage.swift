@@ -15,6 +15,13 @@ struct InstalledManifest: Codable, Sendable, Equatable {
     var completedAt: Date
 }
 
+extension InstalledManifest {
+    /// A projector installed on its own (`CatalogEntry.photoAddOn`): it is never a chat model.
+    var isProjectorOnly: Bool {
+        !files.isEmpty && files.allSatisfy { VisionInput.isProjector(path: $0.path) }
+    }
+}
+
 /// A download that has started: which entry and exactly which files, with sizes and checksums from the repo listing.
 struct DownloadJobRecord: Codable, Sendable, Equatable {
     var entry: CatalogEntry
@@ -112,6 +119,18 @@ struct LocalModelStorage: Sendable {
             return try? decoder.decode(InstalledManifest.self, from: data)
         }
         .sorted { $0.entryID < $1.entryID }
+    }
+
+    /// The projector file of an installed model, or nil when none is on disk. It is listed in the model's own manifest
+    /// when it came with the download, or it is the model's photo add-on, installed under its own id.
+    func projectorURL(forEntryID id: String, addOn: CatalogEntry?) -> URL? {
+        var candidates = (readManifest(entryID: id)?.files ?? [])
+            .filter { VisionInput.isProjector(path: $0.path) }
+            .map { fileURL(forEntryID: id, path: $0.path) }
+        if let addOn, let file = addOn.file, isInstalled(entryID: addOn.id) {
+            candidates.append(fileURL(forEntryID: addOn.id, path: file))
+        }
+        return candidates.first { FileManager.default.fileExists(atPath: $0.path) }
     }
 
     /// Moves verified files out of `.partial`, then writes the manifest last, so a crash never leaves a half install marked as done.

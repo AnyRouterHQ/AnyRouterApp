@@ -61,8 +61,10 @@ final class LocalModelHub: ModelHubService {
         do {
             let entries = try await service.entries()
             let userIDs = Set(settings.userModels.map(\.id))
-            raw = Dictionary(entries.map { ($0.id, $0) }, uniquingKeysWith: { $1 })
-            downloads.refresh(entries: entries)
+            // A photo add-on downloads like a model of its own: it is looked up by its id but never listed.
+            let addOns = entries.compactMap(\.photoAddOn)
+            raw = Dictionary((entries + addOns).map { ($0.id, $0) }, uniquingKeysWith: { $1 })
+            downloads.refresh(entries: entries + addOns)
             // A deprecated model is hidden unless it is installed: it keeps working, with a note about its replacement.
             let familyNames = Dictionary(
                 entries.compactMap { entry in entry.familyID.flatMap { id in entry.familyName.map { (id, $0) } } },
@@ -116,6 +118,7 @@ final class LocalModelHub: ModelHubService {
         // began before. Unloading first would let a chat load the model again before its files go.
         do {
             try downloads.delete(entry)
+            if let addOn = entry.photoAddOn { try downloads.delete(addOn) }
             lastError = nil
         } catch {
             lastError = error.localizedDescription
@@ -196,11 +199,13 @@ final class LocalModelHub: ModelHubService {
     }
 
     private func map(_ entry: CatalogEntry, isUser: Bool, replacementName: String? = nil) -> LocalModelEntry {
-        // A size sees photos only when it has a projector and this device has room for it as well.
-        let acceptsImages = entry.vision != nil
+        // A size sees photos only when it has a projector, this device has room for it, and an optional projector is installed.
+        let roomForProjector = entry.vision != nil
             && entry.memoryProfile.map { FitPlanner.imageInput($0, memory: deviceMemory) != .wontFit } == true
-        var capabilities = entry.capabilities
-        if !acceptsImages { capabilities.remove("vision") }
+        let addOn = entry.photoAddOn
+        let acceptsImages = PhotoSupportLogic.readsPhotos(
+            roomForProjector: roomForProjector, addOnInstalled: addOn.map { downloads.state(for: $0) == .installed })
+        let capabilities = PhotoSupportLogic.capabilities(entry.capabilities, readsPhotos: acceptsImages)
         var tags = [entry.format == .mlx ? "mlx" : "gguf"]
         if let parameters = entry.parameters { tags.append(parameters) }
         if let quantization = entry.quantization { tags.append(quantization) }
@@ -258,7 +263,8 @@ final class LocalModelHub: ModelHubService {
             isDeprecated: entry.status == .deprecated,
             replacementName: replacementName,
             repo: entry.repo,
-            revision: entry.revision
+            revision: entry.revision,
+            photoAddOn: roomForProjector ? addOn.map { PhotoAddOn(id: $0.id, sizeBytes: $0.sizeBytes) } : nil
         )
     }
 }

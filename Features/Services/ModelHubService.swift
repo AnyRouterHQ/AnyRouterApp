@@ -53,6 +53,13 @@ struct FitDetail: Hashable, Sendable {
     var mappableBytes: Int64? = nil
 }
 
+/// Photo support a model offers as a separate download. `id` is the add-on's own id: its state and its pause, resume,
+/// cancel and remove go through the hub's usual calls with that id.
+struct PhotoAddOn: Hashable, Sendable {
+    var id: String
+    var sizeBytes: Int64?
+}
+
 /// A local (GGUF or MLX) model shown in the hub and the onboarding picker.
 struct LocalModelEntry: Identifiable, Hashable, Sendable {
     var descriptor: ModelDescriptor
@@ -89,6 +96,8 @@ struct LocalModelEntry: Identifiable, Hashable, Sendable {
     /// Hugging Face repo (`org/name`), empty when unknown, and the commit or branch it downloads from. Nil revision means `main`.
     var repo = ""
     var revision: String? = nil
+    /// Set when the model can read photos once this add-on is downloaded, and this device has room for it.
+    var photoAddOn: PhotoAddOn? = nil
     var id: String { descriptor.id }
 }
 

@@ -25,11 +25,12 @@ enum LocalModelDescriptors {
         memory: DeviceMemory = .current()
     ) -> [ModelDescriptor] {
         let known = Dictionary(catalog.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return storage.installedManifests().filter { $0.format == format }.map { manifest in
+        // A photo add-on has a manifest of its own: it is part of its model, not a model.
+        return storage.installedManifests().filter { $0.format == format && !$0.isProjectorOnly }.map { manifest in
             let onDisk = manifest.files.reduce(Int64(0)) { $0 + $1.size }
             if let entry = known[manifest.entryID] {
                 // Photos need the projector on disk and room for it in memory.
-                let hasProjector = manifest.files.contains { VisionInput.isProjector(path: $0.path) }
+                let hasProjector = storage.projectorURL(forEntryID: manifest.entryID, addOn: entry.photoAddOn) != nil
                 let roomForIt = entry.memoryProfile.map { FitPlanner.imageInput($0, memory: memory) != .wontFit } ?? false
                 return entry.descriptor(
                     isInstalled: true, sizeBytes: onDisk, imageInput: entry.vision != nil && hasProjector && roomForIt)

@@ -109,7 +109,7 @@ final class GGUFEngine: ChatEngine {
                     let sampling = (try? await catalog.entries())?.first(where: { $0.id == model.id })?.sampling
                     let tuned = sampling.map { $0.applied(to: params) } ?? params
                     let result: LlamaResult
-                    if let images = await imageInput(model: model, manifest: manifest, messages: messages) {
+                    if let images = await imageInput(model: model, messages: messages) {
                         result = try Self.runWithImages(
                             llama, messages: messages, params: tuned, sampling: sampling, input: images, store: attachments,
                             trace: steps
@@ -141,16 +141,13 @@ final class GGUFEngine: ChatEngine {
         var side: Int
     }
 
-    /// Set when the last user message has photos and the download holds a projector. Otherwise the photos go in as the text
-    /// read from them.
-    private func imageInput(model: ModelDescriptor, manifest: InstalledManifest, messages: [ChatMessage]) async -> ImageInput? {
-        guard Self.hasImages(messages),
-              let projector = manifest.files.first(where: { VisionInput.isProjector(path: $0.path) })
-        else { return nil }
+    /// Set when the last user message has photos and a projector is on disk, in the download or as the photo add-on.
+    /// Otherwise the photos go in as the text read from them.
+    private func imageInput(model: ModelDescriptor, messages: [ChatMessage]) async -> ImageInput? {
+        guard Self.hasImages(messages) else { return nil }
         let entry = (try? await catalog.entries())?.first { $0.id == model.id }
-        return ImageInput(
-            projectorPath: storage.fileURL(forEntryID: model.id, path: projector.path).path,
-            side: VisionInput.imageSide(for: entry?.vision))
+        guard let projector = storage.projectorURL(forEntryID: model.id, addOn: entry?.photoAddOn) else { return nil }
+        return ImageInput(projectorPath: projector.path, side: VisionInput.imageSide(for: entry?.vision))
     }
 
     /// Whether the last user message carries a photo.

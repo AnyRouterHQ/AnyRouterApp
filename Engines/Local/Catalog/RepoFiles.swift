@@ -54,7 +54,8 @@ enum RepoFiles {
                 match.sha256 = pinned
             }
             // A size that takes photos downloads its projector with it. The model file stays first: the engine loads that one.
-            guard let vision = entry.vision else { return [match] }
+            // An optional projector is a download of its own (`CatalogEntry.photoAddOn`).
+            guard let vision = entry.vision, vision.isOptional != true else { return [match] }
             guard let projector = files.first(where: { $0.path == vision.mmprojFile }) else {
                 throw LocalModelError.notFound(vision.mmprojFile)
             }

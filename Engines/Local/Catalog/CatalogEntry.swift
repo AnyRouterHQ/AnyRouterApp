@@ -44,12 +44,21 @@ struct CatalogSampling: Codable, Hashable, Sendable {
     }
 }
 
-/// The vision companion of a model: the projector file in the same repo. Data only until image input ships.
+/// The vision companion of a model: the projector file in the same repo.
 struct CatalogVision: Codable, Hashable, Sendable {
     var mmprojFile: String
     var mmprojSize: Int64?
     /// Longest side, in pixels, of the photo handed to the projector. Larger photos are shrunk first.
     var imageSide: Int?
+    /// True when the projector is an add-on the person downloads later, in the model's page. The model's own download
+    /// leaves it out, and the size lists the "vision" capability only while the projector is on disk. Nil means the
+    /// projector is part of the model's download.
+    var isOptional: Bool?
+
+    private enum CodingKeys: String, CodingKey {
+        case mmprojFile, mmprojSize, imageSide
+        case isOptional = "optional"
+    }
 }
 
 /// Memory facts read from the model's metadata, so the fit check does not guess. Written by `scripts/catalog-add.sh`.
@@ -280,6 +289,16 @@ struct CatalogEntry: Identifiable, Hashable, Codable, Sendable {
             windowKVBytesPerToken: memory.windowKVBytesPerToken ?? 0, windowTokens: memory.windowTokens ?? 0,
             trainedContext: trained, activeFraction: memory.activeFraction, lazyBytes: memory.lazyWeightBytes ?? 0,
             projectorBytes: projector)
+    }
+
+    /// Photo support as a download of its own, for a size whose projector is optional. It installs like any GGUF file,
+    /// in its own folder with its own manifest and through the same download manager, so the model's files stay as they
+    /// were. Its id is the projector file's id.
+    var photoAddOn: CatalogEntry? {
+        guard format == .gguf, let vision, vision.isOptional == true else { return nil }
+        return CatalogEntry(
+            repo: repo, format: .gguf, file: vision.mmprojFile, title: "\(title) photo support",
+            sizeBytes: vision.mmprojSize, revision: revision, origin: origin)
     }
 
     /// False when the entry lists platforms and iOS is not one of them (iPad counts as iOS).

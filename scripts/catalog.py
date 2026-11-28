@@ -307,7 +307,7 @@ def cmd_add(args):
     options = {"--catalog": "catalog/models.json", "--family": None, "--params": None, "--revision": None,
                "--name": None, "--publisher": None, "--line": None, "--logo": None, "--summary": None,
                "--website": None, "--tags": None, "--status": "current", "--mmproj": None, "--image-side": None}
-    flags = {"--mlx", "--onboarding", "--update"}
+    flags = {"--mlx", "--onboarding", "--update", "--optional-projector"}
     positional, given = [], set()
     it = iter(args)
     for arg in it:
@@ -321,7 +321,7 @@ def cmd_add(args):
     if len(positional) != (1 if mlx else 2) or not options["--family"] or not options["--params"]:
         sys.exit("usage: catalog-add.sh <hf-repo> <file.gguf> --family ID --params 4B [options]\n"
                  "       catalog-add.sh <hf-repo> --mlx --family ID --params 4B [options]\n"
-                 "options: --catalog PATH --revision SHA --onboarding --update --mmproj FILE [--image-side 896]\n"
+                 "options: --catalog PATH --revision SHA --onboarding --update --mmproj FILE [--image-side 896] [--optional-projector]\n"
                  "new family: --name N --publisher P --line L --logo KEY --summary S --website URL [--tags a,b]")
     repo = positional[0]
     file = None if mlx else positional[1]
@@ -372,6 +372,10 @@ def cmd_add(args):
         variant["vision"] = {"mmprojFile": options["--mmproj"], "mmprojSize": projector["size"]}
         if options["--image-side"]:
             variant["vision"]["imageSide"] = int(options["--image-side"])
+        if "--optional-projector" in given:
+            variant["vision"]["optional"] = True
+    elif "--optional-projector" in given:
+        sys.exit("--optional-projector needs --mmproj FILE")
     if "--onboarding" in given:
         variant["isOnboarding"] = True
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -537,7 +541,10 @@ def check_file(path, offline):
                 bad(vw, f"{ident}: vision needs the integer mmprojSize of the projector")
             if vision is not None and "imageSide" in vision and not (isinstance(vision["imageSide"], int) and 224 <= vision["imageSide"] <= 4096):
                 bad(vw, f"{ident}: vision.imageSide must be an integer between 224 and 4096")
-            if vision is not None and "vision" not in family.get("tags", []):
+            if vision is not None and "optional" in vision and not isinstance(vision["optional"], bool):
+                bad(vw, f"{ident}: vision.optional must be true or false")
+            # An optional projector is a download of its own: the family does not promise photos, so it needs no tag.
+            if vision is not None and not vision.get("optional") and "vision" not in family.get("tags", []):
                 bad(vw, f"{ident}: a size with a projector needs the family tag vision")
 
             if offline or not re.fullmatch(r"[0-9a-f]{40}", str(m.get("revision", ""))):

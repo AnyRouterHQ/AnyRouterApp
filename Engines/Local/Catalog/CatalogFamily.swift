@@ -112,7 +112,9 @@ struct CatalogFamily: Decodable, Hashable, Sendable {
         }
         let isRecommended = badges.contains("recommended") || badges.contains("best")
         return variants.enumerated().map { index, variant in
-            let capabilities = variant.vision == nil ? familyCapabilities : familyCapabilities.union(["vision"])
+            // An optional projector does not make a size see photos: the projector being installed does.
+            let takesPhotos = variant.vision != nil && variant.vision?.isOptional != true
+            let capabilities = takesPhotos ? familyCapabilities.union(["vision"]) : familyCapabilities
             return CatalogEntry(
                 repo: variant.repo, format: variant.engine, file: variant.file,
                 title: "\(name) \(variant.params)" + (variant.engine == .mlx ? " (MLX)" : ""),
