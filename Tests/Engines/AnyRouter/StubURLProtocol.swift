@@ -12,6 +12,8 @@ final class StubRegistry: @unchecked Sendable {
         var hangs = false
         /// Answer with a plain URLResponse instead of an HTTPURLResponse.
         var nonHTTP = false
+        /// Response headers, such as Content-Type.
+        var headers: [String: String] = [:]
     }
 
     private let lock = NSLock()
@@ -44,7 +46,7 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
         let reply = handler(request)
         let response: URLResponse = reply.nonHTTP
             ? URLResponse(url: request.url!, mimeType: nil, expectedContentLength: 0, textEncodingName: nil)
-            : HTTPURLResponse(url: request.url!, statusCode: reply.status, httpVersion: "HTTP/1.1", headerFields: nil)!
+            : HTTPURLResponse(url: request.url!, statusCode: reply.status, httpVersion: "HTTP/1.1", headerFields: reply.headers)!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: reply.body)
         if reply.hangs {
