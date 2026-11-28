@@ -34,15 +34,11 @@ struct OnboardingLocalStep: View {
         .formStyle(.grouped)
         .navigationTitle("On-device")
         .navigationBarTitleDisplayMode(.inline)
-        .safeAreaInset(edge: .bottom) {
-            Button { finish() } label: { Text("Continue").prominentLabel().frame(maxWidth: .infinity) }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(localState != .installed)
-                .frame(maxWidth: 560)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(.bar)
+        // The one primary action in the bottom bar; the scroll edge effect gives it depth, no painted band (review #7).
+        .bottomActionBar(id: "onboarding.local.continue", isEnabled: localState == .installed, action: finish) {
+            Text("Continue")
+        } accessory: {
+            EmptyView()
         }
         .task { await hub.reload() }
     }

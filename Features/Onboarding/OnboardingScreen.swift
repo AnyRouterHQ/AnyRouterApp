@@ -55,9 +55,16 @@ struct OnboardingScreen: View {
             .readableWidth(Self.readableWidth, in: width)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             .navigationBarTitleDisplayMode(.inline)
-            // The actions stay reachable at the bottom, above the home indicator. A bar, not a painted band: the scroll
-            // edge effect gives it depth.
-            .safeAreaBar(edge: .bottom) { actions }
+            // The actions stay reachable at the bottom, above the home indicator, in the shared bottom action bar.
+            .bottomActionBar(id: "onboarding.signIn", isEnabled: !authorizing, action: { signedIn ? finishWithCloud() : authorize(.signIn) }) {
+                if authorizing {
+                    HStack(spacing: 8) { ProgressView(); Text("Opening AnyRouter…") }
+                } else {
+                    Text(signedIn ? "Continue" : "Continue with AnyRouter")
+                }
+            } accessory: {
+                secondaryActions
+            }
             .navigationDestination(isPresented: $showsLocalStep) { OnboardingLocalStep(onFinish: onFinish) }
         }
     }
@@ -76,40 +83,20 @@ struct OnboardingScreen: View {
 
     // MARK: Actions
 
-    private var actions: some View {
-        VStack(spacing: 8) {
-            Button { signedIn ? finishWithCloud() : authorize(.signIn) } label: {
-                Group {
-                    if authorizing {
-                        HStack(spacing: 8) { ProgressView(); Text("Opening AnyRouter…") }
-                    } else {
-                        Text(signedIn ? "Continue" : "Continue with AnyRouter")
-                    }
-                }
-                .prominentLabel()
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(authorizing)
-            .accessibilityIdentifier("onboarding.signIn")
-            if !signedIn {
-                // Glass, not bordered: the bordered fill nearly vanished on the light and dark backgrounds.
-                Button { authorize(.signUp) } label: { Text("Create account").frame(maxWidth: .infinity) }
-                    .buttonStyle(.glass)
-                    .controlSize(.large)
-                    .disabled(authorizing)
-                    .accessibilityIdentifier("onboarding.signUp")
-            }
-            Button("Use on-device only") { useOnDevice() }
+    /// What the bottom bar offers besides its one primary action (review #7: one pattern for the primary action).
+    @ViewBuilder
+    private var secondaryActions: some View {
+        if !signedIn {
+            Button { authorize(.signUp) } label: { Text("Create account").frame(maxWidth: .infinity) }
+                .buttonStyle(.glass)
                 .controlSize(.large)
                 .disabled(authorizing)
-                .accessibilityIdentifier("onboarding.onDevice")
+                .accessibilityIdentifier("onboarding.signUp")
         }
-        // A readable width on iPad instead of buttons across the whole screen.
-        .frame(maxWidth: Self.readableWidth)
-        .padding()
-        .frame(maxWidth: .infinity)
+        Button("Use on-device only") { useOnDevice() }
+            .controlSize(.large)
+            .disabled(authorizing)
+            .accessibilityIdentifier("onboarding.onDevice")
     }
 
     private static let readableWidth: CGFloat = 560
