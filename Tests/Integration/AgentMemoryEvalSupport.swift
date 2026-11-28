@@ -130,16 +130,81 @@ struct AgentMemorySection: Codable, Equatable, Sendable {
     var engine: String
     var summary: AgentMemorySummary
     var cases: [AgentMemoryScript]
+    /// Why the judge did not run, or the model that judged; with its numbers when it ran.
+    var judge: String
+    var judgeSummary: AgentJudgeSummary?
+    var judged: [AgentJudgeResult]
     var lines: [String]
 }
 
+/// Writes the reply to a request, as the answer text without the thinking.
+typealias AgentMemoryGenerator = @Sendable ([ChatMessage]) async throws -> String
+
 enum AgentMemoryEvalRunner {
-    /// The whole set on `model`'s budget. Prints and records the report line and writes the JSON section.
-    static func runSet(_ cases: [AgentMemoryCase], model: ModelDescriptor, label: String, section: String) throws -> AgentMemorySection {
-        let scripts = cases.map { AgentMemoryScripted.run($0, model: model).script }
+    /// Replies from `engine` as the chat would ask for them: no tools, the assembled request as the messages.
+    static func generator(engine: any ChatEngine, model: ModelDescriptor) -> AgentMemoryGenerator {
+        { messages in
+            var params = GenerationParams()
+            params.temperature = 0
+            params.maxTokens = SmokeEnv.maxTokens ?? 1024
+            var raw = ""
+            for try await delta in engine.stream(model: model, messages: messages, params: params) {
+                if case .text(let piece) = delta { raw += piece }
+            }
+            return AgentEvalScoring.answerText(from: raw)
+        }
+    }
+
+    /// What the right memory is, for the judge.
+    static func rightMemory(for item: AgentMemoryCase) -> String {
+        let pool = MemoryRecallEvalTests.memories
+        switch item.kind {
+        case "recall": return item.want.map { pool[$0] }.joined(separator: "; ")
+        case "trap": return "none: the question is not about the user, so no note is relevant"
+        default: return "the user asks to save: \(item.saved ?? ""); the right reply confirms it"
+        }
+    }
+
+    /// The whole set on `model`'s budget. The scripted half always runs. With a judge and a generator, each reply is also
+    /// written by the model and scored twice. Prints and records the report line and writes the JSON section.
+    static func runSet(
+        _ cases: [AgentMemoryCase], model: ModelDescriptor, label: String, section: String,
+        generate: AgentMemoryGenerator?, judge: AgentJudgeChoice
+    ) async throws -> AgentMemorySection {
+        let runs = cases.map { (item: $0, run: AgentMemoryScripted.run($0, model: model)) }
+        let scripts = runs.map { $0.run.script }
         let summary = AgentMemoryScripted.summarize(scripts, total: cases.count)
-        let line = AgentMemoryScripted.line(summary, engine: label, judge: "judge not wired yet")
-        let result = AgentMemorySection(engine: label, summary: summary, cases: scripts, lines: [line])
+        let note: String
+        var judgeSummary: AgentJudgeSummary?
+        var judged: [AgentJudgeResult] = []
+        switch (judge, generate) {
+        case (.skipped(let reason), _):
+            note = reason
+        case (.run, nil):
+            note = "judge skipped, this engine has no reply generator"
+        case (.run(let setup), let generate?):
+            let deadline = EvalDeadline(minutes: SmokeEnv.evalMinutes ?? 40)
+            var failed = 0
+            for entry in runs {
+                if deadline.passed() { failed += 1; continue }
+                let pool = MemoryRecallEvalTests.memories
+                let shown = entry.run.script.recalled.map { pool[$0] }
+                do {
+                    let reply = try await generate(entry.run.prompt.messages)
+                    let verdicts = try await AgentEvalJudge.judge(
+                        question: entry.item.prompt, shown: shown, right: rightMemory(for: entry.item), reply: reply, setup: setup)
+                    judged.append(AgentJudgeResult(id: entry.item.id, runs: verdicts))
+                } catch {
+                    failed += 1
+                }
+            }
+            let scored = AgentEvalJudge.summarize(judged, failed: failed)
+            judgeSummary = scored
+            note = AgentEvalJudge.line(scored, model: setup.model)
+        }
+        let line = AgentMemoryScripted.line(summary, engine: label, judge: note)
+        let result = AgentMemorySection(
+            engine: label, summary: summary, cases: scripts, judge: note, judgeSummary: judgeSummary, judged: judged, lines: [line])
         AgentEvalReport.publish(line)
         SmokeReport.record("Agent eval memory (\(label))", String(line.drop { $0 != ":" }.dropFirst(2)))
         try AgentEvalReport.write(section, result)

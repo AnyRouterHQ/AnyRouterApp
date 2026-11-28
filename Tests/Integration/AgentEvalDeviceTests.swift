@@ -25,6 +25,34 @@ final class AgentEvalDeviceTests: XCTestCase {
         XCTAssertFalse(result.cases.isEmpty, "no case ran inside the time cap")
     }
 
+    func testAppleModelRunsTheMemorySet() async throws {
+        try requireOptIn()
+        if let note = AppleFoundationEngine.unavailabilityNote() {
+            throw XCTSkip("Apple Foundation Models is unavailable on this host (\(note)). Run it on a device with Apple Intelligence.")
+        }
+        let engine = AppleFoundationEngine()
+        let available = try await engine.availableModels()
+        let model = try XCTUnwrap(available.first)
+        let judge = AgentEvalJudge.choice(key: SmokeEnv.judgeKey, external: false, base: SmokeEnv.judgeBase, model: SmokeEnv.judgeModel)
+        let result = try await AgentMemoryEvalRunner.runSet(
+            try AgentEvalFixtures.memoryCases(), model: model, label: "Apple Foundation Models", section: "memoryApple",
+            generate: AgentMemoryEvalRunner.generator(engine: engine, model: model), judge: judge)
+        XCTAssertEqual(result.cases.count, 10)
+    }
+
+    func testInstalledMLXModelRunsTheMemorySet() async throws {
+        try requireOptIn()
+        guard case .available = MLXEngine.availability else { throw XCTSkip("MLX needs a device with a GPU, not the Simulator.") }
+        let mlx = MLXEngine()
+        let installed = try await mlx.availableModels().filter { $0.isInstalled }
+        let model = try XCTUnwrap(installed.first, "no MLX model is installed")
+        let judge = AgentEvalJudge.choice(key: SmokeEnv.judgeKey, external: false, base: SmokeEnv.judgeBase, model: SmokeEnv.judgeModel)
+        let result = try await AgentMemoryEvalRunner.runSet(
+            try AgentEvalFixtures.memoryCases(), model: model, label: "MLX, \(model.displayName)", section: "memoryMLX",
+            generate: AgentMemoryEvalRunner.generator(engine: mlx, model: model), judge: judge)
+        XCTAssertEqual(result.cases.count, 10)
+    }
+
     func testInstalledMLXModelRunsTheToolSet() async throws {
         try requireOptIn()
         guard case .available = MLXEngine.availability else { throw XCTSkip("MLX needs a device with a GPU, not the Simulator.") }

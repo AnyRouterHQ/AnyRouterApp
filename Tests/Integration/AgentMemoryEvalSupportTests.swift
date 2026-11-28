@@ -111,13 +111,25 @@ final class AgentMemoryEvalSupportTests: XCTestCase {
         }
     }
 
-    func testRunSetWritesItsSection() throws {
-        let path = makeTempDirectory().appending(path: "agent-eval.json").path
+    func testRunSetWithoutAJudgeKeepsTheScriptedNumbersAndSaysWhy() async throws {
         let cases = try AgentEvalFixtures.memoryCases()
-        let scripts = cases.map { AgentMemoryScripted.run($0, model: descriptor(.gguf, context: 262_144)).script }
-        let summary = AgentMemoryScripted.summarize(scripts, total: cases.count)
+        let reason = "judge skipped, ANYROUTER_E2E_API_KEY is not set"
+        let result = try await AgentMemoryEvalRunner.runSet(
+            cases, model: descriptor(.gguf, context: 262_144), label: "test", section: "memory", generate: nil, judge: .skipped(reason))
+        XCTAssertEqual(result.cases.count, 10)
+        XCTAssertEqual(result.judge, reason)
+        XCTAssertNil(result.judgeSummary)
+        XCTAssertTrue(result.judged.isEmpty)
+        XCTAssertTrue(try XCTUnwrap(result.lines.first).hasSuffix(reason), "the report line says the judge did not run")
+    }
+
+    func testTheSectionIsWrittenAsJSON() throws {
+        let path = makeTempDirectory().appending(path: "agent-eval.json").path
+        let scripts = try AgentEvalFixtures.memoryCases().map { AgentMemoryScripted.run($0, model: descriptor(.gguf, context: 262_144)).script }
+        let summary = AgentMemoryScripted.summarize(scripts, total: scripts.count)
         let section = AgentMemorySection(
-            engine: "test", summary: summary, cases: scripts, lines: [AgentMemoryScripted.line(summary, engine: "test", judge: "no model")])
+            engine: "test", summary: summary, cases: scripts, judge: "judge skipped", judgeSummary: nil, judged: [],
+            lines: [AgentMemoryScripted.line(summary, engine: "test", judge: "judge skipped")])
         try AgentEvalReport.write("memory", section, to: path)
         let root = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path))) as? [String: Any])
         let written = try XCTUnwrap(root["memory"] as? [String: Any])

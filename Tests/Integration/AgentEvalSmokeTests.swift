@@ -35,13 +35,18 @@ final class AgentToolEvalSmokeTests: XCTestCase {
 }
 
 /// The memory set (agent design 5.2) on the real model's budget: each prompt's request is built the way the chat builds it,
-/// and the scripted checks say whether the right memory was in it. Reports numbers; asserts only that the harness ran.
+/// and the scripted checks say whether the right memory was in it. With the judge secret, the model also writes each reply and
+/// a judge scores it twice. Reports numbers; asserts only that the harness ran.
 final class AgentMemoryEvalSmokeTests: XCTestCase {
     func testMemorySetRequestsOnTheRealModel() async throws {
         let ctx = try await GGUFModelSmokeTests.makeContext()
         let label = SmokeEnv.external ? "GGUF, model given at run time" : "GGUF, \(ctx.entry.title) \(ctx.entry.quantization ?? "")"
         let cases = try AgentEvalFixtures.memoryCases()
-        let result = try AgentMemoryEvalRunner.runSet(cases, model: ctx.model, label: label, section: "memory")
+        let judge = AgentEvalJudge.choice(
+            key: SmokeEnv.judgeKey, external: SmokeEnv.external, base: SmokeEnv.judgeBase, model: SmokeEnv.judgeModel)
+        let result = try await AgentMemoryEvalRunner.runSet(
+            cases, model: ctx.model, label: label, section: "memory",
+            generate: AgentMemoryEvalRunner.generator(engine: ctx.engine, model: ctx.model), judge: judge)
         XCTAssertEqual(result.cases.count, cases.count, "every prompt got a request")
     }
 }

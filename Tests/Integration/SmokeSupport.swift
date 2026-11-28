@@ -22,6 +22,11 @@ enum SmokeEnv {
     static var maxTokens: Int? { env["ANYROUTER_SMOKE_MAX_TOKENS"].flatMap { Int($0) } }
     /// Where the agent eval writes its JSON report (the workflow uploads it). Unset: no file.
     static var agentEvalJSON: String? { env["ANYROUTER_SMOKE_AGENT_EVAL_JSON"].flatMap { $0.isEmpty ? nil : $0 } }
+    /// The AnyRouter key of the memory judge (the F8c secret). Unset or empty: the judge does not run.
+    static var judgeKey: String? { env["ANYROUTER_E2E_API_KEY"].flatMap { $0.isEmpty ? nil : $0 } }
+    /// A judge API base and model other than the defaults (https://anyrouter.dev/api/v1, anyrouter/auto).
+    static var judgeBase: String? { env["ANYROUTER_SMOKE_JUDGE_BASE"] }
+    static var judgeModel: String? { env["ANYROUTER_SMOKE_JUDGE_MODEL"] }
     /// Minutes one agent eval set may run before its remaining cases are reported as not run.
     static var evalMinutes: Double? { env["ANYROUTER_SMOKE_EVAL_MINUTES"].flatMap { Double($0) } }
     /// Folder with the Gemma 4 MLX tokenizer files (no weights), for the chat template check.
