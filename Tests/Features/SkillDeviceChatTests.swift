@@ -7,7 +7,7 @@ import Testing
 /// only (agent design 4.2, unit K1).
 @MainActor
 struct SkillDeviceChatTests {
-    private struct Rig {
+    @MainActor private struct Rig {
         let context: ModelContext
         let engine: ScriptedEngine
         let chat: ChatViewModel
