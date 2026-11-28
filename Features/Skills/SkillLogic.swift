@@ -4,7 +4,7 @@ import Foundation
 /// Only the name and description sit in the prompt; the body is read on demand with `read_skill`. Skill text is data,
 /// never instructions from the user: it grants no tools and cannot turn approvals off.
 struct Skill: Equatable, Sendable, Identifiable {
-    enum Source: String, Sendable { case bundled, hub, imported }
+    enum Source: String, Sendable { case bundled, hub, imported, proposed }
 
     let name: String
     let description: String
