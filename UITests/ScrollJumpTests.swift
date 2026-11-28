@@ -51,7 +51,9 @@ final class ScrollJumpTests: XCTestCase {
         // A selectable text view carries its words as the value, not the label.
         let question = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "anchor check", "anchor check")).firstMatch
-        XCTAssertTrue(question.exists, "the sent question is on screen")
+        // On failure, name what the tree holds instead (verify-ui 46083142998 found no element with these words).
+        let tree = app.debugDescription.split(separator: "\n").filter { $0.contains("anchor") || $0.contains("Question 100") }
+        XCTAssertTrue(question.exists, "the sent question is on screen; tree lines: \(tree.prefix(4).joined(separator: " | "))")
         let window = app.windows.firstMatch.frame
         XCTAssertLessThan(question.frame.minY, window.height * 0.35, "the question sits near the top after the reply ended")
         XCTAssertGreaterThan(question.frame.minY, 0, "and is on screen, not scrolled past")
@@ -66,6 +68,8 @@ final class ScrollJumpTests: XCTestCase {
         let content = app.descendants(matching: .any)["chat.content"]
         XCTAssertTrue(content.waitForExistence(timeout: 20))
         let jump = app.buttons["jump-to-latest"]
+        // As in the test above: let the thread settle at its end before the first swipe (it failed here without it).
+        sleep(1)
         for _ in 0..<3 { swipe(app, towardsTheTop: true) }
         XCTAssertTrue(jump.waitForExistence(timeout: 5), "scrolled up, the button should show")
 
