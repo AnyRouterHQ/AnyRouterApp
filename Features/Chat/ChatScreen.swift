@@ -321,7 +321,11 @@ private struct ChatContent: View {
         // re-evaluates the whole list (the perf baseline showed the scroll CPU more than doubling).
         return ScrollViewReader { proxy in
         ScrollView {
-            LazyVStack(spacing: rowSpacing) {
+            // A VStack, not a LazyVStack. The lazy stack placed rows it had not laid out at estimated heights: on a short
+            // chat those estimates never settled, so after a swipe the list laid itself out without end (ShortChatTests),
+            // and scrollTo("bottom") landed short of the end, the last row not even laid out (ScrollEndTests). Bisect runs
+            // 46113949078 to 46129022686 cleared every other suspect, plain Text rows included.
+            VStack(spacing: rowSpacing) {
                 ForEach(messages) { message in
                     let row = MessageRow(
                         message: message,
