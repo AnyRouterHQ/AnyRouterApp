@@ -447,6 +447,7 @@ struct Composer: View {
             }
             .labelStyle(.iconOnly)
             .font(.callout.weight(.semibold))
+            // prominent-ok: the label takes Color.accentForeground itself when the button is prominent.
             .foregroundStyle(prominent ? Color.accentForeground : .primary)
         }
         if prominent {

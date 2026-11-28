@@ -36,7 +36,7 @@ struct ReplyFailureView: View {
         let stacked = typeSize.isAccessibilitySize
         return layout {
             if let primary = plan.primary {
-                Button(ReplyFailureLogic.title(of: primary)) { onAction(primary) }
+                Button { onAction(primary) } label: { Text(ReplyFailureLogic.title(of: primary)).prominentLabel() }
                     .buttonStyle(.borderedProminent)
                     .lineLimit(stacked ? nil : 1)
                     .fixedSize(horizontal: !stacked, vertical: true)
