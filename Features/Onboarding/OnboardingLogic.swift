@@ -25,7 +25,7 @@ enum OnboardingLogic {
         }
     }
 
-    /// Where "Use on-device only" goes: straight to chat when Apple Intelligence is there, else to the local model step.
+    /// Where "Use local models only" goes: straight to chat when Apple Intelligence is there, else to the local model step.
     enum OnDeviceRoute: Equatable { case chat(Choice), pickLocal }
 
     static func onDeviceRoute(appleAvailable: Bool) -> OnDeviceRoute {

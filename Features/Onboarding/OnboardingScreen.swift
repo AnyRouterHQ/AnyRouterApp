@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// First launch. Say what the app can chat with, then offer the two ways in: AnyRouter (sign in or create an
-/// account in the system web sheet) or on-device only. Standard Form rows and system buttons only.
+/// First launch: the logo, one line, then Log in to AnyRouter (system web sheet) or Use local models only.
 struct OnboardingScreen: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models
@@ -10,8 +9,6 @@ struct OnboardingScreen: View {
 
     @State private var flow = SignInFlow.State.signedOut
     @State private var showsLocalStep = false
-    /// The screen's width, so the list keeps the buttons' readable width on iPad.
-    @State private var width: CGFloat = 0
 
     private var appleAvailable: Bool { models.models.contains { $0.source == .apple && $0.isInstalled } }
     private var signedIn: Bool { app.account.state.isSignedIn }
@@ -22,82 +19,50 @@ struct OnboardingScreen: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    VStack(spacing: 8) {
-                        ARLogoMark(size: 52).foregroundStyle(.primary).accessibilityHidden(true)
-                        Text("Welcome to AnyRouter").font(.largeTitle.bold()).multilineTextAlignment(.center)
-                            .accessibilityAddTraits(.isHeader)
-                        Text("One chat for models on your device and in the cloud.")
-                            .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .listRowBackground(Color.clear)
-                    .padding(.vertical, 8)
+            VStack(spacing: 0) {
+                Spacer()
+                VStack(spacing: 12) {
+                    ARLogoMark(size: 64).foregroundStyle(.primary).accessibilityHidden(true)
+                    Text("AnyRouter").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                    Text("One chat for models on your device and in the cloud.")
+                        .font(.body).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
-                // Plain rows on the page, as in Apple's welcome screens: no card, so rows of one and two lines keep their own
-                // height and no seam can show between cell backgrounds (screenshots 46091121132, 46107915397).
-                Section("Chat with") {
-                    source("Apple Intelligence", detail: "Private and on device. No download.", icon: "apple.logo")
-                    source("Local models", detail: "Download open models and run them on this device.", icon: "iphone")
-                    source("AnyRouter cloud", detail: "Hundreds of cloud models with one account.", icon: "cloud")
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                if case .failed(let reason, let mode) = flow {
-                    Section {
-                        Label(reason.text, systemImage: "exclamationmark.triangle")
-                        Button("Try again") { authorize(mode) }
+                Spacer()
+                VStack(spacing: 12) {
+                    if case .failed(let reason, _) = flow {
+                        Text(reason.text).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center)
                     }
+                    Button { signedIn ? finishWithCloud() : authorize(.signIn) } label: {
+                        Group {
+                            if authorizing {
+                                HStack(spacing: 8) { ProgressView(); Text("Opening AnyRouter…") }
+                            } else {
+                                Text("Log in to AnyRouter")
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(authorizing)
+                    .accessibilityIdentifier("onboarding.signIn")
+                    Button("Use local models only") { useOnDevice() }
+                        .buttonStyle(.borderless)
+                        .frame(minHeight: 44)
+                        .disabled(authorizing)
+                        .accessibilityIdentifier("onboarding.onDevice")
                 }
             }
-            .formStyle(.grouped)
-            .readableWidth(Self.readableWidth, in: width)
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
+            .frame(maxWidth: Self.readableWidth)
+            .frame(maxWidth: .infinity)
             .navigationBarTitleDisplayMode(.inline)
-            // The actions stay reachable at the bottom, above the home indicator, in the shared bottom action bar.
-            .bottomActionBar(id: "onboarding.signIn", isEnabled: !authorizing, action: { signedIn ? finishWithCloud() : authorize(.signIn) }) {
-                if authorizing {
-                    HStack(spacing: 8) { ProgressView(); Text("Opening AnyRouter…") }
-                } else {
-                    Text(signedIn ? "Continue" : "Continue with AnyRouter")
-                }
-            } accessory: {
-                secondaryActions
-            }
             .navigationDestination(isPresented: $showsLocalStep) { OnboardingLocalStep(onFinish: onFinish) }
         }
     }
 
-    private func source(_ title: String, detail: String, icon: String) -> some View {
-        Label {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
-                Text(detail).font(.subheadline).foregroundStyle(.secondary)
-            }
-        } icon: {
-            Image(systemName: icon).imageScale(.large)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
     // MARK: Actions
-
-    /// What the bottom bar offers besides its one primary action (review #7: one pattern for the primary action).
-    @ViewBuilder
-    private var secondaryActions: some View {
-        if !signedIn {
-            Button { authorize(.signUp) } label: { Text("Create account").frame(maxWidth: .infinity) }
-                .buttonStyle(.glass)
-                .controlSize(.large)
-                .disabled(authorizing)
-                .accessibilityIdentifier("onboarding.signUp")
-        }
-        Button("Use on-device only") { useOnDevice() }
-            .controlSize(.large)
-            .disabled(authorizing)
-            .accessibilityIdentifier("onboarding.onDevice")
-    }
 
     private static let readableWidth: CGFloat = 560
 
@@ -150,16 +115,4 @@ struct OnboardingScreen: View {
     return OnboardingScreen {}
         .environment(state)
         .environment(state.models)
-}
-
-private extension View {
-    /// On a screen much wider than `maxWidth` the list's rows keep that width, centred, like the buttons under them.
-    @ViewBuilder
-    func readableWidth(_ maxWidth: CGFloat, in width: CGFloat) -> some View {
-        if width > maxWidth + 80 {
-            contentMargins(.horizontal, (width - maxWidth) / 2, for: .scrollContent)
-        } else {
-            self
-        }
-    }
 }

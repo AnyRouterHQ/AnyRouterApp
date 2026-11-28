@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// "Use on-device only" on a device without Apple Intelligence: download one small local model, then chat.
+/// "Use local models only" on a device without Apple Intelligence: download one small local model, then chat.
 struct OnboardingLocalStep: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models

@@ -145,7 +145,7 @@ final class ScreenshotTests: XCTestCase {
 
     func testOnboarding() {
         forEachAppearance(extra: ["-ARDemoOnboarding", "YES"]) { app, appearance in
-            XCTAssertTrue(app.staticTexts["Welcome to AnyRouter"].waitForExistence(timeout: 15))
+            XCTAssertTrue(app.buttons["onboarding.signIn"].waitForExistence(timeout: 15))
             capture("onboarding", appearance)
         }
     }

@@ -69,6 +69,16 @@ struct OnboardingLogicTests {
         #expect(OnboardingLogic.modelID(for: .apple, models: uninstalled, local: nil) == nil)
     }
 
+    @Test func theTwoWelcomePathsEndOnTheirOwnModel() {
+        let models = [testModel(id: "apple/foundation", source: .apple), testModel(id: "anyrouter/x/y", source: .anyrouter)]
+        // Use local models only: Apple Intelligence when present, else the local download step.
+        #expect(OnboardingLogic.onDeviceRoute(appleAvailable: true) == .chat(.apple))
+        #expect(OnboardingLogic.modelID(for: .apple, models: models, local: nil) == "apple/foundation")
+        #expect(OnboardingLogic.onDeviceRoute(appleAvailable: false) == .pickLocal)
+        // Log in to AnyRouter: the cloud model.
+        #expect(OnboardingLogic.modelID(for: .cloud, models: models, local: nil) == "anyrouter/x/y")
+    }
+
     @Test func modelIDFollowsTheChoice() {
         let models = [testModel(id: "apple/foundation", source: .apple), testModel(id: "anyrouter/x/y", source: .anyrouter)]
         let local = entry("gguf/org/m/f.gguf", size: 1)
