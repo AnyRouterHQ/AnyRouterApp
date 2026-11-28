@@ -87,12 +87,13 @@ enum DemoData {
         return url
     }
 
-    /// `-ARDemoFail rateLimited`, `offline` or `credits`: every reply fails with that engine error.
+    /// `-ARDemoFail rateLimited`, `offline`, `credits` or `contextTooLong`: every reply fails with that engine error.
     static var replyError: (any Error)? {
         switch UserDefaults.standard.string(forKey: "ARDemoFail") {
         case "rateLimited": return AnyRouterError.http(status: 429, message: "Rate limit exceeded for this model. Retry in 20 s.")
         case "offline": return URLError(.notConnectedToInternet)
         case "credits": return AnyRouterError.http(status: 402, message: "Insufficient credits: 0.00 left.")
+        case "contextTooLong": return GGUFError.promptTooLong(tokens: 9_000, limit: 4_096)
         default: return nil
         }
     }
