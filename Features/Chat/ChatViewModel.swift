@@ -943,9 +943,10 @@ final class ChatViewModel {
     }
 
     /// A run that waited for the user when the app closed goes on (agent design 1.3). The loop asks again for the waiting
-    /// call, so its card comes back on its step, and Allow or Deny continues the run from `act`.
-    private func resumeWaitingRun() {
-        guard let thread,
+    /// call, so its card comes back on its step, and Allow or Deny continues the run from `act`. Asked at init and again
+    /// when the model list changes, since a chat restored at launch can open before its model is listed.
+    func resumeWaitingRun() {
+        guard phase == .idle, let thread,
             let run = (try? context.fetch(FetchDescriptor<AgentRunRecord>()))?
                 .first(where: { $0.threadID == thread.id && $0.status == .awaitingApproval }),
             let reply = thread.messages.first(where: { $0.id == run.messageID }),

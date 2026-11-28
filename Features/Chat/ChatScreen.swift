@@ -100,6 +100,8 @@ struct ChatScreen: View {
         }
         // On a window that already shows the fresh chat the task above does not run again.
         .onChange(of: shell.inbound?.id) { applyInbound() }
+        // A chat restored at launch can open before the device models are listed; its waiting run goes on once they are.
+        .onChange(of: models.models.map(\.id)) { chat?.resumeWaitingRun() }
         .toolApprovalDialog(app.toolApprovals) { callID in
             chat?.messages.last?.toolSteps.contains { $0.call.id == callID } ?? false
         }

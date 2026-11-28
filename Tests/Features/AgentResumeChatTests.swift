@@ -213,4 +213,32 @@ struct AgentResumeChatTests {
         #expect(reply.toolSteps.count == 1 && reply.toolSteps.first?.result == sent && reply.toolSteps.first?.approval == .allowOnce)
         #expect(engine.messagesSeen.lastTexts == [AgentLoop.continuationText([sent])])
     }
+
+    /// A chat restored at launch opens before the device models are listed: the run goes on once they are, and only once.
+    @Test func aWaitingRunGoesOnOnceItsModelIsListed() async throws {
+        let url = try storeURL()
+        let threadID = try seed(url, step: ToolStep(call: call, result: nil), status: .awaitingApproval, rounds: [])
+        let runs = RunCount()
+        let center = ToolApprovalCenter()
+        let registry = EngineRegistry()
+        registry.register(ScriptedEngine(models: [testModelWithTools()], chunks: ["It is sent."]))
+        let models = ModelStore(registry: registry, defaults: testDefaults())
+        let context = ModelContext(try ModelContainer.anyRouter(storeURL: url))
+        let thread = try context.fetch(FetchDescriptor<ThreadRecord>(predicate: #Predicate { $0.id == threadID })).first
+        let vm = ChatViewModel(
+            thread: thread, context: context, registry: registry, settings: AppSettings(defaults: testDefaults()), models: models,
+            toolHost: { toolContext in
+                AgentToolHost(builtIns: [SendNote(runs: runs)], search: nil, mcp: nil, approver: toolContext.approver)
+            },
+            approver: center)
+        #expect(vm.phase == .idle && center.pending == nil, "no model listed yet")
+        await models.refresh()
+        vm.resumeWaitingRun()
+        #expect(await waitUntil { center.pending?.request.call.id == "c1" })
+        vm.resumeWaitingRun()
+        #expect(vm.messages.last?.toolSteps.count == 1, "a second call while it streams does nothing")
+        center.resolveCurrent(.allowOnce)
+        #expect(await waitUntil { vm.phase == .idle })
+        #expect(runs.value == 1)
+    }
 }
