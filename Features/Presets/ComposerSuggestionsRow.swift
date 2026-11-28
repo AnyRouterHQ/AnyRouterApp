@@ -35,6 +35,9 @@ struct ComposerSuggestionsRow: View {
             // was the inset slot, so it cut the cards' shadows into a hard grey band (screenshots 46075429647).
             .contentMargins(.leading, ARTheme.pagePadding, for: .scrollContent)
             .padding(.leading, -ARTheme.pagePadding)
+            // The row's own scroll edge effects drew a grey box the size of the row behind the cards (design review P1,
+            // screenshots 46140428971 on iPad); the chat list's edge effect is the one this bar needs.
+            .scrollEdgeEffectHidden(true, for: .all)
             // On the scroll view, not the HStack: an HStack would hand this id down to every chip.
             .accessibilityIdentifier("composer.suggestions")
 
