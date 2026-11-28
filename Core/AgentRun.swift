@@ -11,6 +11,22 @@ enum AgentNode: String, Codable, CaseIterable, Sendable {
     case assemble, compact, generate, act, approve, finish, remember
 }
 
+/// What a run keeps besides its node and round (agent design 1.1). Text, steps and reasoning stay on the reply.
+struct AgentRunState: Codable, Equatable, Sendable {
+    /// Each tool round as the model asked for it, including calls that had not started when the app closed: the
+    /// steps on the reply hold only calls that started.
+    var rounds: [AgentSavedRound] = []
+    /// The side-effect class of each call the user was asked about, by call id, so a relaunch knows which approved
+    /// calls must not run twice.
+    var sideEffects: [String: ToolSideEffect] = [:]
+}
+
+/// One tool round: the text the model wrote with it, as the next request carries it, and every call it asked for.
+struct AgentSavedRound: Codable, Equatable, Sendable {
+    var text: String
+    var calls: [ToolCall]
+}
+
 /// One reply's run, saved at step boundaries, never per token, so a relaunch knows where each unfinished run stopped.
 /// Text, steps and reasoning stay on the reply's `MessageRecord`. A run that ends is deleted: only an unfinished one
 /// has anything to resume.
@@ -26,6 +42,8 @@ enum AgentNode: String, Codable, CaseIterable, Sendable {
     var round: Int
     var startedAt: Date
     var updatedAt: Date
+    /// `AgentRunState` as JSON. Optional so existing stores migrate.
+    var stateData: Data?
 
     init(id: UUID = UUID(), threadID: UUID, messageID: UUID, modelID: String, now: Date = Date()) {
         self.id = id
@@ -43,6 +61,12 @@ enum AgentNode: String, Codable, CaseIterable, Sendable {
     var status: AgentRunStatus {
         get { AgentRunStatus(rawValue: statusRaw) ?? .interrupted }
         set { statusRaw = newValue.rawValue }
+    }
+
+    /// Data this build cannot read is an empty state: the run then has no rounds to rebuild.
+    var state: AgentRunState {
+        get { stateData.flatMap { try? JSONDecoder().decode(AgentRunState.self, from: $0) } ?? AgentRunState() }
+        set { stateData = try? JSONEncoder().encode(newValue) }
     }
 
     /// An unknown raw value reads as finish, the node that runs nothing.

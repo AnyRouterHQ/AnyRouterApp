@@ -4,6 +4,8 @@ import Foundation
 enum ToolRowLogic {
     /// Result text of a call that was cut off by Stop.
     static let cancelledText = "Cancelled"
+    /// Result text of an approved write or external call that had no result when the app closed (agent design 1.3).
+    static let unfinishedText = "This may not have finished. Check, then try again."
     /// Longest result text a row shows.
     static let maxResultCharacters = 2_000
 
@@ -24,7 +26,7 @@ enum ToolRowLogic {
         let phrase = phrase(for: step.call, running: running) + cost(of: step)
         switch state {
         case .running, .awaitingApproval, .done: return phrase
-        case .failed: return phrase + " failed"
+        case .failed: return phrase + (step.result?.text == unfinishedText ? " may not have finished" : " failed")
         case .denied: return phrase + " not allowed"
         case .cancelled: return phrase + " cancelled"
         }

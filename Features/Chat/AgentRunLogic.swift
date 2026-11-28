@@ -1,7 +1,7 @@
 import Foundation
 
-/// The step boundaries of a run as the chat sees them today (agent design 1.3): a tool call starts `act`, its result
-/// ends the round and the model generates again. The app loop (unit G3) will own these steps itself.
+/// The step boundaries of a run as the chat sees them (agent design 1.3): a tool call starts `act`, its result ends the
+/// round and the model generates again. Also the resume rules for the steps of a run after a relaunch.
 enum AgentRunLogic {
     struct Checkpoint: Equatable, Sendable {
         var node: AgentNode
@@ -17,9 +17,46 @@ enum AgentRunLogic {
         }
     }
 
-    /// At launch a run the app was still in cannot go on by itself: generation needs the app in the foreground, and a
-    /// cloud request must not be paid for again without the user.
+    /// At launch a run that was generating or running a tool cannot go on by itself: generation needs the app in the
+    /// foreground, and a cloud request must not be paid for again without the user. A run that waits for the user keeps
+    /// waiting, so its approval card comes back.
     static func afterRelaunch(_ status: AgentRunStatus) -> AgentRunStatus {
-        status == .running || status == .awaitingApproval ? .interrupted : status
+        status == .running ? .interrupted : status
+    }
+
+    /// The steps after a relaunch (agent design 1.3). An approved write or external call with no result may have run, so
+    /// it does not run again: it gets `ToolRowLogic.unfinishedText`, which also tells the model it may not have finished.
+    /// A call whose class is unknown counts as a write. Every other step is left as it is.
+    static func settled(_ steps: [ToolStep], sideEffects: [String: ToolSideEffect]) -> [ToolStep] {
+        steps.map { step in
+            guard step.result == nil, let approval = step.approval, approval != .deny,
+                sideEffects[step.call.id].map(\.isRead) != true
+            else { return step }
+            var settled = step
+            settled.result = ToolResult(callID: step.call.id, name: step.call.name, text: ToolRowLogic.unfinishedText, isError: true)
+            return settled
+        }
+    }
+
+    /// The answers of approved calls that have no result, by call id: such a call runs again without asking again.
+    static func decided(_ steps: [ToolStep]) -> [String: ToolDecision] {
+        var decided: [String: ToolDecision] = [:]
+        for step in steps where step.result == nil {
+            if let approval = step.approval, approval != .deny { decided[step.call.id] = approval }
+        }
+        return decided
+    }
+
+    /// `step` added at the end, unless a step with its id is there already: a resumed run announces its waiting call
+    /// again, and an answer can be noted before its call's row arrives.
+    static func adding(_ step: ToolStep, to steps: [ToolStep]) -> [ToolStep] {
+        steps.contains { $0.id == step.id } ? steps : steps + [step]
+    }
+
+    /// `steps` with the user's answer on `call`'s step, which is added when its row has not arrived yet.
+    static func approving(_ call: ToolCall, _ decision: ToolDecision, in steps: [ToolStep]) -> [ToolStep] {
+        var updated = adding(ToolStep(call: call, result: nil), to: steps)
+        for index in updated.indices where updated[index].id == call.id { updated[index].approval = decision }
+        return updated
     }
 }

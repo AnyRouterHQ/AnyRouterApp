@@ -85,6 +85,10 @@ struct ToolStep: Identifiable, Hashable, Codable, Sendable {
     var sourceID: String?
     /// The calls a subagent made while this one ran, in order. Nil for a plain call and for replies saved before this existed.
     var children: [ToolStep]?
+    /// The user's answer when the call asked first. Nil when it did not ask, while it waits, and for replies saved before
+    /// this existed (an optional decodes with `decodeIfPresent`). With `result` it tells a relaunch whether the call may
+    /// run again (agent design 1.3).
+    var approval: ToolDecision?
 
     var id: String { call.id }
 }
