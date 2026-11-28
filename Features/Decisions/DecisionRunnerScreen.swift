@@ -31,7 +31,6 @@ struct DecisionRunnerScreen: View {
             }
             Section {
                 DisclosureGroup("Questions", isExpanded: $showsQuestions) { questionRows($store) }
-                    .accessibilityIdentifier("decisions-questions")
             }
             resultSections(store)
         }
