@@ -385,6 +385,12 @@ private struct ChatContent: View {
         } action: { _, height in
             visibleHeight = height
         }
+        // Rows that finish their layout late (photo and file cards, text views) grew the end of the chat after it opened,
+        // so the "Reply parts" thread opened about 250 pt short of its end (lane B, screenshots 46075429647). While
+        // following, any growth of the content keeps the end on screen.
+        .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { old, new in
+            if following, new > old { proxy.scrollTo("bottom", anchor: .bottom) }
+        }
         .onScrollPhaseChange { old, new in
             following = ScrollFollow.following(from: old, to: new, atBottom: atBottom, was: following)
         }
