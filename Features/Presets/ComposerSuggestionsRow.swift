@@ -42,8 +42,8 @@ struct ComposerSuggestionsRow: View {
         .contentMargins(.vertical, 4, for: .scrollContent)
         .padding(.vertical, -4)
         // Edge to edge, with the first chip on the page margin (the edge of the + button), so a card cut at the screen
-        // edge says the row scrolls. No fade mask: glass under a mask cannot see what is behind it and drew a grey band
-        // behind the cards (screenshots 46075429647).
+        // edge says the row scrolls. No fade mask: placed after the negative padding, its frame was the inset slot, so
+        // it cut the cards' shadows into a hard grey band from the margin on (screenshots 46075429647).
         .contentMargins(.horizontal, ARTheme.pagePadding, for: .scrollContent)
         .padding(.horizontal, -ARTheme.pagePadding)
         .accessibilityIdentifier("composer.suggestions")
