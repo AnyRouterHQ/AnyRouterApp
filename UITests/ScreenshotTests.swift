@@ -239,6 +239,10 @@ final class ScreenshotTests: XCTestCase {
             XCTAssertTrue(app.descendants(matching: .any)["home.greeting"].waitForExistence(timeout: 15))
             let more = app.descendants(matching: .any)["composer.suggestion.more"]
             XCTAssertTrue(more.waitForExistence(timeout: 10), "the More menu ends the row")
+            // The starter cards are wide, so More sits past the screen edge until the row is scrolled.
+            let row = app.descendants(matching: .any)["composer.suggestions"]
+            var swipes = 0
+            while !more.isHittable && swipes < 6 { row.swipeLeft(); swipes += 1 }
             more.tap()
             XCTAssertTrue(app.descendants(matching: .any)["composer.suggestion.edit"].waitForExistence(timeout: 5), "Edit Presets is in the menu")
             capture("composer-more-menu", appearance)
@@ -328,6 +332,9 @@ final class ScreenshotTests: XCTestCase {
             XCTAssertTrue(app.buttons["attachment.Actors.pdf"].firstMatch.exists, "and so does the file card")
             capture("reply-parts", appearance)
 
+            // The photo tile can sit under the composer when the thread opens; scroll it up so the tap lands on it.
+            var lifts = 0
+            while !photo.isHittable && lifts < 6 { app.swipeUp(); lifts += 1 }
             photo.tap()
             let viewer = app.descendants(matching: .any)["image-viewer.image"]
             XCTAssertTrue(viewer.waitForExistence(timeout: 10), "a tap on the photo opens the viewer")
@@ -411,19 +418,25 @@ final class ScreenshotTests: XCTestCase {
         forEachAppearance { app, appearance in
             showSidebar(app)
             tapRow(app.staticTexts["Switch models in a chat"])
-            XCTAssertTrue(app.staticTexts["switch-note"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["switch-note"].waitForExistence(timeout: 10), "the switch note sits between the replies")
             // A free cloud reply, a paid one and a local one, each with its own footer line.
             let paid = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "$0.0004")).firstMatch
             XCTAssertTrue(paid.waitForExistence(timeout: 5), "the paid reply shows its price")
-            XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Gemma 4 E2B")).firstMatch.exists)
+            XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Gemma 4 E2B")).firstMatch.exists, "the local reply has a line")
             let free = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Nemotron 3.5")).firstMatch
             XCTAssertTrue(free.exists, "the free reply has a line too")
             XCTAssertFalse(free.label.contains("$"), "a free reply shows no price")
             capture("response-footer", appearance)
             paid.tap()
             XCTAssertTrue(app.buttons["reply.details.copy-all"].waitForExistence(timeout: 5), "the details sheet opens")
-            XCTAssertTrue(app.staticTexts["req_demo02"].waitForExistence(timeout: 5))
             capture("response-details", appearance)
+            // Request ID is the last section of a lazy list in a half-height sheet: it is built once scrolled to.
+            let list = app.descendants(matching: .any)["reply.details"]
+            let requestID = app.descendants(matching: .any)
+                .matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "req_demo02", "req_demo02")).firstMatch
+            var swipes = 0
+            while !requestID.exists && swipes < 4 { list.swipeUp(); swipes += 1 }
+            XCTAssertTrue(requestID.exists, "the details end with the request ID")
         }
     }
 
@@ -551,9 +564,9 @@ final class ScreenshotTests: XCTestCase {
     }
 
     /// The model row's logo once filled the whole Decisions sheet: a picker dropped the logo's frame (ab9181a).
-    private func assertNoGiantImages(_ app: XCUIApplication, _ screen: String) {
+    private func assertNoGiantImages(_ app: XCUIApplication, _ screen: String, maxHeight: CGFloat = 60) {
         for image in app.images.allElementsBoundByIndex where image.exists {
-            XCTAssertLessThan(image.frame.height, 60, "an image in \(screen) is \(image.frame.height) pt tall")
+            XCTAssertLessThan(image.frame.height, maxHeight, "an image in \(screen) is \(image.frame.height) pt tall")
         }
     }
 
@@ -590,7 +603,9 @@ final class ScreenshotTests: XCTestCase {
             capture("decision-photo-ready", appearance)
             app.buttons["decisions-run"].tap()
             XCTAssertTrue(app.descendants(matching: .any)["decisions-result-line"].waitForExistence(timeout: 10))
-            assertNoGiantImages(app, "a decision app")
+            // The 88 pt photo tile fills its square, so XCUITest reports the photo's unclipped height (117 pt for the
+            // 3:4 demo receipt). A giant image is the height of the sheet.
+            assertNoGiantImages(app, "a decision app", maxHeight: 200)
             app.swipeUp()
             capture("decision-photo-result", appearance)
         }

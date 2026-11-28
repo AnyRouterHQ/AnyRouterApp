@@ -70,20 +70,28 @@ final class DecisionsTests: XCTestCase {
         XCTAssertFalse(run.isEnabled, "Run needs text and a question")
 
         let state = app.descendants(matching: .any)["decisions-state"]
+        XCTAssertTrue(state.waitForExistence(timeout: 5), "the text field opens the form")
         state.tap()
         state.typeText("Please refund my order today")
 
+        // The keyboard covers the lower rows; scroll the form until Add question can take the tap.
         let add = app.buttons["decisions-add-question"]
-        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        XCTAssertTrue(add.waitForExistence(timeout: 5), "the questions section has an Add question menu")
+        var swipes = 0
+        while !add.isHittable && swipes < 4 { app.swipeUp(); swipes += 1 }
         add.tap()
-        app.buttons["Yes/No"].tap()
+        let yesNo = app.buttons["Yes/No"]
+        XCTAssertTrue(yesNo.waitForExistence(timeout: 5), "the menu offers a yes/no question")
+        yesNo.tap()
 
         let prompt = app.descendants(matching: .any)["decisions-question-prompt"]
-        XCTAssertTrue(prompt.waitForExistence(timeout: 5))
+        XCTAssertTrue(prompt.waitForExistence(timeout: 5), "the new question has a prompt field")
+        swipes = 0
+        while !prompt.isHittable && swipes < 4 { app.swipeUp(); swipes += 1 }
         prompt.tap()
         prompt.typeText("Is this urgent?")
 
-        XCTAssertTrue(run.waitForExistence(timeout: 5))
-        XCTAssertTrue(run.isEnabled)
+        XCTAssertTrue(run.waitForExistence(timeout: 5), "Run stays at the bottom")
+        XCTAssertTrue(run.isEnabled, "text and one written question are enough to run")
     }
 }
