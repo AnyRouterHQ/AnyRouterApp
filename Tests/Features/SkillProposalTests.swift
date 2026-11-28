@@ -143,7 +143,8 @@ struct SkillProposalTests {
         let json = #"{"name":"bill-splitter","description":"Split a bill.","body":"1. Ask."}"#
         let result = await host.execute(ToolCall(id: "c", name: "propose_skill", argumentsJSON: json))
         #expect(!result.isError && result.text == SkillProposalLogic.accepted)
-        #expect(asked.count == 0 && r.reply.skillProposals.count == 1 && (try r.library.all().isEmpty))
+        let stored = try r.library.all()
+        #expect(asked.count == 0 && r.reply.skillProposals.count == 1 && stored.isEmpty)
         let refused = await host.execute(ToolCall(id: "d", name: "propose_skill", argumentsJSON: #"{"name":"X"}"#))
         #expect(refused.isError)
     }
