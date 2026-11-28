@@ -8,6 +8,9 @@ struct AppleFoundationEngine: ChatEngine {
 
     /// Reads Private Cloud Compute. Tests pass a stub.
     var pcc: any ApplePCCProbing = ApplePCCReader()
+    /// The on-device model's window as the system reports it (4,096 on iOS 26; more on newer devices with iOS 27).
+    /// Back-deployed to 26.0. Tests pass a size.
+    var onDeviceContextSize: @Sendable () -> Int = { SystemLanguageModel.default.contextSize }
 
     enum Failure: LocalizedError {
         case unavailable(String)
@@ -53,7 +56,7 @@ struct AppleFoundationEngine: ChatEngine {
                 id: Self.modelID,
                 source: .apple,
                 displayName: "Apple Intelligence",
-                contextLength: 4096,
+                contextLength: onDeviceContextSize(),
                 capabilities: Self.capabilities(available: ready),
                 sizeBytes: nil,
                 isInstalled: ready,

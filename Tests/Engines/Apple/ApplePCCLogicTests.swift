@@ -50,6 +50,15 @@ struct ApplePCCEngineTests {
         func status() async -> ApplePCCStatus { value }
     }
 
+    /// Agent v2 U3: the on-device window is what the system reports, not a hard-coded 4,096. It feeds the compaction
+    /// window and the prompt budget.
+    @Test func theOnDeviceWindowComesFromTheSystem() async throws {
+        let engine = AppleFoundationEngine(pcc: Stub(value: .needsNewerSystem), onDeviceContextSize: { 8192 })
+        let onDevice = try #require(try await engine.availableModels().first)
+        #expect(onDevice.id == "apple/foundation" && onDevice.contextLength == 8192)
+        #expect(CompactionLogic.window(for: onDevice) == 8192)
+    }
+
     @Test func theEngineListsTheCloudModelAfterTheOnDeviceOne() async throws {
         let models = try await AppleFoundationEngine(pcc: Stub(value: .available(contextSize: 32_768))).availableModels()
         #expect(models.map(\.id) == ["apple/foundation", "apple/pcc"])
