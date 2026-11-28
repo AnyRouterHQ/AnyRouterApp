@@ -35,6 +35,9 @@ final class ThreadRecord {
     var profileSnapshotData: Data?
     /// "Don't use memory in this chat".
     var memoryOff: Bool = false
+    /// The cloud model's working notes for this chat, as JSON (`notes` tool, agent design 4). They stay with the chat, so
+    /// the next turn still has them. Optional so existing stores migrate.
+    var notesData: Data?
     @Relationship(deleteRule: .cascade, inverse: \MessageRecord.thread)
     var messages: [MessageRecord] = []
 
@@ -56,6 +59,11 @@ final class ThreadRecord {
     var queue: MessageQueue {
         get { queueData.flatMap { try? JSONDecoder().decode(MessageQueue.self, from: $0) } ?? MessageQueue() }
         set { queueData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
+    }
+
+    var notes: [String] {
+        get { notesData.flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? [] }
+        set { notesData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue) }
     }
 
     var profileSnapshot: [UUID]? {

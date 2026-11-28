@@ -54,6 +54,9 @@ protocol StepFunction: Sendable {
 enum AgentLoop {
     /// What the model reads when it repeats a call that already failed (agent design E5). The call does not run again.
     static let repeatedFailureText = "This exact call already failed, so it was not run again. Answer with what you have."
+    /// The first round whose request repeats the host's recitation after its last tool result (agent design 4, "Todo
+    /// recitation"). Shorter runs do not drift.
+    static let recitesFromRound = 3
 
     /// With `resume` the run goes on from where it stopped instead of asking the model first.
     static func stream(
@@ -104,6 +107,9 @@ enum AgentLoop {
                     stubbed = kept.stubbed
                 } else {
                     sent = rounds
+                }
+                if rounds.count + 1 >= recitesFromRound, let recitation = await host?.recitation() {
+                    sent = recited(sent, recitation)
                 }
                 node = AgentGraph.next(node, on: .fits, round: rounds.count, maxRounds: maxRounds)
             case .generate:
@@ -173,6 +179,14 @@ enum AgentLoop {
         if let metadata { emit(.metadata(metadata)) }
         if let usage { emit(.usage(prompt: usage.prompt, completion: usage.completion)) }
         emit(.done(finishReason: finishReason))
+    }
+
+    /// `rounds` with `recitation` after the last tool result. Only the request carries it; the stored result stays as it was.
+    private static func recited(_ rounds: [AgentRound], _ recitation: String) -> [AgentRound] {
+        var recited = rounds
+        guard let round = recited.indices.last, let result = recited[round].results.indices.last else { return rounds }
+        recited[round].results[result].text += "\n\n" + recitation
+        return recited
     }
 
     /// A run whose engine keeps its own loop (Apple's) goes on as a new turn (agent design 1.3, Apple row): the calls

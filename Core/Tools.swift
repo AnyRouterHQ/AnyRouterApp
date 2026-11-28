@@ -73,11 +73,14 @@ protocol ToolHost: Sendable {
     /// The loop is about to run `calls`, every call of one round, which the model asked for with `text`. A host that saves
     /// its run keeps them, so a relaunch can rebuild the round (agent design 1.3); other hosts do nothing.
     func willRun(_ text: String, calls: [ToolCall]) async
+    /// Text a long run repeats after the last tool result of each request, such as the model's notes; nil for none.
+    func recitation() async -> String?
 }
 
 extension ToolHost {
     func sourceID(forTool name: String) -> String? { nil }
     func willRun(_ text: String, calls: [ToolCall]) async {}
+    func recitation() async -> String? { nil }
 }
 
 /// One call and its outcome, as shown in a message and kept with the assistant reply.

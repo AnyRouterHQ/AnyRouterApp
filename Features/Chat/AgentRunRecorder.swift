@@ -18,10 +18,12 @@ struct RunRecordingApprover: ToolApproving {
     }
 }
 
-/// The chat's tool host for one run: `base` does the work, and each round the loop announces goes to the chat to save.
+/// The chat's tool host for one run: `base` does the work, each round the loop announces goes to the chat to save, and
+/// the chat's notes are what a long run repeats.
 struct RunRecordingHost: ToolHost {
     let base: any ToolHost
     let round: @MainActor @Sendable (String, [ToolCall]) -> Void
+    let recite: @MainActor @Sendable () -> String?
 
     var specs: [ToolSpec] { base.specs }
 
@@ -30,4 +32,6 @@ struct RunRecordingHost: ToolHost {
     func sourceID(forTool name: String) -> String? { base.sourceID(forTool: name) }
 
     func willRun(_ text: String, calls: [ToolCall]) async { await round(text, calls) }
+
+    func recitation() async -> String? { await recite() }
 }

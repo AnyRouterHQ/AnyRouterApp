@@ -761,10 +761,15 @@ final class ChatViewModel {
                 toolContext.memoryTools.append(ReadSkillTool(skills: offered))
                 toolContext.memoryTools.append(ProposeSkillTool(store: SkillProposalStore(context: context, reply: assistant)))
             }
+            // Cloud models keep working notes on the chat, which long runs repeat (agent design 4, unit G5).
+            let notes = model.source == .anyrouter ? ChatNotes(context: context, thread: thread) : nil
+            if let notes { toolContext.memoryTools.append(NotesTool(notes: notes)) }
             toolContext.approver = approver.map { recordingApprover($0, run: run, reply: assistant) }
             let runID = run.id
             host = toolHost(toolContext).map { base in
-                RunRecordingHost(base: base) { [weak self] text, calls in self?.noteRound(text, calls, runID: runID) }
+                RunRecordingHost(
+                    base: base, round: { [weak self] text, calls in self?.noteRound(text, calls, runID: runID) },
+                    recite: { notes?.recitation })
             }
             if skipsToolsOffline(toolContext) { offlineToolNote = OfflineLogic.toolNote }
         }
