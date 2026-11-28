@@ -220,7 +220,7 @@ struct DecisionsStoreTests {
 
     @Test func theBundledAppsLoadAndAMissingFileIsReported() throws {
         let (store, _) = try appStore()
-        #expect(store.apps.count == 7 && store.appsError == nil)
+        #expect(store.apps.count == 8 && store.appsError == nil)
         let broken = DecisionsStore(service: FakeDecisionsService())
         broken.loadApps(bundle: Bundle(path: NSTemporaryDirectory()))
         #expect(broken.apps.isEmpty && broken.appsError != nil)
