@@ -55,6 +55,14 @@ jobs:
       - name: Generate project
         run: xcodegen generate
 
+      # The build log hides compiler flags in a response file, so prove here that the iOS 27 SDK turns the PCC code on;
+      # otherwise this job could stay green while compiling none of it.
+      - name: The iOS 27 SDK turns on APPLE_PCC_SDK
+        run: |
+          xcodebuild -showBuildSettings -project AnyRouter.xcodeproj -target AnyRouter -configuration Debug -sdk iphoneos \
+            | grep -E '^ *SWIFT_ACTIVE_COMPILATION_CONDITIONS =' | tee conditions.txt
+          grep -q APPLE_PCC_SDK conditions.txt || { echo "::error::APPLE_PCC_SDK is not set when building with the iOS 27 SDK"; exit 1; }
+
       - name: Build for a device with the iOS 27 SDK (unsigned, no tests)
         run: |
           set -o pipefail
