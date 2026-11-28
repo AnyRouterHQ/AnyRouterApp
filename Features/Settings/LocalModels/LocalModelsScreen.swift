@@ -10,7 +10,6 @@ struct LocalModelsScreen: View {
     @State private var prompts = LocalModelPrompts()
     @State private var freeBytes: Int64?
     @State private var detail: LocalModelEntry?
-    @State private var confirmsDeleteAll = false
     @ScaledMetric(relativeTo: .body) private var logoSize: CGFloat = 22
 
     private var hub: any ModelHubService { app.hub }
@@ -20,7 +19,10 @@ struct LocalModelsScreen: View {
     }
 
         private var apple: ModelDescriptor? { models.models.first { $0.source == .apple } }
-    private var installed: [LocalModelEntry] { LocalModelsLogic.installed(hub.catalog, state: { hub.downloadState(for: $0) }) }
+    /// Catalog models on disk, and models whose catalog entry is gone: those still load and can be deleted here.
+    private var installed: [LocalModelEntry] {
+        LocalModelsLogic.installed(hub.catalog + hub.offCatalogModels, state: { hub.downloadState(for: $0) })
+    }
     private var featured: [LocalModelEntry] { LocalModelsLogic.featured(families: hub.families, state: { hub.downloadState(for: $0) }) }
     private var downloading: [LocalModelEntry] {
         let shown = Set(featured.map(\.id))
@@ -29,7 +31,6 @@ struct LocalModelsScreen: View {
     private var unavailable: [LocalModelsLogic.UnavailableModel] {
         LocalModelsLogic.unavailable(catalog: hub.catalog, state: { hub.downloadState(for: $0) }, device: device)
     }
-    private var storage: LocalModelsLogic.Storage { LocalModelsLogic.storage(installed: installed, freeBytes: freeBytes) }
     private var sourceCount: Int {
         CatalogSourcesLogic.sources(
             catalog: hub.catalog, remoteURL: hub.remoteCatalogURL, usesDevelopmentCatalog: hub.usesDevelopmentCatalog).count
@@ -43,6 +44,7 @@ struct LocalModelsScreen: View {
             if let error = hub.lastError {
                 Section { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
             }
+            storageSection
             systemSection
             featuredSection
             if !downloading.isEmpty {
@@ -52,12 +54,15 @@ struct LocalModelsScreen: View {
                 Section("Installed") { ForEach(installed) { installedRow($0) } }
             }
             voiceSection
-            storageSection
             Section {
                 NavigationLink("Advanced") { LocalModelsAdvancedScreen(sourceCount: sourceCount) }
                     .accessibilityIdentifier("local.advanced")
             } footer: {
-                Text("Where the model list comes from.")
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Where the model list comes from.")
+                    if let note = hub.memoryLimitNote { Text(note) }
+                    Text(LocalModelsLogic.disclaimer)
+                }
             }
         }
         .listStyle(.insetGrouped)
@@ -67,11 +72,6 @@ struct LocalModelsScreen: View {
         .navigationDestination(item: $detail) { ModelDetailView(entry: $0) }
         .refreshable { await hub.refreshCatalog() }
         .modifier(LocalModelDialogs(prompts: prompts, hub: hub, device: device))
-        .confirmationDialog("Delete all models?", isPresented: $confirmsDeleteAll, titleVisibility: .visible) {
-            Button("Delete All Models", role: .destructive) { Task { await hub.deleteAllModels() } }
-        } message: {
-            Text(LocalModelsLogic.deleteAllMessage(storage, device: device))
-        }
         .onChange(of: installed.map(\.id)) { Task { await models.refresh() } }
         .task {
             await app.memory.refresh()
@@ -148,23 +148,15 @@ struct LocalModelsScreen: View {
         }
     }
 
+    /// One row: what the models folder takes and what is left. It opens the list of everything on disk.
     private var storageSection: some View {
         Section {
-            LabeledContent("Models", value: FitFormat.gigabytes(storage.usedBytes))
-                .accessibilityIdentifier("local.storage")
-            if let free = storage.freeBytes {
-                LabeledContent("Free on device", value: FitFormat.gigabytes(free))
+            NavigationLink {
+                ModelStorageScreen()
+            } label: {
+                Label(StorageInventoryLogic.summary(hub.storageItems, freeBytes: freeBytes), systemImage: "internaldrive")
             }
-            Button("Delete All Models", role: .destructive) { confirmsDeleteAll = true }
-                .disabled(installed.isEmpty)
-                .accessibilityIdentifier("local.deleteAll")
-        } header: {
-            Text("Storage")
-        } footer: {
-            VStack(alignment: .leading, spacing: 8) {
-                if let note = hub.memoryLimitNote { Text(note) }
-                Text(LocalModelsLogic.disclaimer)
-            }
+            .accessibilityIdentifier("local.storage")
         }
     }
 

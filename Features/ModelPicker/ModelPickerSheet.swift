@@ -407,8 +407,10 @@ struct ModelPickerSheet: View {
     private var activeFilterCount: Int { tab == .local ? localFilter.activeCount : cloudFilter.activeCount }
 
     private func fitBadge(for model: ModelDescriptor) -> String? {
-        guard model.source == .gguf || model.source == .mlx,
-              let detail = app.hub.catalog.first(where: { $0.id == model.id })?.fitDetail else { return nil }
+        guard model.source == .gguf || model.source == .mlx else { return nil }
+        // Still installed and loading, but the catalog dropped it: the same words Local Models uses.
+        if app.hub.offCatalogModels.contains(where: { $0.id == model.id }) { return StorageInventoryLogic.offCatalogNote }
+        guard let detail = app.hub.catalog.first(where: { $0.id == model.id })?.fitDetail else { return nil }
         return FitText.badge(detail, device: DeviceName.current)
     }
 

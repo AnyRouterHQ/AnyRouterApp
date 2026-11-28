@@ -42,13 +42,13 @@ enum StorageInventoryLogic {
             order.append(folder)
         }
         for folder in folders {
-            let running = running.contains(folder.name)
+            let isRunning = running.contains(folder.name)
             if let manifest = folder.manifest, !manifest.isProjectorOnly {
                 let known = names[manifest.entryID]
                 add(Item(
                     id: manifest.entryID, name: known ?? repoName(manifest.repo), bytes: folder.bytes,
                     kind: known == nil ? .offCatalog : .installed, folders: [folder.name],
-                    source: manifest.format == .mlx ? .mlx : .gguf, isRunning: running), folder: folder.name)
+                    source: manifest.format == .mlx ? .mlx : .gguf, isRunning: isRunning), folder: folder.name)
             } else if let manifest = folder.manifest {
                 // A photo add-on: folded into its model below when exactly one installed model uses it.
                 let users = models.filter { $0.manifest?.repo == manifest.repo }.count
@@ -56,13 +56,13 @@ enum StorageInventoryLogic {
                 add(Item(
                     id: manifest.entryID, name: names[manifest.entryID] ?? "\(repoName(manifest.repo)) photo support",
                     bytes: folder.bytes, kind: users == 0 ? .orphan : .installed, folders: [folder.name], source: nil,
-                    isRunning: running), folder: folder.name)
+                    isRunning: isRunning), folder: folder.name)
             } else if !folder.hasManifest, let job = folder.job {
                 add(Item(id: job.entry.id, name: names[job.entry.id] ?? job.entry.title, bytes: folder.bytes, kind: .partial,
-                         folders: [folder.name], source: nil, isRunning: running), folder: folder.name)
+                         folders: [folder.name], source: nil, isRunning: isRunning), folder: folder.name)
             } else {
                 add(Item(id: folder.name, name: folder.name, bytes: folder.bytes, kind: .orphan, folders: [folder.name],
-                         source: nil, isRunning: running), folder: folder.name)
+                         source: nil, isRunning: isRunning), folder: folder.name)
             }
         }
         // A photo add-on that exactly one installed model uses is part of that model: its size and its delete.

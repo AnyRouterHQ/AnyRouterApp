@@ -128,6 +128,11 @@ final class SettingsModelsTests: XCTestCase {
 
     func testDeleteAllModelsAsksFirst() {
         let app = openLocalModels()
+        // Delete All moved into Storage, the first row of Local Models.
+        let storage = app.descendants(matching: .any).matching(identifier: "local.storage").firstMatch
+        XCTAssertTrue(storage.waitForExistence(timeout: 10))
+        storage.tap()
+        XCTAssertTrue(app.navigationBars["Storage"].waitForExistence(timeout: 10))
         let deleteAll = app.buttons["local.deleteAll"]
         XCTAssertTrue(deleteAll.waitForExistence(timeout: 10))
         scrollUntilHittable(deleteAll, in: app)
@@ -135,6 +140,6 @@ final class SettingsModelsTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Delete all models?"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Cancel"].exists)
         app.buttons["Cancel"].tap()
-        XCTAssertTrue(app.navigationBars["Local Models"].waitForExistence(timeout: 5), "cancel keeps the screen and the models")
+        XCTAssertTrue(app.navigationBars["Storage"].waitForExistence(timeout: 5), "cancel keeps the screen and the models")
     }
 }

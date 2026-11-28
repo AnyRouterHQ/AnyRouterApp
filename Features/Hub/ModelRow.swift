@@ -65,6 +65,7 @@ struct ModelRow: View {
         case .failed(let message): parts.append(Text(message).foregroundStyle(.red))
         case .notInstalled, .installed: break
         }
+        if entry.isOffCatalog { parts.append(Text(StorageInventoryLogic.offCatalogNote)) }
         if entry.isDeprecated { parts.append(Text("Older model, try \(entry.replacementName ?? "a newer one")")) }
         return parts
     }

@@ -7,6 +7,7 @@ import UIKit
 /// Optional flags: `-ARDemoParts YES` (a reply with reasoning, tools, files, a subagent and a compacted history), `-ARDemoSources YES` (a markdown reply that cites five pages), `-ARReplyTextStep -2...3`, `-ARReplyFont serif|rounded`, `-ARDemoSignedOut YES`, `-ARDemoOnboarding YES`, `-ARDemoTools YES` (a thread with a web search step), `-ARAppearance light|dark`.
 /// `-ARDemoKeepSettings YES` keeps settings from the previous launch, to test persistence.
 /// `-ARDemoMemories YES` seeds a few memories for Settings > Memory.
+/// `-ARDemoOffCatalog YES` puts a model the catalog dropped and an unfinished download in Local Models and Storage.
 /// `-ARDemoAwaySeconds N` records a trip to the background N seconds before launch.
 /// `-ARDemoApproval YES`: the demo cloud engine asks for one external tool (`send_note`) in its first round and answers with
 /// the tool's result in the second, so a UI test can leave a run waiting for approval and relaunch the app.
@@ -842,6 +843,8 @@ final class DemoAccount: AccountService {
 }
 
 /// Fixed catalog: two installed, one downloading at 42%, two not installed.
+/// `-ARDemoOffCatalog YES` adds, on disk only, a model the catalog dropped (Qwen3 0.6B) and an unfinished download, so
+/// Local Models and Storage show both and the UI test can delete them.
 @MainActor @Observable
 final class DemoHub: ModelHubService {
     private(set) var catalog: [LocalModelEntry]
@@ -849,7 +852,11 @@ final class DemoHub: ModelHubService {
     var remoteCatalogURL = ""
     var usesDevelopmentCatalog = false
     var memoryLimitNote: String?
+    private(set) var storageItems: [StorageInventoryLogic.Item] = []
+    private(set) var offCatalogModels: [LocalModelEntry] = []
     private let states: [String: DownloadState]
+    private var folders: [ModelFolder] = []
+    private var running: Set<String> = []
 
     init(installed: Bool) {
         let entries = DemoData.hubEntries
@@ -859,19 +866,57 @@ final class DemoHub: ModelHubService {
             states[entries[0].id] = .installed
             states[entries[1].id] = .installed
             states[entries[2].id] = .downloading(progress: 0.42)
+            folders = entries.prefix(2).map { DemoHub.installedFolder(id: $0.id, repo: $0.repo, bytes: $0.descriptor.sizeBytes ?? 0) }
+            let moving = CatalogEntry(repo: "ggml-org/gemma-3-1b-it-GGUF", format: .gguf, file: "gemma-3-1b-it-Q4_K_M.gguf",
+                                      title: entries[2].descriptor.displayName)
+            folders.append(ModelFolder(name: "demo-downloading", hasJob: true, job: DownloadJobRecord(entry: moving, files: []),
+                                       bytes: 338_000_000))
+            running = ["demo-downloading"]
+            if UserDefaults.standard.bool(forKey: "ARDemoOffCatalog") {
+                folders.append(DemoHub.installedFolder(
+                    id: "gguf/unsloth/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q4_K_M.gguf", repo: "unsloth/Qwen3-0.6B-GGUF", bytes: 396_705_472))
+                let stopped = CatalogEntry(repo: "unsloth/gemma-3-4b-it-GGUF", format: .gguf, file: "gemma-3-4b-it-Q4_K_M.gguf",
+                                           title: "Gemma 3 4B")
+                folders.append(ModelFolder(name: "demo-unfinished", hasJob: true, job: DownloadJobRecord(entry: stopped, files: []),
+                                           bytes: 412_000_000))
+            }
         }
         self.states = states
+        rescan()
+    }
+
+    private static func installedFolder(id: String, repo: String, bytes: Int64) -> ModelFolder {
+        let manifest = InstalledManifest(entryID: id, repo: repo, format: .gguf, revision: nil,
+                                         files: [.init(path: "model.gguf", size: bytes)], completedAt: .distantPast)
+        return ModelFolder(name: LocalModelStorage.directoryName(forEntryID: id), hasManifest: true, manifest: manifest, bytes: bytes)
+    }
+
+    private func rescan() {
+        let names = Dictionary(catalog.map { ($0.id, $0.descriptor.displayName) }, uniquingKeysWith: { first, _ in first })
+        storageItems = StorageInventoryLogic.items(folders: folders, names: names, running: running)
+        offCatalogModels = StorageInventoryLogic.offCatalogEntries(storageItems)
+    }
+
+    /// Off-catalog rows and leftovers go from the list; catalog models stay, like Delete on them in the demo.
+    func deleteStorageItem(_ item: StorageInventoryLogic.Item) async {
+        guard !item.isRunning, item.kind != .installed else { return }
+        folders.removeAll { item.folders.contains($0.name) }
+        rescan()
     }
 
     func reload() async {}
     func refreshCatalog() async {}
     func setUsesDevelopmentCatalog(_ on: Bool) async { usesDevelopmentCatalog = on }
-    func downloadState(for modelID: String) -> DownloadState { states[modelID] ?? .notInstalled }
+    func downloadState(for modelID: String) -> DownloadState {
+        states[modelID] ?? (offCatalogModels.contains { $0.id == modelID } ? .installed : .notInstalled)
+    }
     func download(_ entry: LocalModelEntry) {}
     func pause(modelID: String) {}
     func resume(modelID: String) {}
     func cancel(modelID: String) {}
-    func delete(modelID: String) async {}
+    func delete(modelID: String) async {
+        if let item = storageItems.first(where: { $0.id == modelID && $0.kind == .offCatalog }) { await deleteStorageItem(item) }
+    }
     func searchRepos(_ query: String) async throws -> [RepoHit] { [] }
     func entries(for hit: RepoHit) async throws -> [LocalModelEntry] { [] }
     func addRepo(_ hit: RepoHit) async throws {}

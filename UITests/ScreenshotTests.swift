@@ -671,6 +671,26 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    /// Local Models with a model the catalog dropped (Qwen3 0.6B), scrolled to its Installed row, then Storage.
+    func testModelStorage() {
+        forEachAppearance(extra: ["-ARDemoOffCatalog", "YES"]) { app, appearance in
+            open(app, footer: "Settings")
+            let manage = button(app, containing: "Local Models")
+            scrollTo(manage, in: app)
+            manage.tap()
+            XCTAssertTrue(app.navigationBars["Local Models"].waitForExistence(timeout: 10))
+            let dropped = button(app, containing: "Qwen3-0.6B")
+            scrollTo(dropped, in: app)
+            capture("local-off-catalog", appearance)
+            app.swipeDown(); app.swipeDown()
+            let storage = app.descendants(matching: .any).matching(identifier: "local.storage").firstMatch
+            scrollTo(storage, in: app)
+            storage.tap()
+            XCTAssertTrue(app.navigationBars["Storage"].waitForExistence(timeout: 10))
+            capture("storage", appearance)
+        }
+    }
+
     private func openApps(_ app: XCUIApplication) {
         showSidebar(app)
         tapRow(app.buttons["sidebar-apps"])
