@@ -146,6 +146,7 @@ struct ChatScreen: View {
         }
         model.generatesTitles = true
         model.embedder = OnDeviceEmbedder.shared
+        model.extractor = AppleMemoryExtractor()
         Task { _ = await OnDeviceEmbedder.shared.prepare() }
         if DemoData.attachesSampleFile, thread == nil { model.attachFiles([DemoData.sampleAttachmentURL()]) }
         chat = model

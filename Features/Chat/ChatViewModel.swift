@@ -76,6 +76,11 @@ final class ChatViewModel {
     @ObservationIgnored private var retriedAfterCompaction = false
     /// On-device sentence vectors for recall by meaning. The chat screen sets it; without it recall is BM25 alone.
     @ObservationIgnored var embedder: OnDeviceEmbedder?
+    /// Apple's on-device model for finding what the user says about themselves after a reply (unit M6). The chat screen sets
+    /// it; without it nothing is extracted.
+    @ObservationIgnored var extractor: (any MemoryExtracting)?
+    /// The extraction that follows the last reply, so a caller can wait for it.
+    @ObservationIgnored private(set) var extractionTask: Task<Void, Never>?
     /// The run of the reply being written, saved at its step boundaries.
     @ObservationIgnored private var run: AgentRunRecord?
     /// Asks the user before a tool runs. The chat wraps it so a run that waits is saved (agent design 1.3).
@@ -1105,7 +1110,10 @@ final class ChatViewModel {
         task = nil
         loadingModelName = nil
         refreshContextFraction()
-        if gotReply { settings.noteSuccessfulChat() }
+        if gotReply {
+            settings.noteSuccessfulChat()
+            extractionTask = startExtraction(after: assistant, in: thread)
+        }
         do {
             try save(context)
         } catch {
@@ -1175,6 +1183,27 @@ final class ChatViewModel {
             record.useCount += 1
         }
         return hits
+    }
+
+    /// After a reply from Apple's model (agent design 2.3, unit M6): when automatic saving is on and the question is a
+    /// first-person statement that "remember that" did not already save, the model finds what to keep. Saved items join
+    /// the reply as "Memory updated" rows with Undo. Never for GGUF or MLX: a second generation would hold the loaded model.
+    private func startExtraction(after reply: MessageRecord, in thread: ThreadRecord) -> Task<Void, Never>? {
+        guard let extractor, settings.useMemory, settings.saveMemoriesAutomatically, !thread.memoryOff, reply.memoryUpdates.isEmpty,
+              reply.modelID.flatMap({ ModelSource(rawValue: String($0.prefix { $0 != "/" })) }) == .apple,
+              let question = thread.messages.filter({ $0.role == .user && $0.createdAt <= reply.createdAt }).max(by: { $0.createdAt < $1.createdAt }),
+              MemoryExtractionLogic.isFirstPersonStatement(question.content) else { return nil }
+        let text = question.content
+        let questionID = question.id
+        return Task {
+            let found = MemoryExtractionLogic.clean(await extractor.statements(in: text), message: text)
+            // The chat may be deleted while the model works.
+            guard !found.isEmpty, !Self.isGone(reply), !Self.isGone(thread) else { return }
+            let updates = MemoryStore(context: self.context).rememberExtracted(found, messageID: questionID, thread: thread)
+            guard !updates.isEmpty else { return }
+            reply.memoryUpdates += updates
+            try? self.save(self.context)
+        }
     }
 
     /// The steps of the enabled skill that matches the question, if any fits the device budget.

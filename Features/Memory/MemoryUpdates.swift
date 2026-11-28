@@ -18,6 +18,13 @@ extension MemoryStore {
         return [save(candidate.text, kind: candidate.kind, origin: .askedInChat, source: source, threadID: thread.id, messageID: messageID)]
     }
 
+    /// Saves what the on-device model found in the user's message (unit M6) as extracted items that stay off cloud models.
+    /// Only a saved item is a row: a repeat or a refusal is not worth a line the user did not ask for.
+    func rememberExtracted(_ statements: [String], messageID: UUID, thread: ThreadRecord) -> [MemoryUpdate] {
+        statements.map { save($0, kind: .fact, origin: .extracted, source: .apple, threadID: thread.id, messageID: messageID) }
+            .filter { $0.outcome == .saved }
+    }
+
     /// "Remember" on text selected in a reply: a pinned note, shown as a row on that reply.
     func pin(_ text: String, from reply: MessageRecord) throws {
         let source = reply.modelID.flatMap { ModelSource(rawValue: String($0.prefix { $0 != "/" })) } ?? .apple
