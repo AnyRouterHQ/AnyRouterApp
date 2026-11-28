@@ -51,18 +51,26 @@ final class GGUFModelSmokeTests: XCTestCase {
         try FileManager.default.createDirectory(at: partial.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Self.stage(source, as: partial)
         var installed = [HFFile(path: file, size: size, sha256: sha)]
+        var addOnJob: DownloadJobRecord?
         if withProjector {
             // The projector sits next to the model file. The workflow downloaded it and checked its sha256.
             let name = try XCTUnwrap(SmokeEnv.mmprojFile, "the workflow gave no projector for this model")
             let projector = source.deletingLastPathComponent().appending(path: name)
             let projectorSize = try XCTUnwrap(try FileManager.default.attributesOfItem(atPath: projector.path)[.size] as? NSNumber).int64Value
-            let projectorPartial = storage.partialFileURL(forEntryID: entry.id, path: name)
+            let projectorFile = HFFile(path: name, size: projectorSize, sha256: SmokeEnv.mmprojSHA256)
+            // An optional projector installs the way "Add photo support" does: a download of its own, after the model.
+            let owner = entry.photoAddOn
+            let projectorPartial = storage.partialFileURL(forEntryID: owner?.id ?? entry.id, path: name)
             try FileManager.default.createDirectory(at: projectorPartial.deletingLastPathComponent(), withIntermediateDirectories: true)
             try Self.stage(projector, as: projectorPartial)
-            installed.append(HFFile(path: name, size: projectorSize, sha256: SmokeEnv.mmprojSHA256))
+            if let owner { addOnJob = DownloadJobRecord(entry: owner, files: [projectorFile]) } else { installed.append(projectorFile) }
         }
         try ModelInstaller.verifyAndInstall(DownloadJobRecord(entry: entry, files: installed), storage: storage)
         XCTAssertTrue(storage.isInstalled(entryID: entry.id))
+        if let addOnJob {
+            try ModelInstaller.verifyAndInstall(addOnJob, storage: storage)
+            XCTAssertTrue(storage.isInstalled(entryID: addOnJob.entry.id))
+        }
 
         let catalog = CatalogService(
             bundled: { document }, cacheDirectory: makeTempDirectory(), settings: { CatalogSettings() })
@@ -169,7 +177,19 @@ final class GGUFModelSmokeTests: XCTestCase {
     func testNamesTheColorOfAPhoto() async throws {
         try XCTSkipUnless(SmokeEnv.mmprojFile != nil, "this model has no image projector")
         let ctx = try await Self.makeContext(withProjector: true)
-        XCTAssertTrue(ctx.model.capabilities.contains("vision"), "an installed model with a projector must list the vision capability")
+        // The engine lists "vision" for an installed model whose projector is on disk and that this device has room for.
+        // The runner's memory decides the second part, and it moves between two readings, so it is reported, not asserted:
+        // the projector state is judged with plenty of room.
+        XCTAssertNotNil(
+            ctx.storage.projectorURL(forEntryID: ctx.entry.id, addOn: ctx.entry.photoAddOn), "the staged projector must be on disk")
+        let roomy = DeviceMemory(budgetBytes: 64_000_000_000, physicalBytes: 64_000_000_000)
+        let withRoom = LocalModelDescriptors.installed(format: .gguf, storage: ctx.storage, catalog: [ctx.entry], memory: roomy)
+        XCTAssertEqual(
+            withRoom.first { $0.id == ctx.entry.id }?.capabilities.contains("vision"), true,
+            "an installed model with its projector on disk must list the vision capability")
+        SmokeReport.record(
+            "Vision capability on this runner",
+            ctx.model.capabilities.contains("vision") ? "listed" : "not listed (no room for the projector on this runner)")
         let data = Self.redPhoto()
         let id = UUID()
         let relative = try ctx.attachments.write(data, id: id, fileExtension: "jpg")
