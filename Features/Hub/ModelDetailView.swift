@@ -48,6 +48,13 @@ struct ModelDetailView: View {
                         footprintBytes: app.memory.readout.footprintBytes, availableBytes: app.memory.readout.availableBytes))
                 }
             }
+            if state == .installed, let addOn = entry.photoAddOn {
+                Section {
+                    photoSupport(addOn)
+                } footer: {
+                    Text("Lets this model read photos you attach.")
+                }
+            }
             Section { actions }
         }
         .navigationTitle(entry.descriptor.displayName)
@@ -63,6 +70,13 @@ struct ModelDetailView: View {
             Text("The files are removed from this \(device). You can download it again later.")
         }
         .task { await app.memory.refresh() }
+        // The picker lists the vision capability from the files on disk: read them again when the add-on lands or goes.
+        .onChange(of: entry.photoAddOn.map { hub.downloadState(for: $0.id) == .installed }) {
+            Task {
+                await hub.reload()
+                await models.refresh()
+            }
+        }
     }
 
     private var statusSymbol: String {
@@ -72,6 +86,31 @@ struct ModelDetailView: View {
         case .tight: return "exclamationmark.triangle"
         case .wontFit: return "xmark.octagon"
         case .unknown: return "questionmark.circle"
+        }
+    }
+
+    @ViewBuilder
+    private func photoSupport(_ addOn: PhotoAddOn) -> some View {
+        let row = PhotoSupportLogic.row(state: hub.downloadState(for: addOn.id), sizeBytes: addOn.sizeBytes)
+        if let failure = row.failure { Text(failure).foregroundStyle(.red) }
+        if let status = row.status {
+            if let value = status.value {
+                LabeledContent(status.label, value: value)
+            } else {
+                Label(status.label, systemImage: "checkmark.shield").foregroundStyle(.secondary)
+            }
+        }
+        ForEach(row.actions, id: \.title) { action in
+            switch action {
+            case .add:
+                Button(action.title, systemImage: "photo.badge.plus") { hub.addPhotoSupport(to: entry.id) }
+            case .resume:
+                Button(action.title, systemImage: "play.circle") { hub.resume(modelID: addOn.id) }
+            case .cancel:
+                Button(action.title, systemImage: "xmark.circle", role: .destructive) { hub.cancel(modelID: addOn.id) }
+            case .remove:
+                Button(action.title, systemImage: "trash", role: .destructive) { Task { await hub.delete(modelID: addOn.id) } }
+            }
         }
     }
 

@@ -108,6 +108,11 @@ final class LocalModelHub: ModelHubService {
         }
     }
 
+    func addPhotoSupport(to modelID: String) {
+        guard let model = raw[modelID], downloads.state(for: model) == .installed, let addOn = model.photoAddOn else { return }
+        Task { await downloads.start(addOn) }
+    }
+
     func pause(modelID: String) { if let e = raw[modelID] { downloads.pause(e) } }
     func resume(modelID: String) { if let e = raw[modelID] { downloads.resume(e) } }
     func cancel(modelID: String) { if let e = raw[modelID] { downloads.cancel(e) } }

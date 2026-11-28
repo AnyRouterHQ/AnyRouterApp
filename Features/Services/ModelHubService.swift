@@ -152,6 +152,9 @@ protocol ModelHubService: AnyObject {
     func resume(modelID: String)
     func cancel(modelID: String)
     func delete(modelID: String) async
+    /// Starts the download of an installed model's photo add-on (`LocalModelEntry.photoAddOn`). Its state, pause,
+    /// resume, cancel and removal use `downloadState(for:)`, `resume`, `cancel` and `delete` with the add-on's id.
+    func addPhotoSupport(to modelID: String)
 
     func searchRepos(_ query: String) async throws -> [RepoHit]
     func entries(for hit: RepoHit) async throws -> [LocalModelEntry]
@@ -165,6 +168,9 @@ protocol ModelHubService: AnyObject {
 extension ModelHubService {
     /// Hubs that download nothing finish nothing.
     var finishedDownloads: Int { 0 }
+
+    /// Hubs with no add-ons have nothing to add.
+    func addPhotoSupport(to modelID: String) {}
 
     /// Deletes every installed model, one at a time. A model that fails to delete leaves `lastError` set and the rest still go.
     func deleteAllModels() async {
