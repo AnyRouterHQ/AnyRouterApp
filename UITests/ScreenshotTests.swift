@@ -345,6 +345,9 @@ final class ScreenshotTests: XCTestCase {
             app.buttons["Close"].firstMatch.tap()
             XCTAssertTrue(reasoning.waitForExistence(timeout: 10), "the viewer closes back to the chat")
 
+            // The lift above can push the reasoning row off the top; bring it back before the tap.
+            var drops = 0
+            while !reasoning.isHittable && drops < 6 { app.swipeDown(); drops += 1 }
             reasoning.tap()
             XCTAssertTrue(app.descendants(matching: .any)["reasoning.text"].firstMatch.waitForExistence(timeout: 5))
             capture("reply-parts-reasoning-open", appearance)
