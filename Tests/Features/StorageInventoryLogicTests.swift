@@ -99,6 +99,23 @@ struct StorageInventoryLogicTests {
         #expect(StorageInventoryLogic.repoName("") == "")
     }
 
+    @Test func aVoiceFolderIsNamedByTheVoiceCatalogAndKeepsItsDownloadMarker() {
+        let folders = [
+            ModelFolder(name: "whisper-small", hasManifest: true, bytes: 500),
+            ModelFolder(name: "whisper-old", hasManifest: true, bytes: 300),
+            ModelFolder(name: "kokoro", hasJob: true, bytes: 200),
+            ModelFolder(name: "moonshine", hasJob: true, bytes: 100),
+            ModelFolder(name: "stray", bytes: 50),
+        ]
+        let rows = StorageInventoryLogic.voiceItems(
+            folders: folders, names: ["whisper-small": "Whisper Small", "kokoro": "Kokoro"], running: ["moonshine"])
+        #expect(rows.map(\.name) == ["Whisper Small", "whisper-old", "Kokoro", "moonshine", "stray"], "biggest first")
+        #expect(rows.map(\.kind) == [.installed, .offCatalog, .partial, .partial, .orphan])
+        #expect(rows.map(\.isRunning) == [false, false, false, true, false])
+        #expect(rows.allSatisfy { $0.id == $0.folders[0] && $0.source == nil }, "deleted by folder")
+        #expect(StorageInventoryLogic.unfinished(rows).map(\.id) == ["kokoro"])
+    }
+
     @Test func theLaunchCleanUpNamesOnlyFoldersWithNoManifestNoRecordAndNoDownload() {
         let folders = [
             installed("model", manifest("gguf/m", repo: "org/m"), bytes: 1),

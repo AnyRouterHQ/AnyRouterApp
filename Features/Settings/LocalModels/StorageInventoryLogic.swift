@@ -75,7 +75,24 @@ enum StorageInventoryLogic {
             row.folders.append(folder.name)
             rows[user.name] = row
         }
-        return order.compactMap { rows[$0] }.sorted { ($0.bytes, $1.name) > ($1.bytes, $0.name) }
+        return biggestFirst(order.compactMap { rows[$0] })
+    }
+
+    /// The voice folder's rows. A voice folder is named after its model, so `names` is keyed by folder name; its download
+    /// record is the `.downloading` marker (`VoiceModelStorage.folders`). A manifest this build cannot read still counts.
+    static func voiceItems(folders: [ModelFolder], names: [String: String], running: Set<String>) -> [Item] {
+        biggestFirst(folders.map { folder in
+            let name = names[folder.name]
+            let kind: Item.Kind = folder.hasManifest
+                ? (name == nil ? .offCatalog : .installed)
+                : (folder.hasJob ? .partial : .orphan)
+            return Item(id: folder.name, name: name ?? folder.name, bytes: folder.bytes, kind: kind, folders: [folder.name],
+                        source: nil, isRunning: running.contains(folder.name))
+        })
+    }
+
+    private static func biggestFirst(_ items: [Item]) -> [Item] {
+        items.sorted { ($0.bytes, $1.name) > ($1.bytes, $0.name) }
     }
 
     /// "Qwen3-0.6B-GGUF" for "unsloth/Qwen3-0.6B-GGUF".

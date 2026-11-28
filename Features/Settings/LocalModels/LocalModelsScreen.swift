@@ -76,6 +76,7 @@ struct LocalModelsScreen: View {
         .task {
             await app.memory.refresh()
             freeBytes = HubScreen.freeDiskBytes()
+            await app.voice.rescanStorage()
         }
     }
 
@@ -154,7 +155,8 @@ struct LocalModelsScreen: View {
             NavigationLink {
                 ModelStorageScreen()
             } label: {
-                Label(StorageInventoryLogic.summary(hub.storageItems, freeBytes: freeBytes), systemImage: "internaldrive")
+                Label(StorageInventoryLogic.summary(hub.storageItems + app.voice.storageItems, freeBytes: freeBytes),
+                      systemImage: "internaldrive")
             }
             .accessibilityIdentifier("local.storage")
         }

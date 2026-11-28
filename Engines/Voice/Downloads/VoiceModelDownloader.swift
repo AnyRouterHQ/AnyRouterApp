@@ -79,6 +79,9 @@ final class VoiceModelDownloader {
 
     func isInstalled(_ model: VoiceModel) -> Bool { state(for: model) == .installed }
 
+    /// Ids with a download in flight.
+    var activeIDs: Set<String> { Set(states.filter { $0.value.isActive }.map(\.key)) }
+
     func installedIDs(in models: [VoiceModel]) -> Set<String> {
         Set(models.filter { !$0.isSystem && storage.isInstalled($0.id) }.map(\.id))
     }

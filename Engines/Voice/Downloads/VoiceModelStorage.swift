@@ -87,6 +87,28 @@ struct VoiceModelStorage: Sendable {
         if FileManager.default.fileExists(atPath: dir.path) { try FileManager.default.removeItem(at: dir) }
     }
 
+    /// Every folder under the voice root, in the shape the storage list and the launch clean-up read. A voice download's
+    /// record is its `.downloading` marker, not a job file.
+    func folders() -> [ModelFolder] {
+        base.folders().map { folder in
+            var folder = folder
+            let marker = root.appending(path: folder.name).appending(path: Self.downloadingName)
+            folder.hasJob = folder.hasJob || FileManager.default.fileExists(atPath: marker.path)
+            return folder
+        }
+    }
+
+    /// Removes one folder by name, for a voice model the catalog no longer lists or files no record explains.
+    func delete(folder name: String) throws { try base.delete(folder: name) }
+
+    /// The launch clean-up, by the same rule as the chat models (`StorageInventoryLogic.leftovers`): no finished install,
+    /// no `.downloading` marker, no download in flight. Returns the folders it removed. Safe to run again.
+    func removeLeftovers(running: Set<String>) -> [String] {
+        let names = StorageInventoryLogic.leftovers(folders(), running: running)
+        for name in names { try? base.delete(folder: name) }
+        return names
+    }
+
     /// Bytes on disk for an installed model, from its manifest.
     func installedBytes(_ id: String) -> Int64 { manifest(id)?.sizeBytes ?? 0 }
 

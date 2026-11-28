@@ -15,6 +15,8 @@ final class VoiceHub {
     private(set) var readyModelID: String?
     /// Bumped when the person taps Start on the "ready" banner. The composer starts listening on each change.
     private(set) var startRequests = 0
+    /// Everything in the voice folder, biggest first, for Settings › Local Models › Storage. Read by `rescanStorage`.
+    private(set) var storageItems: [StorageInventoryLogic.Item] = []
 
     @ObservationIgnored private let loadCatalog: () throws -> [VoiceModel]
     @ObservationIgnored private var cachedCatalog: [VoiceModel]?
@@ -97,8 +99,40 @@ final class VoiceHub {
     /// Stops the Voice Mode download and throws away what was fetched.
     func cancelVoiceModeDownload(_ model: VoiceModel) { downloader.cancel(model) }
 
-    /// Takes up the voice downloads that were running when the app was last open. Call once after launch.
-    func restoreDownloads() { downloader.restore(catalog) }
+    /// Takes up the voice downloads that were running when the app was last open, then drops what a cancelled or failed
+    /// download left. Call once after launch.
+    func restoreDownloads() {
+        downloader.restore(catalog)
+        let storage = downloader.storage
+        let active = Set(downloader.activeIDs.map(LocalModelStorage.directoryName(forEntryID:)))
+        Task.detached(priority: .utility) { _ = storage.removeLeftovers(running: active) }
+    }
+
+    // MARK: Storage
+
+    /// Reads the voice folder again.
+    func rescanStorage() async {
+        let storage = downloader.storage
+        let folders = await Task.detached(priority: .utility) { storage.folders() }.value
+        let names = Dictionary(catalog.map { (LocalModelStorage.directoryName(forEntryID: $0.id), $0.title) },
+                               uniquingKeysWith: { first, _ in first })
+        let running = Set(downloader.activeIDs.map(LocalModelStorage.directoryName(forEntryID:)))
+        storageItems = StorageInventoryLogic.voiceItems(folders: folders, names: names, running: running)
+    }
+
+    /// Deletes one row of the storage list. A catalog model goes the usual way (System takes over if it was selected); a
+    /// folder the catalog does not name is removed as it is. A running download is left alone.
+    func deleteStorageItem(_ item: StorageInventoryLogic.Item) async {
+        guard !item.isRunning else { return }
+        if let model = catalog.first(where: { LocalModelStorage.directoryName(forEntryID: $0.id) == item.id }) {
+            if isSelected(model) { select(.system(model.kind)) }
+            try? downloader.delete(model)
+            forget(model)
+        } else {
+            try? downloader.storage.delete(folder: item.id)
+        }
+        await rescanStorage()
+    }
 
     /// The "ready" state has been shown.
     func dismissReady() { readyModelID = nil }
