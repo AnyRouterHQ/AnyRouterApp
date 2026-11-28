@@ -80,8 +80,10 @@ struct ThreadSidebar: View {
             }
             ToolbarSpacer(.flexible, placement: .bottomBar)
             ToolbarItem(placement: .bottomBar) {
-                Button("New chat", systemImage: "plus") { shell.newChat(closeSidebar: isDrawer) }
-                    .labelStyle(.titleAndIcon)
+                // The style sits inside the label: set on the button, the toolbar drew the plus alone (screenshots 46140428971).
+                Button { shell.newChat(closeSidebar: isDrawer) } label: {
+                    Label("New chat", systemImage: "plus").labelStyle(.titleAndIcon)
+                }
                     .accessibilityIdentifier("sidebar.compose")
             }
         }
