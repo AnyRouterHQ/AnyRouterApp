@@ -44,6 +44,7 @@ struct CatalogSourcesScreen: View {
                 TextField("org/name or huggingface.co URL", text: $repoText)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .accessibilityIdentifier("catalog.repo.field")
                 Picker("Format", selection: $format) {
                     Text("GGUF").tag(ModelSource.gguf)
                     Text("MLX").tag(ModelSource.mlx)
