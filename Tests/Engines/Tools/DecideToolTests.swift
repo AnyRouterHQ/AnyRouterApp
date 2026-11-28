@@ -95,7 +95,9 @@ struct DecideToolTests {
         }
     }
 
-    @MainActor @Test func onlyACloudChatIsOfferedDecide() {
+    /// Manager decision on D28: decide has its own switch; a cloud chat gets it as a read, a device chat as an external
+    /// call that asks every time.
+    @MainActor @Test func decideFollowsItsSwitchAndIsExternalOutsideACloudChat() {
         let defaults = testDefaults()
         let integrations = IntegrationsStore(
             defaults: defaults, credentials: FakeCredentialStore(), anyRouterToken: { "tok" }, session: MCPStubProtocol.session())
@@ -107,8 +109,14 @@ struct DecideToolTests {
         #expect(!offered(.anyrouter), "no service yet")
         registry.decisions = Service()
         #expect(offered(.anyrouter))
-        #expect(!offered(.gguf) && !offered(.apple) && !offered(nil))
+        func sideEffect(_ source: ModelSource?) -> ToolSideEffect? {
+            registry.makeHost(approver: Denier(), context: ToolContext(modelSource: source))?.specs.first { $0.name == "decide" }?.sideEffect
+        }
+        #expect(sideEffect(.anyrouter) == .read)
+        #expect(sideEffect(.apple) == .external && sideEffect(.gguf) == .external && sideEffect(nil) == .external)
         #expect(!offered(.anyrouter, forced: ["exa"]), "only the sources the user named")
+        registry.setBuiltIn(DecideTool.toolName, enabled: false)
+        #expect(!offered(.anyrouter), "its switch is off")
     }
 
     private struct Denier: ToolApproving {
