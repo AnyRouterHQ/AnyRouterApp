@@ -256,7 +256,7 @@ Decision: a small focused client (`Engines/MCP/`) instead of the official MCP Sw
 
 Research: [docs/research/local-agent.md](docs/research/local-agent.md) (2026-11-26). Keep the engine-owned loop with host-owned approval and execution; add device tools as `BuiltInTool` conformances; ship read-only tools first. Each item is a small push to main.
 
-- [ ] LA1 `BuiltInTool` gets a side-effect class (`read`, `sensitiveRead`, `write`, `external`) and an optional permission; `AgentToolHost` asks per class (writes and external calls every time, no "always allow")
+- [x] LA1 (964cdc8, 228bbfd) `BuiltInTool` gets a side-effect class (`read`, `sensitiveRead`, `write`, `external`) and an optional permission; `AgentToolHost` asks per class (writes and external calls every time, no "always allow")
 - [ ] LA2 `DevicePermission` broker (status, request, Settings link) and Settings › Integrations › "On this device" with per-tool switch and status; sensitive tools off by default; our sheet before the system prompt, never at launch
 - [x] LA3 (365642c) `ocr_image` (Vision text and document recognition on the chat's image attachments, no permission). It ranks with the rest in the four-tool window: Apple and local models already get each photo's OCR text in the message (`AttachmentPrompt`), so it would repeat that text and push out the clock, calculator, search or page reader. Cloud models get it in any chat with a photo
 - [ ] LA4 `calendar_search` and `reminders` search (EventKit full access, 20 results, title/time/place only)
@@ -299,7 +299,7 @@ Units from `docs/research/agent-design.md` § 6, in this order. Each is one push
 - [x] A4 (25a641e, e5ed9da; green in CI 46090800331) Structured cloud summary; compact once and retry on Apple's context error
 - [x] G1 (3ad8787) `interrupted` marker on a reply, set at insert and cleared when it finishes (builds on lane A's stored failure)
 - [x] G2 (c6bcfb5; green in CI 46090800331) `AgentRunRecord`, saved at start, tool call and tool result, deleted when the run ends; launch marks unfinished runs interrupted. G1 two-window iPad case fixed with `LiveReplies` (717c2fa, unit test only)
-- [ ] G3 One app loop for AnyRouter and local models (`StepFunction`); LA1 side-effect classes drive its approvals; `decide` as a tool
+- [x] G3 (c95ce83, 04a6e33, 34e8710, 67acf4c; green in CI 46104645176) One app loop (`AgentLoop`, `AgentGraph`, `StepFunction`) for AnyRouter and local models, old engine loops deleted; result caps, stubs, cloud clearing in 8,000-token steps, E5 stop on a repeated failing call; `decide` as a tool for AnyRouter chats. Open: MCP tools that are not read-only are `external` but MCPToolHost still offers Always allow; `decide` runs without asking and has no switch; the approve node waits for G4
 - [ ] G4 Approval interrupt saved and resumed
 - [ ] G5 `notes` tool and recitation, cloud only
 - [x] X1 (316740b; green in CI 46090800331) "Ask a cloud model" on a device reply that failed (too long, out of memory, not loaded, unavailable), with the notice. Open: the UI test from a contextTooLong reply
