@@ -19,7 +19,7 @@ final class HubJourney: JourneyCase {
             reveal(browse, in: app)
             browse.tap()
             XCTAssertTrue(app.descendants(matching: .any)["hub.list"].waitForExistence(timeout: 10), "hub list")
-            XCTAssertTrue(card(app, "Qwen3 0.6B").waitForExistence(timeout: 5), "installed model")
+            XCTAssertTrue(card(app, "Qwen 3.5 0.8B").waitForExistence(timeout: 5), "installed model")
             step("hub-top")
             audit(app, "hub")
 
@@ -47,7 +47,7 @@ final class HubJourney: JourneyCase {
             let search = app.searchFields["Search models"]
             search.tap()
             search.typeText("Llama")
-            XCTAssertTrue(waitGone(card(app, "Qwen3 0.6B"), timeout: 5), "non-matching model leaves the list")
+            XCTAssertTrue(waitGone(card(app, "Qwen 3.5 0.8B"), timeout: 5), "non-matching model leaves the list")
             XCTAssertTrue(card(app, "Llama 3.2 1B").waitForExistence(timeout: 5), "matching model stays")
             step("hub-search-llama")
         }

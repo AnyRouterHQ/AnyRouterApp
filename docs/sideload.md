@@ -17,7 +17,7 @@ Or with the CLI: `gh run download --name AnyRouter-debug-unsigned`.
 ## Limits of a free Apple ID
 
 - The install expires after **7 days**. Re-install to renew (AltStore can refresh in the background).
-- The increased-memory-limit entitlement is dropped when signing with a free account. Large models can run out of memory: **0.6B to 1.7B models are fine, 4B models may crash**.
+- The increased-memory-limit entitlement is dropped when signing with a free account. Large models can run out of memory: **0.8B to 1.7B models are fine, 4B models may crash**.
 - Apple Foundation Models needs Apple Intelligence turned on and iOS 26.
 - Free accounts allow only a few active app IDs; remove old sideloaded apps if the install is refused.
 

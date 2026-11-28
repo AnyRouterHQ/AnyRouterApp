@@ -22,7 +22,7 @@ final class HubBrowseTests: XCTestCase {
     func testAnInstalledModelOpensItsPageAndDeleteAsksFirst() {
         let app = openBrowse()
         XCTAssertTrue(app.element("hub.storage").waitForExistence(timeout: 5), "the storage line is on top")
-        let qwen = modelRow(app, "Qwen3 0.6B")
+        let qwen = modelRow(app, "Qwen 3.5 0.8B")
         XCTAssertTrue(qwen.waitForExistence(timeout: 10), "an installed model is listed")
         qwen.tap()
         XCTAssertTrue(app.buttons["Set as Default"].waitForExistence(timeout: 10), "an installed model's page offers Set as Default")
@@ -30,7 +30,7 @@ final class HubBrowseTests: XCTestCase {
         app.scrollPage(under: app.navigationBars.firstMatch, until: delete)
         XCTAssertTrue(delete.isHittable, "Delete is reachable")
         delete.tap()
-        let title = app.labelled(containing: "Delete Qwen3 0.6B?")
+        let title = app.labelled(containing: "Delete Qwen 3.5 0.8B?")
         XCTAssertTrue(title.waitForExistence(timeout: 5), "Delete asks first")
         app.buttons["Cancel"].firstMatch.tap()
         XCTAssertTrue(title.waitForNonExistence(timeout: 5), "Cancel closes the question")
@@ -43,7 +43,7 @@ final class HubBrowseTests: XCTestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 5), "the list is searchable")
         search.tap()
         search.typeText("Llama")
-        XCTAssertTrue(modelRow(app, "Qwen3 0.6B").waitForNonExistence(timeout: 5), "a model that does not match leaves the list")
+        XCTAssertTrue(modelRow(app, "Qwen 3.5 0.8B").waitForNonExistence(timeout: 5), "a model that does not match leaves the list")
         XCTAssertTrue(modelRow(app, "Llama 3.2 1B").waitForExistence(timeout: 5), "a matching model stays")
         search.buttons["Clear text"].tap()
 

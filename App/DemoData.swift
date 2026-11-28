@@ -169,7 +169,7 @@ enum DemoData {
                 (.user, "Give me a relaxed 3 day plan for Lisbon."),
                 (.assistant, "Start with Alfama on foot, then take tram 28 in the evening. Day two: Belem and a pastel de nata. Day three: a day trip to Sintra."),
             ]),
-            ("Summarize meeting notes", false, "gguf/Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q4_K_M.gguf", [
+            ("Summarize meeting notes", false, "gguf/unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_K_M.gguf", [
                 (.user, "Summarize these notes in three bullets."),
                 (.assistant, "Launch moves to Friday. Design review is done. Two bugs are left in onboarding."),
             ]),
@@ -575,8 +575,8 @@ enum DemoData {
     ]
 
     private static let localCatalog: [(id: String, name: String, size: Int64, summary: String, tags: [String], fit: ModelFit, family: String)] = [
-        ("gguf/Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q4_K_M.gguf", "Qwen3 0.6B", 484_000_000,
-         "Small and fast. Good for quick answers.", ["gguf", "0.6B", "Q4_K_M"], .fits, "qwen3"),
+        ("gguf/unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_K_M.gguf", "Qwen 3.5 0.8B", 532_517_120,
+         "Small and fast. Good for quick answers.", ["gguf", "0.8B", "Q4_K_M"], .fits, "qwen35"),
         ("gguf/bartowski/Llama-3.2-1B-Instruct-GGUF/Llama-3.2-1B-Instruct-Q4_K_M.gguf", "Llama 3.2 1B Instruct", 808_000_000,
          "Meta's compact instruction model.", ["gguf", "1B", "Q4_K_M"], .fits, "llama32"),
         ("gguf/ggml-org/gemma-3-1b-it-GGUF/gemma-3-1b-it-Q4_K_M.gguf", "Gemma 3 1B", 806_000_000,
@@ -590,7 +590,7 @@ enum DemoData {
          "Experimental 1-bit mixture of experts. Streams from storage; best with 16 GB.", ["gguf", "26B", "1-bit"], .tight, "inkling"),
     ]
 
-    private static let familyNames = ["qwen3": "Qwen3", "llama32": "Llama 3.2", "gemma3": "Gemma 3", "inkling": "Inkling 2 Mini"]
+    private static let familyNames = ["qwen35": "Qwen 3.5", "qwen3": "Qwen3", "llama32": "Llama 3.2", "gemma3": "Gemma 3", "inkling": "Inkling 2 Mini"]
 
     /// Sizes that do not fit the demo device (3.2 GB for models), so Local Models has a Not available list.
     private static let tooBigCatalog: [(id: String, name: String, size: Int64, summary: String)] = [

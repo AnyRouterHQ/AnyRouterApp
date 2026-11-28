@@ -254,39 +254,6 @@
       "order": 2,
       "variants": [
         {
-          "repo": "unsloth/Qwen3-0.6B-GGUF",
-          "engine": "gguf",
-          "file": "Qwen3-0.6B-Q4_K_M.gguf",
-          "params": "0.6B",
-          "quant": "Q4_K_M",
-          "sizeBytes": 396705472,
-          "contextLength": 40960,
-          "license": "apache-2.0",
-          "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
-          "sha256": "ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a",
-          "isOnboarding": true,
-          "memory": {
-            "fullKVBytesPerToken": 114688
-          },
-          "createdAt": "2026-11-26",
-          "updatedAt": "2026-11-26"
-        },
-        {
-          "repo": "mlx-community/Qwen3-0.6B-4bit",
-          "engine": "mlx",
-          "params": "0.6B",
-          "quant": "4-bit",
-          "sizeBytes": 351383618,
-          "contextLength": 40960,
-          "license": "apache-2.0",
-          "revision": "73e3e38d981303bc594367cd910ea6eb48349da8",
-          "memory": {
-            "fullKVBytesPerToken": 114688
-          },
-          "createdAt": "2026-11-26",
-          "updatedAt": "2026-11-26"
-        },
-        {
           "repo": "unsloth/Qwen3-1.7B-GGUF",
           "engine": "gguf",
           "file": "Qwen3-1.7B-Q4_K_M.gguf",
