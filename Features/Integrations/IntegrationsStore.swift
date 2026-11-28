@@ -42,7 +42,7 @@ final class IntegrationsStore {
     @ObservationIgnored private let anyRouterToken: @Sendable () -> String?
     @ObservationIgnored private let session: URLSession
     @ObservationIgnored private var clients: [String: MCPClient] = [:]
-    /// "Always allow" choices for tools that are not read-only.
+    /// Which public web services the user agreed to send tool text to.
     @ObservationIgnored let permissions: ToolPermissionStore
 
     init(
@@ -175,7 +175,6 @@ final class IntegrationsStore {
     func removeServer(_ server: MCPServer) {
         guard server.id != MCPServer.anyRouter.id else { return }
         credentials.remove(for: server.id)
-        permissions.revokeAll(serverID: server.id)
         customServers.removeAll { $0.id == server.id }
         states[server.id] = nil
         clients[server.id] = nil

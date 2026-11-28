@@ -67,10 +67,10 @@ private struct ToolApprovalDialog: ViewModifier {
         ) { entry in
             Button("Allow once") { answer(.allowOnce) }
                 .accessibilityIdentifier("tool-approval.allow-once")
-            // A request with a reason is about this one call; remembering it would switch the protection off.
-            // The first-use note about a public web service is the exception: it is asked once per service.
-            if entry.request.reason == nil || entry.request.canRemember {
-                Button("Always allow") { answer(.alwaysAllow) }
+            // Nothing that writes or calls out is remembered (D28, LA1); only the first-use note about a public web
+            // service is shown once per service.
+            if entry.request.canRemember {
+                Button("Allow, don't show again") { answer(.alwaysAllow) }
                     .accessibilityIdentifier("tool-approval.always-allow")
             }
             Button("Don't allow", role: .cancel) { answer(.deny) }

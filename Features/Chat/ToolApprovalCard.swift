@@ -32,9 +32,9 @@ struct ToolApprovalCard: View {
         Button { answer(.allowOnce) } label: { Text("Allow once").prominentLabel() }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("tool-approval.inline.allow-once")
-        // Same rule as the dialog: a request with a reason is about this one call.
-        if request.reason == nil || request.canRemember {
-            Button("Always allow") { answer(.alwaysAllow) }
+        // Same rule as the dialog: only the first-use note about a public web service is remembered.
+        if request.canRemember {
+            Button("Allow, don't show again") { answer(.alwaysAllow) }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("tool-approval.inline.always-allow")
         }

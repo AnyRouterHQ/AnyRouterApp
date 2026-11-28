@@ -73,15 +73,6 @@ final class MCPToolHostTests: XCTestCase {
         XCTAssertFalse(MCPStubProtocol.requests(for: made.url).contains { $0.rpcMethod == "tools/call" })
     }
 
-    func testOnlyTheUsersAlwaysAllowLetsACustomServersToolSkipApproval() async {
-        let permissions = ToolPermissionStore(defaults: testDefaults())
-        permissions.allow(serverID: "alpha", toolName: "get_credits")
-        let made = makeHost(approver: ScriptedApprover(.deny), permissions: permissions)
-        let result = await made.host.execute(call("get_credits"))
-        XCTAssertFalse(result.isError)
-        XCTAssertTrue(made.approver.requests.isEmpty)
-    }
-
     func testReadOnlyToolRunsWithoutAskingAndSendsArguments() async throws {
         let made = makeHost(auth: .anyRouterSignIn)
         let result = await made.host.execute(call("get_credits", #"{"days":3}"#))
@@ -112,14 +103,12 @@ final class MCPToolHostTests: XCTestCase {
         XCTAssertFalse(MCPStubProtocol.requests(for: made.url).contains { $0.rpcMethod == "tools/call" })
     }
 
-    func testAlwaysAllowIsRememberedPerTool() async {
-        let permissions = ToolPermissionStore(defaults: testDefaults())
-        let made = makeHost(approver: ScriptedApprover(.alwaysAllow), permissions: permissions)
+    /// D28, LA1: a tool that writes or calls out asks every time; an "always" answer is not kept.
+    func testAnAlwaysAnswerIsNotRememberedForAWriteTool() async {
+        let made = makeHost(approver: ScriptedApprover(.alwaysAllow))
         _ = await made.host.execute(call("create_key"))
         _ = await made.host.execute(call("create_key"))
-        XCTAssertEqual(made.approver.requests.count, 1)
-        XCTAssertTrue(permissions.isAlwaysAllowed(serverID: "alpha", toolName: "create_key"))
-        XCTAssertFalse(permissions.isAlwaysAllowed(serverID: "alpha", toolName: "get_credits"))
+        XCTAssertEqual(made.approver.requests.count, 2)
     }
 
     func testBadCallsComeBackAsErrorResults() async {
@@ -174,16 +163,12 @@ final class MCPToolHostTests: XCTestCase {
         XCTAssertEqual(Set(twins).count, 2)
     }
 
-    func testPermissionStorePersistsAndRevokes() {
+    func testGrantsAnOlderBuildKeptAreDeletedAndAgreementsStay() {
         let defaults = testDefaults()
-        let store = ToolPermissionStore(defaults: defaults)
-        store.allow(serverID: "s1", toolName: "a")
-        store.allow(serverID: "s2", toolName: "a")
-        XCTAssertTrue(ToolPermissionStore(defaults: defaults).isAlwaysAllowed(serverID: "s1", toolName: "a"))
-        store.revoke(serverID: "s1", toolName: "a")
-        XCTAssertFalse(store.isAlwaysAllowed(serverID: "s1", toolName: "a"))
-        store.revokeAll(serverID: "s2")
-        XCTAssertFalse(store.isAlwaysAllowed(serverID: "s2", toolName: "a"))
+        defaults.set(["s1/a", "s2/a"], forKey: ToolPermissionStore.removedAlwaysAllowKey)
+        ToolPermissionStore(defaults: defaults).agree(serverID: "exa")
+        XCTAssertNil(defaults.object(forKey: ToolPermissionStore.removedAlwaysAllowKey), "the old Always allow grants are gone")
+        XCTAssertTrue(ToolPermissionStore(defaults: defaults).hasAgreed(serverID: "exa"), "a service the user agreed to stays agreed")
     }
 }
 
@@ -210,16 +195,5 @@ final class IntegrationsToolHostTests: XCTestCase {
 
         store.setEnabled(false, tool: try XCTUnwrap(tools.first { $0.name == "get_credits" }), on: server)
         XCTAssertNil(store.makeToolHost(approver: approver))
-    }
-
-    func testRemovingAServerForgetsItsAlwaysAllowChoices() async throws {
-        let store = IntegrationsStore(
-            defaults: testDefaults(), credentials: FakeCredentialStore(),
-            anyRouterToken: { nil }, session: MCPStubProtocol.session()
-        )
-        let server = try store.addServer(name: "Alpha", urlString: "https://example.com/mcp", token: "")
-        store.permissions.allow(serverID: server.id, toolName: "create_key")
-        store.removeServer(server)
-        XCTAssertFalse(store.permissions.isAlwaysAllowed(serverID: server.id, toolName: "create_key"))
     }
 }

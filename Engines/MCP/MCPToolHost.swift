@@ -9,7 +9,8 @@ struct ToolApprovalRequest: Sendable, Equatable {
     var reason: String?
     /// The full addresses the user never wrote, when that is the reason.
     var urls: [String] = []
-    /// The dialog may offer "Always allow" although there is a reason: a first-use note about a public web service.
+    /// A first-use note about a public web service: the answer can be kept for that service, so the note shows once.
+    /// No other request is remembered: a write or external call asks every time (D28, LA1).
     var canRemember = false
 }
 
@@ -18,13 +19,16 @@ protocol ToolApproving: Sendable {
     func decide(_ request: ToolApprovalRequest) async -> ToolDecision
 }
 
-/// "Always allow" choices, kept per server and tool. UserDefaults is thread-safe, so the host can read it off the main actor.
+/// Which public web services the user agreed to send tool text to. UserDefaults is thread-safe, so the host can read it
+/// off the main actor. Older builds also kept "Always allow" grants for tools that write or call out; those are gone
+/// (D28, LA1: such a call asks every time), and the first store made after an update deletes what they left.
 final class ToolPermissionStore: @unchecked Sendable {
-    private static let key = "integrations.alwaysAllow"
+    static let removedAlwaysAllowKey = "integrations.alwaysAllow"
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        defaults.removeObject(forKey: Self.removedAlwaysAllowKey)
     }
 
     private static let agreedKey = "integrations.agreedSources"
@@ -45,29 +49,6 @@ final class ToolPermissionStore: @unchecked Sendable {
         defaults.set(list, forKey: Self.agreedKey)
     }
 
-    func isAlwaysAllowed(serverID: String, toolName: String) -> Bool {
-        stored.contains(IntegrationsLogic.toolKey(serverID: serverID, toolName: toolName))
-    }
-
-    func allow(serverID: String, toolName: String) {
-        update { $0.insert(IntegrationsLogic.toolKey(serverID: serverID, toolName: toolName)) }
-    }
-
-    func revoke(serverID: String, toolName: String) {
-        update { $0.remove(IntegrationsLogic.toolKey(serverID: serverID, toolName: toolName)) }
-    }
-
-    func revokeAll(serverID: String) {
-        update { set in set = set.filter { !$0.hasPrefix(serverID + "/") } }
-    }
-
-    private var stored: Set<String> { Set(defaults.stringArray(forKey: Self.key) ?? []) }
-
-    private func update(_ change: (inout Set<String>) -> Void) {
-        var set = stored
-        change(&set)
-        defaults.set(Array(set).sorted(), forKey: Self.key)
-    }
 }
 
 /// The tools of the connected MCP servers that the user left on, as one `ToolHost`.
@@ -145,14 +126,9 @@ struct MCPToolHost: ToolHost {
             }
         }
 
-        if !entry.spec.isReadOnly,
-            !permissions.isAlwaysAllowed(serverID: entry.server.id, toolName: entry.tool.name) {
-            let request = ToolApprovalRequest(serverName: entry.server.name, spec: entry.spec, call: call)
-            switch await approver.decide(request) {
-            case .deny: return failure(ToolResult.deniedText)
-            case .alwaysAllow: permissions.allow(serverID: entry.server.id, toolName: entry.tool.name)
-            case .allowOnce: break
-            }
+        // A tool that is not read-only asks every time; nothing is remembered.
+        if !entry.spec.isReadOnly, await approver.decide(ToolApprovalRequest(serverName: entry.server.name, spec: entry.spec, call: call)) == .deny {
+            return failure(ToolResult.deniedText)
         }
 
         do {
