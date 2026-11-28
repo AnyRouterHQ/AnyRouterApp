@@ -85,11 +85,12 @@ struct TelemetryWiringTests {
     }
 
     @Test func aFreshInstallWithADSNSendsNothingUntilTheUserSaysShare() {
-        let defaults = testDefaults()
+        let suite = "anyrouter.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
         let settings = AppSettings(defaults: defaults)
         let sink = DSNInstallSink()
         let telemetry = DiagnosticsConfig.makeTelemetry(
-            dsn: "https://k@h.example.io/1", shareEnabled: { AppSettings.sharesDiagnostics(defaults: defaults) },
+            dsn: "https://k@h.example.io/1", shareEnabled: { AppSettings.sharesDiagnostics(defaults: UserDefaults(suiteName: suite)!) },
             makeSink: { _ in sink })
 
         settings.noteSuccessfulChat(configured: true)
