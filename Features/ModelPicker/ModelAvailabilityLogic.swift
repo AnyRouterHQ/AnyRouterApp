@@ -10,7 +10,6 @@ enum ModelUnavailableReason: Equatable, Sendable {
     /// No upstream provider serves the model at the moment.
     case noRoute
     case disabled
-    case doesNotFit(neededBytes: Int64)
     case downloadFirst
     /// The engine cannot run it here (Apple Intelligence off, MLX in the Simulator). The note is the engine's own words.
     case unsupportedHere(String?)
@@ -34,7 +33,7 @@ enum ModelUnavailableReason: Equatable, Sendable {
         case .signIn: .signIn
         case .outOfCredits: .getCredits
         case .needsKey: .addKey
-        case .doesNotFit, .downloadFirst: .browse
+        case .downloadFirst: .browse
         case .noRoute, .disabled, .unsupportedHere: nil
         }
     }
@@ -47,7 +46,6 @@ enum ModelUnavailableReason: Equatable, Sendable {
         case .needsKey(let provider): return "Add your own key (BYOK) for \(provider)"
         case .noRoute: return "No provider is serving it right now"
         case .disabled: return "Turned off"
-        case .doesNotFit(let bytes): return "Doesn't fit this \(device) (needs \(FitFormat.gigabytes(bytes)))"
         case .downloadFirst: return "Download first"
         case .unsupportedHere(let note):
             if let note { return note }
@@ -62,10 +60,9 @@ enum ModelUnavailableReason: Equatable, Sendable {
         case .outOfCredits: 1
         case .needsKey: 2
         case .downloadFirst: 3
-        case .doesNotFit: 4
-        case .noRoute: 5
-        case .disabled: 6
-        case .unsupportedHere: 7
+        case .noRoute: 4
+        case .disabled: 5
+        case .unsupportedHere: 6
         }
     }
 }
@@ -85,10 +82,10 @@ struct ModelAvailability: Equatable, Sendable {
 
 /// The one place that decides whether a model can be picked and, if not, why.
 enum ModelAvailabilityLogic {
-    /// `fit` is the device-fit numbers of a local model, `engineNote` the engine's reason it cannot run here.
+    /// `engineNote` is the engine's reason a local model cannot run here. The fit estimate is never a reason: the phone is
+    /// the evidence, so a model that may not fit stays pickable and says so on its row (`FitText.badge`).
     static func reason(
-        for model: ModelDescriptor, signedIn: Bool, summary: AccountSummary? = nil,
-        fit: FitDetail? = nil, engineNote: String? = nil
+        for model: ModelDescriptor, signedIn: Bool, summary: AccountSummary? = nil, engineNote: String? = nil
     ) -> ModelUnavailableReason? {
         switch model.source {
         case .anyrouter:
@@ -97,18 +94,17 @@ enum ModelAvailabilityLogic {
             return model.isInstalled ? nil : .unsupportedHere(model.summary)
         case .gguf, .mlx:
             if let engineNote { return .unsupportedHere(engineNote) }
-            if let fit, fit.verdict == .wontFit { return .doesNotFit(neededBytes: fit.neededBytes) }
             return model.isInstalled ? nil : .downloadFirst
         }
     }
 
     static func partition(
         _ models: [ModelDescriptor], signedIn: Bool, summary: AccountSummary? = nil,
-        fit: (ModelDescriptor) -> FitDetail? = { _ in nil }, engineNote: (ModelDescriptor) -> String? = { _ in nil }
+        engineNote: (ModelDescriptor) -> String? = { _ in nil }
     ) -> ModelAvailability {
         var result = ModelAvailability()
         for model in models {
-            let why = reason(for: model, signedIn: signedIn, summary: summary, fit: fit(model), engineNote: engineNote(model))
+            let why = reason(for: model, signedIn: signedIn, summary: summary, engineNote: engineNote(model))
             if let why { result.unavailable.append(PickerUnavailableModel(model: model, reason: why)) } else { result.available.append(model) }
         }
         result.unavailable.sort { lhs, rhs in

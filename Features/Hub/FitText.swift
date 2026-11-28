@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
 
-/// "iPhone", "iPad" or "Mac", for sentences like "Too big for this iPhone".
+/// "iPhone", "iPad" or "Mac", for sentences like "May not load on this iPhone".
 enum DeviceName {
     @MainActor static var current: String {
         if ProcessInfo.processInfo.isiOSAppOnMac { return "Mac" }
@@ -9,7 +9,7 @@ enum DeviceName {
     }
 }
 
-/// Words for the fit check: what to show on cards, picker rows and download warnings.
+/// Words for the fit check: what to show on cards and picker rows. The estimate is a guess, so the words never block.
 enum FitText {
     /// "6.88 GB" style size for a file. Same as the card's size label.
     static func size(_ bytes: Int64) -> String {
@@ -32,7 +32,7 @@ enum FitText {
         switch detail.verdict {
         case .fits: "Runs well"
         case .tight: "May be slow"
-        case .wontFit: "Too big for this \(device)"
+        case .wontFit: "May not load on this \(device)"
         case .unknown: nil
         }
     }
@@ -48,6 +48,7 @@ enum FitText {
             return text
         case .wontFit:
             if let mappable = detail.mappableBytes { return addressSpaceReason(mappableBytes: mappable) }
+            if let ram = detail.streamsWithRAMGigabytes { return "Streaming it is planned for an \(device) with \(ram) GB of memory." }
             return "Needs ~\(gigabytes(detail.neededBytes)) · this \(device) has ~\(gigabytes(detail.budgetBytes)) for apps"
         }
     }
@@ -59,14 +60,6 @@ enum FitText {
 
     /// What gives a larger address space.
     static let addressSpaceFix = "A build signed with the extended address space entitlement can open more."
-
-    /// The warning before a download that will not run, or nil when there is nothing to warn about.
-    static func downloadWarning(_ detail: FitDetail?, sizeText: String?, device: String) -> String? {
-        guard let detail, detail.verdict == .wontFit else { return nil }
-        let size = sizeText.map { " (\($0))" } ?? ""
-        if let mappable = detail.mappableBytes { return "This model\(size) will not load. \(addressSpaceReason(mappableBytes: mappable))" }
-        return "This model\(size) needs about \(gigabytes(detail.neededBytes)) of memory. This \(device) can give about \(gigabytes(detail.budgetBytes)), so it will not load."
-    }
 
     /// Shown once in Local Models when the increased memory limit is not signed into this install.
     static func memoryLimitNote(entitlementSigned: Bool?) -> String? {

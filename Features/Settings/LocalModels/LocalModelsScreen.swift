@@ -28,9 +28,6 @@ struct LocalModelsScreen: View {
         let shown = Set(featured.map(\.id))
         return hub.catalog.filter { hub.downloadState(for: $0.id).isActive && !shown.contains($0.id) }
     }
-    private var unavailable: [LocalModelsLogic.UnavailableModel] {
-        LocalModelsLogic.unavailable(catalog: hub.catalog, state: { hub.downloadState(for: $0) }, device: device)
-    }
     private var sourceCount: Int {
         CatalogSourcesLogic.sources(
             catalog: hub.catalog, remoteURL: hub.remoteCatalogURL, usesDevelopmentCatalog: hub.usesDevelopmentCatalog).count
@@ -111,7 +108,7 @@ struct LocalModelsScreen: View {
                     }
                     .buttonStyle(.plain)
                     .hoverEffect(.highlight)
-                    ModelGetAccessory(entry: entry, state: state) { actions.requestDownload(entry) }
+                    ModelGetAccessory(entry: entry, state: state) { hub.download(entry) }
                 }
                 .swipeActions(edge: .trailing) { actions.swipe(entry, state: state) }
                 .contextMenu { actions.menu(entry, state: state) }
@@ -122,16 +119,6 @@ struct LocalModelsScreen: View {
                 Label("Browse all models", systemImage: "square.stack.3d.up")
             }
             .accessibilityIdentifier("local.browse")
-            if !unavailable.isEmpty {
-                NavigationLink {
-                    UnavailableModelsScreen()
-                } label: {
-                    ListRow(LocalModelsLogic.unavailableTitle(count: unavailable.count, device: device)) {
-                        Image(systemName: "iphone.slash")
-                    }
-                }
-                .accessibilityIdentifier("local.unavailable")
-            }
         }
     }
 

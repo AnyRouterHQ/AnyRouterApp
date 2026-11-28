@@ -23,6 +23,12 @@ struct OnboardingLogicTests {
         #expect(OnboardingLogic.recommendedLocal(in: [entry("tiny", size: 300_000_000), flagged])?.id == "tiny", "a flagged model that will not fit is skipped")
     }
 
+    /// The estimate is a guess: when it says nothing fits, the smallest model is still offered rather than none.
+    @Test func whenNothingSeemsToFitTheSmallestIsStillOffered() {
+        let catalog = [entry("big", size: 4_000_000_000, fit: .wontFit), entry("small", size: 900_000_000, fit: .wontFit)]
+        #expect(OnboardingLogic.recommendedLocal(in: catalog)?.id == "small")
+    }
+
     @Test func skipsModelsThatWillNotFit() {
         let catalog = [entry("big-no", size: 500_000_000, fit: .wontFit), entry("ok", size: 800_000_000)]
         #expect(OnboardingLogic.recommendedLocal(in: catalog)?.id == "ok")

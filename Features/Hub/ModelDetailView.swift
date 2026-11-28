@@ -7,7 +7,6 @@ struct ModelDetailView: View {
     @Environment(AppState.self) private var app
     @Environment(ModelStore.self) private var models
 
-    @State private var confirmsDownload = false
     @State private var confirmsDelete = false
 
     private var hub: any ModelHubService { app.hub }
@@ -17,9 +16,6 @@ struct ModelDetailView: View {
         models.models.first { $0.id == entry.id && $0.isInstalled }
     }
     private var isLoaded: Bool { app.memory.loadedModelID == entry.id }
-    private var downloadWarning: String? {
-        FitText.downloadWarning(entry.fitDetail, sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes), device: device)
-    }
 
     var body: some View {
         List {
@@ -28,9 +24,9 @@ struct ModelDetailView: View {
                 Text(entry.summary)
                 if let status = HubListOptions.fitStatus(entry, device: device) {
                     Label {
-                        Text(status).foregroundStyle(ModelStatusColor.alert(entry) == nil ? .secondary : .primary)
+                        Text(status).foregroundStyle(.secondary)
                     } icon: {
-                        Image(systemName: statusSymbol).foregroundStyle(ModelStatusColor.fit(entry))
+                        Image(systemName: statusSymbol).foregroundStyle(.secondary)
                     }
                 }
                 if let detail = entry.fitDetail, let text = FitText.explanation(detail, device: device) {
@@ -63,11 +59,6 @@ struct ModelDetailView: View {
         }
         .navigationTitle(entry.descriptor.displayName)
         .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog("Download anyway?", isPresented: $confirmsDownload, titleVisibility: .visible) {
-            Button("Download anyway", role: .destructive) { hub.download(entry) }
-        } message: {
-            Text(downloadWarning ?? "")
-        }
         .confirmationDialog("Delete \(entry.descriptor.displayName)?", isPresented: $confirmsDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive) { Task { await hub.delete(modelID: entry.id) } }
         } message: {
@@ -88,7 +79,7 @@ struct ModelDetailView: View {
         switch entry.fit {
         case .fits: return "checkmark.circle"
         case .tight: return "exclamationmark.triangle"
-        case .wontFit: return "xmark.octagon"
+        case .wontFit: return "exclamationmark.circle"
         case .unknown: return "questionmark.circle"
         }
     }
@@ -125,9 +116,7 @@ struct ModelDetailView: View {
             Text(entry.unavailableReason ?? "")
         case .notInstalled, .failed:
             if case .failed(let message) = state { ErrorLabel(message) }
-            Button("Download", systemImage: "arrow.down.circle") {
-                if downloadWarning != nil { confirmsDownload = true } else { hub.download(entry) }
-            }
+            Button("Download", systemImage: "arrow.down.circle") { hub.download(entry) }
         case .downloading(let progress):
             LabeledContent("Downloading", value: HubLogic.percent(progress))
             Button("Pause", systemImage: "pause.circle") { hub.pause(modelID: entry.id) }

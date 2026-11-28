@@ -2,7 +2,8 @@ import Foundation
 import Testing
 @testable import AnyRouter
 
-/// The Local Models screen's rules: storage, featured, and which sizes this device cannot run and why.
+/// The Local Models screen's rules: storage and featured. The fit estimate never hides a model, so there is no "cannot
+/// run here" list to test.
 struct LocalModelsLogicTests {
     private func entry(
         _ id: String, name: String? = nil, size: Int64? = 1_000_000_000, fit: ModelFit = .fits, detail: FitDetail? = nil,
@@ -16,11 +17,6 @@ struct LocalModelsLogicTests {
             descriptor: descriptor, summary: "S", tags: [], fit: fit, isUserAdded: false, unavailableReason: blocked,
             fitDetail: detail, familyID: family, familyName: family, parameters: params,
             parameterBillions: FamilyLogic.billions(of: params), quantization: quant, isDeprecated: deprecated)
-    }
-
-    private func wontFit(needed: Int64 = 3_900_000_000, budget: Int64 = 3_200_000_000) -> FitDetail {
-        FitDetail(verdict: .wontFit, neededBytes: needed, budgetBytes: budget, context: 512, maxReply: 64,
-                  streamsFromStorage: false, isEstimate: false)
     }
 
     private func states(_ table: [String: DownloadState]) -> (String) -> DownloadState {
@@ -83,62 +79,6 @@ struct LocalModelsLogicTests {
         let all = families([entry("a", family: "a", params: "1B"), entry("b", family: "b", params: "2B"), entry("c", family: "c", params: "3B")])
         #expect(LocalModelsLogic.featured(families: all, state: states([:]), limit: 2).count == 2)
         #expect(LocalModelsLogic.featured(families: all, state: states([:]), limit: -1).isEmpty)
-    }
-
-    // MARK: Unavailable
-
-    @Test func aModelThatWillNotFitSaysWhatItNeedsAndWhatTheDeviceAllows() {
-        let big = entry("big", fit: .wontFit, detail: wontFit())
-        let list = LocalModelsLogic.unavailable(catalog: [big], state: states([:]), device: "iPhone")
-        #expect(list.map(\.id) == ["big"])
-        #expect(list[0].reason == "Needs about 3.9 GB, this iPhone allows 3.2 GB.")
-    }
-
-    @Test func aFileBiggerThanTheAddressSpaceSaysSoAndWhatSigningFixesIt() {
-        var detail = wontFit(needed: 3_000_000_000, budget: 8_000_000_000)
-        detail.mappableBytes = 4_200_000_000
-        let list = LocalModelsLogic.unavailable(catalog: [entry("big", fit: .wontFit, detail: detail)], state: states([:]), device: "iPhone")
-        #expect(list.first?.reason == "This install can open files up to 4.2 GB at once. \(FitText.addressSpaceFix)",
-                "memory is not the reason here, so it must not be named")
-    }
-
-    @Test func aBlockedModelShowsItsOwnReason() {
-        let mlx = entry("mlx/x", fit: .fits, blocked: "MLX models need a physical device.", source: .mlx)
-        #expect(LocalModelsLogic.unavailable(catalog: [mlx], state: states([:]), device: "iPhone").first?.reason
-            == "MLX models need a physical device.")
-    }
-
-    @Test func aModelKnownToBeTooBigWithoutNumbersStillGetsAReason() {
-        let list = LocalModelsLogic.unavailable(catalog: [entry("x", fit: .wontFit)], state: states([:]), device: "iPad")
-        #expect(list.first?.reason == "Too big for this iPad.")
-    }
-
-    @Test func modelsThatRunAreNotListedAndTightOnesRun() {
-        let catalog = [
-            entry("fits", fit: .fits), entry("tight", fit: .tight), entry("unknown", fit: .unknown),
-            entry("installed", fit: .wontFit, detail: wontFit()), entry("old", fit: .wontFit, deprecated: true),
-            entry("gone", fit: .wontFit, detail: wontFit()),
-        ]
-        let list = LocalModelsLogic.unavailable(catalog: catalog, state: states(["installed": .installed]), device: "iPhone")
-        #expect(list.map(\.id) == ["gone"])
-        #expect(LocalModelsLogic.reason(for: entry("fits"), device: "iPhone") == nil)
-    }
-
-    @Test func theMoreMemoryTheFewerModelsAreUnavailable() {
-        // The same catalog judged with two budgets: the bigger device lists fewer sizes.
-        func list(budget: Int64) -> [String] {
-            let sizes: [(String, Int64)] = [("small", 2_000_000_000), ("medium", 4_000_000_000), ("large", 7_000_000_000)]
-            let catalog = sizes.map { id, needed in
-                entry(id, fit: needed > budget ? .wontFit : .fits, detail: needed > budget ? wontFit(needed: needed, budget: budget) : nil)
-            }
-            return LocalModelsLogic.unavailable(catalog: catalog, state: states([:]), device: "iPhone").map(\.id)
-        }
-        #expect(list(budget: 3_200_000_000) == ["medium", "large"])
-        #expect(list(budget: 8_000_000_000).isEmpty)
-    }
-
-    @Test func titleNamesTheDeviceAndTheCount() {
-        #expect(LocalModelsLogic.unavailableTitle(count: 3, device: "iPhone") == "Not available on this iPhone (3)")
     }
 
     // MARK: Row text

@@ -29,16 +29,22 @@ final class SettingsModelsTests: XCTestCase {
         XCTAssertTrue(element.isHittable)
     }
 
-    func testNotAvailableListsTooBigModelsWithTheReason() {
+    /// The fit estimate is a guess (the operator ran a model it called too big): a size it doubts is listed in Browse like
+    /// any other, with a quiet "May not load" line, and there is no Not available list for fit.
+    func testATooBigModelIsListedInBrowseWithAQuietLine() {
         let app = openLocalModels()
-        let link = app.buttons["local.unavailable"]
-        XCTAssertTrue(link.waitForExistence(timeout: 10))
-        scrollUntilHittable(link, in: app)
-        XCTAssertTrue(link.label.contains("Not available on this"), "the row names the device")
-        link.tap()
-        XCTAssertTrue(app.navigationBars["Not Available"].waitForExistence(timeout: 10))
-        let reason = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Needs about")).firstMatch
-        XCTAssertTrue(reason.waitForExistence(timeout: 5), "each row says how much memory it needs")
+        let browse = app.buttons["local.browse"]
+        XCTAssertTrue(browse.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["local.unavailable"].exists, "the estimate fills no Not available list")
+        scrollUntilHittable(browse, in: app)
+        browse.tap()
+        let search = app.searchFields["Search models"]
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
+        search.tap()
+        search.typeText("Qwen3 14B")
+        let row = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Qwen3 14B")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "a model the estimate doubts is still listed")
+        XCTAssertTrue(row.label.contains("May not load on this"), "it says so quietly: \(row.label)")
     }
 
     func testVoiceScreenListsTheSystemEnginesAndWhisper() {

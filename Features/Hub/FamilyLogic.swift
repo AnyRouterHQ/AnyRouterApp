@@ -197,9 +197,10 @@ enum SizeBucket: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// What the browser hides. Empty sets mean no restriction. "Fits this device" starts on.
+/// What the browser hides. Empty sets mean no restriction. "Fits this device" starts off: every model is listed, and the
+/// fit estimate only labels a size; the person may still narrow the list to what seems to fit.
 struct FamilyFilter: Equatable, Sendable {
-    var fitsOnly = true
+    var fitsOnly = false
     var engines: Set<ModelSource> = []
     var tags: Set<String> = []
     var sizes: Set<SizeBucket> = []

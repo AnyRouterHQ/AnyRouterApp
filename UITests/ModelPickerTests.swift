@@ -70,7 +70,8 @@ final class ModelPickerTests: XCTestCase {
         XCTAssertTrue(app.alerts["Needs your provider key"].waitForExistence(timeout: 5), "tapping offers to add the key")
     }
 
-    func testLocalNotAvailableSaysDownloadFirstAndDoesNotFit() {
+    /// The Local tab's Not available list only asks for a download: the fit estimate is never a reason there.
+    func testLocalNotAvailableOnlyAsksForADownload() {
         let app = launch()
         XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
         app.buttons["Model"].tap()
@@ -82,8 +83,28 @@ final class ModelPickerTests: XCTestCase {
         notAvailable.tap()
         let download = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Download first")).firstMatch
         XCTAssertTrue(download.waitForExistence(timeout: 5), "a model not on the device says Download first")
-        let tooBig = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Doesn't fit this")).firstMatch
-        XCTAssertTrue(tooBig.exists, "a model that is too big says so")
+        let tooBig = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Qwen3 14B")).firstMatch
+        XCTAssertTrue(tooBig.exists, "a model the estimate doubts is listed")
+        XCTAssertTrue(tooBig.label.contains("Download first"), "and only needs its download: \(tooBig.label)")
+    }
+
+    /// An installed model the estimate calls too big stays in the Local tab and can be picked (-ARDemoTooBigInstalled).
+    func testAnInstalledModelTheEstimateDoubtsIsPickable() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ARDemoData", "YES", "-ARDemoTooBigInstalled", "YES"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 15))
+        app.buttons["Model"].tap()
+        let tabs = app.segmentedControls.firstMatch
+        XCTAssertTrue(tabs.waitForExistence(timeout: 5))
+        tabs.buttons["Local"].tap()
+        let row = app.buttons["model-row.gguf/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "it is listed with the downloaded models")
+        XCTAssertTrue(row.label.contains("May not load on this"), "with a quiet line: \(row.label)")
+        row.tap()
+        XCTAssertTrue(app.buttons["Model"].waitForExistence(timeout: 5))
+        let title = app.buttons["Model"].value as? String ?? ""
+        XCTAssertTrue(title.contains("Llama 3.1"), "picking it makes it the chat's model: \(title)")
     }
 
     func testFreeOnlyFilterLeavesOnlyFreeRows() {

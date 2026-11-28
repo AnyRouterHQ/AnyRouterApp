@@ -242,12 +242,15 @@ struct FamilyLogicTests {
 
     // MARK: Filter
 
-    @Test func fitsThisDeviceIsOnByDefaultAndHidesFamiliesWhereNothingFits() {
+    /// Browse lists every family: the estimate is a guess, so nothing is hidden until the person asks for "Fits this
+    /// device".
+    @Test func browseListsEveryFamilyAndFitsThisDeviceNarrowsOnlyWhenAsked() {
         let defaults = FamilyLogic.apply(sample, sort: .recommended, filter: FamilyFilter()).map(\.id)
-        #expect(!defaults.contains("none") && defaults.count == 4)
-        #expect(FamilyFilter().fitsOnly)
-        #expect(!FamilyFilter().isChanged)
-        #expect(FamilyFilter(fitsOnly: false).isChanged)
+        #expect(defaults.contains("none") && defaults.count == 5)
+        #expect(!FamilyFilter().fitsOnly && !FamilyFilter().isChanged)
+        let narrowed = FamilyLogic.apply(sample, sort: .recommended, filter: FamilyFilter(fitsOnly: true)).map(\.id)
+        #expect(!narrowed.contains("none") && narrowed.count == 4)
+        #expect(FamilyFilter(fitsOnly: true).isChanged)
     }
 
     @Test func engineFilterKeepsFamiliesThatHaveThatEngine() {

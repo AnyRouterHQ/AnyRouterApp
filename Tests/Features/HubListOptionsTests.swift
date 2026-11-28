@@ -44,13 +44,13 @@ struct HubListOptionsTests {
         var measured = entry("a", fit: .fits)
         measured.fitDetail = FitDetail(verdict: .wontFit, neededBytes: 9, budgetBytes: 1, context: 0, maxReply: 0,
                                        streamsFromStorage: false, isEstimate: false)
-        #expect(HubListOptions.rowStatus(measured, device: "iPad") == "Too big for this iPad", "the measured verdict wins")
+        #expect(HubListOptions.rowStatus(measured, device: "iPad") == "May not load on this iPad", "the measured verdict wins")
     }
 
     @Test func fitStatusPrefersUnavailableReasonThenVerdict() {
         #expect(HubListOptions.fitStatus(entry("a", unavailable: "needs a GPU"), device: "iPhone") == "needs a GPU")
         #expect(HubListOptions.fitStatus(entry("a", fit: .tight), device: "iPhone") == "May be slow")
-        #expect(HubListOptions.fitStatus(entry("a", fit: .wontFit), device: "iPhone") == "Too big for this iPhone")
+        #expect(HubListOptions.fitStatus(entry("a", fit: .wontFit), device: "iPhone") == "May not load on this iPhone")
         #expect(HubListOptions.fitStatus(entry("a", fit: .unknown), device: "iPhone") == nil)
     }
 

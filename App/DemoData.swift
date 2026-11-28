@@ -604,7 +604,7 @@ enum DemoData {
 
     private static let familyNames = ["qwen35": "Qwen 3.5", "qwen3": "Qwen3", "llama32": "Llama 3.2", "gemma3": "Gemma 3", "inkling": "Inkling 2 Mini"]
 
-    /// Sizes that do not fit the demo device (3.2 GB for models), so Local Models has a Not available list.
+    /// Sizes the demo estimate calls too big (3.2 GB for models): listed like any other, with "May not load on this iPhone".
     private static let tooBigCatalog: [(id: String, name: String, size: Int64, summary: String)] = [
         ("gguf/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf", "Llama 3.1 8B Instruct", 4_920_000_000,
          "A larger Llama for devices with more memory."),
@@ -612,8 +612,13 @@ enum DemoData {
          "Strong reasoning, needs a lot of memory."),
     ]
 
+    /// `-ARDemoTooBigInstalled YES`: Llama 3.1 8B, which the demo estimate calls too big, is on the device too, so the
+    /// picker and Local Models show an installed model the estimate doubts (still pickable, with a quiet line).
+    static var hasTooBigInstalled: Bool { UserDefaults.standard.bool(forKey: "ARDemoTooBigInstalled") }
+
     private static var installedLocal: [ModelDescriptor] {
-        localCatalog.prefix(2).map { descriptor($0.id, .gguf, $0.name, size: $0.size) }
+        let tooBig = hasTooBigInstalled ? tooBigCatalog.prefix(1).map { descriptor($0.id, .gguf, $0.name, size: $0.size) } : []
+        return localCatalog.prefix(2).map { descriptor($0.id, .gguf, $0.name, size: $0.size) } + tooBig
     }
 
     fileprivate static var hubEntries: [LocalModelEntry] {
@@ -869,6 +874,7 @@ final class DemoHub: ModelHubService {
             states[entries[0].id] = .installed
             states[entries[1].id] = .installed
             states[entries[2].id] = .downloading(progress: 0.42)
+            if DemoData.hasTooBigInstalled, let tooBig = entries.first(where: { $0.fit == .wontFit }) { states[tooBig.id] = .installed }
             folders = entries.prefix(2).map { DemoHub.installedFolder(id: $0.id, repo: $0.repo, bytes: $0.descriptor.sizeBytes ?? 0) }
             let moving = CatalogEntry(repo: "ggml-org/gemma-3-1b-it-GGUF", format: .gguf, file: "gemma-3-1b-it-Q4_K_M.gguf",
                                       title: entries[2].descriptor.displayName)

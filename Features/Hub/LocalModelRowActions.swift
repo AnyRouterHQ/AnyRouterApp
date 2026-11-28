@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// The two questions every list of local models can ask: delete this one, or download one that will not fit anyway.
+/// The question every list of local models can ask before it acts: delete this one. A download never asks: the fit
+/// estimate is a guess, and the row already says when a model may not load.
 @MainActor @Observable
 final class LocalModelPrompts {
     var pendingDelete: LocalModelEntry?
-    var pendingDownload: LocalModelEntry?
 }
 
-/// Swipe actions, context menu and the download rule shared by Local Models and Browse models.
+/// Swipe actions and context menu shared by Local Models and Browse models.
 @MainActor
 struct LocalModelActions {
     let hub: any ModelHubService
@@ -16,12 +16,6 @@ struct LocalModelActions {
     let prompts: LocalModelPrompts
     /// "iPhone" or "iPad".
     let device: String
-
-    /// A model that will not fit asks first. Everything else downloads at once.
-    func requestDownload(_ entry: LocalModelEntry) {
-        let warning = FitText.downloadWarning(entry.fitDetail, sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes), device: device)
-        if warning != nil { prompts.pendingDownload = entry } else { hub.download(entry) }
-    }
 
     @ViewBuilder
     func swipe(_ entry: LocalModelEntry, state: DownloadState) -> some View {
@@ -36,7 +30,7 @@ struct LocalModelActions {
             Button("Resume", systemImage: "play") { hub.resume(modelID: entry.id) }.tint(ARPalette.tint)
         case .notInstalled, .failed:
             if entry.unavailableReason == nil {
-                Button("Download", systemImage: "arrow.down") { requestDownload(entry) }.tint(ARPalette.tint)
+                Button("Download", systemImage: "arrow.down") { hub.download(entry) }.tint(ARPalette.tint)
             }
         case .verifying:
             EmptyView()
@@ -62,7 +56,7 @@ struct LocalModelActions {
             Button("Cancel download", systemImage: "xmark", role: .destructive) { hub.cancel(modelID: entry.id) }
         case .notInstalled, .failed:
             if entry.unavailableReason == nil {
-                Button("Download", systemImage: "arrow.down.circle") { requestDownload(entry) }
+                Button("Download", systemImage: "arrow.down.circle") { hub.download(entry) }
             }
         case .verifying:
             EmptyView()
@@ -88,15 +82,5 @@ struct LocalModelDialogs: ViewModifier {
                 }
             } message: { _ in
                 Text("The files are removed from this \(device). You can download it again later.")
-            }
-            .confirmationDialog(
-                "Download anyway?",
-                isPresented: Binding(get: { prompts.pendingDownload != nil }, set: { if !$0 { prompts.pendingDownload = nil } }),
-                titleVisibility: .visible, presenting: prompts.pendingDownload
-            ) { entry in
-                Button("Download anyway", role: .destructive) { hub.download(entry) }
-            } message: { entry in
-                Text(FitText.downloadWarning(entry.fitDetail, sizeText: HubLogic.sizeText(entry.descriptor.sizeBytes), device: device) ?? "")
-            }
-    }
+            }    }
 }

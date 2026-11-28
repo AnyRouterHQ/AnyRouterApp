@@ -11,12 +11,6 @@ struct ModelAvailabilityLogicTests {
         return summary
     }
 
-    private func fit(_ verdict: ModelFit, needed: Int64 = 12_000_000_000) -> FitDetail {
-        FitDetail(
-            verdict: verdict, neededBytes: needed, budgetBytes: 3_000_000_000, context: 512, maxReply: 64,
-            streamsFromStorage: false, isEstimate: false)
-    }
-
     // MARK: Cloud
 
     @Test func signedOutCloudModelsAskToSignIn() {
@@ -105,23 +99,14 @@ struct ModelAvailabilityLogicTests {
 
     // MARK: Local
 
-    @Test func aModelThatDoesNotFitSaysHowMuchItNeeds() {
-        let model = localModel("gguf/big", installed: true)
-        let reason = ModelAvailabilityLogic.reason(for: model, signedIn: true, fit: fit(.wontFit))
-        #expect(reason == .doesNotFit(neededBytes: 12_000_000_000))
-        #expect(reason?.text(device: "iPhone") == "Doesn't fit this iPhone (needs 12.0 GB)")
-        #expect(reason?.fix == .browse)
-    }
-
-    @Test func aModelThatDoesNotFitSaysSoBeforeDownloadFirst() {
-        let model = localModel("gguf/big", installed: false)
-        #expect(ModelAvailabilityLogic.reason(for: model, signedIn: true, fit: fit(.wontFit)) == .doesNotFit(neededBytes: 12_000_000_000))
-    }
-
-    @Test func aTightModelIsAvailable() {
-        let model = localModel("gguf/tight")
-        #expect(ModelAvailabilityLogic.reason(for: model, signedIn: true, fit: fit(.tight)) == nil)
-        #expect(ModelAvailabilityLogic.reason(for: model, signedIn: true, fit: fit(.fits)) == nil)
+    /// The operator ran Inkling 2 Mini on a phone the estimate called too small. The phone is the evidence: an installed
+    /// local model is always pickable, whatever the fit check guesses; its row says "May not load" instead.
+    @Test func anInstalledLocalModelIsPickableWhateverTheEstimate() {
+        let installed = localModel("gguf/inkling", installed: true)
+        #expect(ModelAvailabilityLogic.reason(for: installed, signedIn: true) == nil)
+        let result = ModelAvailabilityLogic.partition([installed, localModel("gguf/later", installed: false)], signedIn: false)
+        #expect(result.available.map(\.id) == ["gguf/inkling"], "signed out does not matter for a model on the device")
+        #expect(result.unavailable.map(\.reason) == [.downloadFirst], "a model not on the device only needs its download")
     }
 
     @Test func aModelNotOnTheDeviceNeedsADownload() {

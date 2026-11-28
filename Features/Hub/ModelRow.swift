@@ -1,19 +1,8 @@
 import SwiftUI
 
-/// Status colors for fit and badges. System colors only.
+/// Status colors for failures and badges. System colors only. A fit estimate is a quiet secondary line, never a warning:
+/// it is a guess, and the phone decides.
 enum ModelStatusColor {
-    static func fit(_ entry: LocalModelEntry) -> Color { alert(entry) ?? .secondary }
-
-    /// Colour only where it means something: a warning. "Runs well" is plain secondary text (it failed contrast in green).
-    static func alert(_ entry: LocalModelEntry) -> Color? {
-        if entry.unavailableReason != nil { return nil }
-        switch entry.fit {
-        case .tight: return .orange
-        case .wontFit: return .red
-        case .fits, .unknown: return nil
-        }
-    }
-
     /// A status line that keeps 4.5:1: the colour goes on a symbol, the words stay primary.
     static func line(_ text: String, alert: Color?) -> Text {
         guard let alert else { return Text(text) }
@@ -63,7 +52,7 @@ struct ModelRow: View {
         var parts: [Text] = []
         if let note { parts.append(Text(note).foregroundStyle(.tint)) }
         if let fit = HubListOptions.rowStatus(entry, device: DeviceName.current) {
-            parts.append(ModelStatusColor.line(fit, alert: ModelStatusColor.alert(entry)))
+            parts.append(Text(fit).foregroundStyle(.secondary))
         }
         parts += entry.badges.map { Text($0.label).foregroundStyle(ModelStatusColor.badge($0.tone)) }
         switch state {

@@ -37,7 +37,7 @@ enum HubListOptions {
         switch entry.fit {
         case .fits: return "Runs well"
         case .tight: return "May be slow"
-        case .wontFit: return "Too big for this \(device)"
+        case .wontFit: return "May not load on this \(device)"
         case .unknown: return nil
         }
     }

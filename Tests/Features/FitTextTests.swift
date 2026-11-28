@@ -19,8 +19,8 @@ struct FitTextTests {
     @Test func badgesNameTheVerdictAndTheDevice() {
         #expect(FitText.badge(detail(.fits), device: "iPhone") == "Runs well")
         #expect(FitText.badge(detail(.tight), device: "iPhone") == "May be slow")
-        #expect(FitText.badge(detail(.wontFit), device: "iPhone") == "Too big for this iPhone")
-        #expect(FitText.badge(detail(.wontFit), device: "iPad") == "Too big for this iPad")
+        #expect(FitText.badge(detail(.wontFit), device: "iPhone") == "May not load on this iPhone", "a guess, never a verdict")
+        #expect(FitText.badge(detail(.wontFit), device: "iPad") == "May not load on this iPad")
         #expect(FitText.badge(detail(.unknown), device: "iPhone") == nil)
     }
 
@@ -40,14 +40,6 @@ struct FitTextTests {
             == "Needs ~8.1 GB · this iPhone has ~5.7 GB for apps")
     }
 
-    @Test func onlyAModelThatWillNotFitWarnsBeforeDownloading() {
-        #expect(FitText.downloadWarning(detail(.fits), sizeText: "2 GB", device: "iPhone") == nil)
-        #expect(FitText.downloadWarning(detail(.tight), sizeText: "2 GB", device: "iPhone") == nil)
-        #expect(FitText.downloadWarning(nil, sizeText: nil, device: "iPhone") == nil)
-        let warning = FitText.downloadWarning(detail(.wontFit), sizeText: "6.88 GB", device: "iPhone")
-        #expect(warning == "This model (6.88 GB) needs about 8.1 GB of memory. This iPhone can give about 5.7 GB, so it will not load.")
-    }
-
     @Test func theStandardLimitNoteAppearsOnlyWhenTheEntitlementIsKnownToBeMissing() {
         #expect(FitText.memoryLimitNote(entitlementSigned: false)
             == "This install has the standard memory limit. TestFlight builds can load bigger models.")
@@ -64,7 +56,6 @@ struct FitTextTests {
         big.mappableBytes = 4_200_000_000
         let reason = "This install can open files up to 4.2 GB at once. \(FitText.addressSpaceFix)"
         #expect(FitText.explanation(big, device: "iPhone") == reason)
-        #expect(FitText.downloadWarning(big, sizeText: "6.9 GB", device: "iPhone") == "This model (6.9 GB) will not load. " + reason)
     }
 }
 

@@ -321,8 +321,7 @@ struct ModelPickerSheet: View {
         let entries = Dictionary(catalog.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return ModelAvailabilityLogic.partition(
             ModelAvailabilityLogic.localCandidates(listed: listed, catalog: catalog),
-            signedIn: signedIn, summary: app.account.summary,
-            fit: { entries[$0.id]?.fitDetail }, engineNote: { entries[$0.id]?.unavailableReason })
+            signedIn: signedIn, summary: app.account.summary, engineNote: { entries[$0.id]?.unavailableReason })
     }
 
     private func localUnavailable(_ items: [PickerUnavailableModel]) -> [PickerUnavailableModel] {

@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import AnyRouter
 
-/// An experimental family (Inkling 2 Mini 1-bit) in Local Models: Featured only where it runs, never as a pick, and
-/// on a device without the RAM to stream it, a reason that names the RAM.
+/// An experimental family (Inkling 2 Mini 1-bit) in Local Models: Featured on every device after the picks, never as a
+/// pick, and where the estimate doubts it, a quiet line that names the RAM instead of a block.
 struct ExperimentalModelTests {
     private let experimentalBadge = CatalogBadge.experimental.label.lowercased()
 
@@ -42,19 +42,21 @@ struct ExperimentalModelTests {
         #expect(LocalModelsLogic.featured(families: [inkling, small], state: states([:])).map(\.id) == ["s", "ink"])
     }
 
-    @Test func aDeviceThatCannotRunItOrHasItInstalledDoesNotFeatureIt() {
+    /// The estimate once hid Inkling from a phone that runs it. Now only the install (or an engine that cannot run here)
+    /// takes it out of Featured.
+    @Test func itIsFeaturedEvenWhereTheEstimateDoubtsItButNotOnceInstalled() {
         let inkling = family("inkling", badges: [experimentalBadge], variants: [entry("ink", family: "inkling", params: "26B", fit: .wontFit)])
-        #expect(LocalModelsLogic.featured(families: [inkling], state: states([:])).isEmpty)
-        let runs = family("inkling", badges: [experimentalBadge], variants: [entry("ink", family: "inkling", params: "26B", fit: .tight)])
-        #expect(LocalModelsLogic.featured(families: [runs], state: states(["ink": .installed])).isEmpty)
+        #expect(LocalModelsLogic.featured(families: [inkling], state: states([:])).map(\.id) == ["ink"])
+        #expect(LocalModelsLogic.featured(families: [inkling], state: states(["ink": .installed])).isEmpty)
+        var blocked = entry("ink", family: "inkling", params: "26B", fit: .fits)
+        blocked.unavailableReason = "MLX needs a device"
+        #expect(LocalModelsLogic.featured(families: [family("inkling", badges: [experimentalBadge], variants: [blocked])], state: states([:])).isEmpty)
     }
 
-    @Test func belowTheStreamingClassTheReasonNamesTheRAM() {
+    @Test func belowTheStreamingClassTheQuietLineNamesTheRAM() {
         let detail = FitDetail(verdict: .wontFit, neededBytes: 8_700_000_000, budgetBytes: 3_100_000_000, context: 512,
                                maxReply: 64, streamsFromStorage: false, isEstimate: false, streamsWithRAMGigabytes: 12)
-        let inkling = entry("ink", family: "inkling", params: "26B", fit: .wontFit, detail: detail)
-        #expect(LocalModelsLogic.reason(for: inkling, device: "iPhone") == "Needs an iPhone with 12 GB of memory.")
-        let list = LocalModelsLogic.unavailable(catalog: [inkling], state: states([:]), device: "iPad")
-        #expect(list.map(\.reason) == ["Needs an iPad with 12 GB of memory."])
+        #expect(FitText.badge(detail, device: "iPhone") == "May not load on this iPhone")
+        #expect(FitText.explanation(detail, device: "iPad") == "Streaming it is planned for an iPad with 12 GB of memory.")
     }
 }

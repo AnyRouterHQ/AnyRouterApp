@@ -4,7 +4,7 @@ import SwiftUI
 /// browse) is a button; the others are plain rows. Pushed from the "Not available" row of a tab.
 struct UnavailableModelsList: View {
     let items: [PickerUnavailableModel]
-    /// "iPhone" or "iPad", for "Doesn't fit this iPhone".
+    /// "iPhone" or "iPad", for reasons that name the device.
     let device: String
     let onFix: (PickerUnavailableModel, ModelUnavailableReason.Fix) -> Void
 

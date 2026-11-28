@@ -47,7 +47,7 @@ struct FamilyDetailView: View {
                         }
                         .buttonStyle(.plain)
                         .hoverEffect(.highlight)
-                        ModelGetAccessory(entry: entry, state: state) { actions.requestDownload(entry) }
+                        ModelGetAccessory(entry: entry, state: state) { app.hub.download(entry) }
                     }
                     .swipeActions(edge: .trailing) { actions.swipe(entry, state: state) }
                     .contextMenu { actions.menu(entry, state: state) }
