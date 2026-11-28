@@ -287,6 +287,8 @@ struct SubagentLogicRunTests {
         #expect(schema["required"]?.array == [.string("task")])
         #expect(SubagentLogic.spec.name == SubagentLogic.toolName && SubagentLogic.spec.sideEffect == .read)
         #expect(SubagentLogic.instructions.contains("Sources:") && !SubagentLogic.instructions.isEmpty)
+        #expect(SubagentLogic.canResearch([SubagentLogic.spec, ToolSpec(name: FetchURLTool.toolName, title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: true)]))
+        #expect(!SubagentLogic.canResearch([ToolSpec(name: "calculator", title: nil, description: "", inputSchemaJSON: "{}", isReadOnly: true)]))
         #expect(SubagentLogic.childToolNames == [WebSearchBinding.name, FetchURLTool.toolName, "current_date_time", "calculator"])
     }
 

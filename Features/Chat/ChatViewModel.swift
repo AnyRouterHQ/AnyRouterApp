@@ -759,6 +759,7 @@ final class ChatViewModel {
         compactionNote = nil
         var host: (any ToolHost)?
         offlineToolNote = nil
+        let engine = registry.engine(for: model)
         if (toolsEnabled || !mentions.isEmpty) && model.capabilities.contains("tools") {
             var toolContext = Self.toolContext(for: thread, modelSource: model.source)
             toolContext.forcedSourceIDs = ComposerMention.forcedSourceIDs(of: mentions)
@@ -775,14 +776,16 @@ final class ChatViewModel {
             if let notes { toolContext.memoryTools.append(NotesTool(notes: notes)) }
             toolContext.approver = approver.map { recordingApprover($0, run: run, reply: assistant) }
             let runID = run.id
+            // Cloud models may hand a research task to a subagent on the same model (PLAN D28 S1).
+            let subagent = model.source == .anyrouter && mentions.isEmpty ? subagentRunner(engine, model: model, thread: thread, runID: runID) : nil
             host = toolHost(toolContext).map { base in
                 RunRecordingHost(
-                    base: base, round: { [weak self] text, calls in self?.noteRound(text, calls, runID: runID) },
+                    base: subagent.map { SubagentHost(base: base, runner: $0) as any ToolHost } ?? base,
+                    round: { [weak self] text, calls in self?.noteRound(text, calls, runID: runID) },
                     recite: { notes?.recitation })
             }
             if skipsToolsOffline(toolContext) { offlineToolNote = OfflineLogic.toolNote }
         }
-        let engine = registry.engine(for: model)
         let tools = host?.specs.isEmpty == false ? host : nil
         // A model without a tool loop gets a search run for it when its question needs the web.
         var grounding: (query: String, context: ToolContext)?
@@ -923,6 +926,7 @@ final class ChatViewModel {
                     reported, tokens: tokens, model: model, ttftMs: ttftMs,
                     totalMs: Self.milliseconds(clock() - startedAt),
                     toolCostUSD: assistant.toolSteps.compactMap { $0.result?.costUSD }.reduce(0, +),
+                    toolTokens: SubagentLogic.spentTokens(assistant.toolSteps),
                     nameOf: { id in knownModels.first { $0.wireID == id }?.displayName })
             }
             self?.finish(assistant, in: thread, failure: failure)
@@ -975,6 +979,28 @@ final class ChatViewModel {
     private func liveRun(_ id: UUID) -> AgentRunRecord? {
         guard let run, run.id == id, !Self.isGone(run) else { return nil }
         return run
+    }
+
+    /// The subagent a cloud model may start, or nil when its engine cannot run one or it would have no web tool. Its tools
+    /// come from a host of their own: no memory or notes, and the plain approver, so its calls are not saved with the run.
+    private func subagentRunner(_ engine: any ChatEngine, model: ModelDescriptor, thread: ThreadRecord, runID: UUID) -> SubagentRunner? {
+        guard let subagents = engine as? any SubagentEngine else { return nil }
+        var toolContext = Self.toolContext(for: thread, modelSource: model.source)
+        toolContext.isOffline = !isOnline()
+        toolContext.approver = approver
+        guard let tools = toolHost(toolContext).map({ SubagentToolHost(base: $0) }), SubagentLogic.canResearch(tools.specs) else { return nil }
+        var params = settings.generationParams
+        params.systemPrompt = SubagentLogic.instructions
+        return SubagentRunner(
+            makeStep: { messages, specs in subagents.childStep(model: model, messages: messages, params: params, specs: specs) },
+            tools: tools,
+            onSteps: { [weak self] call, steps in self?.noteSubagent(steps, of: call, runID: runID) })
+    }
+
+    /// The subagent's calls so far, on the row of the call that started it.
+    private func noteSubagent(_ steps: [ToolStep], of call: ToolCall, runID: UUID) {
+        guard let run = liveRun(runID), let reply = thread?.messages.first(where: { $0.id == run.messageID }) else { return }
+        reply.toolSteps = SubagentLogic.nesting(steps, under: call, in: reply.toolSteps)
     }
 
     private func noteRound(_ text: String, _ calls: [ToolCall], runID: UUID) {
@@ -1037,7 +1063,8 @@ final class ChatViewModel {
     /// local and Apple models), plus token counts and the timings measured here.
     static func finalMetadata(
         _ reported: ResponseMetadata?, tokens: (prompt: Int, completion: Int)?, model: ModelDescriptor,
-        ttftMs: Int?, totalMs: Int, toolCostUSD: Decimal = 0, nameOf: (String) -> String?
+        ttftMs: Int?, totalMs: Int, toolCostUSD: Decimal = 0, toolTokens: (prompt: Int, completion: Int) = (0, 0),
+        nameOf: (String) -> String?
     ) -> ResponseMetadata {
         var metadata = reported ?? ResponseMetadata()
         if model.source != .anyrouter {
@@ -1057,7 +1084,8 @@ final class ChatViewModel {
         metadata.totalMs = totalMs
         // Calls that spend AnyRouter credits (`decide`) count in the reply's cost, on a device reply too.
         if toolCostUSD > 0 { metadata.costUSD = (metadata.costUSD ?? 0) + toolCostUSD }
-        return metadata
+        // A subagent's requests count in the reply's tokens.
+        return SubagentLogic.adding(toolTokens, to: metadata)
     }
 
     /// Runs the search with a row in the reply ("Searching the web for …") and returns the history with the results in
@@ -1095,6 +1123,7 @@ final class ChatViewModel {
                 callID: steps[index].call.id, name: steps[index].call.name,
                 text: ToolRowLogic.cancelledText, isError: true)
         }
+        steps = SubagentLogic.settled(steps)
         if steps != assistant.toolSteps { assistant.toolSteps = steps }
         let gotReply = failure == nil && !assistant.content.isEmpty
         // Read before `remove`, which deletes an empty reply.

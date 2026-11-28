@@ -74,6 +74,12 @@ enum SubagentLogic {
         you used. You cannot ask questions; work with what you find.
         """
 
+    /// A subagent is offered only when it can read the web: offline, or with web search and the page reader off, the clock
+    /// and the calculator alone are no research.
+    static func canResearch(_ specs: [ToolSpec]) -> Bool {
+        specs.contains { $0.name == WebSearchBinding.name || $0.name == FetchURLTool.toolName }
+    }
+
     /// The subagent's only message: the task, then the hints. Nil when the call has no task.
     static func message(from argumentsJSON: String) -> String? {
         let arguments = MCPToolHost.arguments(from: argumentsJSON)
