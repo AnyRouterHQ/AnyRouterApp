@@ -6,6 +6,9 @@ import SwiftData
 enum ThreadActions {
     static func togglePin(_ thread: ThreadRecord) { thread.isPinned.toggle() }
 
+    /// Archiving hides a chat from the sidebar and the search list without deleting it; pin and messages stay.
+    static func toggleArchive(_ thread: ThreadRecord) { thread.isArchived.toggle() }
+
     /// An empty name keeps the old title. A new title is the user's: a generated one never replaces it.
     static func rename(_ thread: ThreadRecord, to proposed: String) {
         let title = ThreadListLogic.renamed(proposed, current: "")

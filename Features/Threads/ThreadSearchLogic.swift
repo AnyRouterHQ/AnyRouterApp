@@ -14,10 +14,11 @@ enum ThreadSearchLogic {
     /// Characters kept on each side of a match.
     static let snippetRadius = 40
 
-    /// Blank query: every thread, newest first, so "View all" in the sidebar shows the whole list. Otherwise every match, newest first.
+    /// Blank query: every chat that is not archived, newest first, so "View all" in the sidebar shows the whole list.
+    /// Otherwise every such chat that matches, newest first.
     static func results(in threads: [ThreadRecord], query: String) -> [Hit] {
         let needle = fold(query.trimmingCharacters(in: .whitespacesAndNewlines))
-        let newestFirst = threads.sorted { $0.updatedAt > $1.updatedAt }
+        let newestFirst = threads.filter { !$0.isArchived }.sorted { $0.updatedAt > $1.updatedAt }
         if needle.isEmpty {
             return newestFirst.map { Hit(thread: $0, snippet: nil) }
         }

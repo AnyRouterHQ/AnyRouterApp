@@ -132,6 +132,11 @@ final class ShellModel {
         isSearchPresented = false
     }
 
+    /// Call after a thread is archived: the open chat gives way to a new one.
+    func threadArchived(_ id: UUID) {
+        if selectedThreadID == id { newChat(closeSidebar: false) }
+    }
+
     /// Call after a thread is deleted so the chat screen does not point at it.
     func threadDeleted(_ id: UUID) {
         if selectedThreadID == id { selectedThreadID = nil }

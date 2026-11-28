@@ -13,8 +13,13 @@ enum ThreadListLogic {
 
     /// Pinned threads first, each group newest first. Pinned are all shown, recents stop at the limit.
     static func sections(from threads: [ThreadRecord]) -> Sections {
-        let sorted = threads.sorted { $0.updatedAt > $1.updatedAt }
+        let sorted = threads.filter { !$0.isArchived }.sorted { $0.updatedAt > $1.updatedAt }
         return Sections(pinned: sorted.filter(\.isPinned), recent: Array(sorted.filter { !$0.isPinned }.prefix(sidebarRecentLimit)))
+    }
+
+    /// Archived chats, newest first.
+    static func archived(from threads: [ThreadRecord]) -> [ThreadRecord] {
+        threads.filter(\.isArchived).sorted { $0.updatedAt > $1.updatedAt }
     }
 
     /// Title for a thread created from its first user message.

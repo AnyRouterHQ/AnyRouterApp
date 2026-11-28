@@ -16,6 +16,8 @@ final class ThreadRecord {
     var createdAt: Date
     var updatedAt: Date
     var isPinned: Bool
+    /// Archived chats leave the sidebar and the search list; "Archived chats" in View all keeps them. A default, so existing stores migrate.
+    var isArchived: Bool = false
     /// `ModelDescriptor.id` last used in this thread.
     var modelID: String?
     /// "Enable thinking" for this thread. Engines read it once reasoning is wired.
