@@ -13,6 +13,7 @@ struct ThreadSearchScreen: View {
     @State private var isSearching = false
     @State private var editing = ThreadEditing()
 
+    private var archived: [ThreadRecord] { ThreadListLogic.archived(from: threads) }
     private var isBlank: Bool { query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
@@ -21,6 +22,14 @@ struct ThreadSearchScreen: View {
             List {
                 if isBlank {
                     Section("Recents") { rows(results) }
+                    if !archived.isEmpty {
+                        Section {
+                            NavigationLink { ArchivedChatsScreen() } label: {
+                                Label("Archived chats", systemImage: "archivebox").badge(archived.count)
+                            }
+                            .accessibilityIdentifier("search.archived")
+                        }
+                    }
                 } else {
                     rows(results)
                 }
@@ -36,7 +45,7 @@ struct ThreadSearchScreen: View {
                 }
             }
             .overlay {
-                if results.isEmpty {
+                if results.isEmpty && (!isBlank || archived.isEmpty) {
                     if isBlank {
                         ContentUnavailableView("No chats yet", systemImage: "bubble.left")
                     } else {

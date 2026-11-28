@@ -14,18 +14,10 @@ struct ThreadEditing {
 }
 
 extension View {
-    /// Swipe actions (pin, delete) and a context menu (rename, pin, delete) for a thread row.
+    /// The one long-press menu of a chat row (pin, rename, share, archive, delete) with a preview of the chat, plus
+    /// swipe actions for the two quick ones. The sidebar, View all and the archived list all use it.
     func threadActions(_ thread: ThreadRecord, editing: Binding<ThreadEditing>) -> some View {
-        swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) { editing.wrappedValue.deleting = thread } label: { Label("Delete", systemImage: "trash") }
-            Button { ThreadActions.togglePin(thread) } label: { pinLabel(thread) }.tint(.gray)
-        }
-        .contextMenu {
-            Button { editing.wrappedValue.beginRename(thread) } label: { Label("Rename", systemImage: "pencil") }
-            Button { ThreadActions.togglePin(thread) } label: { pinLabel(thread) }
-            Button(role: .destructive) { editing.wrappedValue.deleting = thread } label: { Label("Delete", systemImage: "trash") }
-        }
-        .sensoryFeedback(.impact(weight: .light), trigger: thread.isPinned)
+        modifier(ThreadRowMenu(thread: thread, editing: editing))
     }
 
     /// The rename alert and the delete confirmation that the row actions open. Attach once, to the list.
@@ -34,8 +26,52 @@ extension View {
     }
 }
 
-private func pinLabel(_ thread: ThreadRecord) -> some View {
-    Label(thread.isPinned ? "Unpin" : "Pin", systemImage: thread.isPinned ? "pin.slash" : "pin")
+private struct ThreadRowMenu: ViewModifier {
+    let thread: ThreadRecord
+    @Binding var editing: ThreadEditing
+    @Environment(ShellModel.self) private var shell
+
+    func body(content: Content) -> some View {
+        content
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                pinButton.tint(.gray)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                archiveButton.tint(.indigo)
+            }
+            .contextMenu {
+                pinButton
+                Button { editing.beginRename(thread) } label: { Label("Rename", systemImage: "pencil") }
+                    .accessibilityIdentifier("thread.menu.rename")
+                ShareLink(item: ThreadShareItem(thread), preview: SharePreview(thread.title)) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+                .accessibilityIdentifier("thread.menu.share")
+                archiveButton
+                Button(role: .destructive) { editing.deleting = thread } label: { Label("Delete", systemImage: "trash") }
+                    .accessibilityIdentifier("thread.menu.delete")
+            } preview: {
+                ThreadMenuPreview(thread: thread)
+            }
+            .sensoryFeedback(.impact(weight: .light), trigger: thread.isPinned)
+    }
+
+    private var pinButton: some View {
+        Button { ThreadActions.togglePin(thread) } label: {
+            Label(thread.isPinned ? "Unpin" : "Pin", systemImage: thread.isPinned ? "pin.slash" : "pin")
+        }
+        .accessibilityIdentifier("thread.menu.pin")
+    }
+
+    private var archiveButton: some View {
+        Button {
+            ThreadActions.toggleArchive(thread)
+            if thread.isArchived { shell.threadArchived(thread.id) }
+        } label: {
+            Label(thread.isArchived ? "Unarchive" : "Archive", systemImage: thread.isArchived ? "tray.and.arrow.up" : "archivebox")
+        }
+        .accessibilityIdentifier("thread.menu.archive")
+    }
 }
 
 private struct ThreadEditingDialogs: ViewModifier {

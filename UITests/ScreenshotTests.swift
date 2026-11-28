@@ -299,6 +299,19 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    func testThreadMenu() {
+        forEachAppearance { app, appearance in
+            let row = app.staticTexts["Dinner with chickpeas"]
+            app.revealSidebar(whenVisible: row)
+            XCTAssertTrue(row.waitForExistence(timeout: 5))
+            row.press(forDuration: 1.2)
+            let archive = app.buttons["thread.menu.archive"]
+            XCTAssertTrue(archive.waitForExistence(timeout: 5))
+            waitUntilHittable(archive)
+            capture("thread-menu", appearance)
+        }
+    }
+
     func testThreadList() {
         forEachAppearance { app, appearance in
             showSidebar(app)
