@@ -7,7 +7,7 @@ protocol TokenStoring: Sendable {
 }
 
 /// AnyRouter cloud models over the OpenAI-compatible API.
-struct AnyRouterEngine: ResumableEngine {
+struct AnyRouterEngine: ResumableEngine, SubagentEngine {
     var source: ModelSource { .anyrouter }
 
     let tokens: any TokenStoring
@@ -89,6 +89,11 @@ struct AnyRouterEngine: ResumableEngine {
     ) -> AsyncThrowingStream<ChatDelta, Error> {
         let step = AnyRouterStep(engine: self, model: model, messages: messages, params: params, specs: host?.specs ?? [])
         return AgentLoop.stream(step: step, host: host, maxToolRounds: Self.maxToolSteps, resume: resuming)
+    }
+
+    /// A subagent's rounds: the same model with the subagent's own messages, prompt and tools.
+    func childStep(model: ModelDescriptor, messages: [ChatMessage], params: GenerationParams, specs: [ToolSpec]) -> any StepFunction {
+        AnyRouterStep(engine: self, model: model, messages: messages, params: params, specs: specs)
     }
 
     /// One request: text and reasoning go out as they arrive; the proposed calls, usage, metadata and finish reason

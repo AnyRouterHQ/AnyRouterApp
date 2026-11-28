@@ -51,6 +51,9 @@ struct ToolResult: Hashable, Codable, Sendable {
     var isError: Bool
     /// What the call cost on the user's AnyRouter account (`decide`), shown on its row and counted in the reply.
     var costUSD: Decimal? = nil
+    /// Tokens the call's own requests used (a subagent's), counted in the reply's tokens.
+    var promptTokens: Int? = nil
+    var completionTokens: Int? = nil
 
     /// What a tool host answers when the user denies a call. The chat reads it back to show the call as denied.
     static let deniedText = "The user did not allow this tool call."

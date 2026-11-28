@@ -58,15 +58,18 @@ enum AgentLoop {
     /// recitation"). Shorter runs do not drift.
     static let recitesFromRound = 3
 
-    /// With `resume` the run goes on from where it stopped instead of asking the model first.
+    /// With `resume` the run goes on from where it stopped instead of asking the model first. With `tokenBudget` the
+    /// round whose usage reaches it is the last with tools: its calls still run, and the next round answers.
     static func stream(
-        step: some StepFunction, host: (any ToolHost)?, maxToolRounds: Int, resume: AgentResume? = nil
+        step: some StepFunction, host: (any ToolHost)?, maxToolRounds: Int, resume: AgentResume? = nil, tokenBudget: Int? = nil
     ) -> AsyncThrowingStream<ChatDelta, Error> {
         AsyncThrowingStream { continuation in
             let scope = ToolRunScope()
             let task = Task {
                 do {
-                    try await run(step: step, host: host, maxToolRounds: maxToolRounds, resume: resume, scope: scope) {
+                    try await run(
+                        step: step, host: host, maxToolRounds: maxToolRounds, resume: resume, tokenBudget: tokenBudget, scope: scope
+                    ) {
                         _ = continuation.yield($0)
                     }
                     continuation.finish()
@@ -84,7 +87,7 @@ enum AgentLoop {
     }
 
     private static func run(
-        step: some StepFunction, host: (any ToolHost)?, maxToolRounds: Int, resume: AgentResume?, scope: ToolRunScope,
+        step: some StepFunction, host: (any ToolHost)?, maxToolRounds: Int, resume: AgentResume?, tokenBudget: Int?, scope: ToolRunScope,
         emit: @escaping @Sendable (ChatDelta) -> Void
     ) async throws {
         var rounds: [AgentRound] = resume?.rounds ?? []
@@ -131,6 +134,7 @@ enum AgentLoop {
                 }
                 try Task.checkCancellation()
                 if let wrote { proposed.text = wrote }
+                if let tokenBudget, let usage, usage.prompt + usage.completion >= tokenBudget { maxRounds = min(maxRounds, rounds.count + 1) }
                 node = AgentGraph.next(node, on: proposed.calls.isEmpty ? .noCalls : .calls, round: rounds.count, maxRounds: maxRounds)
                 if node == .act { await host?.willRun(proposed.text, calls: proposed.calls) }
             case .act:

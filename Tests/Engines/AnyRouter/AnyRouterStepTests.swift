@@ -78,4 +78,20 @@ struct AnyRouterStepTests {
         #expect(last.first == "[Result cleared: page https://example.com/1, 30000 characters]")
         #expect(last.dropFirst().allSatisfy { $0.count == 30_000 })
     }
+
+    /// A subagent runs on the same model and key, with only its own messages, prompt and tools (PLAN D28 S1).
+    @Test func aSubagentStepUsesTheSameModelWithItsOwnMessagesAndTools() throws {
+        let engine = AnyRouterEngine(tokens: FakeTokens("k"))
+        let model = ModelDescriptor(
+            id: "anyrouter/test/sub", source: .anyrouter, displayName: "Sub", contextLength: 20_000,
+            capabilities: ["chat", "tools"], sizeBytes: nil, isInstalled: true)
+        let specs = [ToolSpec(name: "web_search", title: nil, description: "Search", inputSchemaJSON: "{}", isReadOnly: true)]
+        let made = engine.childStep(
+            model: model, messages: [ChatMessage(role: .user, content: "Find it")], params: GenerationParams(systemPrompt: "Research."), specs: specs)
+        let step = try #require(made as? AnyRouterStep)
+        #expect(step.model.id == model.id)
+        #expect(step.messages.map(\.content) == ["Find it"])
+        #expect(step.params.systemPrompt == "Research.")
+        #expect(step.specs == specs)
+    }
 }
