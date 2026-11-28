@@ -137,12 +137,14 @@ private struct PresetEditor: View {
             Form {
                 Section {
                     TextField("Title", text: $title)
+                        .accessibilityIdentifier("preset-editor.title")
                     Picker("Category", selection: $category) {
                         ForEach(PromptPreset.Category.allCases) { Text($0.title).tag($0) }
                     }
                 }
                 Section("Prompt") {
                     TextField("Prompt", text: $prompt, axis: .vertical).lineLimit(4...12)
+                        .accessibilityIdentifier("preset-editor.prompt")
                 }
                 Section {
                     Toggle("Offer when pasting", isOn: $offersOnPaste)
