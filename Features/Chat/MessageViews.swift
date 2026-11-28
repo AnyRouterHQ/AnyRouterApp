@@ -154,7 +154,7 @@ struct MessageRow: View {
                 // Retry only on the last reply: it replaces that reply.
                 ReplyFailureView(
                     failure: failure,
-                    actions: ReplyFailureLogic.actions(
+                    plan: ReplyFailureLogic.plan(
                         for: failure.kind, canRetry: showsRegenerate,
                         canAskCloud: canAskCloud && EscalationLogic.isDeviceReply(modelID: message.modelID)),
                     onAction: onFailureAction)

@@ -91,6 +91,19 @@ enum ReplyFailureLogic {
         return fixes(for: kind, canRetry: canRetry) + (escalates ? [.askCloudModel] : [])
     }
 
+    /// What the reply shows: one primary button and the other actions behind More. A device model that cannot load or
+    /// fit in memory is best answered by a cloud model, so that leads when it is offered; otherwise the fix leads.
+    struct ActionPlan: Equatable, Sendable {
+        var primary: ReplyFailure.Action?
+        var more: [ReplyFailure.Action]
+    }
+
+    static func plan(for kind: ReplyFailure.Kind, canRetry: Bool, canAskCloud: Bool = false) -> ActionPlan {
+        let all = actions(for: kind, canRetry: canRetry, canAskCloud: canAskCloud)
+        let primary = [.localLoadFailed, .localOutOfMemory].contains(kind) && all.contains(.askCloudModel) ? .askCloudModel : all.first
+        return ActionPlan(primary: primary, more: all.filter { $0 != primary })
+    }
+
     private static func fixes(for kind: ReplyFailure.Kind, canRetry: Bool) -> [ReplyFailure.Action] {
         let primary: ReplyFailure.Action = switch kind {
         case .signedOut: .signIn

@@ -104,6 +104,24 @@ struct ReplyFailureLogicTests {
         #expect(titles == ["Retry", "Sign in", "Choose another model", "Shorten chat", "Open Local Models"])
     }
 
+    @Test func oneActionLeadsAndTheRestWaitBehindMore() {
+        // A device model that cannot load or fit asks a cloud model first; the old fixes move under More.
+        #expect(ReplyFailureLogic.plan(for: .localLoadFailed, canRetry: true, canAskCloud: true)
+            == .init(primary: .askCloudModel, more: [.openSettings, .retry]))
+        #expect(ReplyFailureLogic.plan(for: .localOutOfMemory, canRetry: false, canAskCloud: true)
+            == .init(primary: .askCloudModel, more: [.chooseModel]))
+        // Without a cloud option the fix leads, as before.
+        #expect(ReplyFailureLogic.plan(for: .localLoadFailed, canRetry: true) == .init(primary: .openSettings, more: [.retry]))
+        // Busy and offline: Retry alone, nothing under More.
+        #expect(ReplyFailureLogic.plan(for: .rateLimited, canRetry: true) == .init(primary: .retry, more: []))
+        #expect(ReplyFailureLogic.plan(for: .offline, canRetry: true, canAskCloud: true) == .init(primary: .retry, more: []))
+        // Too long a chat: shortening still leads; the cloud model is one tap away under More.
+        #expect(ReplyFailureLogic.plan(for: .contextTooLong, canRetry: true, canAskCloud: true)
+            == .init(primary: .shortenChat, more: [.retry, .askCloudModel]))
+        // An older reply that cannot be retried has nothing to lead with.
+        #expect(ReplyFailureLogic.plan(for: .offline, canRetry: false) == .init(primary: nil, more: []))
+    }
+
     @Test func aStoredFailureReadsBackAndAnUnknownKindIsNotLost() throws {
         let failure = ReplyFailure(kind: .rateLimited, detail: "slow down")
         let data = try JSONEncoder().encode(failure)

@@ -133,13 +133,15 @@ enum DemoData {
         return url
     }
 
-    /// `-ARDemoFail rateLimited`, `offline`, `credits` or `contextTooLong`: every reply fails with that engine error.
+    /// `-ARDemoFail rateLimited`, `offline`, `credits`, `contextTooLong` or `localLoadFailed`: every reply fails with that engine error.
     static var replyError: (any Error)? {
         switch UserDefaults.standard.string(forKey: "ARDemoFail") {
         case "rateLimited": return AnyRouterError.http(status: 429, message: "Rate limit exceeded for this model. Retry in 20 s.")
         case "offline": return URLError(.notConnectedToInternet)
         case "credits": return AnyRouterError.http(status: 402, message: "Insufficient credits: 0.00 left.")
         case "contextTooLong": return GGUFError.promptTooLong(tokens: 9_000, limit: 4_096)
+        case "localLoadFailed":
+            return GGUFError.loadFailed(name: "Qwen3-0.6B-Q4_K_M", reason: "llama_model_load_from_file_impl: failed to load model from file")
         default: return nil
         }
     }
